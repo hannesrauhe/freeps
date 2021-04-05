@@ -87,13 +87,16 @@ type avm_session_info struct {
 }
 
 type avm_device_info struct {
-	Mac string
-	UID string
+	Mac  string
+	UID  string
+	Name string
+	Type string
 }
 
 type avm_data_object struct {
-	Active  []*avm_device_info
-	Passive []*avm_device_info
+	Active   []*avm_device_info
+	Passive  []*avm_device_info
+	btn_wake string
 }
 
 type avm_general_response struct {
@@ -167,37 +170,46 @@ func getDeviceUID(fb_response avm_general_response, mac string) string {
 	return ""
 }
 
-func (f *Freeps) GetData() (*avm_general_response, error) {
-	data_url := "https://" + f.conf.FB_address + "/data.lua"
-
+func (f *Freeps) QueryData(url_to_query string, payload map[string]string, avm_resp interface{}) error {
 	data := url.Values{}
-	data.Set("search_query", "pixar")
-	data.Set("sid", f.SID)
-	data.Set("page", "netDev")
-	data.Set("xhrId", "all")
+	for key, value := range payload {
+		data.Set(key, value)
+	}
 
-	data_resp, err := f.getHttpClient().PostForm(data_url, data)
+	data_resp, err := f.getHttpClient().PostForm(url_to_query, data)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	defer data_resp.Body.Close()
 
-	var avm_resp avm_general_response
 	byt, err := ioutil.ReadAll(data_resp.Body)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	if data_resp.StatusCode != 200 {
 		log.Printf("Unexpected http status: %v, Body:\n %v", data_resp.Status, byt)
-		return nil, errors.New("http status code != 200")
+		return errors.New("http status code != 200")
 	}
 
 	err = json.Unmarshal(byt, &avm_resp)
 	if err != nil {
 		log.Printf("Cannot parse JSON: %v", byt)
-		return nil, err
+		return nil
 	}
-	return &avm_resp, nil
+	return nil
+}
+
+func (f *Freeps) GetData() (*avm_general_response, error) {
+	data_url := "https://" + f.conf.FB_address + "/data.lua"
+	var avm_resp *avm_general_response
+	payload := map[string]string{
+		"sid":   f.SID,
+		"page":  "netDev",
+		"xhrId": "all",
+	}
+
+	err := f.QueryData(data_url, payload, &avm_resp)
+	return avm_resp, err
 }
 
 func (f *Freeps) GetDeviceUID(mac string) (string, error) {
@@ -207,4 +219,23 @@ func (f *Freeps) GetDeviceUID(mac string) (string, error) {
 		return "", err
 	}
 	return getDeviceUID(*d, mac), nil
+}
+
+func (f *Freeps) WakeUpDevice(uid string) error {
+	data_url := "https://" + f.conf.FB_address + "/data.lua"
+	var avm_resp *avm_general_response
+	payload := map[string]string{
+		"sid":      f.SID,
+		"dev":      uid,
+		"oldpage":  "net/edit_device.lua",
+		"page":     "edit_device",
+		"btn_wake": "",
+	}
+
+	err := f.QueryData(data_url, payload, &avm_resp)
+	if avm_resp.Data.btn_wake != "ok" {
+		log.Printf("%v", avm_resp)
+		return errors.New("device wakeup seems to have failed")
+	}
+	return err
 }

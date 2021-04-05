@@ -50,6 +50,17 @@ func TestChallenge(t *testing.T) {
 	assert.Equal(t, f.calculateChallengeURL("a51eacbd"), expected_url)
 }
 
+func TestGetUID(t *testing.T) {
+	byteValue, err := ioutil.ReadFile("./test_data.json")
+	assert.NilError(t, err)
+
+	mac := "40:8D:5C:5B:63:2D"
+	var data *avm_general_response
+	err = json.Unmarshal(byteValue, &data)
+	assert.NilError(t, err)
+	assert.Equal(t, getDeviceUID(*data, mac), "landevice3489")
+}
+
 func TestSID(t *testing.T) {
 	c, err := ReadFreepsConfig("./config_for_gotest_real.json")
 	assert.NilError(t, err)
@@ -69,13 +80,10 @@ func TestData(t *testing.T) {
 	assert.Equal(t, uid, "landevice3489")
 }
 
-func TestGetUID(t *testing.T) {
-	byteValue, err := ioutil.ReadFile("./test_data.json")
+func TestWakeUp(t *testing.T) {
+	f, err := NewFreeps("./config_for_gotest_real.json")
 	assert.NilError(t, err)
 
-	mac := "40:8D:5C:5B:63:2D"
-	var data *avm_general_response
-	err = json.Unmarshal(byteValue, &data)
+	err = f.WakeUpDevice("landevice3489")
 	assert.NilError(t, err)
-	assert.Equal(t, getDeviceUID(*data, mac), "landevice3489")
 }
