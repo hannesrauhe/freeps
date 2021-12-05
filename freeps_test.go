@@ -2,6 +2,7 @@ package freeps
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -55,7 +56,7 @@ func TestGetUID(t *testing.T) {
 	assert.NilError(t, err)
 
 	mac := "40:8D:5C:5B:63:2D"
-	var data *avm_general_response
+	var data *avm_data_response
 	err = json.Unmarshal(byteValue, &data)
 	assert.NilError(t, err)
 	assert.Equal(t, getDeviceUID(*data, mac), "landevice3489")
@@ -85,5 +86,39 @@ func TestWakeUp(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = f.WakeUpDevice("landevice3489")
+	assert.NilError(t, err)
+}
+
+func TestDeviceListUnmarshal(t *testing.T) {
+	byteValue, err := ioutil.ReadFile("./test_devicelist.xml")
+	assert.NilError(t, err)
+
+	var data *avm_devicelist
+	err = xml.Unmarshal(byteValue, &data)
+	assert.NilError(t, err)
+	assert.Equal(t, data.Device[0].Name, "Steckdose")
+}
+
+func TestDeviceList(t *testing.T) {
+	f, err := NewFreeps("./config_for_gotest_real.json")
+	assert.NilError(t, err)
+
+	_, err = f.GetDeviceList()
+	assert.NilError(t, err)
+}
+
+func TestSwitchLampOff(t *testing.T) {
+	f, err := NewFreeps("./config_for_gotest_real.json")
+	assert.NilError(t, err)
+
+	err = f.SetLevel("13077 0013108-1", 0)
+	assert.NilError(t, err)
+}
+
+func TestSwitchLampOn(t *testing.T) {
+	f, err := NewFreeps("./config_for_gotest_real.json")
+	assert.NilError(t, err)
+
+	err = f.SetLevel("13077 0013108-1", 37)
 	assert.NilError(t, err)
 }

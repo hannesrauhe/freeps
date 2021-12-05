@@ -81,32 +81,17 @@ func NewFreeps(configpath string) (*Freeps, error) {
 	return f, nil
 }
 
-type avm_session_info struct {
-	SID       string
-	Challenge string
-}
-
-type avm_device_info struct {
-	Mac  string
-	UID  string
-	Name string
-	Type string
-}
-
-type avm_data_object struct {
-	Active   []*avm_device_info
-	Passive  []*avm_device_info
-	btn_wake string
-}
-
-type avm_general_response struct {
-	Data *avm_data_object
-}
-
 func (f *Freeps) getHttpClient() *http.Client {
 	tr := &http.Transport{}
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	return &http.Client{Transport: tr}
+}
+
+/****** AUTH *****/
+
+type avm_session_info struct {
+	SID       string
+	Challenge string
 }
 
 func (f *Freeps) calculateChallengeURL(challenge string) string {
@@ -161,30 +146,41 @@ func (f *Freeps) getSid() (string, error) {
 	return authenticated.SID, nil
 }
 
-func getDeviceUID(fb_response avm_general_response, mac string) string {
-	for _, dev := range append(fb_response.Data.Active, fb_response.Data.Passive...) {
-		if dev.Mac == mac {
-			return dev.UID
-		}
-	}
-	return ""
+/****** WebInterface functions *****/
+
+type avm_device_info struct {
+	Mac  string
+	UID  string
+	Name string
+	Type string
 }
 
-func (f *Freeps) QueryData(url_to_query string, payload map[string]string, avm_resp interface{}) error {
+type avm_data_object struct {
+	Active   []*avm_device_info
+	Passive  []*avm_device_info
+	btn_wake string
+}
+
+type avm_data_response struct {
+	Data *avm_data_object
+}
+
+func (f *Freeps) QueryData(payload map[string]string, avm_resp interface{}) error {
+	data_url := "https://" + f.conf.FB_address + "/data.lua"
 	data := url.Values{}
 	for key, value := range payload {
 		data.Set(key, value)
 	}
 
-	data_resp, err := f.getHttpClient().PostForm(url_to_query, data)
+	data_resp, err := f.getHttpClient().PostForm(data_url, data)
 	if err != nil {
-		return nil
+		return errors.New("cannot PostForm")
 	}
 	defer data_resp.Body.Close()
 
 	byt, err := ioutil.ReadAll(data_resp.Body)
 	if err != nil {
-		return nil
+		return errors.New("cannot read response")
 	}
 	if data_resp.StatusCode != 200 {
 		log.Printf("Unexpected http status: %v, Body:\n %v", data_resp.Status, byt)
@@ -194,22 +190,30 @@ func (f *Freeps) QueryData(url_to_query string, payload map[string]string, avm_r
 	err = json.Unmarshal(byt, &avm_resp)
 	if err != nil {
 		log.Printf("Cannot parse JSON: %v", byt)
-		return nil
+		return errors.New("cannot parse JSON response")
 	}
 	return nil
 }
 
-func (f *Freeps) GetData() (*avm_general_response, error) {
-	data_url := "https://" + f.conf.FB_address + "/data.lua"
-	var avm_resp *avm_general_response
+func (f *Freeps) GetData() (*avm_data_response, error) {
+	var avm_resp *avm_data_response
 	payload := map[string]string{
 		"sid":   f.SID,
 		"page":  "netDev",
 		"xhrId": "all",
 	}
 
-	err := f.QueryData(data_url, payload, &avm_resp)
+	err := f.QueryData(payload, &avm_resp)
 	return avm_resp, err
+}
+
+func getDeviceUID(fb_response avm_data_response, mac string) string {
+	for _, dev := range append(fb_response.Data.Active, fb_response.Data.Passive...) {
+		if dev.Mac == mac {
+			return dev.UID
+		}
+	}
+	return ""
 }
 
 func (f *Freeps) GetDeviceUID(mac string) (string, error) {
@@ -222,8 +226,7 @@ func (f *Freeps) GetDeviceUID(mac string) (string, error) {
 }
 
 func (f *Freeps) WakeUpDevice(uid string) error {
-	data_url := "https://" + f.conf.FB_address + "/data.lua"
-	var avm_resp *avm_general_response
+	var avm_resp *avm_data_response
 	payload := map[string]string{
 		"sid":      f.SID,
 		"dev":      uid,
@@ -232,10 +235,110 @@ func (f *Freeps) WakeUpDevice(uid string) error {
 		"btn_wake": "",
 	}
 
-	err := f.QueryData(data_url, payload, &avm_resp)
+	err := f.QueryData(payload, &avm_resp)
 	if avm_resp.Data.btn_wake != "ok" {
 		log.Printf("%v", avm_resp)
 		return errors.New("device wakeup seems to have failed")
 	}
+	return err
+}
+
+/**** HOME AUTOMATION *****/
+
+type avm_device_switch struct {
+	State string `xml:"state"`
+}
+
+type avm_device_powermeter struct {
+	Power string `xml:"power"`
+}
+
+type avm_device_temperature struct {
+	Celsius string `xml:"celsius"`
+}
+
+type avm_device_simpleonoff struct {
+	State string `xml:"state"`
+}
+
+type avm_device_levelcontrol struct {
+	Level           float32 `xml:"level"`
+	LevelPercentage float32 `xml:"levelpercentage"`
+}
+type avm_device_colorcontrol struct {
+	Level           float32 `xml:"level"`
+	LevelPercentage float32 `xml:"levelpercentage"`
+}
+
+type avm_device struct {
+	Name         string                  `xml:"name"`
+	AIN          string                  `xml:"identifier,attr"`
+	ProductName  string                  `xml:"productname,attr"`
+	Switch       avm_device_switch       `xml:"switch"`
+	Powermeter   avm_device_powermeter   `xml:"powermeter"`
+	SimpleOnOff  avm_device_powermeter   `xml:"simpleonoff"`
+	LevelControl avm_device_levelcontrol `xml:"levelcontrol"`
+	Present      int                     `xml:present`
+}
+
+type avm_devicelist struct {
+	Device []avm_device `xml:"device"`
+}
+
+func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[string]string) ([]byte, error) {
+	base_url := "https://" + f.conf.FB_address + "/webservices/homeautoswitch.lua"
+	var data_url string
+	if len(ain) == 0 {
+		data_url = fmt.Sprintf("%v?sid=%v&switchcmd=%v", base_url, f.SID, switchcmd)
+	} else {
+		data_url = fmt.Sprintf("%v?sid=%v&switchcmd=%v&ain=%v", base_url, f.SID, switchcmd, ain)
+	}
+	for key, value := range payload {
+		data_url += "&" + key + "=" + value
+	}
+
+	data_resp, err := f.getHttpClient().Get(data_url)
+	if err != nil {
+		return nil, errors.New("cannot get")
+	}
+	defer data_resp.Body.Close()
+
+	byt, err := ioutil.ReadAll(data_resp.Body)
+	if err != nil {
+		return nil, errors.New("cannot read response")
+	}
+	if data_resp.StatusCode != 200 {
+		log.Printf("Unexpected http status: %v, Body:\n %q", data_resp.Status, byt)
+		return nil, errors.New("http status code != 200")
+	}
+
+	return byt, nil
+}
+
+func (f *Freeps) GetDeviceList() (*avm_devicelist, error) {
+	byt, err := f.queryHomeAutomation("getdevicelistinfos", "", make(map[string]string))
+	if err != nil {
+		return nil, err
+	}
+
+	var avm_resp *avm_devicelist
+	err = xml.Unmarshal(byt, &avm_resp)
+	if err != nil {
+		log.Printf("Cannot parse XML: %q, err: %v", byt, err)
+		return nil, errors.New("cannot parse XML response")
+	}
+	return avm_resp, nil
+}
+
+func (f *Freeps) SwitchDevice(ain string) error {
+	_, err := f.queryHomeAutomation("setsimpleonoff", "", make(map[string]string))
+	return err
+}
+
+func (f *Freeps) SetLevel(ain string, level int) error {
+	payload := map[string]string{
+		"level": fmt.Sprint(level),
+	}
+	_, err := f.queryHomeAutomation("setlevel", ain, payload)
 	return err
 }
