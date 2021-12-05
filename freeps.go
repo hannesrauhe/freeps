@@ -330,8 +330,13 @@ func (f *Freeps) GetDeviceList() (*avm_devicelist, error) {
 	return avm_resp, nil
 }
 
+func (f *Freeps) HomeAutoSwitch(switchcmd string, ain string, payload map[string]string) error {
+	_, err := f.queryHomeAutomation(switchcmd, ain, payload)
+	return err
+}
+
 func (f *Freeps) SwitchDevice(ain string) error {
-	_, err := f.queryHomeAutomation("setsimpleonoff", "", make(map[string]string))
+	_, err := f.queryHomeAutomation("setsimpleonoff", ain, make(map[string]string))
 	return err
 }
 
