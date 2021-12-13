@@ -349,6 +349,17 @@ func (f *Freeps) HomeAutoSwitch(switchcmd string, ain string, payload map[string
 	return err
 }
 
+func (f *Freeps) HomeAutomation(switchcmd string, ain string, payload map[string]string) (map[string]interface{}, error) {
+	byt, err := f.queryHomeAutomation(switchcmd, ain, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]interface{}
+
+	err = xml.Unmarshal(byt, &result)
+	return result, err
+}
+
 func (f *Freeps) SwitchDevice(ain string) error {
 	_, err := f.queryHomeAutomation("setsimpleonoff", ain, make(map[string]string))
 	return err
