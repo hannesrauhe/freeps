@@ -246,39 +246,51 @@ func (f *Freeps) WakeUpDevice(uid string) error {
 /**** HOME AUTOMATION *****/
 
 type avm_device_switch struct {
-	State string `xml:"state"`
+	State bool `xml:"state"`
 }
 
 type avm_device_powermeter struct {
-	Power string `xml:"power"`
+	Power   int `xml:"power"`
+	Energy  int `xml:"energy"`
+	Voltage int `xml:"voltage"`
 }
 
 type avm_device_temperature struct {
-	Celsius string `xml:"celsius"`
+	Celsius int `xml:"celsius"`
+	Offset  int `xml:"offset"`
 }
 
 type avm_device_simpleonoff struct {
-	State string `xml:"state"`
+	State bool `xml:"state"`
 }
 
 type avm_device_levelcontrol struct {
 	Level           float32 `xml:"level"`
 	LevelPercentage float32 `xml:"levelpercentage"`
 }
+
 type avm_device_colorcontrol struct {
-	Level           float32 `xml:"level"`
-	LevelPercentage float32 `xml:"levelpercentage"`
+	Hue        int `xml:"hue"`
+	Saturation int `xml:"saturation"`
+}
+
+type avm_device_hkr struct {
+	Tist  int `xml:"tist"`
+	Tsoll int `xml:"tsoll"`
 }
 
 type avm_device struct {
-	Name         string                  `xml:"name"`
-	AIN          string                  `xml:"identifier,attr"`
-	ProductName  string                  `xml:"productname,attr"`
-	Switch       avm_device_switch       `xml:"switch"`
-	Powermeter   avm_device_powermeter   `xml:"powermeter"`
-	SimpleOnOff  avm_device_powermeter   `xml:"simpleonoff"`
-	LevelControl avm_device_levelcontrol `xml:"levelcontrol"`
-	Present      int                     `xml:present`
+	Name         string                   `xml:"name"`
+	AIN          string                   `xml:"identifier,attr"`
+	ProductName  string                   `xml:"productname,attr"`
+	Present      bool                     `xml:"present"`
+	Switch       *avm_device_switch       `xml:"switch" json:",omitempty"`
+	Temperature  *avm_device_temperature  `xml:"temperature" json:",omitempty"`
+	Powermeter   *avm_device_powermeter   `xml:"powermeter" json:",omitempty"`
+	SimpleOnOff  *avm_device_simpleonoff  `xml:"simpleonoff" json:",omitempty"`
+	LevelControl *avm_device_levelcontrol `xml:"levelcontrol" json:",omitempty"`
+	ColorControl *avm_device_colorcontrol `xml:"colorcontrol" json:",omitempty"`
+	HKR          *avm_device_hkr          `xml:"hkr" json:",omitempty"`
 }
 
 type avm_devicelist struct {
@@ -312,6 +324,7 @@ func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[s
 		return nil, errors.New("http status code != 200")
 	}
 
+	// log.Printf(" XML: %q", byt)
 	return byt, nil
 }
 
@@ -327,6 +340,7 @@ func (f *Freeps) GetDeviceList() (*avm_devicelist, error) {
 		log.Printf("Cannot parse XML: %q, err: %v", byt, err)
 		return nil, errors.New("cannot parse XML response")
 	}
+
 	return avm_resp, nil
 }
 
