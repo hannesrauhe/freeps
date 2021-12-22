@@ -280,10 +280,10 @@ type avm_device_hkr struct {
 }
 
 type avm_device struct {
-	Name         string                   `xml:"name"`
+	Name         string                   `xml:"name" json:",omitempty"`
 	AIN          string                   `xml:"identifier,attr"`
-	ProductName  string                   `xml:"productname,attr"`
-	Present      bool                     `xml:"present"`
+	ProductName  string                   `xml:"productname,attr" json:",omitempty"`
+	Present      bool                     `xml:"present" json:",omitempty"`
 	Switch       *avm_device_switch       `xml:"switch" json:",omitempty"`
 	Temperature  *avm_device_temperature  `xml:"temperature" json:",omitempty"`
 	Powermeter   *avm_device_powermeter   `xml:"powermeter" json:",omitempty"`
@@ -295,6 +295,17 @@ type avm_device struct {
 
 type avm_devicelist struct {
 	Device []avm_device `xml:"device"`
+}
+
+type avm_template struct {
+	Name       string          `xml:"name"`
+	Identifier string          `xml:"identifier,attr"`
+	ID         string          `xml:"id,attr"`
+	Devices    *avm_devicelist `xml:"devices"`
+}
+
+type avm_templatelist struct {
+	Template []avm_template `xml:"template"`
 }
 
 func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[string]string) ([]byte, error) {
@@ -335,6 +346,22 @@ func (f *Freeps) GetDeviceList() (*avm_devicelist, error) {
 	}
 
 	var avm_resp *avm_devicelist
+	err = xml.Unmarshal(byt, &avm_resp)
+	if err != nil {
+		log.Printf("Cannot parse XML: %q, err: %v", byt, err)
+		return nil, errors.New("cannot parse XML response")
+	}
+
+	return avm_resp, nil
+}
+
+func (f *Freeps) GetTemplateList() (*avm_templatelist, error) {
+	byt, err := f.queryHomeAutomation("gettemplatelistinfos", "", make(map[string]string))
+	if err != nil {
+		return nil, err
+	}
+
+	var avm_resp *avm_templatelist
 	err = xml.Unmarshal(byt, &avm_resp)
 	if err != nil {
 		log.Printf("Cannot parse XML: %q, err: %v", byt, err)
