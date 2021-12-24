@@ -1,4 +1,4 @@
-package freeps
+package freepslib
 
 import (
 	"encoding/json"
@@ -10,6 +10,8 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+var testConfig = FBconfig{"fritz.box", "user", "pass"}
 
 func TestFreepsConfig(t *testing.T) {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "freepstest-")
@@ -44,11 +46,10 @@ func TestFreepsConfig(t *testing.T) {
 }
 
 func TestChallenge(t *testing.T) {
-	f, err := NewFreeps("./config_for_gotest.json")
-	assert.NilError(t, err)
-	expected_url := "https://a/login_sid.lua?username=u&response=a51eacbd-05f2dd791db47141584e0f220b12c7e1"
+	f := &Freeps{testConfig, ""}
+	expectedURL := "https://a/login_sid.lua?username=u&response=a51eacbd-05f2dd791db47141584e0f220b12c7e1"
 
-	assert.Equal(t, f.calculateChallengeURL("a51eacbd"), expected_url)
+	assert.Equal(t, f.calculateChallengeURL("a51eacbd"), expectedURL)
 }
 
 func TestGetUID(t *testing.T) {
@@ -62,33 +63,6 @@ func TestGetUID(t *testing.T) {
 	assert.Equal(t, getDeviceUID(*data, mac), "landevice3489")
 }
 
-func TestSID(t *testing.T) {
-	c, err := ReadFreepsConfig("./config_for_gotest_real.json")
-	assert.NilError(t, err)
-	f := &Freeps{*c, ""}
-	sid, err := f.getSid()
-	assert.NilError(t, err)
-	assert.Assert(t, sid != "")
-}
-
-func TestData(t *testing.T) {
-	f, err := NewFreeps("./config_for_gotest_real.json")
-	assert.NilError(t, err)
-
-	mac := "40:8D:5C:5B:63:2D"
-	uid, err := f.GetDeviceUID(mac)
-	assert.NilError(t, err)
-	assert.Equal(t, uid, "landevice3489")
-}
-
-func TestWakeUp(t *testing.T) {
-	f, err := NewFreeps("./config_for_gotest_real.json")
-	assert.NilError(t, err)
-
-	err = f.WakeUpDevice("landevice3489")
-	assert.NilError(t, err)
-}
-
 func TestDeviceListUnmarshal(t *testing.T) {
 	byteValue, err := ioutil.ReadFile("./test_devicelist.xml")
 	assert.NilError(t, err)
@@ -97,28 +71,4 @@ func TestDeviceListUnmarshal(t *testing.T) {
 	err = xml.Unmarshal(byteValue, &data)
 	assert.NilError(t, err)
 	assert.Equal(t, data.Device[0].Name, "Steckdose")
-}
-
-func TestDeviceList(t *testing.T) {
-	f, err := NewFreeps("./config_for_gotest_real.json")
-	assert.NilError(t, err)
-
-	_, err = f.GetDeviceList()
-	assert.NilError(t, err)
-}
-
-func TestSwitchLampOff(t *testing.T) {
-	f, err := NewFreeps("./config_for_gotest_real.json")
-	assert.NilError(t, err)
-
-	err = f.SetLevel("13077 0013108-1", 0)
-	assert.NilError(t, err)
-}
-
-func TestSwitchLampOn(t *testing.T) {
-	f, err := NewFreeps("./config_for_gotest_real.json")
-	assert.NilError(t, err)
-
-	err = f.SetLevel("13077 0013108-1", 37)
-	assert.NilError(t, err)
 }
