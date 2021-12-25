@@ -52,7 +52,7 @@ func ReadConfigWithDefaults(jsonBytes []byte, sectionName string, configStruct i
 		if err != nil {
 			return retbytes, err
 		}
-		return json.Marshal(sectionsMap)
+		return json.MarshalIndent(sectionsMap, "", "  ")
 	}
 	sectionBytes, err := json.Marshal(sectionsMap[sectionName])
 	if err != nil {

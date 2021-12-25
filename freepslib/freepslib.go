@@ -22,6 +22,8 @@ type FBconfig struct {
 	FB_pass    string
 }
 
+var DefaultConfig = FBconfig{"fritz.box", "user", "pass"}
+
 func WriteFreepsConfig(configpath string, conf *FBconfig) error {
 	if conf == nil {
 		conf = &FBconfig{"fritz.box", "user", "pass"}

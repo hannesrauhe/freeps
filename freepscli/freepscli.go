@@ -5,10 +5,31 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 
-	"github.com/hannesrauhe/freeps"
+	"github.com/hannesrauhe/freeps/freepslib"
+	"github.com/hannesrauhe/freeps/utils"
 )
+
+func readFreepsConfig(configpath string) (freepslib.FBconfig, error) {
+	conf := freepslib.DefaultConfig
+
+	byteValue, err := ioutil.ReadFile(configpath)
+	if err != nil {
+		return conf, err
+	}
+
+	newbytes, err := utils.ReadConfigWithDefaults(byteValue, "freepslib", &conf)
+	if err != nil {
+		return conf, err
+	}
+	if len(newbytes) > 0 {
+		ioutil.WriteFile(configpath, newbytes, 0644)
+	}
+
+	return conf, err
+}
 
 func main() {
 	dir, _ := os.UserConfigDir()
@@ -20,11 +41,12 @@ func main() {
 
 	flag.Parse() // after declaring flags we need to call it
 
-	f, err := freeps.NewFreeps(configpath)
+	conf, err := readFreepsConfig(configpath)
 	if err != nil {
-		fmt.Printf("Couldn't initialize freeps: %v\n", err)
+		fmt.Printf("Couldn't initialize config: %v\n", err)
 		return
 	}
+	f, err := freepslib.NewFreepsLib(&conf)
 	f.Verbose = *verb
 
 	var jsonbytes []byte
