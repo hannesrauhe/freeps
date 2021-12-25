@@ -50,13 +50,13 @@ func TestReadMergeConfig(t *testing.T) {
 	assert.NilError(t, err)
 
 	myConfig := defaultConfig
-	newb, err := ReadConfigWithDefaults(configFileBytes, "mysection", &myConfig)
+	newb, err := ReadSectionWithDefaults(configFileBytes, "mysection", &myConfig)
 	assert.Equal(t, len(newb), 0)
 	assert.Equal(t, myConfig.Foo, "myfoo")
 	assert.Equal(t, myConfig.Foo2, "defaultfoo2")
 
 	myConfig = defaultConfig
-	newb, err = ReadConfigWithDefaults(configFileBytes, "mynonexistingsection", &myConfig)
+	newb, err = ReadSectionWithDefaults(configFileBytes, "mynonexistingsection", &myConfig)
 	assert.Assert(t, len(newb) > 0)
 	assert.Equal(t, myConfig.Foo, "defaultfoo")
 	assert.Equal(t, myConfig.Foo2, "defaultfoo2")

@@ -2,6 +2,9 @@ package utils
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
 func StructToMap(someStruct interface{}) (map[string]interface{}, error) {
@@ -38,15 +41,18 @@ func MergeJsonWithDefaults(jsonBytes []byte, configStruct interface{}) error {
 	return nil
 }
 
-func ReadConfigWithDefaults(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
+func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
 	sectionsMap := make(map[string]interface{})
 	var retbytes []byte
+	var err error
 
-	err := json.Unmarshal(jsonBytes, &sectionsMap)
-
-	if err != nil {
-		return retbytes, err
+	if len(jsonBytes) > 0 {
+		err = json.Unmarshal(jsonBytes, &sectionsMap)
+		if err != nil {
+			return retbytes, err
+		}
 	}
+
 	if sectionsMap[sectionName] == nil {
 		sectionsMap[sectionName], err = StructToMap(configStruct)
 		if err != nil {
@@ -60,4 +66,49 @@ func ReadConfigWithDefaults(jsonBytes []byte, sectionName string, configStruct i
 	}
 
 	return retbytes, MergeJsonWithDefaults(sectionBytes, configStruct)
+}
+
+func GetDefaultPath(productname string) string {
+	dir, _ := os.UserConfigDir()
+	return dir + "/" + productname + "/config.json"
+}
+
+type ConfigReader struct {
+	configFilePath    string
+	configFileContent []byte
+	configChanged     bool
+}
+
+func NewConfigReader(configFilePath string) (*ConfigReader, error) {
+	_, err := os.Stat(configFilePath)
+	if os.IsNotExist(err) {
+		return &ConfigReader{configFilePath, []byte{}, true}, nil
+	}
+
+	byteValue, err := ioutil.ReadFile(configFilePath)
+	if err != nil {
+		return nil, err
+	}
+	return &ConfigReader{configFilePath, byteValue, false}, nil
+}
+
+func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct interface{}) error {
+	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct)
+	if len(newb) > 0 {
+		c.configChanged = true
+		c.configFileContent = newb
+	}
+	return err
+}
+
+func (c *ConfigReader) WriteBackConfigIfChanged() error {
+	if !c.configChanged {
+		return nil
+	}
+	dir := filepath.Dir(c.configFilePath)
+	err := os.MkdirAll(dir, 0751)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
 }

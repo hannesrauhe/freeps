@@ -24,36 +24,6 @@ type FBconfig struct {
 
 var DefaultConfig = FBconfig{"fritz.box", "user", "pass"}
 
-func WriteFreepsConfig(configpath string, conf *FBconfig) error {
-	if conf == nil {
-		conf = &FBconfig{"fritz.box", "user", "pass"}
-	}
-
-	jsonbytes, err := json.MarshalIndent(conf, "", "  ")
-
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(configpath, jsonbytes, 0644)
-}
-
-func ReadFreepsConfig(configpath string) (*FBconfig, error) {
-	byteValue, err := ioutil.ReadFile(configpath)
-	if err != nil {
-		return nil, err
-	}
-
-	var conf *FBconfig
-
-	err = json.Unmarshal(byteValue, &conf)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return conf, nil
-}
-
 type Freeps struct {
 	conf    FBconfig
 	SID     string
@@ -132,6 +102,9 @@ func (f *Freeps) getSid() (string, error) {
 	err = xml.Unmarshal(byt, &authenticated)
 	if err != nil {
 		return "", err
+	}
+	if authenticated.SID == "0000000000000000" {
+		return "", errors.New("Authentication failed: wrong user/password")
 	}
 	return authenticated.SID, nil
 }
