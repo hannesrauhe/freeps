@@ -213,7 +213,10 @@ func (f *Freeps) WakeUpDevice(uid string) error {
 /**** HOME AUTOMATION *****/
 
 type AvmDeviceSwitch struct {
-	State bool `xml:"state"`
+	State      bool   `xml:"state"`
+	Lock       bool   `xml:"lock"`
+	Devicelock bool   `xml:"devicelock"`
+	Mode       string `xml:"mode"`
 }
 
 type AvmDevicePowermeter struct {
@@ -242,8 +245,9 @@ type AvmDeviceColorcontrol struct {
 }
 
 type AvmDeviceHkr struct {
-	Tist  int `xml:"tist"`
-	Tsoll int `xml:"tsoll"`
+	Tist             int  `xml:"tist"`
+	Tsoll            int  `xml:"tsoll"`
+	Windowopenactive bool `xml:"windowsopenactiv"` // cannot ignore the typo here
 }
 
 type AvmDevice struct {

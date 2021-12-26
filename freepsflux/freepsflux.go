@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/freepslib"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
 
 type InfluxdbConfig struct {
-	ULR    string
+	URL    string
 	Token  string
 	Org    string
 	Bucket string
@@ -45,30 +48,59 @@ func (ff *FreepsFlux) Push() error {
 }
 
 func (ff *FreepsFlux) PushPoints(devl *freepslib.AvmDeviceList) error {
-	// client := influxdb2.NewClient("http://localhost:9999", "my-token")
-	// writeAPI := client.WriteAPI("my-org", "my-bucket")
+	influxOptions := influxdb2.DefaultOptions()
+	influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
 	mTime := time.Now()
 
-	// for _, v := range devl.Device {
-	// 	p := influxdb2.NewPoint(
-	// 		v.Name,
-	// 		map[string]string{
-	// 			"fb":       "6490",
-	// 			"hostname": "myhost",
-	// 		},
-	// 		map[string]interface{}{
-	// 			"temperature": rand.Float64() * 80.0,
-	// 			"disk_free":   rand.Float64() * 1000.0,
-	// 			"disk_total":  (i/10 + 1) * 1000000,
-	// 			"mem_total":   (i/100 + 1) * 10000000,
-	// 			"mem_free":    rand.Uint64(),
-	// 		},
-	// 		mTime)
-	// 	// write asynchronously
-	// 	writeAPI.WritePoint(p)
-	// }
+	for _, connConfig := range ff.config.InfluxdbConnections {
+		client := influxdb2.NewClientWithOptions(connConfig.URL, connConfig.Token, influxOptions)
+		writeAPI := client.WriteAPI(connConfig.Org, connConfig.Bucket)
 
-	// writeAPI.WritePoint()
+		for _, v := range devl.Device {
+			p, err := DeviceToPoint(&v, mTime)
+			if err != nil {
+				return err
+			}
+
+			writeAPI.WritePoint(p)
+		}
+
+		writeAPI.Flush()
+	}
+
+	return nil
+}
+
+func CreateLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
+	builder := strings.Builder{}
+	for _, v := range devl.Device {
+		p, err := DeviceToPoint(&v, mTime)
+		if err != nil {
+			return "", err
+		}
+		write.PointToLineProtocolBuffer(p, &builder, time.Second)
+	}
+	return builder.String(), nil
+}
+
+func DeviceToPoint(dev *freepslib.AvmDevice, mTime time.Time) (*write.Point, error) {
+	p := influxdb2.NewPointWithMeasurement(dev.Name).SetTime(mTime)
+	if dev.Switch != nil {
+		p.AddField("switch_state", dev.Switch.State)
+	}
+	if dev.Powermeter != nil {
+		p.AddField("energy", float64(dev.Powermeter.Energy))
+		p.AddField("voltage", float64(dev.Powermeter.Voltage)/1000)
+		p.AddField("power", float64(dev.Powermeter.Power)/1000)
+	}
+	if dev.Temperature != nil {
+		p.AddField("temp", float32(dev.Temperature.Celsius)/10)
+	}
+	if dev.HKR != nil {
+		p.AddField("temp_set", float32(dev.HKR.Tsoll))
+	}
+	p.SortFields()
+	return p, nil
 
 	// 	json_body = {
 	// 		"tags": {
@@ -109,5 +141,4 @@ func (ff *FreepsFlux) PushPoints(devl *freepslib.AvmDeviceList) error {
 
 	// lines = line_protocol.make_lines(json_body)
 	// print(lines)
-	return nil
 }
