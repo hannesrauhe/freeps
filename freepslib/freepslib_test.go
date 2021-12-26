@@ -30,7 +30,7 @@ func TestGetUID(t *testing.T) {
 }
 
 func TestDeviceListUnmarshal(t *testing.T) {
-	byteValue, err := ioutil.ReadFile("./test_devicelist.xml")
+	byteValue, err := ioutil.ReadFile("./_testdata/test_devicelist.xml")
 	assert.NilError(t, err)
 
 	var data *avm_devicelist

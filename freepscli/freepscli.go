@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/freepslib"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -14,7 +15,7 @@ import (
 func main() {
 	var configpath, fn, dev string
 	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
-	flag.StringVar(&fn, "f", "getdevicelistinfos", "Specify function")
+	flag.StringVar(&fn, "f", "freepsflux", "Specify function")
 	flag.StringVar(&dev, "d", "", "Specify device")
 	verb := flag.Bool("v", false, "Verbose output")
 
@@ -39,25 +40,41 @@ func main() {
 
 	var jsonbytes []byte
 
-	if fn == "getdevicelistinfos" {
-		devl, err2 := f.GetDeviceList()
-		if err2 != nil {
-			log.Fatalf("Error while executing function: %v\n", err2)
+	switch fn {
+	case "freepsflux":
+		{
+			ff, err2 := freepsflux.NewFreepsFlux(f)
+			if err2 != nil {
+				log.Fatalf("Error while executing function: %v\n", err2)
+			}
+			err = ff.Push()
 		}
-		jsonbytes, err = json.MarshalIndent(devl, "", "  ")
-	} else if fn == "gettemplatelistinfos" {
-		devl, err2 := f.GetTemplateList()
-		if err2 != nil {
-			log.Fatalf("Error while executing function: %v\n", err2)
+	case "getdevicelistinfos":
+		{
+			devl, err2 := f.GetDeviceList()
+			if err2 != nil {
+				log.Fatalf("Error while executing function: %v\n", err2)
+			}
+			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
+
 		}
-		jsonbytes, err = json.MarshalIndent(devl, "", "  ")
-	} else {
-		arg := make(map[string]string)
-		result, err2 := f.HomeAutomation(fn, dev, arg)
-		if err2 != nil {
-			log.Fatalf("Error while executing function: %v\n", err2)
+	case "gettemplatelistinfos":
+		{
+			devl, err2 := f.GetTemplateList()
+			if err2 != nil {
+				log.Fatalf("Error while executing function: %v\n", err2)
+			}
+			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
 		}
-		jsonbytes, err = json.MarshalIndent(result, "", "  ")
+	default:
+		{
+			arg := make(map[string]string)
+			result, err2 := f.HomeAutomation(fn, dev, arg)
+			if err2 != nil {
+				log.Fatalf("Error while executing function: %v\n", err2)
+			}
+			jsonbytes, err = json.MarshalIndent(result, "", "  ")
+		}
 	}
 	if err != nil {
 		log.Fatalf("Error while parsing response: %v\n", err)
