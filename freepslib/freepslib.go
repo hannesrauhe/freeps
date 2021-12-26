@@ -49,7 +49,7 @@ func (f *Freeps) getHttpClient() *http.Client {
 
 /****** AUTH *****/
 
-type avm_session_info struct {
+type AvmSessionInfo struct {
 	SID       string
 	Challenge string
 }
@@ -80,7 +80,7 @@ func (f *Freeps) getSid() (string, error) {
 	}
 	defer first_resp.Body.Close()
 
-	var unauth avm_session_info
+	var unauth AvmSessionInfo
 	byt, err := ioutil.ReadAll(first_resp.Body)
 	if err != nil {
 		return "", err
@@ -98,7 +98,7 @@ func (f *Freeps) getSid() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var authenticated avm_session_info
+	var authenticated AvmSessionInfo
 	err = xml.Unmarshal(byt, &authenticated)
 	if err != nil {
 		return "", err
@@ -111,24 +111,24 @@ func (f *Freeps) getSid() (string, error) {
 
 /****** WebInterface functions *****/
 
-type avm_device_info struct {
+type AvmDeviceInfo struct {
 	Mac  string
 	UID  string
 	Name string
 	Type string
 }
 
-type avm_data_object struct {
-	Active   []*avm_device_info
-	Passive  []*avm_device_info
+type AvmDataObject struct {
+	Active   []*AvmDeviceInfo
+	Passive  []*AvmDeviceInfo
 	btn_wake string
 }
 
-type avm_data_response struct {
-	Data *avm_data_object
+type AvmDataResponse struct {
+	Data *AvmDataObject
 }
 
-func (f *Freeps) QueryData(payload map[string]string, avm_resp interface{}) error {
+func (f *Freeps) QueryData(payload map[string]string, AvmResponse interface{}) error {
 	data_url := "https://" + f.conf.FB_address + "/data.lua"
 	data := url.Values{}
 	for key, value := range payload {
@@ -150,7 +150,7 @@ func (f *Freeps) QueryData(payload map[string]string, avm_resp interface{}) erro
 		return errors.New("http status code != 200")
 	}
 
-	err = json.Unmarshal(byt, &avm_resp)
+	err = json.Unmarshal(byt, &AvmResponse)
 	if err != nil {
 		log.Printf("Cannot parse JSON: %v", byt)
 		return errors.New("cannot parse JSON response")
@@ -162,19 +162,19 @@ func (f *Freeps) QueryData(payload map[string]string, avm_resp interface{}) erro
 	return nil
 }
 
-func (f *Freeps) GetData() (*avm_data_response, error) {
-	var avm_resp *avm_data_response
+func (f *Freeps) GetData() (*AvmDataResponse, error) {
+	var avmResp *AvmDataResponse
 	payload := map[string]string{
 		"sid":   f.SID,
 		"page":  "netDev",
 		"xhrId": "all",
 	}
 
-	err := f.QueryData(payload, &avm_resp)
-	return avm_resp, err
+	err := f.QueryData(payload, &avmResp)
+	return avmResp, err
 }
 
-func getDeviceUID(fb_response avm_data_response, mac string) string {
+func getDeviceUID(fb_response AvmDataResponse, mac string) string {
 	for _, dev := range append(fb_response.Data.Active, fb_response.Data.Passive...) {
 		if dev.Mac == mac {
 			return dev.UID
@@ -193,7 +193,7 @@ func (f *Freeps) GetDeviceUID(mac string) (string, error) {
 }
 
 func (f *Freeps) WakeUpDevice(uid string) error {
-	var avm_resp *avm_data_response
+	var avmResp *AvmDataResponse
 	payload := map[string]string{
 		"sid":      f.SID,
 		"dev":      uid,
@@ -202,9 +202,9 @@ func (f *Freeps) WakeUpDevice(uid string) error {
 		"btn_wake": "",
 	}
 
-	err := f.QueryData(payload, &avm_resp)
-	if avm_resp.Data.btn_wake != "ok" {
-		log.Printf("%v", avm_resp)
+	err := f.QueryData(payload, &avmResp)
+	if avmResp.Data.btn_wake != "ok" {
+		log.Printf("%v", avmResp)
 		return errors.New("device wakeup seems to have failed")
 	}
 	return err
@@ -212,67 +212,67 @@ func (f *Freeps) WakeUpDevice(uid string) error {
 
 /**** HOME AUTOMATION *****/
 
-type avm_device_switch struct {
+type AvmDeviceSwitch struct {
 	State bool `xml:"state"`
 }
 
-type avm_device_powermeter struct {
+type AvmDevicePowermeter struct {
 	Power   int `xml:"power"`
 	Energy  int `xml:"energy"`
 	Voltage int `xml:"voltage"`
 }
 
-type avm_device_temperature struct {
+type AvmDeviceTemperature struct {
 	Celsius int `xml:"celsius"`
 	Offset  int `xml:"offset"`
 }
 
-type avm_device_simpleonoff struct {
+type AvmDeviceSimpleonoff struct {
 	State bool `xml:"state"`
 }
 
-type avm_device_levelcontrol struct {
+type AvmDeviceLevelcontrol struct {
 	Level           float32 `xml:"level"`
 	LevelPercentage float32 `xml:"levelpercentage"`
 }
 
-type avm_device_colorcontrol struct {
+type AvmDeviceColorcontrol struct {
 	Hue        int `xml:"hue"`
 	Saturation int `xml:"saturation"`
 }
 
-type avm_device_hkr struct {
+type AvmDeviceHkr struct {
 	Tist  int `xml:"tist"`
 	Tsoll int `xml:"tsoll"`
 }
 
-type avm_device struct {
-	Name         string                   `xml:"name" json:",omitempty"`
-	AIN          string                   `xml:"identifier,attr"`
-	ProductName  string                   `xml:"productname,attr" json:",omitempty"`
-	Present      bool                     `xml:"present" json:",omitempty"`
-	Switch       *avm_device_switch       `xml:"switch" json:",omitempty"`
-	Temperature  *avm_device_temperature  `xml:"temperature" json:",omitempty"`
-	Powermeter   *avm_device_powermeter   `xml:"powermeter" json:",omitempty"`
-	SimpleOnOff  *avm_device_simpleonoff  `xml:"simpleonoff" json:",omitempty"`
-	LevelControl *avm_device_levelcontrol `xml:"levelcontrol" json:",omitempty"`
-	ColorControl *avm_device_colorcontrol `xml:"colorcontrol" json:",omitempty"`
-	HKR          *avm_device_hkr          `xml:"hkr" json:",omitempty"`
+type AvmDevice struct {
+	Name         string                 `xml:"name" json:",omitempty"`
+	AIN          string                 `xml:"identifier,attr"`
+	ProductName  string                 `xml:"productname,attr" json:",omitempty"`
+	Present      bool                   `xml:"present" json:",omitempty"`
+	Switch       *AvmDeviceSwitch       `xml:"switch" json:",omitempty"`
+	Temperature  *AvmDeviceTemperature  `xml:"temperature" json:",omitempty"`
+	Powermeter   *AvmDevicePowermeter   `xml:"powermeter" json:",omitempty"`
+	SimpleOnOff  *AvmDeviceSimpleonoff  `xml:"simpleonoff" json:",omitempty"`
+	LevelControl *AvmDeviceLevelcontrol `xml:"levelcontrol" json:",omitempty"`
+	ColorControl *AvmDeviceColorcontrol `xml:"colorcontrol" json:",omitempty"`
+	HKR          *AvmDeviceHkr          `xml:"hkr" json:",omitempty"`
 }
 
-type avm_devicelist struct {
-	Device []avm_device `xml:"device"`
+type AvmDeviceList struct {
+	Device []AvmDevice `xml:"device"`
 }
 
-type avm_template struct {
-	Name       string          `xml:"name"`
-	Identifier string          `xml:"identifier,attr"`
-	ID         string          `xml:"id,attr"`
-	Devices    *avm_devicelist `xml:"devices"`
+type AvmTemplate struct {
+	Name       string         `xml:"name"`
+	Identifier string         `xml:"identifier,attr"`
+	ID         string         `xml:"id,attr"`
+	Devices    *AvmDeviceList `xml:"devices"`
 }
 
-type avm_templatelist struct {
-	Template []avm_template `xml:"template"`
+type AvmTemplateList struct {
+	Template []AvmTemplate `xml:"template"`
 }
 
 func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[string]string) ([]byte, error) {
@@ -308,13 +308,13 @@ func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[s
 	return byt, nil
 }
 
-func (f *Freeps) GetDeviceList() (*avm_devicelist, error) {
+func (f *Freeps) GetDeviceList() (*AvmDeviceList, error) {
 	byt, err := f.queryHomeAutomation("getdevicelistinfos", "", make(map[string]string))
 	if err != nil {
 		return nil, err
 	}
 
-	var avm_resp *avm_devicelist
+	var avm_resp *AvmDeviceList
 	err = xml.Unmarshal(byt, &avm_resp)
 	if err != nil {
 		log.Printf("Cannot parse XML: %q, err: %v", byt, err)
@@ -324,13 +324,13 @@ func (f *Freeps) GetDeviceList() (*avm_devicelist, error) {
 	return avm_resp, nil
 }
 
-func (f *Freeps) GetTemplateList() (*avm_templatelist, error) {
+func (f *Freeps) GetTemplateList() (*AvmTemplateList, error) {
 	byt, err := f.queryHomeAutomation("gettemplatelistinfos", "", make(map[string]string))
 	if err != nil {
 		return nil, err
 	}
 
-	var avm_resp *avm_templatelist
+	var avm_resp *AvmTemplateList
 	err = xml.Unmarshal(byt, &avm_resp)
 	if err != nil {
 		log.Printf("Cannot parse XML: %q, err: %v", byt, err)
