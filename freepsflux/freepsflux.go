@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/hannesrauhe/freeps/freepslib"
 )
@@ -46,7 +47,7 @@ func (ff *FreepsFlux) Push() error {
 func (ff *FreepsFlux) PushPoints(devl *freepslib.AvmDeviceList) error {
 	// client := influxdb2.NewClient("http://localhost:9999", "my-token")
 	// writeAPI := client.WriteAPI("my-org", "my-bucket")
-	// mTime := time.Now()
+	mTime := time.Now()
 
 	// for _, v := range devl.Device {
 	// 	p := influxdb2.NewPoint(
