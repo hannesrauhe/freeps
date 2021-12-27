@@ -3,6 +3,7 @@ package freepsflux
 import (
 	"encoding/xml"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,8 +36,8 @@ func TestDeviceListFromFile(t *testing.T) {
 	*/
 }
 
-func TestDeviceListToPoint(t *testing.T) {
-	byteValue, err := ioutil.ReadFile("./_testdata/steckdose.xml")
+func fileToPoint(t *testing.T, fileName string, expectedString string) {
+	byteValue, err := ioutil.ReadFile(fileName)
 	assert.NilError(t, err)
 
 	var data *freepslib.AvmDeviceList
@@ -45,6 +46,17 @@ func TestDeviceListToPoint(t *testing.T) {
 
 	mtime := time.Unix(1, 0)
 	lp, err := CreateLineProtocol(data, mtime)
-	expectedString := "Steckdose\\ Salon, energy=123841.0,power=0.0,switch_state=false,temp=22.0,voltage=229.756 1"
-	assert.Equal(t, lp, expectedString)
+	assert.Equal(t, strings.TrimSpace(lp), expectedString)
+}
+
+func TestSteckdoseToPoint(t *testing.T) {
+	fileToPoint(t, "./_testdata/steckdose.xml", "Steckdose\\ Salon, energy=123841,offset=0,power=0,switch_state=false,temp=22,voltage=229.756 1")
+}
+
+func TestHKRToPoint(t *testing.T) {
+	fileToPoint(t, "./_testdata/hkr.xml", "Salon, offset=0,temp=24,temp_set=23,window_open=false 1")
+}
+
+func TestLampeToPoint(t *testing.T) {
+	fileToPoint(t, "./_testdata/lampe.xml", "Wohnzimmer\\ Lampe, color_hue=0i,color_saturation=0i,color_temp=2700i,level=135 1")
 }

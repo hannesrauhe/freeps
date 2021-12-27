@@ -240,8 +240,9 @@ type AvmDeviceLevelcontrol struct {
 }
 
 type AvmDeviceColorcontrol struct {
-	Hue        int `xml:"hue"`
-	Saturation int `xml:"saturation"`
+	Hue         int `xml:"hue"`
+	Saturation  int `xml:"saturation"`
+	Temperature int `xml:"temperature"`
 }
 
 type AvmDeviceHkr struct {

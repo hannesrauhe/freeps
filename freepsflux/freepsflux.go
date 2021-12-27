@@ -95,37 +95,22 @@ func DeviceToPoint(dev *freepslib.AvmDevice, mTime time.Time) (*write.Point, err
 	}
 	if dev.Temperature != nil {
 		p.AddField("temp", float32(dev.Temperature.Celsius)/10)
+		p.AddField("offset", float32(dev.Temperature.Offset)/10)
 	}
 	if dev.HKR != nil {
-		p.AddField("temp_set", float32(dev.HKR.Tsoll))
+		p.AddField("temp_set", float32(dev.HKR.Tsoll)/2)
+		p.AddField("window_open", dev.HKR.Windowopenactive)
+	}
+	if dev.ColorControl != nil {
+		p.AddField("color_temp", dev.ColorControl.Temperature)
+		p.AddField("color_hue", dev.ColorControl.Hue)
+		p.AddField("color_saturation", dev.ColorControl.Saturation)
+	}
+	if dev.LevelControl != nil {
+		p.AddField("level", dev.LevelControl.Level)
 	}
 	p.SortFields()
 	return p, nil
-
-	// 	json_body = {
-	// 		"tags": {
-	// 				"fb": "6490",
-	// 				"hostname": self.config["hostname"]
-	// 		},
-	// 		"points": []
-	// }
-
-	// t = int(time.time())
-	// for d in self.fh.device_informations():
-	// 	name = d["NewDeviceName"]
-	// 	fields = {}
-	// 	if d["NewTemperatureCelsius"] > 0:
-	// 		fields["temp"] = float(d["NewTemperatureCelsius"])/10
-	// 		fields["temp_set"] = float(d['NewHkrSetTemperature'])/10
-	// 	if d['NewMultimeterIsValid'] == "VALID":
-	// 		fields["power"] = float(d["NewMultimeterPower"])/100
-	// 		fields["energy"] = float(d["NewMultimeterEnergy"])
-	// 	if d['NewSwitchIsValid'] == "VALID":
-	// 		fields["switch_state"] = d["NewSwitchState"]
-
-	// 	if len(fields) > 0:
-	// 		m = {"measurement": name, "fields": fields, "time": t}
-	// 		json_body["points"].append(m)
 
 	// f_status = {
 	// 		"uptime": (self.fs.uptime, "seconds"),

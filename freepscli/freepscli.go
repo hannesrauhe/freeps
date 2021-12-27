@@ -66,6 +66,14 @@ func main() {
 			}
 			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
 		}
+	case "getdata":
+		{
+			devl, err2 := f.GetData()
+			if err2 != nil {
+				log.Fatalf("Error while executing function: %v\n", err2)
+			}
+			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
+		}
 	default:
 		{
 			arg := make(map[string]string)

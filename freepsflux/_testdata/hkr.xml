@@ -1,0 +1,34 @@
+<devicelist version="1" fwversion="7.29">
+  <device identifier="11795 0525920" id="20" functionbitmask="320" fwversion="03.54" manufacturer="AVM" productname="Comet DECT">
+    <present>1</present>
+    <txbusy>0</txbusy>
+    <name>Salon</name>
+    <battery>1</battery>
+    <batterylow>1</batterylow>
+    <temperature>
+      <celsius>240</celsius>
+      <offset>0</offset>
+    </temperature>
+    <hkr>
+      <tist>48</tist>
+      <tsoll>46</tsoll>
+      <absenk>40</absenk>
+      <komfort>46</komfort>
+      <lock>0</lock>
+      <devicelock>0</devicelock>
+      <errorcode>0</errorcode>
+      <windowopenactiv>0</windowopenactiv>
+      <windowopenactiveendtime>0</windowopenactiveendtime>
+      <boostactive>0</boostactive>
+      <boostactiveendtime>0</boostactiveendtime>
+      <batterylow>1</batterylow>
+      <battery>1</battery>
+      <nextchange>
+        <endperiod>1640559600</endperiod>
+        <tchange>40</tchange>
+      </nextchange>
+      <summeractive>0</summeractive>
+      <holidayactive>0</holidayactive>
+    </hkr>
+  </device>
+</devicelist>
