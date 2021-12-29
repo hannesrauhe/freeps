@@ -71,7 +71,7 @@ func (ff *FreepsFlux) PushPoints(devl *freepslib.AvmDeviceList) error {
 	return nil
 }
 
-func CreateLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
+func DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
 	builder := strings.Builder{}
 	for _, v := range devl.Device {
 		p, err := DeviceToPoint(&v, mTime)

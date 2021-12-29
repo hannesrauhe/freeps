@@ -10,7 +10,6 @@ import (
 	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/freepslib"
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics"
 )
 
 func main() {
@@ -75,18 +74,13 @@ func main() {
 			}
 			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
 		}
-	case "gettr":
+	case "metrics":
 		{
-			root, err := fritzboxmetrics.LoadServices(conf.FB_address, uint16(49000), conf.FB_user, conf.FB_pass)
+			metrics, err := f.GetMetrics()
 			if err != nil {
 				log.Fatalf("could not load UPnP service: %w", err)
 			}
-			r, err := root.Services["urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1"].Actions["GetTotalPacketsSent"].Call()
-			if err != nil {
-				log.Fatalf("could not call action: %w", err)
-			}
-			fmt.Printf("%v\n", r["TotalPacketsSent"])
-			fmt.Printf("%v", root.Services["urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1"].Actions["GetTotalPacketsReceived"])
+			fmt.Printf("%v\n", metrics)
 		}
 	default:
 		{

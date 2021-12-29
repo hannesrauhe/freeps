@@ -45,7 +45,7 @@ func fileToPoint(t *testing.T, fileName string, expectedString string) {
 	assert.NilError(t, err)
 
 	mtime := time.Unix(1, 0)
-	lp, err := CreateLineProtocol(data, mtime)
+	lp, err := DeviceListToLineProtocol(data, mtime)
 	assert.Equal(t, strings.TrimSpace(lp), expectedString)
 }
 
