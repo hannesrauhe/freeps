@@ -11,11 +11,11 @@ import (
 type FritzBoxMetrics struct {
 	DeviceModelName      string
 	DeviceFriendlyName   string
-	Uptime               uint64
-	BytesReceived        uint64 `json:"X_AVM_DE_TotalBytesReceived64"`
-	BytesSent            uint64 `json:"X_AVM_DE_TotalBytesSent64"`
-	TransmissionRateUp   uint64 `json:"ByteReceiveRate"`
-	TransmissionRateDown uint64 `json:"ByteSendRate"`
+	Uptime               int64
+	BytesReceived        int64 `json:"X_AVM_DE_TotalBytesReceived64"`
+	BytesSent            int64 `json:"X_AVM_DE_TotalBytesSent64"`
+	TransmissionRateUp   int64 `json:"ByteReceiveRate"`
+	TransmissionRateDown int64 `json:"ByteSendRate"`
 }
 
 func (f *Freeps) getMetricsMap(serviceName string, actionName string) (fritzboxmetrics.Result, error) {

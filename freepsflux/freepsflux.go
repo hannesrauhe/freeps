@@ -1,6 +1,8 @@
 package freepsflux
 
 import (
+	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -22,17 +24,22 @@ type FreepsFluxConfig struct {
 }
 
 type FreepsFlux struct {
-	f      *freepslib.Freeps
-	config FreepsFluxConfig
+	f       *freepslib.Freeps
+	config  FreepsFluxConfig
+	Verbose bool
 }
 
 var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname"}
 
-func NewFreepsFlux(f *freepslib.Freeps) (*FreepsFlux, error) {
-	return &FreepsFlux{f, DefaultConfig}, nil
+func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, error) {
+	return &FreepsFlux{f, *conf, false}, nil
 }
 
 func (ff *FreepsFlux) Push() error {
+	if len(ff.config.InfluxdbConnections) == 0 {
+		return errors.New("No InfluxDB connections configured")
+	}
+
 	devl, err := ff.f.GetDeviceList()
 	if err != nil {
 		return err
@@ -51,37 +58,31 @@ func (ff *FreepsFlux) Push() error {
 		client := influxdb2.NewClientWithOptions(connConfig.URL, connConfig.Token, influxOptions)
 		writeAPI := client.WriteAPI(connConfig.Org, connConfig.Bucket)
 
-		for _, v := range devl.Device {
-			p, err := DeviceToPoint(&v, mTime)
-			if err != nil {
-				return err
-			}
-
-			writeAPI.WritePoint(p)
-		}
-
+		DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		writeAPI.Flush()
+		log.Printf("Written to %v", connConfig.URL)
+	}
+
+	if ff.Verbose {
+		builder := strings.Builder{}
+		MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		log.Println(builder.String())
 	}
 
 	return nil
 }
 
-func DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
-	builder := strings.Builder{}
-	for _, v := range devl.Device {
-		p, err := DeviceToPoint(&v, mTime)
-		if err != nil {
-			return "", err
-		}
-		write.PointToLineProtocolBuffer(p, &builder, time.Second)
-	}
-	return builder.String(), nil
-}
-
 func MetricsToLineProtocol(met freepslib.FritzBoxMetrics, mTime time.Time) (string, error) {
 	builder := strings.Builder{}
 	MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	return builder.String(), nil
+}
+
+func DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
+	builder := strings.Builder{}
+	DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 	return builder.String(), nil
 }
 
@@ -114,32 +115,37 @@ func MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*wri
 	f(p)
 }
 
-func DeviceToPoint(dev *freepslib.AvmDevice, mTime time.Time) (*write.Point, error) {
-	p := influxdb2.NewPointWithMeasurement(dev.Name).SetTime(mTime)
-	if dev.Switch != nil {
-		p.AddField("switch_state", dev.Switch.State)
+func DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime time.Time, f func(*write.Point)) error {
+	for _, dev := range devl.Device {
+		p := influxdb2.NewPointWithMeasurement(dev.Name).SetTime(mTime)
+		if dev.Switch != nil {
+			p.AddField("switch_state_bool", dev.Switch.State)
+		}
+		if dev.Powermeter != nil {
+			p.AddField("energy", float64(dev.Powermeter.Energy))
+			p.AddField("voltage", float64(dev.Powermeter.Voltage)/1000)
+			p.AddField("power", float64(dev.Powermeter.Power)/1000)
+		}
+		if dev.Temperature != nil {
+			p.AddField("temp", float32(dev.Temperature.Celsius)/10)
+			p.AddField("offset", float32(dev.Temperature.Offset)/10)
+		}
+		if dev.HKR != nil {
+			p.AddField("temp_set", float32(dev.HKR.Tsoll)/2)
+			p.AddField("window_open", dev.HKR.Windowopenactive)
+		}
+		if dev.ColorControl != nil {
+			p.AddField("color_temp", dev.ColorControl.Temperature)
+			p.AddField("color_hue", dev.ColorControl.Hue)
+			p.AddField("color_saturation", dev.ColorControl.Saturation)
+		}
+		if dev.LevelControl != nil {
+			p.AddField("level", dev.LevelControl.Level)
+		}
+		p.SortFields()
+		if len(p.FieldList()) != 0 {
+			f(p)
+		}
 	}
-	if dev.Powermeter != nil {
-		p.AddField("energy", float64(dev.Powermeter.Energy))
-		p.AddField("voltage", float64(dev.Powermeter.Voltage)/1000)
-		p.AddField("power", float64(dev.Powermeter.Power)/1000)
-	}
-	if dev.Temperature != nil {
-		p.AddField("temp", float32(dev.Temperature.Celsius)/10)
-		p.AddField("offset", float32(dev.Temperature.Offset)/10)
-	}
-	if dev.HKR != nil {
-		p.AddField("temp_set", float32(dev.HKR.Tsoll)/2)
-		p.AddField("window_open", dev.HKR.Windowopenactive)
-	}
-	if dev.ColorControl != nil {
-		p.AddField("color_temp", dev.ColorControl.Temperature)
-		p.AddField("color_hue", dev.ColorControl.Hue)
-		p.AddField("color_saturation", dev.ColorControl.Saturation)
-	}
-	if dev.LevelControl != nil {
-		p.AddField("level", dev.LevelControl.Level)
-	}
-	p.SortFields()
-	return p, nil
+	return nil
 }
