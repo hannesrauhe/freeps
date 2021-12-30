@@ -1,9 +1,6 @@
 package freepsflux
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -40,16 +37,14 @@ func (ff *FreepsFlux) Push() error {
 	if err != nil {
 		return err
 	}
-	jsonbytes, err := json.MarshalIndent(devl, "", "  ")
-	var b bytes.Buffer
-	b.Write(jsonbytes)
-	fmt.Println(b.String())
-	return ff.PushPoints(devl)
-}
 
-func (ff *FreepsFlux) PushPoints(devl *freepslib.AvmDeviceList) error {
+	met, err := ff.f.GetMetrics()
+	if err != nil {
+		return err
+	}
+
 	influxOptions := influxdb2.DefaultOptions()
-	influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
+	// influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
 	mTime := time.Now()
 
 	for _, connConfig := range ff.config.InfluxdbConnections {
@@ -65,6 +60,7 @@ func (ff *FreepsFlux) PushPoints(devl *freepslib.AvmDeviceList) error {
 			writeAPI.WritePoint(p)
 		}
 
+		MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		writeAPI.Flush()
 	}
 
@@ -81,6 +77,41 @@ func DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (s
 		write.PointToLineProtocolBuffer(p, &builder, time.Second)
 	}
 	return builder.String(), nil
+}
+
+func MetricsToLineProtocol(met freepslib.FritzBoxMetrics, mTime time.Time) (string, error) {
+	builder := strings.Builder{}
+	MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	return builder.String(), nil
+}
+
+func MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*write.Point)) {
+	tags := map[string]string{"fb": met.DeviceModelName, "name": met.DeviceFriendlyName}
+
+	p := influxdb2.NewPoint("uptime", tags, map[string]interface{}{
+		"seconds": met.Uptime,
+	}, mTime)
+	f(p)
+
+	p = influxdb2.NewPoint("bytes_received", tags, map[string]interface{}{
+		"bytes": met.BytesReceived,
+	}, mTime)
+	f(p)
+
+	p = influxdb2.NewPoint("bytes_sent", tags, map[string]interface{}{
+		"bytes": met.BytesSent,
+	}, mTime)
+	f(p)
+
+	p = influxdb2.NewPoint("transmission_rate_up", tags, map[string]interface{}{
+		"bps": met.TransmissionRateUp,
+	}, mTime)
+	f(p)
+
+	p = influxdb2.NewPoint("transmission_rate_down", tags, map[string]interface{}{
+		"bps": met.TransmissionRateDown,
+	}, mTime)
+	f(p)
 }
 
 func DeviceToPoint(dev *freepslib.AvmDevice, mTime time.Time) (*write.Point, error) {
@@ -111,19 +142,4 @@ func DeviceToPoint(dev *freepslib.AvmDevice, mTime time.Time) (*write.Point, err
 	}
 	p.SortFields()
 	return p, nil
-
-	// f_status = {
-	// 		"uptime": (self.fs.uptime, "seconds"),
-	// 		"bytes_received": (self.fs.bytes_received, "bytes"),
-	// 		"bytes_sent": (self.fs.bytes_sent, "bytes"),
-	// 		"transmission_rate_up": (self.fs.transmission_rate[0], "bps"),
-	// 		"transmission_rate_down": (self.fs.transmission_rate[1], "bps")
-	// }
-
-	// for name, (v, f) in f_status.items():
-	// 	m = {"measurement": name, "fields": {f: v}, "time": t}
-	// 	json_body["points"].append(m)
-
-	// lines = line_protocol.make_lines(json_body)
-	// print(lines)
 }

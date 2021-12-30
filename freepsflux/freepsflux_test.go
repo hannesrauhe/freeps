@@ -11,29 +11,25 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestDeviceListFromFile(t *testing.T) {
-	byteValue, err := ioutil.ReadFile("./_testdata/devicelist.xml")
-	assert.NilError(t, err)
+func TestMetricsToPoints(t *testing.T) {
+	met := freepslib.FritzBoxMetrics{DeviceModelName: "7777",
+		Uptime:               2,
+		DeviceFriendlyName:   "myb",
+		BytesReceived:        15,
+		BytesSent:            12,
+		TransmissionRateUp:   43,
+		TransmissionRateDown: 23}
 
-	var data *freepslib.AvmDeviceList
-	err = xml.Unmarshal(byteValue, &data)
+	mtime := time.Unix(1, 0)
+	lp, err := MetricsToLineProtocol(met, mtime)
 	assert.NilError(t, err)
-
-	/*
-		Kinderzimmer\ links,fb=6490,hostname=raspi temp=21.5,temp_set=20.0 1640538647
-		Wohnzimmer\ rechts,fb=6490,hostname=raspi temp=23.5,temp_set=23.0 1640538647
-		Kinderzimmer\ rechts,fb=6490,hostname=raspi temp=21.0,temp_set=20.0 1640538647
-		Salon,fb=6490,hostname=raspi temp=24.0,temp_set=23.0 1640538647
-		Badezimmer,fb=6490,hostname=raspi temp=24.0,temp_set=23.0 1640538647
-		Kueche,fb=6490,hostname=raspi temp=22.5,temp_set=23.0 1640538647
-		Schlafzimmer,fb=6490,hostname=raspi temp=22.0,temp_set=22.0 1640538647
-		Steckdose\ Salon,fb=6490,hostname=raspi energy=123841.0,power=0.0,switch_state="OFF",temp=22.0,temp_set=0.0 1640538647
-		uptime,fb=6490,hostname=raspi seconds=1140085i 1640538647
-		bytes_received,fb=6490,hostname=raspi bytes=220642746601i 1640538647
-		bytes_sent,fb=6490,hostname=raspi bytes=40754261454i 1640538647
-		transmission_rate_up,fb=6490,hostname=raspi bps=6877i 1640538647
-		transmission_rate_down,fb=6490,hostname=raspi bps=26317i 1640538647
-	*/
+	expectedString :=
+		`uptime,fb=7777,name=myb seconds=2u 1
+bytes_received,fb=7777,name=myb bytes=15u 1
+bytes_sent,fb=7777,name=myb bytes=12u 1
+transmission_rate_up,fb=7777,name=myb bps=43u 1
+transmission_rate_down,fb=7777,name=myb bps=23u 1`
+	assert.Equal(t, strings.TrimSpace(lp), expectedString)
 }
 
 func fileToPoint(t *testing.T, fileName string, expectedString string) {
@@ -59,4 +55,16 @@ func TestHKRToPoint(t *testing.T) {
 
 func TestLampeToPoint(t *testing.T) {
 	fileToPoint(t, "./_testdata/lampe.xml", "Wohnzimmer\\ Lampe, color_hue=0i,color_saturation=0i,color_temp=2700i,level=135 1")
+}
+
+func TestExampleDeviceList(t *testing.T) {
+	fileToPoint(t, "./_testdata/devicelist.xml", `Kinderzimmer\ links, temp=21.5,temp_set=20.0 1
+Wohnzimmer\ rechts, temp=23.5,temp_set=23.0 1
+Kinderzimmer\ rechts, temp=21.0,temp_set=20.0 1
+Salon, temp=24.0,temp_set=23.0 1
+Badezimmer, temp=24.0,temp_set=23.0 1
+Kueche, temp=22.5,temp_set=23.0 1
+Schlafzimmer, temp=22.0,temp_set=22.0 1
+Steckdose\ Salon, energy=123841.0,power=0.0,switch_state="OFF",temp=22.0,temp_set=0.0 1
+`)
 }

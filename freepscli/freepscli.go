@@ -78,7 +78,7 @@ func main() {
 		{
 			metrics, err := f.GetMetrics()
 			if err != nil {
-				log.Fatalf("could not load UPnP service: %w", err)
+				log.Fatalf("could not load UPnP service: %v", err)
 			}
 			fmt.Printf("%v\n", metrics)
 		}
