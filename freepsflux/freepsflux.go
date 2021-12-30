@@ -131,7 +131,13 @@ func DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime time.Time, f func(*
 			p.AddField("offset", float32(dev.Temperature.Offset)/10)
 		}
 		if dev.HKR != nil {
-			p.AddField("temp_set", float32(dev.HKR.Tsoll)/2)
+			if dev.HKR.Tsoll == 253 {
+				p.AddField("temp_set", float32(0))
+			} else if dev.HKR.Tsoll == 254 {
+				p.AddField("temp_set", float32(31))
+			} else {
+				p.AddField("temp_set", float32(dev.HKR.Tsoll)/2)
+			}
 			p.AddField("window_open", dev.HKR.Windowopenactive)
 		}
 		if dev.ColorControl != nil {
