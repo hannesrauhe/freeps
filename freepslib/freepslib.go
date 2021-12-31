@@ -251,7 +251,7 @@ type AvmDeviceColorcontrol struct {
 type AvmDeviceHkr struct {
 	Tist             int  `xml:"tist"`
 	Tsoll            int  `xml:"tsoll"`
-	Windowopenactive bool `xml:"windowsopenactiv"` // cannot ignore the typo here
+	Windowopenactive bool `xml:"windowopenactiv"` // cannot ignore the typo here
 }
 
 type AvmDevice struct {

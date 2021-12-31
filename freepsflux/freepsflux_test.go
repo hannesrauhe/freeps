@@ -61,11 +61,11 @@ func TestExampleDeviceList(t *testing.T) {
 	fileToPoint(t, "./_testdata/devicelist.xml", `Salon, offset=0,temp=24,temp_set=23,window_open=false 1
 Badezimmer, offset=0,temp=23.5,temp_set=23,window_open=false 1
 Kueche, offset=0,temp=23,temp_set=23,window_open=false 1
-Schlafzimmer, offset=0,temp=22,temp_set=22,window_open=false 1
+Schlafzimmer, offset=0,temp=19.5,temp_set=0,window_open=false 1
 Kinderzimmer\ links, offset=0,temp=21,temp_set=20,window_open=false 1
 Kinderzimmer\ rechts, offset=0,temp=20.5,temp_set=20,window_open=false 1
 unused, offset=0,temp=0,temp_set=0,window_open=false 1
-Wohnzimmer\ rechts, offset=0,temp=24,temp_set=23,window_open=false 1
+Wohnzimmer\ rechts, offset=0,temp=24,temp_set=23,window_open=true 1
 Wohnzimmer\ Lampe, color_hue=0i,color_saturation=0i,color_temp=2700i,level=135 1
 Steckdose\ Salon, energy=123841,offset=0,power=0,switch_state_bool=false,temp=22,voltage=229.756 1`)
 }

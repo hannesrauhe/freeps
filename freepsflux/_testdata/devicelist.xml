@@ -95,38 +95,38 @@
       <holidayactive>0</holidayactive>
     </hkr>
   </device>
-  <device identifier="09995 0127132" id="23" functionbitmask="320" fwversion="04.95" manufacturer="AVM" productname="FRITZ!DECT 301">
-    <present>1</present>
-    <txbusy>0</txbusy>
-    <name>Schlafzimmer</name>
-    <battery>1</battery>
+<device identifier="09995 0127132" id="23" functionbitmask="320" fwversion="04.95" manufacturer="AVM" productname="FRITZ!DECT 301">
+  <present>1</present>
+  <txbusy>0</txbusy>
+  <name>Schlafzimmer</name>
+  <battery>1</battery>
+  <batterylow>1</batterylow>
+  <temperature>
+    <celsius>195</celsius>
+    <offset>0</offset>
+  </temperature>
+  <hkr>
+    <tist>39</tist>
+    <tsoll>253</tsoll>
+    <absenk>253</absenk>
+    <komfort>44</komfort>
+    <lock>0</lock>
+    <devicelock>0</devicelock>
+    <errorcode>0</errorcode>
+    <windowopenactiv>0</windowopenactiv>
+    <windowopenactiveendtime>0</windowopenactiveendtime>
+    <boostactive>0</boostactive>
+    <boostactiveendtime>0</boostactiveendtime>
     <batterylow>1</batterylow>
-    <temperature>
-      <celsius>220</celsius>
-      <offset>0</offset>
-    </temperature>
-    <hkr>
-      <tist>44</tist>
-      <tsoll>44</tsoll>
-      <absenk>253</absenk>
-      <komfort>44</komfort>
-      <lock>0</lock>
-      <devicelock>0</devicelock>
-      <errorcode>0</errorcode>
-      <windowopenactiv>0</windowopenactiv>
-      <windowopenactiveendtime>0</windowopenactiveendtime>
-      <boostactive>0</boostactive>
-      <boostactiveendtime>0</boostactiveendtime>
-      <batterylow>1</batterylow>
-      <battery>1</battery>
-      <nextchange>
-        <endperiod>1640548800</endperiod>
-        <tchange>253</tchange>
-      </nextchange>
-      <summeractive>0</summeractive>
-      <holidayactive>0</holidayactive>
-    </hkr>
-  </device>
+    <battery>1</battery>
+    <nextchange>
+      <endperiod>1640937600</endperiod>
+      <tchange>44</tchange>
+    </nextchange>
+    <summeractive>0</summeractive>
+    <holidayactive>0</holidayactive>
+  </hkr>
+</device>
   <device identifier="09295 0994096" id="16" functionbitmask="320" fwversion="03.68" manufacturer="AVM" productname="Comet DECT">
     <present>1</present>
     <txbusy>0</txbusy>
@@ -241,7 +241,7 @@
       <lock>0</lock>
       <devicelock>0</devicelock>
       <errorcode>0</errorcode>
-      <windowopenactiv>0</windowopenactiv>
+      <windowopenactiv>1</windowopenactiv>
       <windowopenactiveendtime>0</windowopenactiveendtime>
       <boostactive>0</boostactive>
       <boostactiveendtime>0</boostactiveendtime>
