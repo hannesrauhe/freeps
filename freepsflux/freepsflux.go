@@ -1,15 +1,18 @@
 package freepsflux
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
+	"errors"
+	"log"
+	"strings"
+	"time"
 
 	"github.com/hannesrauhe/freeps/freepslib"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
 
 type InfluxdbConfig struct {
-	ULR    string
+	URL    string
 	Token  string
 	Org    string
 	Bucket string
@@ -21,92 +24,134 @@ type FreepsFluxConfig struct {
 }
 
 type FreepsFlux struct {
-	f      *freepslib.Freeps
-	config FreepsFluxConfig
+	f       *freepslib.Freeps
+	config  FreepsFluxConfig
+	Verbose bool
 }
 
 var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname"}
 
-func NewFreepsFlux(f *freepslib.Freeps) (*FreepsFlux, error) {
-	return &FreepsFlux{f, DefaultConfig}, nil
+func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, error) {
+	return &FreepsFlux{f, *conf, false}, nil
 }
 
 func (ff *FreepsFlux) Push() error {
+	if len(ff.config.InfluxdbConnections) == 0 {
+		return errors.New("No InfluxDB connections configured")
+	}
+
 	devl, err := ff.f.GetDeviceList()
 	if err != nil {
 		return err
 	}
-	jsonbytes, err := json.MarshalIndent(devl, "", "  ")
-	var b bytes.Buffer
-	b.Write(jsonbytes)
-	fmt.Println(b.String())
-	return ff.PushPoints(devl)
+
+	met, err := ff.f.GetMetrics()
+	if err != nil {
+		return err
+	}
+
+	influxOptions := influxdb2.DefaultOptions()
+	// influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
+	mTime := time.Now()
+
+	for _, connConfig := range ff.config.InfluxdbConnections {
+		client := influxdb2.NewClientWithOptions(connConfig.URL, connConfig.Token, influxOptions)
+		writeAPI := client.WriteAPI(connConfig.Org, connConfig.Bucket)
+
+		DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
+		MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
+		writeAPI.Flush()
+		log.Printf("Written to %v", connConfig.URL)
+	}
+
+	if ff.Verbose {
+		builder := strings.Builder{}
+		MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		log.Println(builder.String())
+	}
+
+	return nil
 }
 
-func (ff *FreepsFlux) PushPoints(devl *freepslib.AvmDeviceList) error {
-	// client := influxdb2.NewClient("http://localhost:9999", "my-token")
-	// writeAPI := client.WriteAPI("my-org", "my-bucket")
-	// mTime := time.Now()
+func MetricsToLineProtocol(met freepslib.FritzBoxMetrics, mTime time.Time) (string, error) {
+	builder := strings.Builder{}
+	MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	return builder.String(), nil
+}
 
-	// for _, v := range devl.Device {
-	// 	p := influxdb2.NewPoint(
-	// 		v.Name,
-	// 		map[string]string{
-	// 			"fb":       "6490",
-	// 			"hostname": "myhost",
-	// 		},
-	// 		map[string]interface{}{
-	// 			"temperature": rand.Float64() * 80.0,
-	// 			"disk_free":   rand.Float64() * 1000.0,
-	// 			"disk_total":  (i/10 + 1) * 1000000,
-	// 			"mem_total":   (i/100 + 1) * 10000000,
-	// 			"mem_free":    rand.Uint64(),
-	// 		},
-	// 		mTime)
-	// 	// write asynchronously
-	// 	writeAPI.WritePoint(p)
-	// }
+func DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
+	builder := strings.Builder{}
+	DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	return builder.String(), nil
+}
 
-	// writeAPI.WritePoint()
+func MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*write.Point)) {
+	tags := map[string]string{"fb": met.DeviceModelName, "name": met.DeviceFriendlyName}
 
-	// 	json_body = {
-	// 		"tags": {
-	// 				"fb": "6490",
-	// 				"hostname": self.config["hostname"]
-	// 		},
-	// 		"points": []
-	// }
+	p := influxdb2.NewPoint("uptime", tags, map[string]interface{}{
+		"seconds": met.Uptime,
+	}, mTime)
+	f(p)
 
-	// t = int(time.time())
-	// for d in self.fh.device_informations():
-	// 	name = d["NewDeviceName"]
-	// 	fields = {}
-	// 	if d["NewTemperatureCelsius"] > 0:
-	// 		fields["temp"] = float(d["NewTemperatureCelsius"])/10
-	// 		fields["temp_set"] = float(d['NewHkrSetTemperature'])/10
-	// 	if d['NewMultimeterIsValid'] == "VALID":
-	// 		fields["power"] = float(d["NewMultimeterPower"])/100
-	// 		fields["energy"] = float(d["NewMultimeterEnergy"])
-	// 	if d['NewSwitchIsValid'] == "VALID":
-	// 		fields["switch_state"] = d["NewSwitchState"]
+	p = influxdb2.NewPoint("bytes_received", tags, map[string]interface{}{
+		"bytes": met.BytesReceived,
+	}, mTime)
+	f(p)
 
-	// 	if len(fields) > 0:
-	// 		m = {"measurement": name, "fields": fields, "time": t}
-	// 		json_body["points"].append(m)
+	p = influxdb2.NewPoint("bytes_sent", tags, map[string]interface{}{
+		"bytes": met.BytesSent,
+	}, mTime)
+	f(p)
 
-	// f_status = {
-	// 		"uptime": (self.fs.uptime, "seconds"),
-	// 		"bytes_received": (self.fs.bytes_received, "bytes"),
-	// 		"bytes_sent": (self.fs.bytes_sent, "bytes"),
-	// 		"transmission_rate_up": (self.fs.transmission_rate[0], "bps"),
-	// 		"transmission_rate_down": (self.fs.transmission_rate[1], "bps")
-	// }
+	p = influxdb2.NewPoint("transmission_rate_up", tags, map[string]interface{}{
+		"bps": met.TransmissionRateUp,
+	}, mTime)
+	f(p)
 
-	// for name, (v, f) in f_status.items():
-	// 	m = {"measurement": name, "fields": {f: v}, "time": t}
-	// 	json_body["points"].append(m)
+	p = influxdb2.NewPoint("transmission_rate_down", tags, map[string]interface{}{
+		"bps": met.TransmissionRateDown,
+	}, mTime)
+	f(p)
+}
 
-	// lines = line_protocol.make_lines(json_body)
-	// print(lines)
+func DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime time.Time, f func(*write.Point)) error {
+	for _, dev := range devl.Device {
+		p := influxdb2.NewPointWithMeasurement(dev.Name).SetTime(mTime)
+		if dev.Switch != nil {
+			p.AddField("switch_state_bool", dev.Switch.State)
+		}
+		if dev.Powermeter != nil {
+			p.AddField("energy", float64(dev.Powermeter.Energy))
+			p.AddField("voltage", float64(dev.Powermeter.Voltage)/1000)
+			p.AddField("power", float64(dev.Powermeter.Power)/1000)
+		}
+		if dev.Temperature != nil {
+			p.AddField("temp", float32(dev.Temperature.Celsius)/10)
+			p.AddField("offset", float32(dev.Temperature.Offset)/10)
+		}
+		if dev.HKR != nil {
+			if dev.HKR.Tsoll == 253 {
+				p.AddField("temp_set", float32(0))
+			} else if dev.HKR.Tsoll == 254 {
+				p.AddField("temp_set", float32(31))
+			} else {
+				p.AddField("temp_set", float32(dev.HKR.Tsoll)/2)
+			}
+			p.AddField("window_open", dev.HKR.Windowopenactive)
+		}
+		if dev.ColorControl != nil {
+			p.AddField("color_temp", dev.ColorControl.Temperature)
+			p.AddField("color_hue", dev.ColorControl.Hue)
+			p.AddField("color_saturation", dev.ColorControl.Saturation)
+		}
+		if dev.LevelControl != nil {
+			p.AddField("level", dev.LevelControl.Level)
+		}
+		p.SortFields()
+		if len(p.FieldList()) != 0 {
+			f(p)
+		}
+	}
 	return nil
 }

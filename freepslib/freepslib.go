@@ -14,6 +14,8 @@ import (
 	"net/http"
 	"net/url"
 	"unicode/utf16"
+
+	"github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics"
 )
 
 type FBconfig struct {
@@ -25,14 +27,15 @@ type FBconfig struct {
 var DefaultConfig = FBconfig{"fritz.box", "user", "pass"}
 
 type Freeps struct {
-	conf    FBconfig
-	SID     string
-	Verbose bool
+	conf          FBconfig
+	SID           string
+	Verbose       bool
+	metricsObject *fritzboxmetrics.Root
 }
 
 func NewFreepsLib(conf *FBconfig) (*Freeps, error) {
 	var err error
-	f := &Freeps{*conf, "", false}
+	f := &Freeps{*conf, "", false, nil}
 	f.SID, err = f.getSid()
 	if err != nil {
 		log.Print("Failed to authenticate")
@@ -213,7 +216,10 @@ func (f *Freeps) WakeUpDevice(uid string) error {
 /**** HOME AUTOMATION *****/
 
 type AvmDeviceSwitch struct {
-	State bool `xml:"state"`
+	State      bool   `xml:"state"`
+	Lock       bool   `xml:"lock"`
+	Devicelock bool   `xml:"devicelock"`
+	Mode       string `xml:"mode"`
 }
 
 type AvmDevicePowermeter struct {
@@ -237,13 +243,15 @@ type AvmDeviceLevelcontrol struct {
 }
 
 type AvmDeviceColorcontrol struct {
-	Hue        int `xml:"hue"`
-	Saturation int `xml:"saturation"`
+	Hue         int `xml:"hue"`
+	Saturation  int `xml:"saturation"`
+	Temperature int `xml:"temperature"`
 }
 
 type AvmDeviceHkr struct {
-	Tist  int `xml:"tist"`
-	Tsoll int `xml:"tsoll"`
+	Tist             int  `xml:"tist"`
+	Tsoll            int  `xml:"tsoll"`
+	Windowopenactive bool `xml:"windowopenactiv"` // cannot ignore the typo here
 }
 
 type AvmDevice struct {

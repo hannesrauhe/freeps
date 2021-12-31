@@ -12,7 +12,7 @@ import (
 var testConfig = FBconfig{"fritz.box", "user", "pass"}
 
 func TestChallenge(t *testing.T) {
-	f := &Freeps{FBconfig{"a", "u", "p"}, "", false}
+	f := &Freeps{FBconfig{"a", "u", "p"}, "", false, nil}
 	expectedURL := "https://a/login_sid.lua?username=u&response=a51eacbd-05f2dd791db47141584e0f220b12c7e1"
 
 	assert.Equal(t, f.calculateChallengeURL("a51eacbd"), expectedURL)

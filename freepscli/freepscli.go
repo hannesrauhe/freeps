@@ -43,10 +43,21 @@ func main() {
 	switch fn {
 	case "freepsflux":
 		{
-			ff, err2 := freepsflux.NewFreepsFlux(f)
+			ffc := freepsflux.DefaultConfig
+			err = cr.ReadSectionWithDefaults("freepsflux", &ffc)
+			if err != nil {
+				log.Fatal(err)
+			}
+			cr.WriteBackConfigIfChanged()
+			if err != nil {
+				log.Print(err)
+			}
+
+			ff, err2 := freepsflux.NewFreepsFlux(&ffc, f)
 			if err2 != nil {
 				log.Fatalf("Error while executing function: %v\n", err2)
 			}
+			ff.Verbose = f.Verbose
 			err = ff.Push()
 		}
 	case "getdevicelistinfos":
@@ -56,7 +67,6 @@ func main() {
 				log.Fatalf("Error while executing function: %v\n", err2)
 			}
 			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
-
 		}
 	case "gettemplatelistinfos":
 		{
@@ -65,6 +75,22 @@ func main() {
 				log.Fatalf("Error while executing function: %v\n", err2)
 			}
 			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
+		}
+	case "getdata":
+		{
+			devl, err2 := f.GetData()
+			if err2 != nil {
+				log.Fatalf("Error while executing function: %v\n", err2)
+			}
+			jsonbytes, err = json.MarshalIndent(devl, "", "  ")
+		}
+	case "metrics":
+		{
+			metrics, err := f.GetMetrics()
+			if err != nil {
+				log.Fatalf("could not load UPnP service: %v", err)
+			}
+			fmt.Printf("%v\n", metrics)
 		}
 	default:
 		{
