@@ -21,6 +21,7 @@ type InfluxdbConfig struct {
 type FreepsFluxConfig struct {
 	InfluxdbConnections []InfluxdbConfig
 	Hostname            string
+	IgnoreNotPresent    bool
 }
 
 type FreepsFlux struct {
