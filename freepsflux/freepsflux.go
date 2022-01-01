@@ -54,6 +54,11 @@ func (ff *FreepsFlux) Push() error {
 		return err
 	}
 
+	netd, err := ff.f.GetData()
+	if err != nil {
+		return err
+	}
+
 	influxOptions := influxdb2.DefaultOptions()
 	// influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
 	mTime := time.Now()
@@ -64,6 +69,7 @@ func (ff *FreepsFlux) Push() error {
 
 		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		ff.MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
+		ff.NetDeviceListToPoints(netd, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		writeAPI.Flush()
 		log.Printf("Written to %v", connConfig.URL)
 	}
@@ -72,6 +78,7 @@ func (ff *FreepsFlux) Push() error {
 		builder := strings.Builder{}
 		ff.MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		ff.NetDeviceListToPoints(netd, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 		log.Println(builder.String())
 	}
 
@@ -87,6 +94,12 @@ func (ff *FreepsFlux) MetricsToLineProtocol(met freepslib.FritzBoxMetrics, mTime
 func (ff *FreepsFlux) DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
 	builder := strings.Builder{}
 	ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	return builder.String(), nil
+}
+
+func (ff *FreepsFlux) NetDeviceListToLineProtocol(resp *freepslib.AvmDataResponse, mTime time.Time) (string, error) {
+	builder := strings.Builder{}
+	ff.NetDeviceListToPoints(resp, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 	return builder.String(), nil
 }
 
@@ -161,5 +174,23 @@ func (ff *FreepsFlux) DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime ti
 			f(p)
 		}
 	}
+	return nil
+}
+
+func (ff *FreepsFlux) NetDeviceListToPoints(resp *freepslib.AvmDataResponse, mTime time.Time, f func(*write.Point)) error {
+	p := influxdb2.NewPointWithMeasurement("NetDevices").SetTime(mTime)
+	devCount := map[string]uint{}
+
+	for _, v := range resp.Data.Active {
+		devCount["active_"+v.Type] = devCount["active_"+v.Type] + 1
+	}
+	for _, v := range resp.Data.Passive {
+		devCount["inactive_"+v.Type] = devCount["inactive_"+v.Type] + 1
+	}
+	for k, v := range devCount {
+		p.AddField(k, v)
+	}
+
+	f(p)
 	return nil
 }
