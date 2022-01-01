@@ -21,6 +21,7 @@ type InfluxdbConfig struct {
 type FreepsFluxConfig struct {
 	InfluxdbConnections []InfluxdbConfig
 	Hostname            string
+	IgnoreNotPresent    bool
 }
 
 type FreepsFlux struct {
@@ -29,13 +30,16 @@ type FreepsFlux struct {
 	Verbose bool
 }
 
-var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname"}
+var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname", false}
 
 func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, error) {
 	return &FreepsFlux{f, *conf, false}, nil
 }
 
 func (ff *FreepsFlux) Push() error {
+	if ff.f == nil {
+		return errors.New("Freepslib unintialized")
+	}
 	if len(ff.config.InfluxdbConnections) == 0 {
 		return errors.New("No InfluxDB connections configured")
 	}
@@ -58,35 +62,35 @@ func (ff *FreepsFlux) Push() error {
 		client := influxdb2.NewClientWithOptions(connConfig.URL, connConfig.Token, influxOptions)
 		writeAPI := client.WriteAPI(connConfig.Org, connConfig.Bucket)
 
-		DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
-		MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
+		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
+		ff.MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		writeAPI.Flush()
 		log.Printf("Written to %v", connConfig.URL)
 	}
 
 	if ff.Verbose {
 		builder := strings.Builder{}
-		MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
-		DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		ff.MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 		log.Println(builder.String())
 	}
 
 	return nil
 }
 
-func MetricsToLineProtocol(met freepslib.FritzBoxMetrics, mTime time.Time) (string, error) {
+func (ff *FreepsFlux) MetricsToLineProtocol(met freepslib.FritzBoxMetrics, mTime time.Time) (string, error) {
 	builder := strings.Builder{}
-	MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	ff.MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 	return builder.String(), nil
 }
 
-func DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
+func (ff *FreepsFlux) DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
 	builder := strings.Builder{}
-	DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 	return builder.String(), nil
 }
 
-func MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*write.Point)) {
+func (ff *FreepsFlux) MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*write.Point)) {
 	tags := map[string]string{"fb": met.DeviceModelName, "name": met.DeviceFriendlyName}
 
 	p := influxdb2.NewPoint("uptime", tags, map[string]interface{}{
@@ -115,8 +119,12 @@ func MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*wri
 	f(p)
 }
 
-func DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime time.Time, f func(*write.Point)) error {
+func (ff *FreepsFlux) DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime time.Time, f func(*write.Point)) error {
 	for _, dev := range devl.Device {
+		if ff.config.IgnoreNotPresent && !dev.Present {
+			continue
+		}
+
 		p := influxdb2.NewPointWithMeasurement(dev.Name).SetTime(mTime)
 		if dev.Switch != nil {
 			p.AddField("switch_state_bool", dev.Switch.State)
