@@ -15,7 +15,7 @@ import (
 	"net/url"
 	"unicode/utf16"
 
-	"github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics"
+	"github.com/hannesrauhe/freeps/freepslib/fritzboxmetrics"
 )
 
 type FBconfig struct {

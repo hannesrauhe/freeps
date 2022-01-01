@@ -30,7 +30,7 @@ type FreepsFlux struct {
 	Verbose bool
 }
 
-var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname"}
+var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname", false}
 
 func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, error) {
 	return &FreepsFlux{f, *conf, false}, nil
@@ -118,6 +118,7 @@ func MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*wri
 
 func DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime time.Time, f func(*write.Point)) error {
 	for _, dev := range devl.Device {
+
 		p := influxdb2.NewPointWithMeasurement(dev.Name).SetTime(mTime)
 		if dev.Switch != nil {
 			p.AddField("switch_state_bool", dev.Switch.State)
