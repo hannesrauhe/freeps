@@ -136,8 +136,8 @@ func main() {
 	r.HandleFunc("/script/{script:[a-z0-9_]+}/{arg:[a-z0-9_]+}", ExecHandler)
 	r.HandleFunc("/denon/{function}", DenonHandler)
 
-	r.PathPrefix("/fritz/{function}").Handler(fh)
-	r.PathPrefix("/fritz/{function}/{device}").Handler(fh)
+	r.Handle("/fritz/{function}", fh)
+	r.Handle("/fritz/{function}/{device}", fh)
 
 	srv := &http.Server{
 		Handler:      r,
