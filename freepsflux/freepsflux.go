@@ -20,7 +20,6 @@ type InfluxdbConfig struct {
 
 type FreepsFluxConfig struct {
 	InfluxdbConnections []InfluxdbConfig
-	Hostname            string
 	IgnoreNotPresent    bool
 }
 
@@ -30,7 +29,7 @@ type FreepsFlux struct {
 	Verbose bool
 }
 
-var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname", false}
+var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, false}
 
 func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, error) {
 	return &FreepsFlux{f, *conf, false}, nil
