@@ -33,11 +33,6 @@ var lastInfo ShellyDoorInfo
 
 var verbose bool
 
-func onMessageReceived(client MQTT.Client, message MQTT.Message) {
-	t := strings.Split(message.Topic(), "/")
-	fmt.Printf("Received message on topic: %s\nMessage: %s\n", t[len(t)-1], message.Payload())
-}
-
 func mqtt(cr *utils.ConfigReader) {
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
@@ -48,7 +43,7 @@ func mqtt(cr *utils.ConfigReader) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = cr.ReadSectionWithDefaults("freepsmqtt", &ffc)
+	err = cr.ReadSectionWithDefaults("freepsmqtt", &fmc)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,18 +58,23 @@ func mqtt(cr *utils.ConfigReader) {
 		log.Fatalf("Error while executing function: %v\n", err2)
 	}
 
-	connOpts := MQTT.NewClientOptions().AddBroker(*server).SetClientID(*clientid).SetCleanSession(true)
-	if *username != "" {
-		connOpts.SetUsername(*username)
-		if *password != "" {
-			connOpts.SetPassword(*password)
+	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true)
+	if fmc.Username != "" {
+		connOpts.SetUsername(fmc.Username)
+		if fmc.Password != "" {
+			connOpts.SetPassword(fmc.Password)
 		}
 	}
 	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
 	connOpts.SetTLSConfig(tlsConfig)
 
+	onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+		t := strings.Split(message.Topic(), "/")
+		fmt.Printf("Measuremnt: %s, Field: %s, Value: %s\n", t[fmc.MeasurementIndex], t[fmc.FieldIndex], message.Payload())
+	}
+
 	connOpts.OnConnect = func(c MQTT.Client) {
-		if token := c.Subscribe(*topic, byte(*qos), onMessageReceived); token.Wait() && token.Error() != nil {
+		if token := c.Subscribe(fmc.Topic, byte(fmc.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
 			panic(token.Error())
 		}
 	}
@@ -83,7 +83,7 @@ func mqtt(cr *utils.ConfigReader) {
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	} else {
-		fmt.Printf("Connected to %s\n", *server)
+		fmt.Printf("Connected to %s\n", fmc.Server)
 	}
 }
 
