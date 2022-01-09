@@ -23,7 +23,7 @@ import (
 
 var verbose bool
 
-func mqttReceivedMessage(tc freepsmqtt.TopicToFluxConfig, client MQTT.Client, message MQTT.Message) {
+func mqttReceivedMessage(ff *freepsflux.FreepsFlux, tc freepsmqtt.TopicToFluxConfig, client MQTT.Client, message MQTT.Message) {
 	var err error
 	t := strings.Split(message.Topic(), "/")
 	field := t[tc.FieldIndex]
@@ -54,6 +54,8 @@ func mqttReceivedMessage(tc freepsmqtt.TopicToFluxConfig, client MQTT.Client, me
 			panic(err)
 		}
 		fmt.Printf("%s %s=%v\n", t[tc.MeasurementIndex], fieldAlias, value)
+		ff.PushFields(t[tc.MeasurementIndex], map[string]interface{}{fieldAlias: value})
+
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message.Payload())
 	}
@@ -97,7 +99,7 @@ func mqtt(cr *utils.ConfigReader) {
 	connOpts.OnConnect = func(c MQTT.Client) {
 		for _, k := range fmc.Topics {
 			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-				mqttReceivedMessage(k, client, message)
+				mqttReceivedMessage(ff, k, client, message)
 			}
 			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
 				panic(token.Error())
@@ -114,9 +116,6 @@ func mqtt(cr *utils.ConfigReader) {
 }
 
 func main() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
 	var configpath, fn, dev string
 	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
 	flag.StringVar(&fn, "f", "freepsflux", "Specify function")
@@ -131,7 +130,10 @@ func main() {
 	}
 
 	if fn == "mqtt" {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		mqtt(cr)
+		<-c
 	} else {
 		conf := freepslib.DefaultConfig
 		err = cr.ReadSectionWithDefaults("freepslib", &conf)
@@ -218,5 +220,4 @@ func main() {
 		fmt.Println(b.String())
 	}
 
-	<-c
 }
