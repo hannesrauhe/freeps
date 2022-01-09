@@ -21,17 +21,43 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-type ShellyDoorInfo struct {
-	State       *bool
-	Temperature *float32
-	Lux         *int64
-	Battery     *int16
-	Error       *int64
-}
-
-var lastInfo ShellyDoorInfo
-
 var verbose bool
+
+func mqttReceivedMessage(tc freepsmqtt.TopicToFluxConfig, client MQTT.Client, message MQTT.Message) {
+	var err error
+	t := strings.Split(message.Topic(), "/")
+	field := t[tc.FieldIndex]
+	fconf, fieldExists := tc.Fields[field]
+	if fieldExists {
+		var value interface{}
+		fieldAlias := field
+		if fconf.Alias != nil {
+			fieldAlias = *fconf.Alias
+		}
+		switch fconf.Datatype {
+		case "float":
+			value, err = strconv.ParseFloat(string(message.Payload()), 64)
+		case "int":
+			value, err = strconv.Atoi(string(message.Payload()))
+		case "bool":
+			if fconf.TrueValue == nil {
+				value, err = strconv.ParseBool(string(message.Payload()))
+			} else if string(message.Payload()) == *fconf.TrueValue {
+				value = true
+			} else {
+				value = false
+			}
+		default:
+			value = string(message.Payload())
+		}
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%s %s=%v\n", t[tc.MeasurementIndex], fieldAlias, value)
+	} else {
+		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message.Payload())
+	}
+}
 
 func mqtt(cr *utils.ConfigReader) {
 	hostname, _ := os.Hostname()
@@ -68,14 +94,14 @@ func mqtt(cr *utils.ConfigReader) {
 	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
 	connOpts.SetTLSConfig(tlsConfig)
 
-	onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-		t := strings.Split(message.Topic(), "/")
-		fmt.Printf("Measuremnt: %s, Field: %s, Value: %s\n", t[fmc.MeasurementIndex], t[fmc.FieldIndex], message.Payload())
-	}
-
 	connOpts.OnConnect = func(c MQTT.Client) {
-		if token := c.Subscribe(fmc.Topic, byte(fmc.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
-			panic(token.Error())
+		for _, k := range fmc.Topics {
+			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+				mqttReceivedMessage(k, client, message)
+			}
+			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
+				panic(token.Error())
+			}
 		}
 	}
 
