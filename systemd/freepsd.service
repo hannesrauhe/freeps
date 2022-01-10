@@ -1,11 +1,13 @@
 [Unit]
-Description=A daemon that runs freepscomponents
+Description=freepsd
 After=syslog.target network.target remote-fs.target nss-lookup.target
 
 [Service]
 Type=simple
 User=nobody
-ExecStart=/usr/bin/freeppsd -c /etc/freepsd/config.json -f mqtt
+ExecStart=/usr/bin/freepsd -c /etc/freepsd/config.json -f mqtt
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
