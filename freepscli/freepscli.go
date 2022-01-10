@@ -2,19 +2,14 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
-	"time"
 
-	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/freepslib"
 	"github.com/hannesrauhe/freeps/freepsmqtt"
@@ -23,48 +18,7 @@ import (
 
 var verbose bool
 
-func mqttReceivedMessage(ff *freepsflux.FreepsFlux, tc freepsmqtt.TopicToFluxConfig, client MQTT.Client, message MQTT.Message) {
-	var err error
-	t := strings.Split(message.Topic(), "/")
-	field := t[tc.FieldIndex]
-	fconf, fieldExists := tc.Fields[field]
-	if fieldExists {
-		var value interface{}
-		fieldAlias := field
-		if fconf.Alias != nil {
-			fieldAlias = *fconf.Alias
-		}
-		switch fconf.Datatype {
-		case "float":
-			value, err = strconv.ParseFloat(string(message.Payload()), 64)
-		case "int":
-			value, err = strconv.Atoi(string(message.Payload()))
-		case "bool":
-			if fconf.TrueValue == nil {
-				value, err = strconv.ParseBool(string(message.Payload()))
-			} else if string(message.Payload()) == *fconf.TrueValue {
-				value = true
-			} else {
-				value = false
-			}
-		default:
-			value = string(message.Payload())
-		}
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%s %s=%v\n", t[tc.MeasurementIndex], fieldAlias, value)
-		ff.PushFields(t[tc.MeasurementIndex], map[string]interface{}{fieldAlias: value})
-
-	} else {
-		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message.Payload())
-	}
-}
-
 func mqtt(cr *utils.ConfigReader) {
-	hostname, _ := os.Hostname()
-	clientid := hostname + strconv.Itoa(time.Now().Second())
-
 	ffc := freepsflux.DefaultConfig
 	fmc := freepsmqtt.DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsflux", &ffc)
@@ -85,34 +39,8 @@ func mqtt(cr *utils.ConfigReader) {
 	if err2 != nil {
 		log.Fatalf("Error while executing function: %v\n", err2)
 	}
-
-	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true)
-	if fmc.Username != "" {
-		connOpts.SetUsername(fmc.Username)
-		if fmc.Password != "" {
-			connOpts.SetPassword(fmc.Password)
-		}
-	}
-	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
-	connOpts.SetTLSConfig(tlsConfig)
-
-	connOpts.OnConnect = func(c MQTT.Client) {
-		for _, k := range fmc.Topics {
-			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-				mqttReceivedMessage(ff, k, client, message)
-			}
-			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
-				panic(token.Error())
-			}
-		}
-	}
-
-	client := MQTT.NewClient(connOpts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	} else {
-		fmt.Printf("Connected to %s\n", fmc.Server)
-	}
+	fm := freepsmqtt.FreepsMqtt{&fmc, ff.PushFields}
+	fm.Start()
 }
 
 func main() {
