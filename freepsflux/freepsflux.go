@@ -8,6 +8,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/freepslib"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
 
@@ -20,28 +21,60 @@ type InfluxdbConfig struct {
 
 type FreepsFluxConfig struct {
 	InfluxdbConnections []InfluxdbConfig
-	Hostname            string
 	IgnoreNotPresent    bool
 }
 
 type FreepsFlux struct {
-	f       *freepslib.Freeps
-	config  FreepsFluxConfig
-	Verbose bool
+	f         *freepslib.Freeps
+	config    FreepsFluxConfig
+	Verbose   bool
+	writeApis []api.WriteAPI
 }
 
-var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, "hostname", false}
+var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, false}
 
 func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, error) {
-	return &FreepsFlux{f, *conf, false}, nil
+	return &FreepsFlux{f, *conf, false, []api.WriteAPI{}}, nil
+}
+
+func (ff *FreepsFlux) InitInflux() error {
+	if len(ff.config.InfluxdbConnections) == 0 {
+		return errors.New("No InfluxDB connections configured")
+	}
+
+	for _, connConfig := range ff.config.InfluxdbConnections {
+		influxOptions := influxdb2.DefaultOptions()
+		client := influxdb2.NewClientWithOptions(connConfig.URL, connConfig.Token, influxOptions)
+		writeAPI := client.WriteAPI(connConfig.Org, connConfig.Bucket)
+		ff.writeApis = append(ff.writeApis, writeAPI)
+	}
+	return nil
+}
+
+func (ff *FreepsFlux) PushFields(measurement string, fields map[string]interface{}) error {
+	if len(ff.writeApis) == 0 {
+		err := ff.InitInflux()
+		if err != nil {
+			return err
+		}
+	}
+	for _, writeAPI := range ff.writeApis {
+		p := influxdb2.NewPoint(measurement, map[string]string{}, fields, time.Now())
+		writeAPI.WritePoint(p)
+		writeAPI.Flush()
+	}
+	return nil
 }
 
 func (ff *FreepsFlux) Push() error {
 	if ff.f == nil {
 		return errors.New("Freepslib unintialized")
 	}
-	if len(ff.config.InfluxdbConnections) == 0 {
-		return errors.New("No InfluxDB connections configured")
+	if len(ff.writeApis) == 0 {
+		err := ff.InitInflux()
+		if err != nil {
+			return err
+		}
 	}
 
 	devl, err := ff.f.GetDeviceList()
@@ -59,19 +92,15 @@ func (ff *FreepsFlux) Push() error {
 		return err
 	}
 
-	influxOptions := influxdb2.DefaultOptions()
 	// influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
 	mTime := time.Now()
 
-	for _, connConfig := range ff.config.InfluxdbConnections {
-		client := influxdb2.NewClientWithOptions(connConfig.URL, connConfig.Token, influxOptions)
-		writeAPI := client.WriteAPI(connConfig.Org, connConfig.Bucket)
-
+	for i, writeAPI := range ff.writeApis {
 		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		ff.MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		ff.NetDeviceListToPoints(netd, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		writeAPI.Flush()
-		log.Printf("Written to %v", connConfig.URL)
+		log.Printf("Written to Connection %v", ff.config.InfluxdbConnections[i].URL)
 	}
 
 	if ff.Verbose {
