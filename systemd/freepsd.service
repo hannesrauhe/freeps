@@ -5,7 +5,7 @@ After=syslog.target network.target remote-fs.target nss-lookup.target
 [Service]
 Type=simple
 User=nobody
-ExecStart=/usr/bin/freepsd -c /etc/freepsd/config.json -f mqtt
+ExecStart=/usr/bin/freepsd -c /etc/freepsd/config.json -f freepsd
 Restart=always
 RestartSec=5
 
