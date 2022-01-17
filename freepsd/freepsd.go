@@ -6,13 +6,17 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/freepslib"
 	"github.com/hannesrauhe/freeps/freepsmqtt"
+	"github.com/hannesrauhe/freeps/restonatorx"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -43,6 +47,40 @@ func mqtt(cr *utils.ConfigReader) {
 	fm.Start()
 }
 
+func rest(cr *utils.ConfigReader) {
+	conf := freepslib.DefaultConfig
+	err := cr.ReadSectionWithDefaults("freepslib", &conf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cr.WriteBackConfigIfChanged()
+	if err != nil {
+		log.Print(err)
+	}
+
+	fh := restonatorx.NewFritzHandlerFromConf(&conf)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/exec/{script:[a-z0-9_]+}/{arg:[a-z0-9_]+}", restonatorx.ExecHandler)
+	r.HandleFunc("/script/{script:[a-z0-9_]+}/{arg:[a-z0-9_]+}", restonatorx.ExecHandler)
+	r.HandleFunc("/denon/{function}", restonatorx.DenonHandler)
+	r.HandleFunc("/raspistill", restonatorx.RaspiHandler)
+	r.Handle("/fritz/{function}", fh)
+	r.Handle("/fritz/{function}/{device}", fh)
+
+	srv := &http.Server{
+		Handler:      r,
+		Addr:         ":8000",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
+	log.Println("Starting Server")
+	err = srv.ListenAndServe()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	var configpath, fn, dev string
 	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
@@ -58,6 +96,12 @@ func main() {
 	}
 
 	if fn == "mqtt" {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		mqtt(cr)
+		<-c
+	} else if fn == "freepsd" {
+		go rest(cr)
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		mqtt(cr)

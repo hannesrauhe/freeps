@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 func StructToMap(someStruct interface{}) (map[string]interface{}, error) {
@@ -77,22 +78,26 @@ type ConfigReader struct {
 	configFilePath    string
 	configFileContent []byte
 	configChanged     bool
+	lck               sync.Mutex
 }
 
 func NewConfigReader(configFilePath string) (*ConfigReader, error) {
 	_, err := os.Stat(configFilePath)
 	if os.IsNotExist(err) {
-		return &ConfigReader{configFilePath, []byte{}, true}, nil
+		return &ConfigReader{configFilePath: configFilePath, configChanged: true}, nil
 	}
 
 	byteValue, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
 		return nil, err
 	}
-	return &ConfigReader{configFilePath, byteValue, false}, nil
+	return &ConfigReader{configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
 }
 
 func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct interface{}) error {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
 	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct)
 	if len(newb) > 0 {
 		c.configChanged = true
@@ -102,6 +107,9 @@ func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct 
 }
 
 func (c *ConfigReader) WriteBackConfigIfChanged() error {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
 	if !c.configChanged {
 		return nil
 	}
@@ -110,5 +118,9 @@ func (c *ConfigReader) WriteBackConfigIfChanged() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
+	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
+	if err == nil {
+		c.configChanged = false
+	}
+	return err
 }

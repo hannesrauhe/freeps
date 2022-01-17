@@ -1,19 +1,16 @@
-package main
+package restonatorx
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"os/exec"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hannesrauhe/freeps/freepslib"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (bytes []byte, err error) {
@@ -96,13 +93,17 @@ func DenonHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type FritzHandler struct {
-	fconf freepslib.FBconfig
+	fconf *freepslib.FBconfig
+}
+
+func NewFritzHandlerFromConf(fc *freepslib.FBconfig) *FritzHandler {
+	return &FritzHandler{fc}
 }
 
 func (fh FritzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	f, err := freepslib.NewFreepsLib(&fh.fconf)
+	f, err := freepslib.NewFreepsLib(fh.fconf)
 	if err != nil {
 		fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError on freepslib-init: %v", vars, string(err.Error()))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -144,48 +145,4 @@ func (fh FritzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintf(w, "Fritz: %v, %v, %v", fn, dev, arg)
-}
-
-func main() {
-	var configpath string
-	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
-	// verb := flag.Bool("v", false, "Verbose output")
-
-	flag.Parse()
-
-	conf := freepslib.DefaultConfig
-	cr, err := utils.NewConfigReader(configpath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = cr.ReadSectionWithDefaults("freepslib", &conf)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
-	}
-
-	fh := FritzHandler{conf}
-
-	r := mux.NewRouter()
-	r.HandleFunc("/exec/{script:[a-z0-9_]+}/{arg:[a-z0-9_]+}", ExecHandler)
-	r.HandleFunc("/script/{script:[a-z0-9_]+}/{arg:[a-z0-9_]+}", ExecHandler)
-	r.HandleFunc("/denon/{function}", DenonHandler)
-	r.HandleFunc("/raspistill", RaspiHandler)
-	r.Handle("/fritz/{function}", fh)
-	r.Handle("/fritz/{function}/{device}", fh)
-
-	srv := &http.Server{
-		Handler:      r,
-		Addr:         ":8000",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
-	log.Println("Starting Server")
-	err = srv.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
-	}
 }
