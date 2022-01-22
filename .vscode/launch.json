@@ -10,6 +10,14 @@
       "request": "launch",
       "mode": "auto",
       "program": "${fileDirname}"
+    },
+    {
+      "name": "Launch freepsd",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-f","rest"]
     }
   ]
 }

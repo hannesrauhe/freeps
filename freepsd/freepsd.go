@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hannesrauhe/freeps/freepsflux"
-	"github.com/hannesrauhe/freeps/freepslib"
 	"github.com/hannesrauhe/freeps/freepsmqtt"
 	"github.com/hannesrauhe/freeps/restonatorx"
 	"github.com/hannesrauhe/freeps/utils"
@@ -47,26 +45,18 @@ func mqtt(cr *utils.ConfigReader) {
 	fm.Start()
 }
 
-func rest(cr *utils.ConfigReader) {
-	conf := freepslib.DefaultConfig
-	err := cr.ReadSectionWithDefaults("freepslib", &conf)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
-	}
-
-	fh := restonatorx.NewFritzHandlerFromConf(&conf)
-
+func rest(mods map[string]restonatorx.RestonatorMod) {
+	rest := &restonatorx.Restonator{Mods: mods}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	r := mux.NewRouter()
-	r.HandleFunc("/exec/{script:[a-z0-9_]+}/{arg:[a-z0-9_]+}", restonatorx.ExecHandler)
-	r.HandleFunc("/script/{script:[a-z0-9_]+}/{arg:[a-z0-9_]+}", restonatorx.ExecHandler)
-	r.HandleFunc("/denon/{function}", restonatorx.DenonHandler)
-	r.HandleFunc("/raspistill", restonatorx.RaspiHandler)
-	r.Handle("/fritz/{function}", fh)
-	r.Handle("/fritz/{function}/{device}", fh)
+	r.Handle("/rest/{mod}/{function}", rest)
+	r.Handle("/rest/{mod}/{function}/{device}", rest)
+	r.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Shutdown Request Sucess"))
+		// Cancel the context on request
+		cancel()
+	})
 
 	srv := &http.Server{
 		Handler:      r,
@@ -74,18 +64,27 @@ func rest(cr *utils.ConfigReader) {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-	log.Println("Starting Server")
-	err = srv.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
+
+	go func() {
+		log.Println("Starting Server")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		// Shutdown the server when the context is canceled
+		srv.Shutdown(ctx)
 	}
+	log.Printf("Server stopped")
 }
 
 func main() {
-	var configpath, fn, dev string
+	var configpath, fn, mod, argstring string
 	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
-	flag.StringVar(&fn, "f", "freepsflux", "Specify function")
-	flag.StringVar(&dev, "d", "", "Specify device")
+	flag.StringVar(&mod, "m", "rest", "Specify mod to execute directly without starting rest server")
+	flag.StringVar(&fn, "f", "", "Specify function to execute in mod")
+	flag.StringVar(&argstring, "a", "", "Specify arguments to function as urlencoded string")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
 
 	flag.Parse()
@@ -95,101 +94,30 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if fn == "mqtt" {
+	mods := make(map[string]restonatorx.RestonatorMod)
+	mods["curl"] = &restonatorx.CurlMod{}
+	mods["fritz"] = restonatorx.NewFritzMod(cr)
+	mods["raspistill"] = &restonatorx.RaspistillMod{}
+	mods["template"] = restonatorx.NewTemplateModFromFile("/tmp/templates.json", mods)
+
+	if mod == "mqtt" {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		mqtt(cr)
 		<-c
-	} else if fn == "freepsd" {
-		go rest(cr)
+	} else if mod == "freepsd" {
+		go rest(mods)
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 		mqtt(cr)
 		<-c
+	} else if mod == "rest" {
+		rest(mods)
 	} else {
-		conf := freepslib.DefaultConfig
-		err = cr.ReadSectionWithDefaults("freepslib", &conf)
-		if err != nil {
-			log.Fatal(err)
-		}
-		cr.WriteBackConfigIfChanged()
-		if err != nil {
-			log.Print(err)
-		}
-
-		f, err := freepslib.NewFreepsLib(&conf)
-		f.Verbose = verbose
-
-		var jsonbytes []byte
-
-		switch fn {
-		case "freepsflux":
-			{
-				ffc := freepsflux.DefaultConfig
-				err = cr.ReadSectionWithDefaults("freepsflux", &ffc)
-				if err != nil {
-					log.Fatal(err)
-				}
-				cr.WriteBackConfigIfChanged()
-				if err != nil {
-					log.Print(err)
-				}
-
-				ff, err2 := freepsflux.NewFreepsFlux(&ffc, f)
-				if err2 != nil {
-					log.Fatalf("Error while executing function: %v\n", err2)
-				}
-				ff.Verbose = f.Verbose
-				err = ff.Push()
-			}
-		case "getdevicelistinfos":
-			{
-				devl, err2 := f.GetDeviceList()
-				if err2 != nil {
-					log.Fatalf("Error while executing function: %v\n", err2)
-				}
-				jsonbytes, err = json.MarshalIndent(devl, "", "  ")
-			}
-		case "gettemplatelistinfos":
-			{
-				devl, err2 := f.GetTemplateList()
-				if err2 != nil {
-					log.Fatalf("Error while executing function: %v\n", err2)
-				}
-				jsonbytes, err = json.MarshalIndent(devl, "", "  ")
-			}
-		case "getdata":
-			{
-				devl, err2 := f.GetData()
-				if err2 != nil {
-					log.Fatalf("Error while executing function: %v\n", err2)
-				}
-				jsonbytes, err = json.MarshalIndent(devl, "", "  ")
-			}
-		case "metrics":
-			{
-				metrics, err := f.GetMetrics()
-				if err != nil {
-					log.Fatalf("could not load UPnP service: %v", err)
-				}
-				fmt.Printf("%v\n", metrics)
-			}
-		default:
-			{
-				arg := make(map[string]string)
-				result, err2 := f.HomeAutomation(fn, dev, arg)
-				if err2 != nil {
-					log.Fatalf("Error while executing function: %v\n", err2)
-				}
-				jsonbytes, err = json.MarshalIndent(result, "", "  ")
-			}
-		}
-		if err != nil {
-			log.Fatalf("Error while parsing response: %v\n", err)
-		}
-		var b bytes.Buffer
-		b.Write(jsonbytes)
-		fmt.Println(b.String())
+		w := utils.StoreWriter{}
+		args, _ := url.ParseQuery(argstring)
+		mods[mod].Do(fn, args, &w)
+		w.Print()
 	}
 
 }
