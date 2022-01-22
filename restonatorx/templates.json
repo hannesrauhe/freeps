@@ -1,0 +1,26 @@
+{
+  "denonoff": {
+    "Actions": [
+      {
+        "Mod": "curl",
+        "Fn": "PostForm",
+        "Args": {
+          "url": ["http://denon.fritz.box/MainZone/index.put.asp"],
+          "cmd0": ["PutSystem_OnStandby/STANDBY"]
+        }
+      }
+    ]
+  },
+  "denonon": {
+    "Actions": [
+      {
+        "Mod": "curl",
+        "Fn": "PostForm",
+        "Args": {
+          "url": ["http://denon.fritz.box/MainZone/index.put.asp"],
+          "cmd0": ["PutSystem_OnStandby/ON"]
+        }
+      }
+    ]
+  }
+}
