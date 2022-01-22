@@ -6,6 +6,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type TemplateAction struct {
@@ -66,7 +69,21 @@ func (m *TemplateMod) Do(templateName string, args map[string][]string, w http.R
 		fmt.Fprintf(w, "template %v has no actions", templateName)
 		return
 	}
+	m.ExecuteTemplate(&template, w)
+}
+
+func (m *TemplateMod) ExecuteTemplate(template *Template, w http.ResponseWriter) {
 	for _, t := range template.Actions {
 		m.Mods[t.Mod].Do(t.Fn, t.Args, w)
 	}
+}
+
+func (m *TemplateMod) ExecuteMod(mod string, fn string, argstring string) {
+	w := utils.StoreWriter{}
+	args, _ := url.ParseQuery(argstring)
+	ta := TemplateAction{Mod: mod, Fn: fn, Args: args}
+	actions := []TemplateAction{ta}
+	t := Template{Actions: actions}
+	m.ExecuteTemplate(&t, &w)
+	w.Print()
 }

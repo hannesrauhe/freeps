@@ -5,7 +5,6 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -98,7 +97,8 @@ func main() {
 	mods["curl"] = &restonatorx.CurlMod{}
 	mods["fritz"] = restonatorx.NewFritzMod(cr)
 	mods["raspistill"] = &restonatorx.RaspistillMod{}
-	mods["template"] = restonatorx.NewTemplateModFromFile("/tmp/templates.json", mods)
+	modinator := restonatorx.NewTemplateModFromUrl("https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/restonatorx/templates.json", mods)
+	mods["template"] = modinator
 
 	if mod == "mqtt" {
 		c := make(chan os.Signal, 1)
@@ -114,10 +114,7 @@ func main() {
 	} else if mod == "rest" {
 		rest(mods)
 	} else {
-		w := utils.StoreWriter{}
-		args, _ := url.ParseQuery(argstring)
-		mods[mod].Do(fn, args, &w)
-		w.Print()
+		modinator.ExecuteMod(mod, fn, argstring)
 	}
 
 }
