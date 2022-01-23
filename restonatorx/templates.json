@@ -22,5 +22,17 @@
         }
       }
     ]
+  },
+  "sleep": {
+    "Actions": [
+      {
+        "Mod": "fritz",
+        "Fn": "setsimpleonoff",
+        "Args": {
+          "device": ["13077 013108-1"],
+          "onoff": ["0"]
+        }
+      }
+    ]
   }
 }
