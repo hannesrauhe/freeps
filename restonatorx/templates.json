@@ -29,7 +29,7 @@
         "Mod": "fritz",
         "Fn": "setsimpleonoff",
         "Args": {
-          "device": ["13077 013108-1"],
+          "device": ["13077 0013108-1"],
           "onoff": ["0"]
         }
       }
