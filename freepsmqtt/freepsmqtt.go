@@ -34,7 +34,7 @@ type FreepsMqttConfig struct {
 }
 
 var DefaultTopicConfig = TopicToFluxConfig{"shellies/shellydw2-483FDA81E731/sensor/#", 0, -1, -1, map[string]FieldConfig{}}
-var DefaultConfig = FreepsMqttConfig{"tcp://localhost:1883", "", "", []TopicToFluxConfig{DefaultTopicConfig}}
+var DefaultConfig = FreepsMqttConfig{"", "", "", []TopicToFluxConfig{DefaultTopicConfig}}
 
 type FreepsMqtt struct {
 	Config   *FreepsMqttConfig
@@ -80,6 +80,10 @@ func mqttReceivedMessage(tc TopicToFluxConfig, client MQTT.Client, message MQTT.
 }
 
 func (fm *FreepsMqtt) Start() {
+	if fm.Config.Server == "" {
+		return
+	}
+
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
 

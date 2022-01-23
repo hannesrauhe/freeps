@@ -4,8 +4,8 @@ After=syslog.target network.target remote-fs.target nss-lookup.target
 
 [Service]
 Type=simple
-User=nobody
-ExecStart=/usr/bin/freepsd -c /etc/freepsd/config.json -f freepsd
+User=freepsd
+ExecStart=/usr/bin/freepsd -c /etc/freepsd/config.json
 Restart=always
 RestartSec=5
 

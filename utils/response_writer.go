@@ -25,5 +25,5 @@ func (o *StoreWriter) WriteHeader(statusCode int) {
 }
 
 func (o *StoreWriter) Print() {
-	fmt.Printf("Status: %v\n%q", o.StoredHeaderCode, o.StoredBody)
+	fmt.Printf("Status: %v\n%q\n", o.StoredHeaderCode, o.StoredBody)
 }

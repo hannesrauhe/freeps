@@ -5,9 +5,6 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -44,13 +41,39 @@ func mqtt(cr *utils.ConfigReader) {
 	fm.Start()
 }
 
-func rest(mods map[string]restonatorx.RestonatorMod) {
+func main() {
+	var configpath, fn, mod, argstring string
+	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
+	flag.StringVar(&mod, "m", "", "Specify mod to execute directly without starting rest server")
+	flag.StringVar(&fn, "f", "", "Specify function to execute in mod")
+	flag.StringVar(&argstring, "a", "", "Specify arguments to function as urlencoded string")
+	flag.BoolVar(&verbose, "v", false, "Verbose output")
+
+	flag.Parse()
+
+	cr, err := utils.NewConfigReader(configpath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mods := make(map[string]restonatorx.RestonatorMod)
+	mods["curl"] = &restonatorx.CurlMod{}
+	mods["fritz"] = restonatorx.NewFritzMod(cr)
+	mods["raspistill"] = &restonatorx.RaspistillMod{}
+	modinator := restonatorx.NewTemplateModFromUrl("https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/restonatorx/templates.json", mods)
+	mods["template"] = modinator
+
+	if mod != "" {
+		modinator.ExecuteMod(mod, fn, argstring)
+		return
+	}
+
 	rest := &restonatorx.Restonator{Mods: mods}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r := mux.NewRouter()
-	r.Handle("/rest/{mod}/{function}", rest)
-	r.Handle("/rest/{mod}/{function}/{device}", rest)
+	r.Handle("/{mod}/{function}", rest)
+	r.Handle("/{mod}/{function}/{device}", rest)
 	r.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Shutdown Request Sucess"))
 		// Cancel the context on request
@@ -70,51 +93,13 @@ func rest(mods map[string]restonatorx.RestonatorMod) {
 			log.Fatal(err)
 		}
 	}()
+
+	mqtt(cr)
+
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
 		srv.Shutdown(ctx)
 	}
 	log.Printf("Server stopped")
-}
-
-func main() {
-	var configpath, fn, mod, argstring string
-	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
-	flag.StringVar(&mod, "m", "rest", "Specify mod to execute directly without starting rest server")
-	flag.StringVar(&fn, "f", "", "Specify function to execute in mod")
-	flag.StringVar(&argstring, "a", "", "Specify arguments to function as urlencoded string")
-	flag.BoolVar(&verbose, "v", false, "Verbose output")
-
-	flag.Parse()
-
-	cr, err := utils.NewConfigReader(configpath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mods := make(map[string]restonatorx.RestonatorMod)
-	mods["curl"] = &restonatorx.CurlMod{}
-	mods["fritz"] = restonatorx.NewFritzMod(cr)
-	mods["raspistill"] = &restonatorx.RaspistillMod{}
-	modinator := restonatorx.NewTemplateModFromUrl("https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/restonatorx/templates.json", mods)
-	mods["template"] = modinator
-
-	if mod == "mqtt" {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-		mqtt(cr)
-		<-c
-	} else if mod == "freepsd" {
-		go rest(mods)
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-		mqtt(cr)
-		<-c
-	} else if mod == "rest" {
-		rest(mods)
-	} else {
-		modinator.ExecuteMod(mod, fn, argstring)
-	}
-
 }

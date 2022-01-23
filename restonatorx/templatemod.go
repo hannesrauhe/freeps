@@ -74,7 +74,13 @@ func (m *TemplateMod) Do(templateName string, args map[string][]string, w http.R
 
 func (m *TemplateMod) ExecuteTemplate(template *Template, w http.ResponseWriter) {
 	for _, t := range template.Actions {
-		m.Mods[t.Mod].Do(t.Fn, t.Args, w)
+		mod, modExists := m.Mods[t.Mod]
+		if !modExists {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "module %v unknown", t.Mod)
+			return
+		}
+		mod.Do(t.Fn, t.Args, w)
 	}
 }
 
