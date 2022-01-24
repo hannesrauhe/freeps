@@ -18,6 +18,22 @@
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
       "args": []
+    },
+    {
+      "name": "denonoff",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "template", "-f", "denonoff"]
+    },
+    {
+      "name": "denonon",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "template", "-f", "denonon"]
     }
   ]
 }

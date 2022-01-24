@@ -16,6 +16,9 @@ func (o *StoreWriter) Header() http.Header {
 }
 
 func (o *StoreWriter) Write(toWrite []byte) (int, error) {
+	if o.StoredHeaderCode == 0 {
+		o.StoredHeaderCode = 200
+	}
 	o.StoredBody = toWrite
 	return len(o.StoredBody), nil
 }
@@ -25,5 +28,6 @@ func (o *StoreWriter) WriteHeader(statusCode int) {
 }
 
 func (o *StoreWriter) Print() {
-	fmt.Printf("Status: %v\n%q\n", o.StoredHeaderCode, o.StoredBody)
+	fmt.Println("Status: ", o.StoredHeaderCode)
+	fmt.Printf("%q\n", o.StoredBody)
 }

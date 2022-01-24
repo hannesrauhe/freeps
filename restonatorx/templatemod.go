@@ -6,10 +6,15 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
+
+type TemplateModConfig struct {
+	url string
+}
+
+var DefaultConfig = TemplateModConfig{url: "https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/restonatorx/templates.json"}
 
 type TemplateAction struct {
 	Mod  string
@@ -26,35 +31,60 @@ type TemplateMod struct {
 	Templates map[string]Template
 }
 
-func NewTemplateModFromUrl(url string, mods map[string]RestonatorMod) *TemplateMod {
+func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
+	tmc := DefaultConfig
+	err := cr.ReadSectionWithDefaults("templatemod", &tmc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cr.WriteBackConfigIfChanged()
+	if err != nil {
+		log.Print(err)
+	}
+
+	mods := map[string]RestonatorMod{}
+	mods["curl"] = &CurlMod{}
+	mods["fritz"] = NewFritzMod(cr)
+	mods["flux"] = NewFluxMod(cr)
+	mods["raspistill"] = &RaspistillMod{}
+	tm := &TemplateMod{Mods: mods, Templates: TemplatesFromUrl(tmc.url)}
+	mods["template"] = tm
+	return tm
+}
+
+func TemplatesFromUrl(url string) map[string]Template {
+	t := map[string]Template{}
 	c := http.Client{}
 	resp, err := c.Get(url)
 	if err != nil {
-		return nil
+		log.Printf("Error when reading from %v: %v", url, err)
+		return t
 	}
 	byt, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil
+		log.Printf("Error when reading from %v: %v", url, err)
+		return t
 	}
-	var t map[string]Template
 	err = json.Unmarshal(byt, &t)
 	if err != nil {
 		log.Printf("Error when parsing json: %v\n %q", err, byt)
 	}
-	return &TemplateMod{Mods: mods, Templates: t}
+
+	return t
 }
 
-func NewTemplateModFromFile(path string, mods map[string]RestonatorMod) *TemplateMod {
+func TemplatesFromFile(path string) map[string]Template {
+	t := map[string]Template{}
 	byt, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil
+		log.Printf("Error when reading from %v: %v", path, err)
+		return t
 	}
-	var t map[string]Template
 	err = json.Unmarshal(byt, &t)
 	if err != nil {
 		log.Printf("Error when parsing json: %v\n %q", err, byt)
 	}
-	return &TemplateMod{Mods: mods, Templates: t}
+	return t
 }
 
 func (m *TemplateMod) Do(templateName string, args map[string][]string, w http.ResponseWriter) {
@@ -84,12 +114,9 @@ func (m *TemplateMod) ExecuteTemplate(template *Template, w http.ResponseWriter)
 	}
 }
 
-func (m *TemplateMod) ExecuteMod(mod string, fn string, argstring string) {
-	w := utils.StoreWriter{}
-	args, _ := url.ParseQuery(argstring)
+func (m *TemplateMod) ExecuteModWithArgs(mod string, fn string, args map[string][]string, w http.ResponseWriter) {
 	ta := TemplateAction{Mod: mod, Fn: fn, Args: args}
 	actions := []TemplateAction{ta}
 	t := Template{Actions: actions}
-	m.ExecuteTemplate(&t, &w)
-	w.Print()
+	m.ExecuteTemplate(&t, w)
 }

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -56,20 +57,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	mods := make(map[string]restonatorx.RestonatorMod)
-	mods["curl"] = &restonatorx.CurlMod{}
-	mods["fritz"] = restonatorx.NewFritzMod(cr)
-	mods["flux"] = restonatorx.NewFluxMod(cr)
-	mods["raspistill"] = &restonatorx.RaspistillMod{}
-	modinator := restonatorx.NewTemplateModFromUrl("https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/restonatorx/templates.json", mods)
-	mods["template"] = modinator
+	modinator := restonatorx.NewTemplateMod(cr)
 
 	if mod != "" {
-		modinator.ExecuteMod(mod, fn, argstring)
+		w := utils.StoreWriter{StoredHeader: make(http.Header)}
+		args, _ := url.ParseQuery(argstring)
+		modinator.ExecuteModWithArgs(mod, fn, args, &w)
+		w.Print()
 		return
 	}
 
-	rest := &restonatorx.Restonator{Mods: mods}
+	rest := &restonatorx.Restonator{Modinator: modinator}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r := mux.NewRouter()
