@@ -59,6 +59,7 @@ func main() {
 	mods := make(map[string]restonatorx.RestonatorMod)
 	mods["curl"] = &restonatorx.CurlMod{}
 	mods["fritz"] = restonatorx.NewFritzMod(cr)
+	mods["flux"] = restonatorx.NewFluxMod(cr)
 	mods["raspistill"] = &restonatorx.RaspistillMod{}
 	modinator := restonatorx.NewTemplateModFromUrl("https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/restonatorx/templates.json", mods)
 	mods["template"] = modinator

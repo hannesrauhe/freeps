@@ -38,10 +38,10 @@ var DefaultConfig = FreepsMqttConfig{"", "", "", []TopicToFluxConfig{DefaultTopi
 
 type FreepsMqtt struct {
 	Config   *FreepsMqttConfig
-	Callback func(string, map[string]interface{}) error
+	Callback func(string, map[string]string, map[string]interface{}) error
 }
 
-func mqttReceivedMessage(tc TopicToFluxConfig, client MQTT.Client, message MQTT.Message, callback func(string, map[string]interface{}) error) {
+func mqttReceivedMessage(tc TopicToFluxConfig, client MQTT.Client, message MQTT.Message, callback func(string, map[string]string, map[string]interface{}) error) {
 	var err error
 	t := strings.Split(message.Topic(), "/")
 	field := t[tc.FieldIndex]
@@ -72,7 +72,7 @@ func mqttReceivedMessage(tc TopicToFluxConfig, client MQTT.Client, message MQTT.
 			panic(err)
 		}
 		fmt.Printf("%s %s=%v\n", t[tc.MeasurementIndex], fieldAlias, value)
-		callback(t[tc.MeasurementIndex], map[string]interface{}{fieldAlias: value})
+		callback(t[tc.MeasurementIndex], map[string]string{}, map[string]interface{}{fieldAlias: value})
 
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message.Payload())

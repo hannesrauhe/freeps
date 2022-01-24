@@ -7,7 +7,6 @@ import (
 )
 
 type CurlMod struct {
-	functions map[string][]string
 }
 
 func (m *CurlMod) Do(function string, args map[string][]string, w http.ResponseWriter) {
