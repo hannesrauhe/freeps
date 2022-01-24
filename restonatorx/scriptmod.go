@@ -15,9 +15,9 @@ func (m *ScriptMod) Do(function string, args map[string][]string, w http.Respons
 	stdout, err := cmd.Output()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nError: %v", function, args["arg"], string(err.Error()))
+		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nError: %v", function, args["args"], string(err.Error()))
 	} else {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nOutput: %v", function, args["arg"], string(stdout))
+		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nOutput: %v", function, args["args"], string(stdout))
 	}
 }
