@@ -1,4 +1,4 @@
-package restonatorx
+package freepsdo
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ type TemplateModConfig struct {
 	url string
 }
 
-var DefaultConfig = TemplateModConfig{url: "https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/restonatorx/templates.json"}
+var DefaultConfig = TemplateModConfig{url: "https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/freepsdo/templates.json"}
 
 type TemplateAction struct {
 	Mod  string
@@ -58,6 +58,10 @@ func TemplatesFromUrl(url string) map[string]Template {
 	resp, err := c.Get(url)
 	if err != nil {
 		log.Printf("Error when reading from %v: %v", url, err)
+		return t
+	}
+	if resp.StatusCode > 300 {
+		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
 		return t
 	}
 	byt, err := ioutil.ReadAll(resp.Body)

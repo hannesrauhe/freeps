@@ -12,8 +12,3 @@ require (
 	gotest.tools/v3 v3.0.3
 )
 
-replace github.com/hannesrauhe/freeps/lib => ./lib
-
-replace github.com/hannesrauhe/freeps/utils => ./utils
-
-replace github.com/hannesrauhe/freeps/freepslib/fritzboxmetrics => ./freepslib/fritzboxmetrics

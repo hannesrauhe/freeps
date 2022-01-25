@@ -6,41 +6,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/hannesrauhe/freeps/freepsflux"
-	"github.com/hannesrauhe/freeps/freepsmqtt"
-	"github.com/hannesrauhe/freeps/restonatorx"
+	"github.com/hannesrauhe/freeps/freepsdo"
+	"github.com/hannesrauhe/freeps/freepslisten"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 var verbose bool
-
-func mqtt(cr *utils.ConfigReader) {
-	ffc := freepsflux.DefaultConfig
-	fmc := freepsmqtt.DefaultConfig
-	err := cr.ReadSectionWithDefaults("freepsflux", &ffc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = cr.ReadSectionWithDefaults("freepsmqtt", &fmc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
-	}
-
-	ff, err2 := freepsflux.NewFreepsFlux(&ffc, nil)
-	ff.Verbose = verbose
-	if err2 != nil {
-		log.Fatalf("Error while executing function: %v\n", err2)
-	}
-	fm := freepsmqtt.FreepsMqtt{&fmc, ff.PushFields}
-	fm.Start()
-}
 
 func main() {
 	var configpath, fn, mod, argstring string
@@ -57,48 +29,27 @@ func main() {
 		log.Fatal(err)
 	}
 
-	modinator := restonatorx.NewTemplateMod(cr)
+	doer := freepsdo.NewTemplateMod(cr)
 
 	if mod != "" {
 		w := utils.StoreWriter{StoredHeader: make(http.Header)}
 		args, _ := url.ParseQuery(argstring)
-		modinator.ExecuteModWithArgs(mod, fn, args, &w)
+		doer.ExecuteModWithArgs(mod, fn, args, &w)
 		w.Print()
 		return
 	}
 
-	rest := &restonatorx.Restonator{Modinator: modinator}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	r := mux.NewRouter()
-	r.Handle("/{mod}/{function}", rest)
-	r.Handle("/{mod}/{function}/{device}", rest)
-	r.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Shutdown Request Sucess"))
-		// Cancel the context on request
-		cancel()
-	})
 
-	srv := &http.Server{
-		Handler:      r,
-		Addr:         ":8000",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
-
-	go func() {
-		log.Println("Starting Server")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
-		}
-	}()
-
-	mqtt(cr)
+	rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
+	mqtt := freepslisten.NewMqttSubscriber(cr)
 
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
-		srv.Shutdown(ctx)
+		rest.Shutdown(ctx)
+		mqtt.Shutdown()
 	}
 	log.Printf("Server stopped")
 }

@@ -1,4 +1,4 @@
-package restonatorx
+package freepsdo
 
 import (
 	"encoding/json"
