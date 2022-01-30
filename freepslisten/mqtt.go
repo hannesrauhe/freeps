@@ -44,45 +44,36 @@ type FreepsMqttConfig struct {
 var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "pushtoinflux"}
 var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 
+type FieldWithType struct {
+	FieldType  string
+	FieldValue string
+}
 type JsonArgs struct {
-	Measurement string
-	Tags        map[string]string
-	Fields      map[string]interface{}
+	Measurement    string
+	FieldsWithType map[string]FieldWithType
 }
 
 func mqttReceivedMessage(tc TopicConfig, client MQTT.Client, message MQTT.Message, doer *freepsdo.TemplateMod, mod string, fn string) {
-	var err error
 	t := strings.Split(message.Topic(), "/")
 	field := t[tc.FieldIndex]
 	fconf, fieldExists := tc.Fields[field]
 	if fieldExists {
-		var value interface{}
 		fieldAlias := field
 		if fconf.Alias != nil {
 			fieldAlias = *fconf.Alias
 		}
-		switch fconf.Datatype {
-		case "float":
-			value, err = strconv.ParseFloat(string(message.Payload()), 64)
-		case "int":
-			value, err = strconv.Atoi(string(message.Payload()))
-		case "bool":
-			if fconf.TrueValue == nil {
-				value, err = strconv.ParseBool(string(message.Payload()))
-			} else if string(message.Payload()) == *fconf.TrueValue {
-				value = true
+		value := string(message.Payload())
+		if fconf.TrueValue != nil {
+			if string(message.Payload()) == *fconf.TrueValue {
+				value = "true"
 			} else {
-				value = false
+				value = "false"
 			}
-		default:
-			value = string(message.Payload())
 		}
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%s %s=%v\n", t[tc.MeasurementIndex], fieldAlias, value)
 
-		args := JsonArgs{Measurement: t[tc.MeasurementIndex], Fields: map[string]interface{}{fieldAlias: value}, Tags: map[string]string{}}
+		fwt := FieldWithType{fconf.Datatype, value}
+		args := JsonArgs{Measurement: t[tc.MeasurementIndex], FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
+
 		jsonStr, err := json.Marshal(args)
 		if err != nil {
 			panic(err)
