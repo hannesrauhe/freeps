@@ -85,3 +85,7 @@ func (m *FritzMod) Do(fn string, vars map[string][]string, w http.ResponseWriter
 	}
 	fmt.Fprintf(w, "Fritz: %v, %v, %v", fn, dev, arg)
 }
+
+func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+
+}

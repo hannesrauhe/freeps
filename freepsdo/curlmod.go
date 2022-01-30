@@ -37,3 +37,7 @@ func (m *CurlMod) Do(function string, args map[string][]string, w http.ResponseW
 	}
 	fmt.Fprintf(w, "CurlMod: %v, %v", args, resp)
 }
+
+func (m *CurlMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+
+}

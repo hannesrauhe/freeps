@@ -21,3 +21,7 @@ func (m *ScriptMod) Do(function string, args map[string][]string, w http.Respons
 		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nOutput: %v", function, args["args"], string(stdout))
 	}
 }
+
+func (m *ScriptMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+
+}

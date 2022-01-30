@@ -17,9 +17,10 @@ type TemplateModConfig struct {
 var DefaultConfig = TemplateModConfig{url: "https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/freepsdo/templates.json"}
 
 type TemplateAction struct {
-	Mod  string
-	Fn   string
-	Args map[string][]string
+	Mod      string
+	Fn       string
+	Args     map[string][]string
+	JsonArgs map[string]interface{}
 }
 
 type Template struct {
@@ -92,6 +93,10 @@ func TemplatesFromFile(path string) map[string]Template {
 }
 
 func (m *TemplateMod) Do(templateName string, args map[string][]string, w http.ResponseWriter) {
+	m.DoWithJSON(templateName, []byte{}, w)
+}
+
+func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, w http.ResponseWriter) {
 	template, exists := m.Templates[templateName]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
@@ -103,10 +108,14 @@ func (m *TemplateMod) Do(templateName string, args map[string][]string, w http.R
 		fmt.Fprintf(w, "template %v has no actions", templateName)
 		return
 	}
-	m.ExecuteTemplate(&template, w)
+	m.ExecuteTemplateWithAdditionalArgs(&template, jsonStr, w)
 }
 
 func (m *TemplateMod) ExecuteTemplate(template *Template, w http.ResponseWriter) {
+	m.ExecuteTemplateWithAdditionalArgs(template, []byte{}, w)
+}
+
+func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, moreJsonArgs []byte, w http.ResponseWriter) {
 	for _, t := range template.Actions {
 		mod, modExists := m.Mods[t.Mod]
 		if !modExists {
@@ -114,12 +123,29 @@ func (m *TemplateMod) ExecuteTemplate(template *Template, w http.ResponseWriter)
 			fmt.Fprintf(w, "module %v unknown", t.Mod)
 			return
 		}
-		mod.Do(t.Fn, t.Args, w)
+		if t.Args != nil && len(t.Args) > 0 {
+			mod.Do(t.Fn, t.Args, w)
+		} else {
+			copiedArgs := map[string]interface{}{}
+			for k, v := range t.JsonArgs {
+				copiedArgs[k] = v
+			}
+			jsonStr, _ := utils.OverwriteValuesWithJson(moreJsonArgs, copiedArgs)
+			mod.DoWithJSON(t.Fn, jsonStr, w)
+		}
 	}
 }
 
 func (m *TemplateMod) ExecuteModWithArgs(mod string, fn string, args map[string][]string, w http.ResponseWriter) {
 	ta := TemplateAction{Mod: mod, Fn: fn, Args: args}
+	actions := []TemplateAction{ta}
+	t := Template{Actions: actions}
+	m.ExecuteTemplate(&t, w)
+}
+
+func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, w http.ResponseWriter) {
+	ta := TemplateAction{Mod: mod, Fn: fn, JsonArgs: map[string]interface{}{}}
+	json.Unmarshal(jsonStr, &ta.JsonArgs)
 	actions := []TemplateAction{ta}
 	t := Template{Actions: actions}
 	m.ExecuteTemplate(&t, w)

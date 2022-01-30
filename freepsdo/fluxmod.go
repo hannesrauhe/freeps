@@ -40,3 +40,22 @@ func (m *FluxMod) Do(fn string, vars map[string][]string, w http.ResponseWriter)
 	}
 	return
 }
+
+type JsonArgs struct {
+	Measurement string
+	Tags        map[string]string
+	Fields      map[string]interface{}
+}
+
+func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+	ff, err := freepsflux.NewFreepsFlux(m.ffc, nil)
+	if err != nil {
+		log.Fatalf("Error while creating FreepsFlux: %v\n", err)
+	}
+	if fn == "pushfields" {
+		var args JsonArgs
+		err = json.Unmarshal(jsonStr, &args)
+		err = ff.PushFields(args.Measurement, args.Tags, args.Fields)
+	}
+	return
+}

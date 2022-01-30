@@ -48,3 +48,7 @@ func (m *RaspistillMod) Do(function string, args map[string][]string, w http.Res
 		fmt.Fprintf(w, "unable to write image to response: %v", string(err.Error()))
 	}
 }
+
+func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+
+}

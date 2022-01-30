@@ -34,5 +34,13 @@
         }
       }
     ]
+  },
+  "pushtoinflux": {
+    "Actions": [
+      {
+        "Mod": "flux",
+        "Fn": "pushfields"
+      }
+    ]
   }
 }

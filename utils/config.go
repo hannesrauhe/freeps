@@ -22,16 +22,22 @@ func StructToMap(someStruct interface{}) (map[string]interface{}, error) {
 	return ret, nil
 }
 
+// OverwriteValuesWithJson will use the values in jsonBytes to append/overwrite the data in valueMap
+// and returns the json string of the combined values
+func OverwriteValuesWithJson(jsonBytes []byte, valueMap map[string]interface{}) ([]byte, error) {
+	err := json.Unmarshal(jsonBytes, &valueMap)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(valueMap)
+}
+
 func MergeJsonWithDefaults(jsonBytes []byte, configStruct interface{}) error {
 	valueMap, err := StructToMap(configStruct)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(jsonBytes, &valueMap)
-	if err != nil {
-		return err
-	}
-	mergedBytes, err := json.Marshal(valueMap)
+	mergedBytes, err := OverwriteValuesWithJson(jsonBytes, valueMap)
 	if err != nil {
 		return err
 	}

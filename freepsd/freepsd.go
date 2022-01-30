@@ -43,7 +43,7 @@ func main() {
 	defer cancel()
 
 	rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
-	mqtt := freepslisten.NewMqttSubscriber(cr)
+	mqtt := freepslisten.NewMqttSubscriber(cr, doer)
 
 	select {
 	case <-ctx.Done():
