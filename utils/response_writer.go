@@ -7,8 +7,8 @@ import (
 
 type StoreWriter struct {
 	StoredHeader     http.Header
-	StoredBody       []byte
-	StoredHeaderCode int
+	storedBody       []byte
+	storedHeaderCode int
 }
 
 func (o *StoreWriter) Header() http.Header {
@@ -16,18 +16,18 @@ func (o *StoreWriter) Header() http.Header {
 }
 
 func (o *StoreWriter) Write(toWrite []byte) (int, error) {
-	if o.StoredHeaderCode == 0 {
-		o.StoredHeaderCode = 200
+	if o.storedHeaderCode == 0 {
+		o.storedHeaderCode = 200
 	}
-	o.StoredBody = toWrite
-	return len(o.StoredBody), nil
+	o.storedBody = toWrite
+	return len(o.storedBody), nil
 }
 
 func (o *StoreWriter) WriteHeader(statusCode int) {
-	o.StoredHeaderCode = statusCode
+	o.storedHeaderCode = statusCode
 }
 
 func (o *StoreWriter) Print() {
-	fmt.Println("Status: ", o.StoredHeaderCode)
-	fmt.Printf("%q\n", o.StoredBody)
+	str := fmt.Sprintf("%q", o.storedBody)
+	fmt.Printf("Status %v\n %v\n", o.storedHeaderCode, str)
 }
