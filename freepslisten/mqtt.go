@@ -41,8 +41,8 @@ type FreepsMqttConfig struct {
 	Topics   []TopicConfig
 }
 
-var DefaultTopicConfig = TopicConfig{"shellies/shellydw2-483FDA81E731/sensor/#", 0, -1, -1, map[string]FieldConfig{}, "pushtoinflux"}
-var DefaultConfig = FreepsMqttConfig{"", "", "", []TopicConfig{DefaultTopicConfig}}
+var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "pushtoinflux"}
+var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 
 type JsonArgs struct {
 	Measurement string
