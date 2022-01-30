@@ -32,6 +32,10 @@
           "device": ["13077 0013108-1"],
           "onoff": ["0"]
         }
+      },
+      {
+        "Mod": "template",
+        "Fn": "denonoff"
       }
     ]
   },
