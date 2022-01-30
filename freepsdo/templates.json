@@ -36,6 +36,13 @@
       {
         "Mod": "template",
         "Fn": "denonoff"
+      },
+      {
+        "Mod": "curl",
+        "Fn": "Get",
+        "Args": {
+          "url": ["http://192.168.170.31/win&T=0"]
+        }
       }
     ]
   },

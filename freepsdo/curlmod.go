@@ -24,6 +24,8 @@ func (m *CurlMod) Do(function string, args map[string][]string, w http.ResponseW
 			data.Set(k, v[0])
 		}
 		resp, err = c.PostForm(args["url"][0], data)
+	case "Get":
+		resp, err = c.Get(args["url"][0])
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "function %v unknown", function)
@@ -35,6 +37,7 @@ func (m *CurlMod) Do(function string, args map[string][]string, w http.ResponseW
 		fmt.Fprintf(w, "CurlMod\nFunction: %v\nArgs: %v\nError: %v", function, args, string(err.Error()))
 		return
 	}
+	w.WriteHeader(resp.StatusCode)
 	fmt.Fprintf(w, "CurlMod: %v, %v", args, resp)
 }
 
