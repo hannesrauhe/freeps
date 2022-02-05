@@ -53,8 +53,8 @@ type JsonArgs struct {
 	FieldsWithType map[string]FieldWithType
 }
 
-func mqttReceivedMessage(tc TopicConfig, client MQTT.Client, message MQTT.Message, doer *freepsdo.TemplateMod, mod string, fn string) {
-	t := strings.Split(message.Topic(), "/")
+func mqttReceivedMessage(tc TopicConfig, message []byte, topic string, doer *freepsdo.TemplateMod) {
+	t := strings.Split(topic, "/")
 	field := t[tc.FieldIndex]
 	fconf, fieldExists := tc.Fields[field]
 	if fieldExists {
@@ -62,9 +62,9 @@ func mqttReceivedMessage(tc TopicConfig, client MQTT.Client, message MQTT.Messag
 		if fconf.Alias != nil {
 			fieldAlias = *fconf.Alias
 		}
-		value := string(message.Payload())
+		value := string(message)
 		if fconf.TrueValue != nil {
-			if string(message.Payload()) == *fconf.TrueValue {
+			if value == *fconf.TrueValue {
 				value = "true"
 			} else {
 				value = "false"
@@ -82,7 +82,7 @@ func mqttReceivedMessage(tc TopicConfig, client MQTT.Client, message MQTT.Messag
 		doer.DoWithJSON(tc.TemplateToCall, jsonStr, w)
 		w.Print()
 	} else {
-		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message.Payload())
+		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
 	}
 }
 
@@ -124,7 +124,7 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 	connOpts.OnConnect = func(c MQTT.Client) {
 		for _, k := range fmc.Topics {
 			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-				mqttReceivedMessage(k, client, message, doer, "flux", "pushfields")
+				mqttReceivedMessage(k, message.Payload(), message.Topic(), doer)
 			}
 			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
 				panic(token.Error())
