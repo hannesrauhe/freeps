@@ -3,18 +3,15 @@ package freepsdo
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-type TemplateModConfig struct {
-	url string
-}
+type TemplateModConfig map[string]Template
 
-var DefaultConfig = TemplateModConfig{url: "https://raw.githubusercontent.com/hannesrauhe/freeps/freepsd/freepsdo/templates.json"}
+var DefaultConfig = TemplateModConfig{}
 
 type TemplateAction struct {
 	Mod      string
@@ -29,12 +26,12 @@ type Template struct {
 
 type TemplateMod struct {
 	Mods      map[string]RestonatorMod
-	Templates map[string]Template
+	Templates TemplateModConfig
 }
 
 func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	tmc := DefaultConfig
-	err := cr.ReadSectionWithDefaults("templatemod", &tmc)
+	err := cr.ReadSectionWithDefaults("templates", &tmc)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,48 +45,9 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
 	mods["raspistill"] = &RaspistillMod{}
-	tm := &TemplateMod{Mods: mods, Templates: TemplatesFromUrl(tmc.url)}
+	tm := &TemplateMod{Mods: mods, Templates: tmc}
 	mods["template"] = tm
 	return tm
-}
-
-func TemplatesFromUrl(url string) map[string]Template {
-	t := map[string]Template{}
-	c := http.Client{}
-	resp, err := c.Get(url)
-	if err != nil {
-		log.Printf("Error when reading from %v: %v", url, err)
-		return t
-	}
-	if resp.StatusCode > 300 {
-		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
-		return t
-	}
-	byt, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error when reading from %v: %v", url, err)
-		return t
-	}
-	err = json.Unmarshal(byt, &t)
-	if err != nil {
-		log.Printf("Error when parsing json: %v\n %q", err, byt)
-	}
-
-	return t
-}
-
-func TemplatesFromFile(path string) map[string]Template {
-	t := map[string]Template{}
-	byt, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Printf("Error when reading from %v: %v", path, err)
-		return t
-	}
-	err = json.Unmarshal(byt, &t)
-	if err != nil {
-		log.Printf("Error when parsing json: %v\n %q", err, byt)
-	}
-	return t
 }
 
 func (m *TemplateMod) Do(templateName string, args map[string][]string, w http.ResponseWriter) {

@@ -48,31 +48,85 @@ func MergeJsonWithDefaults(jsonBytes []byte, configStruct interface{}) error {
 	return nil
 }
 
+type ConfigIncluder struct {
+	Include string
+}
+
+// func TemplatesFromUrl(url string) map[string]Template {
+// 	t := map[string]Template{}
+// 	c := http.Client{}
+// 	resp, err := c.Get(url)
+// 	if err != nil {
+// 		log.Printf("Error when reading from %v: %v", url, err)
+// 		return t
+// 	}
+// 	if resp.StatusCode > 300 {
+// 		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
+// 		return t
+// 	}
+// 	byt, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		log.Printf("Error when reading from %v: %v", url, err)
+// 		return t
+// 	}
+// 	err = json.Unmarshal(byt, &t)
+// 	if err != nil {
+// 		log.Printf("Error when parsing json: %v\n %q", err, byt)
+// 	}
+
+// 	return t
+// }
+
+// func TemplatesFromFile(path string) map[string]Template {
+// 	t := map[string]Template{}
+// 	byt, err := ioutil.ReadFile(path)
+// 	if err != nil {
+// 		log.Printf("Error when reading from %v: %v", path, err)
+// 		return t
+// 	}
+// 	err = json.Unmarshal(byt, &t)
+// 	if err != nil {
+// 		log.Printf("Error when parsing json: %v\n %q", err, byt)
+// 	}
+// 	return t
+// }
+
+///TryIncluding check if sectionBytes contains the include keyword. If it does TryIncluding replaces sectionBytes with the content of the given path
+func TryInlcuding(sectionBytes []byte) {
+	var ci ConfigIncluder
+	err := json.Unmarshal(sectionBytes, &ci)
+	if err != nil || len(ci.Include) == 0 {
+		return
+	}
+
+}
+
 func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
 	sectionsMap := make(map[string]interface{})
-	var retbytes []byte
 	var err error
 
 	if len(jsonBytes) > 0 {
 		err = json.Unmarshal(jsonBytes, &sectionsMap)
 		if err != nil {
-			return retbytes, err
+			return []byte{}, err
 		}
 	}
 
 	if sectionsMap[sectionName] == nil {
 		sectionsMap[sectionName], err = StructToMap(configStruct)
 		if err != nil {
-			return retbytes, err
+			return []byte{}, err
 		}
 		return json.MarshalIndent(sectionsMap, "", "  ")
 	}
 	sectionBytes, err := json.Marshal(sectionsMap[sectionName])
 	if err != nil {
-		return retbytes, err
+		return []byte{}, err
 	}
 
-	return retbytes, MergeJsonWithDefaults(sectionBytes, configStruct)
+	TryInlcuding(sectionBytes)
+
+	return []byte{}, MergeJsonWithDefaults(sectionBytes, configStruct)
 }
 
 func GetDefaultPath(productname string) string {
