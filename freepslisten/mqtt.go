@@ -53,7 +53,14 @@ type JsonArgs struct {
 	FieldsWithType map[string]FieldWithType
 }
 
-func mqttReceivedMessage(tc TopicConfig, message []byte, topic string, doer *freepsdo.TemplateMod) {
+type FreepsMqtt struct {
+	client   MQTT.Client
+	Config   *FreepsMqttConfig
+	Doer     *freepsdo.TemplateMod
+	Callback func(string, map[string]string, map[string]interface{}) error
+}
+
+func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic string) {
 	t := strings.Split(topic, "/")
 	field := t[tc.FieldIndex]
 	fconf, fieldExists := tc.Fields[field]
@@ -79,18 +86,35 @@ func mqttReceivedMessage(tc TopicConfig, message []byte, topic string, doer *fre
 			panic(err)
 		}
 		w := &utils.StoreWriter{StoredHeader: make(http.Header)}
-		doer.DoWithJSON(tc.TemplateToCall, jsonStr, w)
+		fm.Doer.DoWithJSON(tc.TemplateToCall, jsonStr, w)
 		w.Print()
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
 	}
 }
 
-type FreepsMqtt struct {
-	client   MQTT.Client
-	Config   *FreepsMqttConfig
-	Doer     *freepsdo.TemplateMod
-	Callback func(string, map[string]string, map[string]interface{}) error
+func (fm *FreepsMqtt) configuredMessageReceived(client MQTT.Client, message MQTT.Message) {
+	topic := message.Topic()
+
+	// lazily trying to match topics -- assuming topic always end with "#"
+	// TODO(HR): figure out better matching or how to pass multiple handlers
+	for _, k := range fm.Config.Topics {
+		prefixLen := len(k.Topic) - 1
+		if len(topic) >= prefixLen && k.Topic[:prefixLen] == topic[:prefixLen] {
+			fm.processMessage(k, message.Payload(), topic)
+		}
+	}
+}
+
+func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
+	t := strings.Split(message.Topic(), "/")
+	if len(t) <= 2 {
+		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
+		return
+	}
+	w := &utils.StoreWriter{StoredHeader: make(http.Header)}
+	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, w)
+	w.Print()
 }
 
 func (fm *FreepsMqtt) Shutdown() {
@@ -110,6 +134,7 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
+	fmqtt := &FreepsMqtt{Config: &fmc, Doer: doer}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true)
 	if fmc.Username != "" {
@@ -120,15 +145,17 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 	}
 	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
 	connOpts.SetTLSConfig(tlsConfig)
-
+	connOpts.SetCleanSession(true)
 	connOpts.OnConnect = func(c MQTT.Client) {
 		for _, k := range fmc.Topics {
-			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-				mqttReceivedMessage(k, message.Payload(), message.Topic(), doer)
-			}
-			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
+			// giving a separate callback for each topic in this loop will cause the library to always call the last
+			// I'm doing something wrong here
+			if token := c.Subscribe(k.Topic, byte(k.Qos), fmqtt.configuredMessageReceived); token.Wait() && token.Error() != nil {
 				panic(token.Error())
 			}
+		}
+		if token := c.Subscribe("freeps/#", 0, fmqtt.systemMessageReceived); token.Wait() && token.Error() != nil {
+			panic(token.Error())
 		}
 	}
 
@@ -140,6 +167,6 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 			fmt.Printf("Connected to %s\n", fmc.Server)
 		}
 	}()
-
-	return &FreepsMqtt{client: client, Config: &fmc, Doer: doer}
+	fmqtt.client = client
+	return fmqtt
 }
