@@ -90,7 +90,12 @@ func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, more
 				copiedArgs[k] = v
 			}
 			jsonStr, _ := utils.OverwriteValuesWithJson(moreJsonArgs, copiedArgs)
-			mod.DoWithJSON(t.Fn, jsonStr, w)
+			if len(copiedArgs) > 0 {
+				mod.DoWithJSON(t.Fn, jsonStr, w)
+			} else {
+				// TODO(HR): need to fill all the DoWithJSONs
+				mod.Do(t.Fn, t.Args, w)
+			}
 		}
 	}
 }
