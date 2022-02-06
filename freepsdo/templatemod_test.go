@@ -39,7 +39,7 @@ func TestCallTemplateWithJsonArgs(t *testing.T) {
 	actions := []TemplateAction{ta}
 	tpl := Template{Actions: actions}
 
-	mods := map[string]RestonatorMod{}
+	mods := map[string]Mod{}
 	mm := &MockMod{}
 	mods["mock"] = mm
 	tm := &TemplateMod{Mods: mods, Templates: map[string]Template{"tpl1": tpl}}

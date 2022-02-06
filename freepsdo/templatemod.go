@@ -28,7 +28,7 @@ type Template struct {
 }
 
 type TemplateMod struct {
-	Mods      map[string]RestonatorMod
+	Mods      map[string]Mod
 	Templates map[string]Template
 }
 
@@ -43,8 +43,9 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 		log.Print(err)
 	}
 
-	mods := map[string]RestonatorMod{}
+	mods := map[string]Mod{}
 	mods["curl"] = &CurlMod{}
+	mods["echo"] = &EchoMod{}
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
 	mods["raspistill"] = &RaspistillMod{}
