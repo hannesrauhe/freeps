@@ -1,0 +1,57 @@
+{
+  "denonoff": {
+    "Actions": [
+      {
+        "Mod": "curl",
+        "Fn": "PostForm",
+        "Args": {
+          "url": "http://denon.fritz.box/MainZone/index.put.asp",
+          "cmd0": "PutSystem_OnStandby/STANDBY"
+        }
+      }
+    ]
+  },
+  "denonon": {
+    "Actions": [
+      {
+        "Mod": "curl",
+        "Fn": "PostForm",
+        "Args": {
+          "url": "http://denon.fritz.box/MainZone/index.put.asp",
+          "cmd0": "PutSystem_OnStandby/ON"
+        }
+      }
+    ]
+  },
+  "sleep": {
+    "Actions": [
+      {
+        "Mod": "fritz",
+        "Fn": "setsimpleonoff",
+        "Args": {
+          "device": "13077 0013108-1",
+          "onoff": "0"
+        }
+      },
+      {
+        "Mod": "template",
+        "Fn": "denonoff"
+      },
+      {
+        "Mod": "curl",
+        "Fn": "Get",
+        "Args": {
+          "url": "http://192.168.170.31/win&T=0"
+        }
+      }
+    ]
+  },
+  "pushtoinflux": {
+    "Actions": [
+      {
+        "Mod": "flux",
+        "Fn": "pushfields"
+      }
+    ]
+  }
+}

@@ -51,7 +51,7 @@ func (ff *FreepsFlux) InitInflux() error {
 	return nil
 }
 
-func (ff *FreepsFlux) PushFields(measurement string, fields map[string]interface{}) error {
+func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fields map[string]interface{}) error {
 	if len(ff.writeApis) == 0 {
 		err := ff.InitInflux()
 		if err != nil {
@@ -59,7 +59,7 @@ func (ff *FreepsFlux) PushFields(measurement string, fields map[string]interface
 		}
 	}
 	for _, writeAPI := range ff.writeApis {
-		p := influxdb2.NewPoint(measurement, map[string]string{}, fields, time.Now())
+		p := influxdb2.NewPoint(measurement, tags, fields, time.Now())
 		writeAPI.WritePoint(p)
 		writeAPI.Flush()
 	}

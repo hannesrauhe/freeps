@@ -1,0 +1,13 @@
+[Unit]
+Description=freepsd
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=simple
+User=freeps
+ExecStart=/usr/bin/freepsd -c /etc/freepsd/config.json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
