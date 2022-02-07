@@ -15,6 +15,8 @@ type FluxMod struct {
 	ffc *freepsflux.FreepsFluxConfig
 }
 
+var _ Mod = &FluxMod{}
+
 func NewFluxMod(cr *utils.ConfigReader) *FluxMod {
 	ffc := freepsflux.DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsflux", &ffc)

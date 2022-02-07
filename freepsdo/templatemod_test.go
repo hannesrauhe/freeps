@@ -11,14 +11,7 @@ import (
 type MockMod struct {
 	DoCount      int
 	LastFunction string
-	LastArgs     map[string][]string
 	LastJSON     []byte
-}
-
-func (m *MockMod) Do(function string, args map[string][]string, w http.ResponseWriter) {
-	m.DoCount++
-	m.LastFunction = function
-	m.LastArgs = args
 }
 
 func (m *MockMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
@@ -35,7 +28,7 @@ type TestStruct struct {
 }
 
 func TestCallTemplateWithJsonArgs(t *testing.T) {
-	ta := TemplateAction{Mod: "mock", Fn: "fn", JsonArgs: map[string]interface{}{"defaultArg": 1, "overwriteArg": 1}}
+	ta := TemplateAction{Mod: "mock", Fn: "fn", Args: map[string]interface{}{"defaultArg": 1, "overwriteArg": 1}}
 	actions := []TemplateAction{ta}
 	tpl := Template{Actions: actions}
 

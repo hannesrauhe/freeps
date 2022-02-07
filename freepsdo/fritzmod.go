@@ -16,6 +16,8 @@ type FritzMod struct {
 	ffc *freepsflux.FreepsFluxConfig
 }
 
+var _ Mod = &FritzMod{}
+
 func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 	conf := freepslib.DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepslib", &conf)
@@ -34,7 +36,9 @@ func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 	return &FritzMod{&conf, &ffc}
 }
 
-func (m *FritzMod) Do(fn string, vars map[string][]string, w http.ResponseWriter) {
+func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+	var vars map[string]string
+	json.Unmarshal(jsonStr, &vars)
 	f, err := freepslib.NewFreepsLib(m.fc)
 	if err != nil {
 		fmt.Fprintf(w, "FritzMod\nParameters: %v\nError on freepslib-init: %v", vars, string(err.Error()))
@@ -67,25 +71,17 @@ func (m *FritzMod) Do(fn string, vars map[string][]string, w http.ResponseWriter
 		return
 	}
 
-	dev := vars["device"][0]
-	arg := make(map[string]string)
-	for key, value := range vars {
-		arg[key] = value[0]
-	}
+	dev := vars["device"]
 	if fn == "wakeup" {
 		log.Printf("Waking Up %v", dev)
 		err = f.WakeUpDevice(dev)
 	} else {
-		err = f.HomeAutoSwitch(fn, dev, arg)
+		err = f.HomeAutoSwitch(fn, dev, vars)
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError: %v", vars, string(err.Error()))
 		return
 	}
-	fmt.Fprintf(w, "Fritz: %v, %v, %v", fn, dev, arg)
-}
-
-func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
-
+	fmt.Fprintf(w, "Fritz: %v, %v, %v", fn, dev, vars)
 }

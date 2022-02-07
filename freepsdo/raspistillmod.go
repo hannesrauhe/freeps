@@ -12,6 +12,8 @@ type RaspistillMod struct {
 	functions map[string][]string
 }
 
+var _ Mod = &RaspistillMod{}
+
 func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (bytes []byte, err error) {
 	args := []string{
 		"-w", strconv.Itoa(width),
@@ -33,7 +35,7 @@ func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (
 	return byt, nil
 }
 
-func (m *RaspistillMod) Do(function string, args map[string][]string, w http.ResponseWriter) {
+func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
 	bytes, err := CaptureRaspiStill(1600, 1200, map[string]interface{}{"--quality": 90, "--brightness": 50})
 
 	if err != nil {
@@ -47,8 +49,4 @@ func (m *RaspistillMod) Do(function string, args map[string][]string, w http.Res
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "unable to write image to response: %v", string(err.Error()))
 	}
-}
-
-func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
-
 }

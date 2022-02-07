@@ -5,8 +5,8 @@
         "Mod": "curl",
         "Fn": "PostForm",
         "Args": {
-          "url": ["http://denon.fritz.box/MainZone/index.put.asp"],
-          "cmd0": ["PutSystem_OnStandby/STANDBY"]
+          "url": "http://denon.fritz.box/MainZone/index.put.asp",
+          "cmd0": "PutSystem_OnStandby/STANDBY"
         }
       }
     ]
@@ -17,8 +17,8 @@
         "Mod": "curl",
         "Fn": "PostForm",
         "Args": {
-          "url": ["http://denon.fritz.box/MainZone/index.put.asp"],
-          "cmd0": ["PutSystem_OnStandby/ON"]
+          "url": "http://denon.fritz.box/MainZone/index.put.asp",
+          "cmd0": "PutSystem_OnStandby/ON"
         }
       }
     ]
@@ -29,8 +29,8 @@
         "Mod": "fritz",
         "Fn": "setsimpleonoff",
         "Args": {
-          "device": ["13077 0013108-1"],
-          "onoff": ["0"]
+          "device": "13077 0013108-1",
+          "onoff": "0"
         }
       },
       {
@@ -41,7 +41,7 @@
         "Mod": "curl",
         "Fn": "Get",
         "Args": {
-          "url": ["http://192.168.170.31/win&T=0"]
+          "url": "http://192.168.170.31/win&T=0"
         }
       }
     ]

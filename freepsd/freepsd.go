@@ -34,7 +34,7 @@ func main() {
 	if mod != "" {
 		w := utils.StoreWriter{StoredHeader: make(http.Header)}
 		args, _ := url.ParseQuery(argstring)
-		doer.ExecuteModWithArgs(mod, fn, args, &w)
+		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), &w)
 		w.Print()
 		return
 	}

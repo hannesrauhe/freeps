@@ -14,10 +14,9 @@ type TemplateModConfig map[string]Template
 var DefaultConfig = TemplateModConfig{}
 
 type TemplateAction struct {
-	Mod      string
-	Fn       string
-	Args     map[string][]string
-	JsonArgs map[string]interface{}
+	Mod  string
+	Fn   string
+	Args map[string]interface{}
 }
 
 type Template struct {
@@ -28,6 +27,8 @@ type TemplateMod struct {
 	Mods      map[string]Mod
 	Templates TemplateModConfig
 }
+
+var _ Mod = &TemplateMod{}
 
 func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	tmc := DefaultConfig
@@ -51,10 +52,6 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	return tm
 }
 
-func (m *TemplateMod) Do(templateName string, args map[string][]string, w http.ResponseWriter) {
-	m.DoWithJSON(templateName, []byte{}, w)
-}
-
 func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, w http.ResponseWriter) {
 	template, exists := m.Templates[templateName]
 	if !exists {
@@ -71,7 +68,7 @@ func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, w http.Res
 }
 
 func (m *TemplateMod) ExecuteTemplate(template *Template, w http.ResponseWriter) {
-	m.ExecuteTemplateWithAdditionalArgs(template, []byte{}, w)
+	m.ExecuteTemplateWithAdditionalArgs(template, []byte("{}"), w)
 }
 
 func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, moreJsonArgs []byte, w http.ResponseWriter) {
@@ -82,34 +79,25 @@ func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, more
 			fmt.Fprintf(w, "module %v unknown", t.Mod)
 			return
 		}
-		if t.Args != nil && len(t.Args) > 0 {
-			mod.Do(t.Fn, t.Args, w)
-		} else {
-			copiedArgs := map[string]interface{}{}
-			for k, v := range t.JsonArgs {
-				copiedArgs[k] = v
-			}
-			jsonStr, _ := utils.OverwriteValuesWithJson(moreJsonArgs, copiedArgs)
-			if len(copiedArgs) > 0 {
-				mod.DoWithJSON(t.Fn, jsonStr, w)
-			} else {
-				// TODO(HR): need to fill all the DoWithJSONs
-				mod.Do(t.Fn, t.Args, w)
-			}
+
+		copiedArgs := map[string]interface{}{}
+		for k, v := range t.Args {
+			copiedArgs[k] = v
 		}
+		jsonStr, err := utils.OverwriteValuesWithJson(moreJsonArgs, copiedArgs)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error when merging json values with json string \"%q\": %v", moreJsonArgs, err)
+			return
+		}
+		mod.DoWithJSON(t.Fn, jsonStr, w)
 	}
 }
 
-func (m *TemplateMod) ExecuteModWithArgs(mod string, fn string, args map[string][]string, w http.ResponseWriter) {
-	ta := TemplateAction{Mod: mod, Fn: fn, Args: args}
-	actions := []TemplateAction{ta}
-	t := Template{Actions: actions}
-	m.ExecuteTemplate(&t, w)
-}
-
 func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, w http.ResponseWriter) {
-	ta := TemplateAction{Mod: mod, Fn: fn, JsonArgs: map[string]interface{}{}}
-	json.Unmarshal(jsonStr, &ta.JsonArgs)
+	ta := TemplateAction{Mod: mod, Fn: fn}
+	json.Unmarshal(jsonStr, &ta.Args)
 	actions := []TemplateAction{ta}
 	t := Template{Actions: actions}
 	m.ExecuteTemplate(&t, w)

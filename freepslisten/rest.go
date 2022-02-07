@@ -25,7 +25,7 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		args["device"] = make([]string, 1)
 		args["device"][0] = device
 	}
-	r.Modinator.ExecuteModWithArgs(vars["mod"], vars["function"], args, w)
+	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], utils.URLArgsToJSON(args), w)
 }
 
 func (r *Restonator) Shutdown(ctx context.Context) {
