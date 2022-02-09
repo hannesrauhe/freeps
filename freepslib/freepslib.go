@@ -34,14 +34,19 @@ type Freeps struct {
 }
 
 func NewFreepsLib(conf *FBconfig) (*Freeps, error) {
-	var err error
 	f := &Freeps{*conf, "", false, nil}
+	// return f, f.login()
+	return f, nil
+}
+
+func (f *Freeps) login() error {
+	var err error
 	f.SID, err = f.getSid()
 	if err != nil {
 		log.Print("Failed to authenticate")
-		return nil, err
+		return err
 	}
-	return f, nil
+	return nil
 }
 
 func (f *Freeps) getHttpClient() *http.Client {
@@ -109,6 +114,7 @@ func (f *Freeps) getSid() (string, error) {
 	if authenticated.SID == "0000000000000000" {
 		return "", errors.New("Authentication failed: wrong user/password")
 	}
+
 	return authenticated.SID, nil
 }
 
@@ -131,49 +137,62 @@ type AvmDataResponse struct {
 	Data *AvmDataObject
 }
 
-func (f *Freeps) QueryData(payload map[string]string, AvmResponse interface{}) error {
-	data_url := "https://" + f.conf.FB_address + "/data.lua"
-	data := url.Values{}
-	for key, value := range payload {
-		data.Set(key, value)
+func (f *Freeps) queryData(payload map[string]string, AvmResponse interface{}) error {
+	dataURL := "https://" + f.conf.FB_address + "/data.lua"
+
+	// blindly try twice, because the first one might be an auth issue
+	for i := 0; i < 2; i++ {
+		data := url.Values{}
+		data.Set("sid", f.SID)
+		for key, value := range payload {
+			data.Set(key, value)
+		}
+
+		dataResp, err := f.getHttpClient().PostForm(dataURL, data)
+		if err != nil {
+			return errors.New("cannot PostForm")
+		}
+		defer dataResp.Body.Close()
+
+		byt, err := ioutil.ReadAll(dataResp.Body)
+		if err != nil {
+			return errors.New("cannot read response")
+		}
+		if dataResp.StatusCode != 200 {
+			log.Printf("Unexpected http status: %v, Body:\n %v", dataResp.Status, byt)
+			return errors.New("http status code != 200")
+		}
+
+		if f.Verbose {
+			log.Printf("Received data:\n %q\n", byt)
+		}
+
+		err = json.Unmarshal(byt, &AvmResponse)
+		if err == nil {
+			return nil
+		}
+		if i > 0 {
+			return errors.New("cannot parse JSON response: " + err.Error())
+		}
+
+		err = f.login()
+		if err != nil {
+			return err
+		}
 	}
 
-	data_resp, err := f.getHttpClient().PostForm(data_url, data)
-	if err != nil {
-		return errors.New("cannot PostForm")
-	}
-	defer data_resp.Body.Close()
-
-	byt, err := ioutil.ReadAll(data_resp.Body)
-	if err != nil {
-		return errors.New("cannot read response")
-	}
-	if data_resp.StatusCode != 200 {
-		log.Printf("Unexpected http status: %v, Body:\n %v", data_resp.Status, byt)
-		return errors.New("http status code != 200")
-	}
-
-	err = json.Unmarshal(byt, &AvmResponse)
-	if err != nil {
-		log.Printf("Cannot parse JSON: %v", byt)
-		return errors.New("cannot parse JSON response")
-	}
-
-	if f.Verbose {
-		log.Printf("Received data:\n %q\n", byt)
-	}
 	return nil
 }
 
 func (f *Freeps) GetData() (*AvmDataResponse, error) {
 	var avmResp *AvmDataResponse
+	var err error
 	payload := map[string]string{
-		"sid":   f.SID,
 		"page":  "netDev",
 		"xhrId": "all",
 	}
 
-	err := f.QueryData(payload, &avmResp)
+	err = f.queryData(payload, &avmResp)
 	return avmResp, err
 }
 
@@ -198,19 +217,21 @@ func (f *Freeps) GetDeviceUID(mac string) (string, error) {
 func (f *Freeps) WakeUpDevice(uid string) error {
 	var avmResp *AvmDataResponse
 	payload := map[string]string{
-		"sid":      f.SID,
 		"dev":      uid,
 		"oldpage":  "net/edit_device.lua",
 		"page":     "edit_device",
 		"btn_wake": "",
 	}
 
-	err := f.QueryData(payload, &avmResp)
+	err := f.queryData(payload, &avmResp)
+	if err != nil {
+		return err
+	}
 	if avmResp.Data.btn_wake != "ok" {
 		log.Printf("%v", avmResp)
 		return errors.New("device wakeup seems to have failed")
 	}
-	return err
+	return nil
 }
 
 /**** HOME AUTOMATION *****/
@@ -284,29 +305,45 @@ type AvmTemplateList struct {
 }
 
 func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[string]string) ([]byte, error) {
-	base_url := "https://" + f.conf.FB_address + "/webservices/homeautoswitch.lua"
-	var data_url string
-	if len(ain) == 0 {
-		data_url = fmt.Sprintf("%v?sid=%v&switchcmd=%v", base_url, f.SID, switchcmd)
-	} else {
-		data_url = fmt.Sprintf("%v?sid=%v&switchcmd=%v&ain=%v", base_url, f.SID, switchcmd, ain)
-	}
-	for key, value := range payload {
-		data_url += "&" + key + "=" + value
+	baseUrl := "https://" + f.conf.FB_address + "/webservices/homeautoswitch.lua"
+	var dataURL string
+	var dataResp *http.Response
+	var byt []byte
+	var err error
+	retry := true
+	for {
+		if len(ain) == 0 {
+			dataURL = fmt.Sprintf("%v?sid=%v&switchcmd=%v", baseUrl, f.SID, switchcmd)
+		} else {
+			dataURL = fmt.Sprintf("%v?sid=%v&switchcmd=%v&ain=%v", baseUrl, f.SID, switchcmd, ain)
+		}
+		for key, value := range payload {
+			dataURL += "&" + key + "=" + value
+		}
+
+		dataResp, err = f.getHttpClient().Get(dataURL)
+		if err != nil {
+			return nil, errors.New("cannot get")
+		}
+		defer dataResp.Body.Close()
+
+		byt, err = ioutil.ReadAll(dataResp.Body)
+		if err != nil {
+			return nil, errors.New("cannot read response")
+		}
+		if dataResp.StatusCode == 403 && retry {
+			retry = false
+			err = f.login()
+			if err != nil {
+				return nil, errors.New("failed to login: " + err.Error())
+			}
+			continue
+		}
+		break
 	}
 
-	data_resp, err := f.getHttpClient().Get(data_url)
-	if err != nil {
-		return nil, errors.New("cannot get")
-	}
-	defer data_resp.Body.Close()
-
-	byt, err := ioutil.ReadAll(data_resp.Body)
-	if err != nil {
-		return nil, errors.New("cannot read response")
-	}
-	if data_resp.StatusCode != 200 {
-		log.Printf("Unexpected http status: %v, Body:\n %q", data_resp.Status, byt)
+	if dataResp.StatusCode != 200 {
+		log.Printf("Unexpected http status: %v, Body:\n %q", dataResp.Status, byt)
 		return nil, errors.New("http status code != 200")
 	}
 

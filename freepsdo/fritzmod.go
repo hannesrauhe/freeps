@@ -12,6 +12,8 @@ import (
 )
 
 type FritzMod struct {
+	fl  *freepslib.Freeps
+	ff  *freepsflux.FreepsFlux
 	fc  *freepslib.FBconfig
 	ffc *freepsflux.FreepsFluxConfig
 }
@@ -33,38 +35,34 @@ func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 	if err != nil {
 		log.Print(err)
 	}
-	return &FritzMod{&conf, &ffc}
+	f, _ := freepslib.NewFreepsLib(&conf)
+	ff, _ := freepsflux.NewFreepsFlux(&ffc, f)
+	return &FritzMod{fl: f, ff: ff, fc: &conf, ffc: &ffc}
 }
 
 func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+	var err error
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
-	f, err := freepslib.NewFreepsLib(m.fc)
-	if err != nil {
-		fmt.Fprintf(w, "FritzMod\nParameters: %v\nError on freepslib-init: %v", vars, string(err.Error()))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 
 	if fn == "freepsflux" {
-		ff, err2 := freepsflux.NewFreepsFlux(m.ffc, f)
-		if err2 != nil {
-			log.Fatalf("Error while executing function: %v\n", err2)
+		err = m.ff.Push()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Freepsflux error when pushing: %v", err.Error())
 		}
-		ff.Verbose = f.Verbose
-		err = ff.Push()
 		return
 	} else if fn == "getdevicelistinfos" {
-		devl, err := f.GetDeviceList()
+		devl, err := m.fl.GetDeviceList()
 		if err != nil {
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, string(err.Error()))
 			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, err.Error())
 			return
 		}
 		jsonbytes, err := json.MarshalIndent(devl, "", "  ")
 		if err != nil {
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, string(err.Error()))
 			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, err.Error())
 			return
 		}
 		w.Write(jsonbytes)
@@ -74,9 +72,9 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) 
 	dev := vars["device"]
 	if fn == "wakeup" {
 		log.Printf("Waking Up %v", dev)
-		err = f.WakeUpDevice(dev)
+		err = m.fl.WakeUpDevice(dev)
 	} else {
-		err = f.HomeAutoSwitch(fn, dev, vars)
+		err = m.fl.HomeAutoSwitch(fn, dev, vars)
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

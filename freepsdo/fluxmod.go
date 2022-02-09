@@ -12,13 +12,14 @@ import (
 )
 
 type FluxMod struct {
+	ff  *freepsflux.FreepsFlux
 	ffc *freepsflux.FreepsFluxConfig
 }
 
 var _ Mod = &FluxMod{}
 
 func NewFluxMod(cr *utils.ConfigReader) *FluxMod {
-	ffc := freepsflux.DefaultConfig
+	ffc := &freepsflux.DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsflux", &ffc)
 	if err != nil {
 		log.Fatal(err)
@@ -27,22 +28,8 @@ func NewFluxMod(cr *utils.ConfigReader) *FluxMod {
 	if err != nil {
 		log.Print(err)
 	}
-	return &FluxMod{&ffc}
-}
-
-func (m *FluxMod) Do(fn string, vars map[string][]string, w http.ResponseWriter) {
-	ff, err := freepsflux.NewFreepsFlux(m.ffc, nil)
-	if err != nil {
-		log.Fatalf("Error while creating FreepsFlux: %v\n", err)
-	}
-	if fn == "pushfields" {
-		tags := map[string]string{}
-		json.Unmarshal([]byte(vars["tags"][0]), &tags)
-		fields := map[string]interface{}{}
-		json.Unmarshal([]byte(vars["fields"][0]), &fields)
-		err = ff.PushFields(vars["measurement"][0], tags, fields)
-	}
-	return
+	ff, _ := freepsflux.NewFreepsFlux(ffc, nil)
+	return &FluxMod{ffc: ffc, ff: ff}
 }
 
 type FieldWithType struct {
@@ -57,10 +44,7 @@ type JsonArgs struct {
 }
 
 func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
-	ff, err := freepsflux.NewFreepsFlux(m.ffc, nil)
-	if err != nil {
-		log.Fatalf("Error while creating FreepsFlux: %v\n", err)
-	}
+	var err error
 	if fn == "pushfields" {
 		fields := map[string]interface{}{}
 
@@ -89,7 +73,7 @@ func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
 			fields[k] = value
 		}
 
-		err = ff.PushFields(args.Measurement, args.Tags, fields)
+		err = m.ff.PushFields(args.Measurement, args.Tags, fields)
 		if err == nil {
 			fmt.Fprint(w, "Pushed to influx: ", args.Measurement, args.Tags, fields)
 		} else {
