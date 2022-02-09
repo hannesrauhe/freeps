@@ -13,6 +13,7 @@ import (
 
 type FritzMod struct {
 	fl  *freepslib.Freeps
+	ff  *freepsflux.FreepsFlux
 	fc  *freepslib.FBconfig
 	ffc *freepsflux.FreepsFluxConfig
 }
@@ -35,7 +36,8 @@ func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 		log.Print(err)
 	}
 	f, _ := freepslib.NewFreepsLib(&conf)
-	return &FritzMod{fl: f, fc: &conf, ffc: &ffc}
+	ff, _ := freepsflux.NewFreepsFlux(&ffc, f)
+	return &FritzMod{fl: f, ff: ff, fc: &conf, ffc: &ffc}
 }
 
 func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
@@ -44,24 +46,23 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) 
 	json.Unmarshal(jsonStr, &vars)
 
 	if fn == "freepsflux" {
-		ff, err2 := freepsflux.NewFreepsFlux(m.ffc, m.fl)
-		if err2 != nil {
-			log.Fatalf("Error while executing function: %v\n", err2)
+		err = m.ff.Push()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Freepsflux error when pushing: %v", err.Error())
 		}
-		ff.Verbose = m.fl.Verbose
-		err = ff.Push()
 		return
 	} else if fn == "getdevicelistinfos" {
 		devl, err := m.fl.GetDeviceList()
 		if err != nil {
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, string(err.Error()))
 			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, err.Error())
 			return
 		}
 		jsonbytes, err := json.MarshalIndent(devl, "", "  ")
 		if err != nil {
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, string(err.Error()))
 			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, err.Error())
 			return
 		}
 		w.Write(jsonbytes)
