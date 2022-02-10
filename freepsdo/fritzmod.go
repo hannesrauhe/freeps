@@ -2,7 +2,6 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -40,7 +39,7 @@ func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 	return &FritzMod{fl: f, ff: ff, fc: &conf, ffc: &ffc}
 }
 
-func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
 	var err error
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
@@ -48,24 +47,21 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) 
 	if fn == "freepsflux" {
 		err = m.ff.Push()
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Freepsflux error when pushing: %v", err.Error())
+			jrw.WriteError(http.StatusInternalServerError, "Freepsflux error when pushing: %v", err.Error())
 		}
 		return
 	} else if fn == "getdevicelistinfos" {
 		devl, err := m.fl.GetDeviceList()
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, err.Error())
+			jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, err.Error())
 			return
 		}
-		jsonbytes, err := json.MarshalIndent(devl, "", "  ")
+		m, err := utils.StructToMap(devl)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, err.Error())
+			jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, err.Error())
 			return
 		}
-		w.Write(jsonbytes)
+		jrw.WriteSuccessMessage(m)
 		return
 	}
 
@@ -77,9 +73,8 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) 
 		err = m.fl.HomeAutoSwitch(fn, dev, vars)
 	}
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError: %v", vars, string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError: %v", vars, string(err.Error()))
 		return
 	}
-	fmt.Fprintf(w, "Fritz: %v, %v, %v", fn, dev, vars)
+	jrw.WriteSuccessString("Fritz: %v, %v, %v", fn, dev, vars)
 }

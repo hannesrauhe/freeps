@@ -2,7 +2,6 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -10,7 +9,7 @@ import (
 type CurlMod struct {
 }
 
-func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseWriter) {
+func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *JsonResponse) {
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
 
@@ -31,18 +30,15 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseWri
 	case "Get":
 		resp, err = c.Get(vars["url"])
 	default:
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "function %v unknown", function)
+		jrw.WriteError(http.StatusNotFound, "function %v unknown", function)
 		return
 	}
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "CurlMod\nFunction: %v\nArgs: %v\nError: %v", function, vars, string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, "CurlMod\nFunction: %v\nArgs: %v\nError: %v", function, vars, string(err.Error()))
 		return
 	}
-	w.WriteHeader(resp.StatusCode)
-	fmt.Fprintf(w, "CurlMod: %v, %v", vars, resp)
+	jrw.WriteError(resp.StatusCode, "CurlMod: %v, %v", vars, resp)
 }
 
 var _ Mod = &CurlMod{}

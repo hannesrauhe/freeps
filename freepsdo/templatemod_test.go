@@ -2,7 +2,6 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"net/http"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -14,7 +13,7 @@ type MockMod struct {
 	LastJSON     []byte
 }
 
-func (m *MockMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+func (m *MockMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
 	m.DoCount++
 	m.LastFunction = fn
 	m.LastJSON = jsonStr

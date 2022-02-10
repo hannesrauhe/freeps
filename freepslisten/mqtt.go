@@ -86,7 +86,8 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 			panic(err)
 		}
 		w := &utils.StoreWriter{StoredHeader: make(http.Header)}
-		fm.Doer.DoWithJSON(tc.TemplateToCall, jsonStr, w)
+		jrw := freepsdo.NewJsonResponseWriter(w)
+		fm.Doer.DoWithJSON(tc.TemplateToCall, jsonStr, jrw)
 		w.Print()
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
@@ -113,7 +114,8 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		return
 	}
 	w := &utils.StoreWriter{StoredHeader: make(http.Header)}
-	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, w)
+	jrw := freepsdo.NewJsonResponseWriter(w)
+	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, jrw)
 	w.Print()
 }
 

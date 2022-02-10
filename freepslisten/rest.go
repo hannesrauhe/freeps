@@ -25,7 +25,8 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		args["device"] = make([]string, 1)
 		args["device"][0] = device
 	}
-	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], utils.URLArgsToJSON(args), w)
+	jrw := freepsdo.NewJsonResponseWriter(w)
+	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], utils.URLArgsToJSON(args), jrw)
 }
 
 func (r *Restonator) Shutdown(ctx context.Context) {

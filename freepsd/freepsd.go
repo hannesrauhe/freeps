@@ -33,8 +33,9 @@ func main() {
 
 	if mod != "" {
 		w := utils.StoreWriter{StoredHeader: make(http.Header)}
+		jrw := freepsdo.NewJsonResponseWriter(&w)
 		args, _ := url.ParseQuery(argstring)
-		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), &w)
+		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
 		w.Print()
 		return
 	}

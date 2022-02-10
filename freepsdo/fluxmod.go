@@ -2,7 +2,6 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -43,7 +42,7 @@ type JsonArgs struct {
 	FieldsWithType map[string]FieldWithType
 }
 
-func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
 	var err error
 	if fn == "pushfields" {
 		fields := map[string]interface{}{}
@@ -66,8 +65,7 @@ func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
 				value = fwt.FieldValue
 			}
 			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintf(w, "Error when converting: \"%v\" does not seem to be of type \"%v\": %v", fwt.FieldValue, fwt.FieldType, err)
+				jrw.WriteError(http.StatusBadRequest, "Error when converting: \"%v\" does not seem to be of type \"%v\": %v", fwt.FieldValue, fwt.FieldType, err)
 				return
 			}
 			fields[k] = value
@@ -75,10 +73,9 @@ func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
 
 		err = m.ff.PushFields(args.Measurement, args.Tags, fields)
 		if err == nil {
-			fmt.Fprint(w, "Pushed to influx: ", args.Measurement, args.Tags, fields)
+			jrw.WriteSuccessString("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
 		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err, "\nTried to pushed to influx: ", args.Measurement, args.Tags, fields)
+			jrw.WriteError(http.StatusInternalServerError, "\nTried to pushed to influx: ", args.Measurement, args.Tags, fields)
 		}
 	}
 	return
