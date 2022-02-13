@@ -57,8 +57,8 @@ func (j *ResponseCollector) Clone() *ResponseCollector {
 		log.Print("Context is not yet set")
 		return nil
 	}
-	if j.response.StatusCode != 0 {
-		log.Print("Response already sent")
+	if j.response.ChildrenResponse != nil {
+		log.Print("Collector already finished")
 		return nil
 	}
 
@@ -118,6 +118,22 @@ func (j *ResponseCollector) WriteSuccessMessage(response interface{}) {
 
 func (j *ResponseCollector) WriteSuccessf(format string, a ...interface{}) {
 	j.WriteSuccessMessage(fmt.Sprintf(format, a...))
+}
+
+func (j *ResponseCollector) GetOutput() ([]byte, error) {
+	if !j.areChildrenFinished() {
+		return nil, fmt.Errorf("Children haven't finished processing")
+	}
+	if j.response.Output != nil {
+		return j.marshal(j.response.Output), nil
+	}
+	for _, rc := range j.children {
+		o, err := rc.GetOutput()
+		if o != nil {
+			return o, err
+		}
+	}
+	return nil, fmt.Errorf("Children do not have any output")
 }
 
 func (j *ResponseCollector) marshal(a interface{}) []byte {

@@ -86,6 +86,12 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		return
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
+	if len(t.TemplateToCall) > 0 {
+		o, err := jrw.GetOutput()
+		if err == nil {
+			m.DoWithJSON(t.TemplateToCall, o, jrw)
+		}
+	}
 	jrw.WriteSuccess()
 }
 

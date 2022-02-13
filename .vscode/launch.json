@@ -43,7 +43,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "fritz", "-f", "getdevicelistinfos"]
+      "args": ["-m", "template", "-f", "fritzgetdev"]
     },
     {
       "name": "wledoff",
