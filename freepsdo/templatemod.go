@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -14,10 +13,10 @@ type TemplateModConfig map[string]Template
 var DefaultConfig = TemplateModConfig{}
 
 type TemplateAction struct {
-	Mod          string
-	Fn           string
-	Args         map[string]interface{}
-	NextTemplate string
+	Mod            string                 `json:",omitempty"`
+	Fn             string                 `json:",omitempty"`
+	Args           map[string]interface{} `json:",omitempty"`
+	TemplateToCall string                 `json:",omitempty"`
 }
 
 type Template struct {
@@ -53,7 +52,7 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	return tm
 }
 
-func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *JsonResponse) {
+func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *ResponseCollector) {
 	template, exists := m.Templates[templateName]
 	if !exists {
 		jrw.WriteError(http.StatusNotFound, "template %v unknown", templateName)
@@ -63,21 +62,13 @@ func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *JsonR
 		jrw.WriteError(http.StatusNotExtended, "template %v has no actions", templateName)
 		return
 	}
-	m.ExecuteTemplateWithAdditionalArgs(&template, jsonStr, jrw)
-}
-
-func (m *TemplateMod) ExecuteTemplate(template *Template, jrw *JsonResponse) {
-	m.ExecuteTemplateWithAdditionalArgs(template, []byte("{}"), jrw)
-}
-
-func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, moreJsonArgs []byte, jrw *JsonResponse) {
-	for i, t := range template.Actions {
-		jrw := jrw.Clone(strconv.Itoa(i))
-		m.ExecuteTemplateActionWithAdditionalArgs(&t, moreJsonArgs, jrw)
+	for _, t := range template.Actions {
+		m.ExecuteTemplateActionWithAdditionalArgs(&t, jsonStr, jrw.Clone())
 	}
 }
 
-func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction, moreJsonArgs []byte, jrw *JsonResponse) {
+func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction, moreJsonArgs []byte, jrw *ResponseCollector) {
+	jrw.SetContext(t)
 	mod, modExists := m.Mods[t.Mod]
 	if !modExists {
 		jrw.WriteError(http.StatusNotFound, "module %v unknown", t.Mod)
@@ -95,11 +86,11 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		return
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
+	jrw.WriteSuccess()
 }
 
-func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, jrw *JsonResponse) {
-	cjrw := jrw.Clone(mod + "#" + fn)
+func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, jrw *ResponseCollector) {
 	ta := TemplateAction{Mod: mod, Fn: fn}
 	json.Unmarshal(jsonStr, &ta.Args)
-	m.ExecuteTemplateActionWithAdditionalArgs(&ta, []byte("{}"), cjrw)
+	m.ExecuteTemplateActionWithAdditionalArgs(&ta, []byte("{}"), jrw)
 }

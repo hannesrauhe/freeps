@@ -3,8 +3,6 @@ package freepsdo
 import (
 	"encoding/json"
 	"testing"
-
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 type MockMod struct {
@@ -13,7 +11,9 @@ type MockMod struct {
 	LastJSON     []byte
 }
 
-func (m *MockMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
+var _ Mod = &MockMod{}
+
+func (m *MockMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	m.DoCount++
 	m.LastFunction = fn
 	m.LastJSON = jsonStr
@@ -37,9 +37,8 @@ func TestCallTemplateWithJsonArgs(t *testing.T) {
 	tm := &TemplateMod{Mods: mods, Templates: map[string]Template{"tpl1": tpl}}
 	mods["template"] = tm
 
-	w := utils.StoreWriter{}
-
-	tm.DoWithJSON("tpl1", []byte(`{"newArg":3, "overwriteArg":5}`), &w)
+	w := NewJsonResponseWriterPrintDirectly()
+	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"newArg":3, "overwriteArg":5}`), w)
 	expected := TestStruct{DefaultArg: 1, OverwriteArg: 5, NewArg: 3}
 	var actual TestStruct
 	json.Unmarshal(mm.LastJSON, &actual)
@@ -47,7 +46,8 @@ func TestCallTemplateWithJsonArgs(t *testing.T) {
 		t.Errorf("Unexpected parameters passed to Tpl: %v", actual)
 	}
 
-	tm.DoWithJSON("tpl1", []byte(`{"DiffArg":42}`), &w)
+	w2 := NewJsonResponseWriterPrintDirectly()
+	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"DiffArg":42}`), w2)
 	expected2 := TestStruct{DefaultArg: 1, OverwriteArg: 1, DiffArg: 42}
 	var actual2 TestStruct
 	json.Unmarshal(mm.LastJSON, &actual2)

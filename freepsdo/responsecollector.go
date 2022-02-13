@@ -16,23 +16,23 @@ type internalResponse struct {
 	ChildrenResponse []*internalResponse `json:",omitempty"`
 }
 
-type JsonResponse struct {
+type ResponseCollector struct {
 	writer      http.ResponseWriter
-	children    []*JsonResponse
-	root        *JsonResponse
+	children    []*ResponseCollector
+	root        *ResponseCollector
 	response    *internalResponse
 	prettyPrint bool
 }
 
-func NewJsonResponseWriter(w http.ResponseWriter) *JsonResponse {
-	return &JsonResponse{writer: w}
+func NewJsonResponseWriter(w http.ResponseWriter) *ResponseCollector {
+	return &ResponseCollector{writer: w}
 }
 
-func NewJsonResponseWriterPrintDirectly() *JsonResponse {
-	return &JsonResponse{}
+func NewJsonResponseWriterPrintDirectly() *ResponseCollector {
+	return &ResponseCollector{}
 }
 
-func (j *JsonResponse) SetContext(ta *TemplateAction) {
+func (j *ResponseCollector) SetContext(ta *TemplateAction) {
 	if j.response != nil {
 		log.Print("Context is already set")
 		return
@@ -40,11 +40,11 @@ func (j *JsonResponse) SetContext(ta *TemplateAction) {
 	j.response = &internalResponse{TemplateAction: *ta}
 }
 
-func (j *JsonResponse) SetPrettyPrint(p bool) {
+func (j *ResponseCollector) SetPrettyPrint(p bool) {
 	j.prettyPrint = p
 }
 
-func (j *JsonResponse) GetHttpResponseWriter() http.ResponseWriter {
+func (j *ResponseCollector) GetHttpResponseWriter() http.ResponseWriter {
 	root := j.root
 	if root == nil {
 		root = j
@@ -52,7 +52,7 @@ func (j *JsonResponse) GetHttpResponseWriter() http.ResponseWriter {
 	return j.writer
 }
 
-func (j *JsonResponse) Clone() *JsonResponse {
+func (j *ResponseCollector) Clone() *ResponseCollector {
 	if j.response == nil {
 		log.Print("Context is not yet set")
 		return nil
@@ -63,18 +63,18 @@ func (j *JsonResponse) Clone() *JsonResponse {
 	}
 
 	if j.children == nil {
-		j.children = []*JsonResponse{}
+		j.children = []*ResponseCollector{}
 	}
 	root := j.root
 	if root == nil {
 		root = j
 	}
-	c := &JsonResponse{root: root}
+	c := &ResponseCollector{root: root}
 	j.children = append(j.children, c)
 	return c
 }
 
-func (j *JsonResponse) WriteSuccess() {
+func (j *ResponseCollector) WriteSuccess() {
 	if j.response == nil {
 		log.Print("Context is not yet set")
 		return
@@ -86,7 +86,7 @@ func (j *JsonResponse) WriteSuccess() {
 	j.finishIfAllFinished()
 }
 
-func (j *JsonResponse) WriteMessageWithCode(statusCode int, response interface{}) {
+func (j *ResponseCollector) WriteMessageWithCode(statusCode int, response interface{}) {
 	if j.response == nil {
 		log.Print("Context is not yet set")
 		return
@@ -104,23 +104,23 @@ func (j *JsonResponse) WriteMessageWithCode(statusCode int, response interface{}
 	j.finishIfAllFinished()
 }
 
-func (j *JsonResponse) WriteMessageWithCodef(statusCode int, format string, a ...interface{}) {
-	j.WriteMessageWithCode(statusCode, fmt.Sprintf(format, a))
+func (j *ResponseCollector) WriteMessageWithCodef(statusCode int, format string, a ...interface{}) {
+	j.WriteMessageWithCode(statusCode, fmt.Sprintf(format, a...))
 }
 
-func (j *JsonResponse) WriteError(statusCode int, format string, a ...interface{}) {
-	j.WriteMessageWithCode(statusCode, fmt.Sprintf(format, a))
+func (j *ResponseCollector) WriteError(statusCode int, format string, a ...interface{}) {
+	j.WriteMessageWithCode(statusCode, fmt.Sprintf(format, a...))
 }
 
-func (j *JsonResponse) WriteSuccessMessage(response interface{}) {
+func (j *ResponseCollector) WriteSuccessMessage(response interface{}) {
 	j.WriteMessageWithCode(200, response)
 }
 
-func (j *JsonResponse) WriteSuccessf(format string, a ...interface{}) {
-	j.WriteSuccessMessage(fmt.Sprintf(format, a))
+func (j *ResponseCollector) WriteSuccessf(format string, a ...interface{}) {
+	j.WriteSuccessMessage(fmt.Sprintf(format, a...))
 }
 
-func (j *JsonResponse) marshal(a interface{}) []byte {
+func (j *ResponseCollector) marshal(a interface{}) []byte {
 	var m []byte
 	if j.prettyPrint {
 		m, _ = json.MarshalIndent(a, "", "  ")
@@ -130,7 +130,7 @@ func (j *JsonResponse) marshal(a interface{}) []byte {
 	return m
 }
 
-func (j *JsonResponse) writeFinalResponse() {
+func (j *ResponseCollector) writeFinalResponse() {
 	if j.writer == nil {
 		os.Stdout.Write(j.marshal(j.response))
 		fmt.Println()
@@ -142,7 +142,7 @@ func (j *JsonResponse) writeFinalResponse() {
 	}
 }
 
-func (j *JsonResponse) areChildrenFinished() bool {
+func (j *ResponseCollector) areChildrenFinished() bool {
 	if j.response == nil {
 		return false
 	}
@@ -160,7 +160,7 @@ func (j *JsonResponse) areChildrenFinished() bool {
 	return true
 }
 
-func (j *JsonResponse) getChildrenResponse() bool {
+func (j *ResponseCollector) getChildrenResponse() bool {
 	if j.children == nil {
 		return true
 	}
@@ -181,7 +181,7 @@ func (j *JsonResponse) getChildrenResponse() bool {
 	return true
 }
 
-func (j *JsonResponse) finishIfAllFinished() {
+func (j *ResponseCollector) finishIfAllFinished() {
 	if j.root != nil {
 		j.root.finishIfAllFinished()
 		return

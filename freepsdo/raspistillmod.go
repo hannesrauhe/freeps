@@ -35,7 +35,7 @@ func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (
 	return byt, nil
 }
 
-func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
+func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	bytes, err := CaptureRaspiStill(1600, 1200, map[string]interface{}{"--quality": 90, "--brightness": 50})
 
 	if err != nil {

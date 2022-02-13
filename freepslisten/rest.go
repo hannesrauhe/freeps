@@ -27,6 +27,7 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	jrw := freepsdo.NewJsonResponseWriter(w)
 	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], utils.URLArgsToJSON(args), jrw)
+	jrw.WriteSuccess()
 }
 
 func (r *Restonator) Shutdown(ctx context.Context) {

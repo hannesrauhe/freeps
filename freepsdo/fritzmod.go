@@ -39,7 +39,7 @@ func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 	return &FritzMod{fl: f, ff: ff, fc: &conf, ffc: &ffc}
 }
 
-func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
+func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	var err error
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
@@ -56,12 +56,7 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
 			jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, err.Error())
 			return
 		}
-		m, err := utils.StructToMap(devl)
-		if err != nil {
-			jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, err.Error())
-			return
-		}
-		jrw.WriteSuccessMessage(m)
+		jrw.WriteSuccessMessage(devl)
 		return
 	}
 
@@ -76,5 +71,5 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
 		jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError: %v", vars, string(err.Error()))
 		return
 	}
-	jrw.WriteSuccessString("Fritz: %v, %v, %v", fn, dev, vars)
+	jrw.WriteSuccessf("%v, %v, %v", fn, dev, vars)
 }

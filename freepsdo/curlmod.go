@@ -2,6 +2,8 @@ package freepsdo
 
 import (
 	"encoding/json"
+	"io"
+	"log"
 	"net/http"
 	"net/url"
 )
@@ -9,7 +11,7 @@ import (
 type CurlMod struct {
 }
 
-func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *JsonResponse) {
+func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseCollector) {
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
 
@@ -35,10 +37,13 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *JsonResponse)
 	}
 
 	if err != nil {
-		jrw.WriteError(http.StatusInternalServerError, "CurlMod\nFunction: %v\nArgs: %v\nError: %v", function, vars, string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, "%v", string(err.Error()))
 		return
 	}
-	jrw.WriteError(resp.StatusCode, "CurlMod: %v, %v", vars, resp)
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	jrw.WriteMessageWithCode(resp.StatusCode, string(b))
+	log.Printf("%v , %v", err, string(b))
 }
 
 var _ Mod = &CurlMod{}

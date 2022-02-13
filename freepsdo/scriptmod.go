@@ -15,7 +15,7 @@ type ScriptParameters struct {
 	Args []string
 }
 
-func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, jrw *JsonResponse) {
+func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseCollector) {
 	params := ScriptParameters{}
 	json.Unmarshal(jsonStr, &params)
 	cmd := exec.Command("./scripts/"+function, params.Args...)
@@ -23,7 +23,7 @@ func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, jrw *JsonRespons
 	if err != nil {
 		jrw.WriteError(http.StatusInternalServerError, "Executed: %v\nParameters: %v\nError: %v", function, params.Args, string(err.Error()))
 	} else {
-		jrw.WriteSuccessString("Executed: %v\nParameters: %v\nOutput: %v", function, params.Args, string(stdout))
+		jrw.WriteSuccessf("Executed: %v\nParameters: %v\nOutput: %v", function, params.Args, string(stdout))
 	}
 
 }

@@ -42,7 +42,7 @@ type JsonArgs struct {
 	FieldsWithType map[string]FieldWithType
 }
 
-func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
+func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	var err error
 	if fn == "pushfields" {
 		fields := map[string]interface{}{}
@@ -73,9 +73,9 @@ func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, jrw *JsonResponse) {
 
 		err = m.ff.PushFields(args.Measurement, args.Tags, fields)
 		if err == nil {
-			jrw.WriteSuccessString("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
+			jrw.WriteSuccessf("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
 		} else {
-			jrw.WriteError(http.StatusInternalServerError, "\nTried to pushed to influx: ", args.Measurement, args.Tags, fields)
+			jrw.WriteError(http.StatusInternalServerError, "%v", err)
 		}
 	}
 	return

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net/http"
 	"net/url"
 
 	"github.com/hannesrauhe/freeps/freepsdo"
@@ -32,11 +31,11 @@ func main() {
 	doer := freepsdo.NewTemplateMod(cr)
 
 	if mod != "" {
-		w := utils.StoreWriter{StoredHeader: make(http.Header)}
-		jrw := freepsdo.NewJsonResponseWriter(&w)
+		jrw := freepsdo.NewJsonResponseWriterPrintDirectly()
+		jrw.SetPrettyPrint(true)
 		args, _ := url.ParseQuery(argstring)
 		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
-		w.Print()
+		jrw.WriteSuccess()
 		return
 	}
 
