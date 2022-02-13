@@ -13,10 +13,11 @@ type TemplateModConfig map[string]Template
 var DefaultConfig = TemplateModConfig{}
 
 type TemplateAction struct {
-	Mod            string                 `json:",omitempty"`
-	Fn             string                 `json:",omitempty"`
-	Args           map[string]interface{} `json:",omitempty"`
-	TemplateToCall string                 `json:",omitempty"`
+	Mod             string                 `json:",omitempty"`
+	Fn              string                 `json:",omitempty"`
+	Args            map[string]interface{} `json:",omitempty"`
+	FwdTemplateName string                 `json:",omitempty"`
+	FwdTemplate     *Template              `json:",omitempty"`
 }
 
 type Template struct {
@@ -62,6 +63,10 @@ func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *Respo
 		jrw.WriteError(http.StatusNotExtended, "template %v has no actions", templateName)
 		return
 	}
+	m.ExecuteTemplateWithAdditionalArgs(&template, jsonStr, jrw)
+}
+
+func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, jsonStr []byte, jrw *ResponseCollector) {
 	for _, t := range template.Actions {
 		m.ExecuteTemplateActionWithAdditionalArgs(&t, jsonStr, jrw.Clone())
 	}
@@ -86,10 +91,15 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		return
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
-	if len(t.TemplateToCall) > 0 {
+	if len(t.FwdTemplateName) > 0 {
 		o, err := jrw.GetOutput()
 		if err == nil {
-			m.DoWithJSON(t.TemplateToCall, o, jrw)
+			m.DoWithJSON(t.FwdTemplateName, o, jrw)
+		}
+	} else if t.FwdTemplate != nil {
+		o, err := jrw.GetOutput()
+		if err == nil {
+			m.ExecuteTemplateWithAdditionalArgs(t.FwdTemplate, o, jrw)
 		}
 	}
 	jrw.WriteSuccess()

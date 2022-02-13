@@ -38,7 +38,7 @@
       "args": ["-m", "template", "-f", "test"]
     },
     {
-      "name": "fritz",
+      "name": "fritztemplate",
       "type": "go",
       "request": "launch",
       "mode": "auto",
@@ -52,6 +52,14 @@
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
       "args": ["-m", "template", "-f", "wledoff"]
+    },
+    {
+      "name": "fritz",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "fritz", "-f", "getdevicelistinfos"]
     }
   ]
 }

@@ -53,7 +53,7 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 	} else if fn == "getdevicelistinfos" {
 		devl, err := m.fl.GetDeviceList()
 		if err != nil {
-			jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, err.Error())
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
 			return
 		}
 		jrw.WriteSuccessMessage(devl)
@@ -68,7 +68,7 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 		err = m.fl.HomeAutoSwitch(fn, dev, vars)
 	}
 	if err != nil {
-		jrw.WriteError(http.StatusInternalServerError, "FritzHandler\nParameters: %v\nError: %v", vars, string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, err.Error())
 		return
 	}
 	jrw.WriteSuccessf("%v, %v, %v", fn, dev, vars)
