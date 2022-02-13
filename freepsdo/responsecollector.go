@@ -120,9 +120,14 @@ func (j *ResponseCollector) WriteSuccessf(format string, a ...interface{}) {
 	j.WriteSuccessMessage(fmt.Sprintf(format, a...))
 }
 
+// GetOutput returns the output collected by this collector or the output of the first child that produced any output
+// returns an error, if the children have failed or did not finish yet
 func (j *ResponseCollector) GetOutput() ([]byte, error) {
 	if !j.areChildrenFinished() {
 		return nil, fmt.Errorf("Children haven't finished processing")
+	}
+	if j.IsStatusFailed() {
+		return nil, fmt.Errorf("Status is failed")
 	}
 	if j.response.Output != nil {
 		return j.marshal(j.response.Output), nil
@@ -133,7 +138,11 @@ func (j *ResponseCollector) GetOutput() ([]byte, error) {
 			return o, err
 		}
 	}
-	return nil, fmt.Errorf("Children do not have any output")
+	return []byte{}, nil
+}
+
+func (j *ResponseCollector) IsStatusFailed() bool {
+	return j.response.StatusCode >= 300
 }
 
 func (j *ResponseCollector) marshal(a interface{}) []byte {
@@ -190,7 +199,7 @@ func (j *ResponseCollector) getChildrenResponse() bool {
 	for k, c := range j.children {
 		c.getChildrenResponse()
 		j.response.ChildrenResponse[k] = c.response
-		if c.response.StatusCode >= 400 {
+		if c.IsStatusFailed() {
 			j.response.StatusCode = http.StatusFailedDependency
 		}
 	}
