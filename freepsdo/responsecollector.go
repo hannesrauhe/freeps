@@ -9,18 +9,18 @@ import (
 	"log"
 )
 
-type internalResponse struct {
+type internalContext struct {
 	TemplateAction
-	StatusCode       int                 `json:",omitempty"`
-	Output           interface{}         `json:",omitempty"`
-	ChildrenResponse []*internalResponse `json:",omitempty"`
+	StatusCode      int                `json:",omitempty"`
+	Output          interface{}        `json:",omitempty"`
+	ChildrenContext []*internalContext `json:",omitempty"`
 }
 
 type ResponseCollector struct {
 	writer      http.ResponseWriter
 	children    []*ResponseCollector
 	root        *ResponseCollector
-	response    *internalResponse
+	context     *internalContext
 	prettyPrint bool
 }
 
@@ -33,11 +33,11 @@ func NewJsonResponseWriterPrintDirectly() *ResponseCollector {
 }
 
 func (j *ResponseCollector) SetContext(ta *TemplateAction) {
-	if j.response != nil {
+	if j.context != nil {
 		log.Print("Context is already set")
 		return
 	}
-	j.response = &internalResponse{TemplateAction: *ta}
+	j.context = &internalContext{TemplateAction: *ta}
 }
 
 func (j *ResponseCollector) SetPrettyPrint(p bool) {
@@ -53,11 +53,11 @@ func (j *ResponseCollector) GetHttpResponseWriter() http.ResponseWriter {
 }
 
 func (j *ResponseCollector) Clone() *ResponseCollector {
-	if j.response == nil {
+	if j.context == nil {
 		log.Print("Context is not yet set")
 		return nil
 	}
-	if j.response.ChildrenResponse != nil {
+	if j.context.ChildrenContext != nil {
 		log.Print("Collector already finished")
 		return nil
 	}
@@ -75,23 +75,23 @@ func (j *ResponseCollector) Clone() *ResponseCollector {
 }
 
 func (j *ResponseCollector) WriteSuccess() {
-	if j.response == nil {
+	if j.context == nil {
 		log.Print("Context is not yet set")
 		return
 	}
-	if j.response.StatusCode != 0 {
+	if j.context.StatusCode != 0 {
 		return
 	}
-	j.response.StatusCode = 200
+	j.context.StatusCode = 200
 	j.finishIfAllFinished()
 }
 
 func (j *ResponseCollector) WriteMessageWithCode(statusCode int, response interface{}) {
-	if j.response == nil {
+	if j.context == nil {
 		log.Print("Context is not yet set")
 		return
 	}
-	if j.response.StatusCode != 0 {
+	if j.context.StatusCode != 0 {
 		log.Print("Response is already sent")
 		return
 	}
@@ -99,8 +99,8 @@ func (j *ResponseCollector) WriteMessageWithCode(statusCode int, response interf
 		log.Print("Setting status code to 0 is not allowed, using 200 instead")
 		statusCode = 200
 	}
-	j.response.StatusCode = statusCode
-	j.response.Output = response
+	j.context.StatusCode = statusCode
+	j.context.Output = response
 	j.finishIfAllFinished()
 }
 
@@ -122,27 +122,41 @@ func (j *ResponseCollector) WriteSuccessf(format string, a ...interface{}) {
 
 // GetOutput returns the output collected by this collector or the output of the first child that produced any output
 // returns an error, if the children have failed or did not finish yet
-func (j *ResponseCollector) GetOutput() ([]byte, error) {
+func (j *ResponseCollector) GetOutput() (interface{}, error) {
 	if !j.areChildrenFinished() {
 		return nil, fmt.Errorf("Children haven't finished processing")
 	}
 	if j.IsStatusFailed() {
 		return nil, fmt.Errorf("Status is failed")
 	}
-	if j.response.Output != nil {
-		return j.marshal(j.response.Output), nil
+	if j.context.Output != nil {
+		return j.context.Output, nil
 	}
-	for _, rc := range j.children {
-		o, err := rc.GetOutput()
-		if o != nil {
-			return o, err
+	if j.children != nil {
+		for _, rc := range j.children {
+			o, err := rc.GetOutput()
+			if o != nil {
+				return o, err
+			}
 		}
 	}
-	return []byte{}, nil
+	return nil, nil
+}
+
+// GetMarshalledOutput runs GetOutput and returnes the json-encoded Output
+func (j *ResponseCollector) GetMarshalledOutput() ([]byte, error) {
+	i, err := j.GetOutput()
+	if err != nil {
+		return nil, err
+	}
+	if i == nil {
+		return []byte{}, nil
+	}
+	return json.Marshal(i)
 }
 
 func (j *ResponseCollector) IsStatusFailed() bool {
-	return j.response.StatusCode >= 300
+	return j.context.StatusCode >= 300
 }
 
 func (j *ResponseCollector) marshal(a interface{}) []byte {
@@ -157,21 +171,21 @@ func (j *ResponseCollector) marshal(a interface{}) []byte {
 
 func (j *ResponseCollector) writeFinalResponse() {
 	if j.writer == nil {
-		os.Stdout.Write(j.marshal(j.response))
+		os.Stdout.Write(j.marshal(j.context))
 		fmt.Println()
 	} else {
 		var m []byte
-		m = j.marshal(j.response)
-		j.writer.WriteHeader(j.response.StatusCode)
+		m = j.marshal(j.context)
+		j.writer.WriteHeader(j.context.StatusCode)
 		j.writer.Write(m)
 	}
 }
 
 func (j *ResponseCollector) areChildrenFinished() bool {
-	if j.response == nil {
+	if j.context == nil {
 		return false
 	}
-	if j.response.StatusCode == 0 {
+	if j.context.StatusCode == 0 {
 		return false
 	}
 	if j.children == nil {
@@ -192,15 +206,18 @@ func (j *ResponseCollector) getChildrenResponse() bool {
 	if !j.areChildrenFinished() {
 		return false
 	}
-	if j.response.ChildrenResponse != nil {
+	if j.context.ChildrenContext != nil {
 		return true
 	}
-	j.response.ChildrenResponse = make([]*internalResponse, len(j.children))
+	j.context.ChildrenContext = make([]*internalContext, len(j.children))
 	for k, c := range j.children {
 		c.getChildrenResponse()
-		j.response.ChildrenResponse[k] = c.response
+		j.context.ChildrenContext[k] = c.context
 		if c.IsStatusFailed() {
-			j.response.StatusCode = http.StatusFailedDependency
+			j.context.StatusCode = http.StatusFailedDependency
+		} else if j.context.Output == nil {
+			// collect the output of the first successful child - it's like the throne hierarchy in the British Royal family...
+			j.context.Output, _ = c.GetOutput()
 		}
 	}
 	return true
@@ -211,8 +228,8 @@ func (j *ResponseCollector) finishIfAllFinished() {
 		j.root.finishIfAllFinished()
 		return
 	}
-
 	// I'm root
+
 	if !j.getChildrenResponse() {
 		return
 	}

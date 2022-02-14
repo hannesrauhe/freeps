@@ -44,12 +44,14 @@ func main() {
 
 	rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
 	mqtt := freepslisten.NewMqttSubscriber(cr, doer)
+	telg := freepslisten.NewTelegramBot(cr, doer, cancel)
 
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
 		rest.Shutdown(ctx)
 		mqtt.Shutdown()
+		telg.Shutdown(ctx)
 	}
 	log.Printf("Server stopped")
 }

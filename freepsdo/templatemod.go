@@ -92,12 +92,12 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
 	if len(t.FwdTemplateName) > 0 {
-		o, err := jrw.GetOutput()
+		o, err := jrw.GetMarshalledOutput()
 		if err == nil {
 			m.DoWithJSON(t.FwdTemplateName, o, jrw)
 		}
 	} else if t.FwdTemplate != nil {
-		o, err := jrw.GetOutput()
+		o, err := jrw.GetMarshalledOutput()
 		if err == nil {
 			m.ExecuteTemplateWithAdditionalArgs(t.FwdTemplate, o, jrw)
 		}
