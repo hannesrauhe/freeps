@@ -36,18 +36,12 @@ func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (
 }
 
 func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
-	bytes, err := CaptureRaspiStill(1600, 1200, map[string]interface{}{"--quality": 90, "--brightness": 50})
+	b, err := CaptureRaspiStill(1600, 1200, map[string]interface{}{"--quality": 90, "--brightness": 50})
 
 	if err != nil {
 		jrw.WriteError(http.StatusInternalServerError, "Error executing raspistill: %v", err.Error())
 		return
 	}
 
-	w := jrw.GetHttpResponseWriter()
-	w.Header().Set("Content-Type", "image/jpeg")
-	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
-	if _, err := w.Write(bytes); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "unable to write image to response: %v", string(err.Error()))
-	}
+	jrw.WriteResponseWithCodeAndType(200, "image/jpeg", b)
 }

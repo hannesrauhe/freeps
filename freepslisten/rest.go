@@ -2,8 +2,10 @@ package freepslisten
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -25,9 +27,17 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		args["device"] = make([]string, 1)
 		args["device"][0] = device
 	}
-	jrw := freepsdo.NewJsonResponseWriter(w)
+	jrw := freepsdo.NewResponseCollector()
 	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], utils.URLArgsToJSON(args), jrw)
-	jrw.WriteSuccess()
+	status, otype, bytes := jrw.GetFinalResponse()
+	w.Header().Set("Content-Type", otype)
+	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
+	if _, err := w.Write(bytes); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "unable to write image to response: %v", string(err.Error()))
+	}
+	w.WriteHeader(status)
+	w.Write(bytes)
 }
 
 func (r *Restonator) Shutdown(ctx context.Context) {

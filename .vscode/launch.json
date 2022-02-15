@@ -27,7 +27,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "denonoff"]
+      "args": ["-m", "template", "-f", "denonon"]
     },
     {
       "name": "test",

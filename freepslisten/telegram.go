@@ -38,7 +38,7 @@ func (r *Telegraminator) MainLoop() {
 		// Create a new MessageConfig. We don't have text yet,
 		// so we leave it empty.
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-		jrw := freepsdo.NewJsonResponseWriterPrintDirectly()
+		jrw := freepsdo.NewResponseCollector()
 		r.Modinator.ExecuteModWithJson(update.Message.Command(), update.Message.CommandArguments(), []byte("{}"), jrw)
 		m, err := jrw.GetMarshalledOutput()
 		if err != nil {

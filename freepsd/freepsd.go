@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"net/url"
+	"os"
 
 	"github.com/hannesrauhe/freeps/freepsdo"
 	"github.com/hannesrauhe/freeps/freepslisten"
@@ -31,11 +32,16 @@ func main() {
 	doer := freepsdo.NewTemplateMod(cr)
 
 	if mod != "" {
-		jrw := freepsdo.NewJsonResponseWriterPrintDirectly()
-		jrw.SetPrettyPrint(true)
+		jrw := freepsdo.NewResponseCollector()
 		args, _ := url.ParseQuery(argstring)
 		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
-		jrw.WriteSuccess()
+		_, t, b := jrw.GetFinalResponse()
+		if t == "text/plain" || t == "application/json" {
+			os.Stdout.Write(b)
+			println("")
+		} else {
+			println("Binary response not printed")
+		}
 		return
 	}
 

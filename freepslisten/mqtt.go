@@ -84,9 +84,9 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		if err != nil {
 			panic(err)
 		}
-		jrw := freepsdo.NewJsonResponseWriterPrintDirectly()
+		jrw := freepsdo.NewResponseCollector()
 		fm.Doer.ExecuteModWithJson("template", tc.TemplateToCall, jsonStr, jrw)
-		jrw.WriteSuccess()
+		log.Print(jrw.GetResponseTree())
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
 	}
@@ -111,9 +111,8 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
-	jrw := freepsdo.NewJsonResponseWriterPrintDirectly()
+	jrw := freepsdo.NewResponseCollector()
 	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, jrw)
-	jrw.WriteSuccess()
 }
 
 func (fm *FreepsMqtt) Shutdown() {

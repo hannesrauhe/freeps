@@ -42,7 +42,7 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseColle
 	}
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
-	jrw.WriteMessageWithCode(resp.StatusCode, string(b))
+	jrw.WriteResponseWithCodeAndType(resp.StatusCode, "text/plain", string(b))
 	log.Printf("%v , %v", err, string(b))
 }
 
