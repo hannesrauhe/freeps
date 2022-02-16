@@ -18,7 +18,7 @@ type ScriptModConfig struct {
 	ScriptDir string
 }
 
-var ScriptModDefaultConfig = ScriptModConfig{"/etc/freeps/scripts"}
+var ScriptModDefaultConfig = ScriptModConfig{"/etc/freepsd/scripts"}
 
 var _ Mod = &ScriptMod{}
 
