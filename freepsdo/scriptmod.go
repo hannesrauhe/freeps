@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"path"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -50,8 +51,8 @@ func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseW
 		w.Write([]byte(err.Error()))
 		return
 	}
-
-	cmd := exec.Command(m.ScriptDir+"/"+function, params.Args...)
+	scriptName := path.Base(function)
+	cmd := exec.Command(m.ScriptDir+"/"+scriptName, params.Args...)
 	var stdout []byte
 	if params.Mode == "detach" {
 		err = cmd.Start()
@@ -60,10 +61,10 @@ func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseW
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nError: %v", function, params.Args, string(err.Error()))
+		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nError: %v", scriptName, params.Args, string(err.Error()))
 	} else {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nOutput: %v", function, params.Args, string(stdout))
+		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nOutput: %v", scriptName, params.Args, string(stdout))
 	}
 
 }
