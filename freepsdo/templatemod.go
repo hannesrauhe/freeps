@@ -45,6 +45,7 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods := map[string]Mod{}
 	mods["curl"] = &CurlMod{}
 	mods["echo"] = &EchoMod{}
+	mods["script"] = NewScriptMod(cr)
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
 	mods["raspistill"] = &RaspistillMod{}
