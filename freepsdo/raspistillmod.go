@@ -45,3 +45,8 @@ func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseColle
 
 	jrw.WriteResponseWithCodeAndType(200, "image/jpeg", b)
 }
+
+func (m *RaspistillMod) GetFunctions() []string {
+	keys := []string{"do"}
+	return keys
+}

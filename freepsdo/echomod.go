@@ -5,6 +5,8 @@ import "encoding/json"
 type EchoMod struct {
 }
 
+var _ Mod = &EchoMod{}
+
 func (m *EchoMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	if fn == "bytes" {
 		jrw.WriteSuccessMessage(jsonStr)
@@ -17,4 +19,7 @@ func (m *EchoMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 	}
 }
 
-var _ Mod = &EchoMod{}
+func (m *EchoMod) GetFunctions() []string {
+	keys := make([]string, 0)
+	return keys
+}

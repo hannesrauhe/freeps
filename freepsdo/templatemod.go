@@ -67,6 +67,15 @@ func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *Respo
 	m.ExecuteTemplateWithAdditionalArgs(&template, jsonStr, jrw)
 }
 
+func (m *TemplateMod) GetFunctions() []string {
+	keys := make([]string, 0, len(m.Templates))
+	for k := range m.Templates {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
 func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, jsonStr []byte, jrw *ResponseCollector) {
 	for _, t := range template.Actions {
 		m.ExecuteTemplateActionWithAdditionalArgs(&t, jsonStr, jrw.Clone())

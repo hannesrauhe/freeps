@@ -86,7 +86,7 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		}
 		jrw := freepsdo.NewResponseCollector()
 		fm.Doer.ExecuteModWithJson("template", tc.TemplateToCall, jsonStr, jrw)
-		log.Print(jrw.GetResponseTree())
+		log.Printf("%q", jrw.GetResponseTree())
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
 	}

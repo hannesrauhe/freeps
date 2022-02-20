@@ -73,3 +73,8 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 	}
 	jrw.WriteSuccessf("%v, %v, %v", fn, dev, vars)
 }
+
+func (m *FritzMod) GetFunctions() []string {
+	keys := make([]string, 0)
+	return keys
+}

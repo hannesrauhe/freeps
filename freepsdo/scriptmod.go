@@ -62,5 +62,9 @@ func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseCol
 	} else {
 		jrw.WriteSuccessf("Executed: %v\nParameters: %v\nOutput: %v", scriptName, params.Args, string(stdout))
 	}
+}
 
+func (m *ScriptMod) GetFunctions() []string {
+	keys := make([]string, 0)
+	return keys
 }

@@ -57,7 +57,9 @@ func main() {
 		// Shutdown the server when the context is canceled
 		rest.Shutdown(ctx)
 		mqtt.Shutdown()
-		telg.Shutdown(ctx)
+		if telg != nil {
+			telg.Shutdown(ctx)
+		}
 	}
 	log.Printf("Server stopped")
 }

@@ -80,3 +80,8 @@ func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 	}
 	return
 }
+
+func (m *FluxMod) GetFunctions() []string {
+	keys := make([]string, 0)
+	return keys
+}

@@ -11,6 +11,8 @@ import (
 type CurlMod struct {
 }
 
+var _ Mod = &CurlMod{}
+
 func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseCollector) {
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
@@ -46,4 +48,7 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseColle
 	log.Printf("%v , %v", err, string(b))
 }
 
-var _ Mod = &CurlMod{}
+func (m *CurlMod) GetFunctions() []string {
+	keys := []string{"PostForm", "Get"}
+	return keys
+}
