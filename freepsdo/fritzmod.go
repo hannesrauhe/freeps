@@ -75,6 +75,5 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 }
 
 func (m *FritzMod) GetFunctions() []string {
-	keys := make([]string, 0)
-	return keys
+	return []string{"wakeup", "push", "getswitchlist", "setswitchon", "setswitchoff", "setswitchtoggle", "getswitchstate", "getswitchpresent", "getswitchpower", "getswitchenergy", "getswitchname", "getdevicelistinfos", "gettemperature", "gethkrtsoll", "gethkrkomfort", "gethkrabsenk", "sethkrtsoll", "getbasicdevicestats", "gettemplatelistinfos", "applytemplate", "setsimpleonoff", "setlevel", "setlevelpercentage", "setcolor", "setcolortemperature", "getcolordefaults", "sethkrboost", "sethkrwindowopen", "setblind", "setname", "startulesubscription", "getsubscriptionstate", "getdeviceinfos"}
 }

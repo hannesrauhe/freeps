@@ -32,11 +32,11 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	status, otype, bytes := jrw.GetFinalResponse()
 	w.Header().Set("Content-Type", otype)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
+	w.WriteHeader(status)
 	if _, err := w.Write(bytes); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "unable to write bytes to response: %v", err.Error())
 	}
-	w.WriteHeader(status)
 }
 
 func (r *Restonator) Shutdown(ctx context.Context) {

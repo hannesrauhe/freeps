@@ -13,7 +13,9 @@ import (
 )
 
 type TelegramConfig struct {
-	Token string
+	Token         string
+	AllowedUsers  []string
+	DebugMessages bool
 }
 
 var DefaultTelegramConfig = TelegramConfig{Token: ""}
@@ -21,6 +23,7 @@ var DefaultTelegramConfig = TelegramConfig{Token: ""}
 type Telegraminator struct {
 	Modinator *freepsdo.TemplateMod
 	bot       *tgbotapi.BotAPI
+	tgc       *TelegramConfig
 }
 
 func (r *Telegraminator) Shutdown(ctx context.Context) {
@@ -55,8 +58,18 @@ func (r *Telegraminator) getFnButtons(ta *freepsdo.TemplateAction) []tgbotapi.In
 }
 
 func (r *Telegraminator) optionKeyboard(buttons []tgbotapi.InlineKeyboardButton) tgbotapi.InlineKeyboardMarkup {
-	row := tgbotapi.NewInlineKeyboardRow(buttons...)
-	return tgbotapi.NewInlineKeyboardMarkup(row)
+	row := [][]tgbotapi.InlineKeyboardButton{}
+	for i := range buttons {
+		if i%3 == 0 {
+			b := i
+			e := i + 3
+			if e > len(buttons) {
+				e = len(buttons)
+			}
+			row = append(row, tgbotapi.NewInlineKeyboardRow(buttons[b:e]...))
+		}
+	}
+	return tgbotapi.NewInlineKeyboardMarkup(row...)
 }
 
 func (r *Telegraminator) getModKeyboard() tgbotapi.InlineKeyboardMarkup {
@@ -75,6 +88,62 @@ func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
 	}
 }
 
+func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
+	msg := tgbotapi.NewMessage(chat.ID, "Hello "+chat.FirstName+".")
+	allowed := false
+	for _, v := range r.tgc.AllowedUsers {
+		if v == chat.UserName {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		msg.Text += " I'm not allowed to talk to you."
+		if _, err := r.bot.Send(msg); err != nil {
+			log.Println(err)
+		}
+		return
+	}
+	if input == "" {
+		r.sendStartMessage(&msg)
+		return
+	}
+	ta := freepsdo.TemplateAction{}
+	byt, err := base64.StdEncoding.DecodeString(input)
+	if err != nil {
+		msg.Text = err.Error()
+		r.sendStartMessage(&msg)
+		return
+	}
+	err = json.Unmarshal(byt, &ta)
+	if err != nil {
+		msg.Text = err.Error()
+		r.sendStartMessage(&msg)
+		return
+	}
+
+	if len(ta.Fn) == 0 {
+		msg.Text = "Pick a function"
+		msg.ReplyMarkup = r.getFnKeyboard(&ta)
+	} else {
+		jrw := freepsdo.NewResponseCollector()
+		r.Modinator.ExecuteTemplateAction(&ta, jrw)
+		status, otype, byt := jrw.GetFinalResponse()
+		if otype == "image/jpeg" {
+			msg.Text = "Here is a picture for you"
+			m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})
+			if _, err := r.bot.Send(m); err != nil {
+				log.Println(err)
+			}
+		} else {
+			msg.Text = fmt.Sprintf("%v: %q", status, byt)
+		}
+	}
+	if _, err := r.bot.Send(msg); err != nil {
+		log.Println(err)
+	}
+}
+
 func (r *Telegraminator) MainLoop() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -83,51 +152,13 @@ func (r *Telegraminator) MainLoop() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
-			ta := freepsdo.TemplateAction{}
-			byt, err := base64.StdEncoding.DecodeString(update.CallbackQuery.Data)
-			if err != nil {
-				msg.Text = err.Error()
-				r.sendStartMessage(&msg)
-				continue
-			}
-			err = json.Unmarshal(byt, &ta)
-			if err != nil {
-				msg.Text = err.Error()
-				r.sendStartMessage(&msg)
-				continue
-			}
-
-			if len(ta.Fn) == 0 {
-				msg.Text = "Pick a function"
-				msg.ReplyMarkup = r.getFnKeyboard(&ta)
-			} else {
-				jrw := freepsdo.NewResponseCollector()
-				r.Modinator.ExecuteTemplateAction(&ta, jrw)
-				status, otype, byt := jrw.GetFinalResponse()
-				if otype == "image/jpeg" {
-					msg.Text = "Here is a picture for you"
-					m := tgbotapi.NewPhoto(update.CallbackQuery.Message.Chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})
-					if _, err := r.bot.Send(m); err != nil {
-						log.Println(err)
-					}
-				} else {
-					msg.Text = fmt.Sprintf("%v: %q", status, byt)
-				}
-			}
-			if _, err := r.bot.Send(msg); err != nil {
-				log.Println(err)
-			}
+			r.Respond(update.CallbackQuery.Message.Chat, update.CallbackQuery.Data)
 			continue
 		}
 		if update.Message == nil { // ignore any non-Message updates
 			continue
 		}
-
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hello")
-		r.sendStartMessage(&msg)
-		continue
-
+		r.Respond(update.Message.Chat, "")
 	}
 }
 
@@ -147,12 +178,12 @@ func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel c
 	}
 
 	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	t := &Telegraminator{Modinator: doer, bot: bot}
+	t := &Telegraminator{Modinator: doer, bot: bot, tgc: &tgc}
 	if err != nil {
 		log.Printf("Error on Telegram registration: %v", err)
 		return t
 	}
-	bot.Debug = true
+	bot.Debug = tgc.DebugMessages
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 	bot.GetMyCommands()
