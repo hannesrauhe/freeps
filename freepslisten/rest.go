@@ -34,10 +34,9 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 	if _, err := w.Write(bytes); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "unable to write image to response: %v", string(err.Error()))
+		fmt.Fprintf(w, "unable to write bytes to response: %v", err.Error())
 	}
 	w.WriteHeader(status)
-	w.Write(bytes)
 }
 
 func (r *Restonator) Shutdown(ctx context.Context) {

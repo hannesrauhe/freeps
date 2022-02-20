@@ -107,7 +107,7 @@ func (j *ResponseCollector) GetOutput() (interface{}, string, error) {
 		return nil, "", fmt.Errorf("Children haven't finished processing")
 	}
 	if j.IsStatusFailed() {
-		return nil, "", fmt.Errorf("Status is failed")
+		return j.context.Output, j.context.OutputType, fmt.Errorf("Status is failed")
 	}
 	if j.context.Output != nil {
 		return j.context.Output, j.context.OutputType, nil

@@ -115,8 +115,12 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 	jrw.WriteSuccess()
 }
 
+func (m *TemplateMod) ExecuteTemplateAction(ta *TemplateAction, jrw *ResponseCollector) {
+	m.ExecuteTemplateActionWithAdditionalArgs(ta, []byte("{}"), jrw)
+}
+
 func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, jrw *ResponseCollector) {
 	ta := TemplateAction{Mod: mod, Fn: fn}
 	json.Unmarshal(jsonStr, &ta.Args)
-	m.ExecuteTemplateActionWithAdditionalArgs(&ta, []byte("{}"), jrw)
+	m.ExecuteTemplateAction(&ta, jrw)
 }

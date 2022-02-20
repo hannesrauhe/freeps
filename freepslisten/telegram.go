@@ -2,9 +2,10 @@ package freepslisten
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/freepsdo"
@@ -26,13 +27,52 @@ func (r *Telegraminator) Shutdown(ctx context.Context) {
 	r.bot.StopReceivingUpdates()
 }
 
-func (r *Telegraminator) optionKeyboard(buttons map[string]string) tgbotapi.InlineKeyboardMarkup {
-	row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(bla, "/template/"+bla))
+func (r *Telegraminator) newBase64Button(name string, ta *freepsdo.TemplateAction) tgbotapi.InlineKeyboardButton {
+	byt, err := json.Marshal(ta)
+	if err != nil {
+		panic(err)
+	}
+	return tgbotapi.NewInlineKeyboardButtonData(name, base64.StdEncoding.EncodeToString(byt))
+}
+
+func (r *Telegraminator) getModButtons() []tgbotapi.InlineKeyboardButton {
+	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(r.Modinator.Mods))
+	for k := range r.Modinator.Mods {
+		ta := freepsdo.TemplateAction{Mod: k}
+		keys = append(keys, r.newBase64Button(k, &ta))
+	}
+	return keys
+}
+
+func (r *Telegraminator) getFnButtons(ta *freepsdo.TemplateAction) []tgbotapi.InlineKeyboardButton {
+	fn := r.Modinator.Mods[ta.Mod].GetFunctions()
+	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(fn))
+	for _, k := range fn {
+		ta.Fn = k
+		keys = append(keys, r.newBase64Button(k, ta))
+	}
+	return keys
+}
+
+func (r *Telegraminator) optionKeyboard(buttons []tgbotapi.InlineKeyboardButton) tgbotapi.InlineKeyboardMarkup {
+	row := tgbotapi.NewInlineKeyboardRow(buttons...)
 	return tgbotapi.NewInlineKeyboardMarkup(row)
 }
 
-func (r *Telegraminator) getModKeyboard(mod string) tgbotapi.InlineKeyboardMarkup {
-	return r.optionKeyboard()
+func (r *Telegraminator) getModKeyboard() tgbotapi.InlineKeyboardMarkup {
+	return r.optionKeyboard(r.getModButtons())
+}
+
+func (r *Telegraminator) getFnKeyboard(ta *freepsdo.TemplateAction) tgbotapi.InlineKeyboardMarkup {
+	return r.optionKeyboard(r.getFnButtons(ta))
+}
+
+func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
+	msg.ReplyMarkup = r.getModKeyboard()
+	// Send the message.
+	if _, err := r.bot.Send(*msg); err != nil {
+		log.Println(err)
+	}
 }
 
 func (r *Telegraminator) MainLoop() {
@@ -43,19 +83,40 @@ func (r *Telegraminator) MainLoop() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			// callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
-			// if _, err := r.bot.Request(callback); err != nil {
-			// 	panic(err)
-			// }
-			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Modes for "+update.CallbackQuery.Data)
-
-			parts := strings.Split(update.CallbackQuery.Data, "/")
-			if len(parts) == 1 {
-				msg.ReplyMarkup = r.getModKeyboard(parts[0])
+			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "")
+			ta := freepsdo.TemplateAction{}
+			byt, err := base64.StdEncoding.DecodeString(update.CallbackQuery.Data)
+			if err != nil {
+				msg.Text = err.Error()
+				r.sendStartMessage(&msg)
+				continue
+			}
+			err = json.Unmarshal(byt, &ta)
+			if err != nil {
+				msg.Text = err.Error()
+				r.sendStartMessage(&msg)
+				continue
 			}
 
+			if len(ta.Fn) == 0 {
+				msg.Text = "Pick a function"
+				msg.ReplyMarkup = r.getFnKeyboard(&ta)
+			} else {
+				jrw := freepsdo.NewResponseCollector()
+				r.Modinator.ExecuteTemplateAction(&ta, jrw)
+				status, otype, byt := jrw.GetFinalResponse()
+				if otype == "image/jpeg" {
+					msg.Text = "Here is a picture for you"
+					m := tgbotapi.NewPhoto(update.CallbackQuery.Message.Chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})
+					if _, err := r.bot.Send(m); err != nil {
+						log.Println(err)
+					}
+				} else {
+					msg.Text = fmt.Sprintf("%v: %q", status, byt)
+				}
+			}
 			if _, err := r.bot.Send(msg); err != nil {
-				panic(err)
+				log.Println(err)
 			}
 			continue
 		}
@@ -63,30 +124,10 @@ func (r *Telegraminator) MainLoop() {
 			continue
 		}
 
-		if !update.Message.IsCommand() { // ignore any non-command Messages
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hello")
-			msg.ReplyMarkup = r.optionKeyboard("template")
-			// Send the message.
-			if _, err := r.bot.Send(msg); err != nil {
-				log.Println(err)
-			}
-		}
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hello")
+		r.sendStartMessage(&msg)
+		continue
 
-		// Create a new MessageConfig. We don't have text yet,
-		// so we leave it empty.
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-		jrw := freepsdo.NewResponseCollector()
-		r.Modinator.ExecuteModWithJson(update.Message.Command(), update.Message.CommandArguments(), []byte("{}"), jrw)
-		m, err := jrw.GetMarshalledOutput()
-		if err != nil {
-			log.Printf("Error on Telegram: %v", err)
-			msg.Text = fmt.Sprintf("Error: %v", err)
-		} else {
-			msg.Text = fmt.Sprintf("%q", m)
-		}
-		if _, err := r.bot.Send(msg); err != nil {
-			log.Println(err)
-		}
 	}
 }
 
