@@ -149,7 +149,7 @@ func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel c
 	bot, err := tgbotapi.NewBotAPI(tgc.Token)
 	t := &Telegraminator{Modinator: doer, bot: bot}
 	if err != nil {
-		log.Printf("Error on Telegram: %v", err)
+		log.Printf("Error on Telegram registration: %v", err)
 		return t
 	}
 	bot.Debug = true
