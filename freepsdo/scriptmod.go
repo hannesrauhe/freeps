@@ -68,3 +68,13 @@ func (m *ScriptMod) GetFunctions() []string {
 	keys := make([]string, 0)
 	return keys
 }
+
+func (m *ScriptMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *ScriptMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
+}

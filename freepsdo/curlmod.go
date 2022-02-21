@@ -52,3 +52,13 @@ func (m *CurlMod) GetFunctions() []string {
 	keys := []string{"PostForm", "Get"}
 	return keys
 }
+
+func (m *CurlMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *CurlMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
+}

@@ -47,6 +47,16 @@ func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseColle
 }
 
 func (m *RaspistillMod) GetFunctions() []string {
-	keys := []string{"do"}
-	return keys
+	ret := []string{"do"}
+	return ret
+}
+
+func (m *RaspistillMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *RaspistillMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
 }

@@ -85,3 +85,13 @@ func (m *FluxMod) GetFunctions() []string {
 	keys := make([]string, 0)
 	return keys
 }
+
+func (m *FluxMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *FluxMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
+}

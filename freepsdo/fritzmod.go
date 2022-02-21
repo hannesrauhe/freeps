@@ -77,3 +77,35 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 func (m *FritzMod) GetFunctions() []string {
 	return []string{"wakeup", "push", "getswitchlist", "setswitchon", "setswitchoff", "setswitchtoggle", "getswitchstate", "getswitchpresent", "getswitchpower", "getswitchenergy", "getswitchname", "getdevicelistinfos", "gettemperature", "gethkrtsoll", "gethkrkomfort", "gethkrabsenk", "sethkrtsoll", "getbasicdevicestats", "gettemplatelistinfos", "applytemplate", "setsimpleonoff", "setlevel", "setlevelpercentage", "setcolor", "setcolortemperature", "getcolordefaults", "sethkrboost", "sethkrwindowopen", "setblind", "setname", "startulesubscription", "getsubscriptionstate", "getdeviceinfos"}
 }
+
+func (m *FritzMod) GetDevices() map[string]string {
+	retMap := map[string]string{}
+	devl, err := m.fl.GetDeviceList()
+	if err != nil {
+		log.Println(err)
+		return retMap
+	}
+	for _, dev := range devl.Device {
+		retMap[dev.Name] = dev.AIN
+	}
+	return retMap
+}
+
+func (m *FritzMod) GetPossibleArgs(fn string) []string {
+	if fn == "getdevicelistinfos" {
+		return []string{}
+	}
+	ret := []string{"device", "onoff"}
+	return ret
+}
+
+func (m *FritzMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	if arg == "device" {
+		return m.GetDevices()
+	}
+	if arg == "onoff" {
+		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
+	}
+	ret := map[string]string{}
+	return ret
+}

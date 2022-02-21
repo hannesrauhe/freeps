@@ -8,7 +8,7 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-type TemplateModConfig map[string]Template
+type TemplateModConfig map[string]*Template
 
 var DefaultConfig = TemplateModConfig{}
 
@@ -64,7 +64,7 @@ func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *Respo
 		jrw.WriteError(http.StatusNotExtended, "template %v has no actions", templateName)
 		return
 	}
-	m.ExecuteTemplateWithAdditionalArgs(&template, jsonStr, jrw)
+	m.ExecuteTemplateWithAdditionalArgs(template, jsonStr, jrw)
 }
 
 func (m *TemplateMod) GetFunctions() []string {
@@ -74,6 +74,16 @@ func (m *TemplateMod) GetFunctions() []string {
 	}
 
 	return keys
+}
+
+func (m *TemplateMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *TemplateMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
 }
 
 func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, jsonStr []byte, jrw *ResponseCollector) {
@@ -123,4 +133,25 @@ func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, 
 	ta := TemplateAction{Mod: mod, Fn: fn}
 	json.Unmarshal(jsonStr, &ta.Args)
 	m.ExecuteTemplateAction(&ta, jrw)
+}
+
+func (m *TemplateMod) CreateTemporaryTemplateAction() int {
+	tpl, ok := m.Templates["_tmp"]
+	if !ok {
+		m.Templates["_tmp"] = &Template{Actions: make([]TemplateAction, 1)}
+		return 0
+	}
+	tpl.Actions = append(tpl.Actions, TemplateAction{})
+	return len(tpl.Actions) - 1
+}
+
+func (m *TemplateMod) GetTemporaryTemplateAction(ID int) *TemplateAction {
+	tpl, ok := m.Templates["_tmp"]
+	if !ok {
+		return nil
+	}
+	if ID >= len(tpl.Actions) {
+		return nil
+	}
+	return &tpl.Actions[ID]
 }

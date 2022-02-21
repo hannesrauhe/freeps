@@ -2,7 +2,6 @@ package freepslisten
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -26,38 +25,63 @@ type Telegraminator struct {
 	tgc       *TelegramConfig
 }
 
+type TelegramCallbackResponse struct {
+	T int    // TemplateActionID
+	F bool   // Finished ?
+	P int    // processed Args
+	C string // last choice
+}
+
 func (r *Telegraminator) Shutdown(ctx context.Context) {
 	r.bot.StopReceivingUpdates()
 }
 
-func (r *Telegraminator) newBase64Button(name string, ta *freepsdo.TemplateAction) tgbotapi.InlineKeyboardButton {
-	byt, err := json.Marshal(ta)
+func (r *Telegraminator) newBase64Button(name string, tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardButton {
+	byt, err := json.Marshal(tcr)
 	if err != nil {
 		panic(err)
 	}
-	return tgbotapi.NewInlineKeyboardButtonData(name, base64.StdEncoding.EncodeToString(byt))
+	s := string(byt)
+	println(len(s))
+	return tgbotapi.NewInlineKeyboardButtonData(name, s)
 }
 
 func (r *Telegraminator) getModButtons() []tgbotapi.InlineKeyboardButton {
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(r.Modinator.Mods))
 	for k := range r.Modinator.Mods {
-		ta := freepsdo.TemplateAction{Mod: k}
-		keys = append(keys, r.newBase64Button(k, &ta))
+		tcr := TelegramCallbackResponse{T: r.Modinator.CreateTemporaryTemplateAction(), F: false, P: -1, C: k}
+		keys = append(keys, r.newBase64Button(k, &tcr))
 	}
 	return keys
 }
 
-func (r *Telegraminator) getFnButtons(ta *freepsdo.TemplateAction) []tgbotapi.InlineKeyboardButton {
+func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []tgbotapi.InlineKeyboardButton {
+	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
 	fn := r.Modinator.Mods[ta.Mod].GetFunctions()
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(fn))
 	for _, k := range fn {
-		ta.Fn = k
-		keys = append(keys, r.newBase64Button(k, ta))
+		tcr.C = k
+		keys = append(keys, r.newBase64Button(k, tcr))
 	}
 	return keys
 }
 
-func (r *Telegraminator) optionKeyboard(buttons []tgbotapi.InlineKeyboardButton) tgbotapi.InlineKeyboardMarkup {
+func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackResponse) []tgbotapi.InlineKeyboardButton {
+	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
+	argOptions := r.Modinator.Mods[ta.Mod].GetArgSuggestions(ta.Fn, arg)
+	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(argOptions)+2)
+	tcr.F = true
+	keys = append(keys, r.newBase64Button("<Execute>", tcr))
+	tcr.F = false
+	keys = append(keys, r.newBase64Button("<Skip "+arg+">", tcr))
+	for k, v := range argOptions {
+		tcr.C = v
+		keys = append(keys, r.newBase64Button(k, tcr))
+	}
+	return keys
+}
+
+func (r *Telegraminator) multiChoiceKeyboard(buttons []tgbotapi.InlineKeyboardButton) tgbotapi.InlineKeyboardMarkup {
 	row := [][]tgbotapi.InlineKeyboardButton{}
 	for i := range buttons {
 		if i%3 == 0 {
@@ -73,11 +97,15 @@ func (r *Telegraminator) optionKeyboard(buttons []tgbotapi.InlineKeyboardButton)
 }
 
 func (r *Telegraminator) getModKeyboard() tgbotapi.InlineKeyboardMarkup {
-	return r.optionKeyboard(r.getModButtons())
+	return r.multiChoiceKeyboard(r.getModButtons())
 }
 
-func (r *Telegraminator) getFnKeyboard(ta *freepsdo.TemplateAction) tgbotapi.InlineKeyboardMarkup {
-	return r.optionKeyboard(r.getFnButtons(ta))
+func (r *Telegraminator) getFnKeyboard(tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardMarkup {
+	return r.multiChoiceKeyboard(r.getFnButtons(tcr))
+}
+
+func (r *Telegraminator) getArgsKeyboard(arg string, tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardMarkup {
+	return r.multiChoiceKeyboard(r.getArgsButtons(arg, tcr))
 }
 
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
@@ -108,26 +136,55 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
 		r.sendStartMessage(&msg)
 		return
 	}
-	ta := freepsdo.TemplateAction{}
-	byt, err := base64.StdEncoding.DecodeString(input)
-	if err != nil {
-		msg.Text = err.Error()
-		r.sendStartMessage(&msg)
-		return
-	}
-	err = json.Unmarshal(byt, &ta)
+	tcr := TelegramCallbackResponse{}
+	byt := []byte(input)
+	err := json.Unmarshal(byt, &tcr)
 	if err != nil {
 		msg.Text = err.Error()
 		r.sendStartMessage(&msg)
 		return
 	}
 
-	if len(ta.Fn) == 0 {
+	tpl := r.Modinator.GetTemporaryTemplateAction(tcr.T)
+	if tpl == nil {
+		msg.Text = "Cannot resume because of missing data. Please restart."
+		r.sendStartMessage(&msg)
+		return
+	}
+
+	if len(tpl.Mod) == 0 {
+		tpl.Mod = tcr.C
+		if _, ok := r.Modinator.Mods[tpl.Mod]; !ok {
+			r.sendStartMessage(&msg)
+			return
+		}
 		msg.Text = "Pick a function"
-		msg.ReplyMarkup = r.getFnKeyboard(&ta)
-	} else {
+		msg.ReplyMarkup = r.getFnKeyboard(&tcr)
+	} else if len(tpl.Fn) == 0 {
+		tpl.Fn = tcr.C
+	}
+
+	if len(tpl.Fn) > 0 && !tcr.F {
+		args := r.Modinator.Mods[tpl.Mod].GetPossibleArgs(tpl.Fn)
+		if tcr.P == 0 {
+			tpl.Args = map[string]interface{}{}
+		}
+		if tcr.P >= 0 {
+			tpl.Args[args[tcr.P]] = tcr.C
+		}
+		tcr.C = ""
+		tcr.P += 1
+		if tcr.P >= len(args) {
+			tcr.F = true
+		} else {
+			msg.Text = "Pick a Value for " + args[tcr.P]
+			msg.ReplyMarkup = r.getArgsKeyboard(args[tcr.P], &tcr)
+		}
+	}
+
+	if tcr.F {
 		jrw := freepsdo.NewResponseCollector()
-		r.Modinator.ExecuteTemplateAction(&ta, jrw)
+		r.Modinator.ExecuteTemplateAction(tpl, jrw)
 		status, otype, byt := jrw.GetFinalResponse()
 		if otype == "image/jpeg" {
 			msg.Text = "Here is a picture for you"

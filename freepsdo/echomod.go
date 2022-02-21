@@ -23,3 +23,13 @@ func (m *EchoMod) GetFunctions() []string {
 	keys := make([]string, 0)
 	return keys
 }
+
+func (m *EchoMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *EchoMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
+}
