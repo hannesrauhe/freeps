@@ -20,9 +20,10 @@ type TelegramConfig struct {
 var DefaultTelegramConfig = TelegramConfig{Token: ""}
 
 type Telegraminator struct {
-	Modinator *freepsdo.TemplateMod
-	bot       *tgbotapi.BotAPI
-	tgc       *TelegramConfig
+	Modinator   *freepsdo.TemplateMod
+	bot         *tgbotapi.BotAPI
+	tgc         *TelegramConfig
+	lastMessage int
 }
 
 type TelegramCallbackResponse struct {
@@ -42,7 +43,6 @@ func (r *Telegraminator) newBase64Button(name string, tcr *TelegramCallbackRespo
 		panic(err)
 	}
 	s := string(byt)
-	println(len(s))
 	return tgbotapi.NewInlineKeyboardButtonData(name, s)
 }
 
@@ -108,12 +108,23 @@ func (r *Telegraminator) getArgsKeyboard(arg string, tcr *TelegramCallbackRespon
 	return r.multiChoiceKeyboard(r.getArgsButtons(arg, tcr))
 }
 
+func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
+	if r.lastMessage > 0 {
+		d := tgbotapi.NewDeleteMessage(msg.ChatID, r.lastMessage)
+		r.bot.Send(d)
+		r.lastMessage = 0
+	}
+	m, err := r.bot.Send(*msg)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	r.lastMessage = m.MessageID
+}
+
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
 	msg.ReplyMarkup = r.getModKeyboard()
-	// Send the message.
-	if _, err := r.bot.Send(*msg); err != nil {
-		log.Println(err)
-	}
+	r.sendMessage(msg)
 }
 
 func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
@@ -196,9 +207,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
 			msg.Text = fmt.Sprintf("%v: %q", status, byt)
 		}
 	}
-	if _, err := r.bot.Send(msg); err != nil {
-		log.Println(err)
-	}
+	r.sendMessage(&msg)
 }
 
 func (r *Telegraminator) MainLoop() {
