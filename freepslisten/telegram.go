@@ -24,20 +24,22 @@ type Telegraminator struct {
 	bot         *tgbotapi.BotAPI
 	tgc         *TelegramConfig
 	lastMessage int
+	chatState   map[int64]TelegramCallbackResponse
 }
 
 type TelegramCallbackResponse struct {
-	T int    // TemplateActionID
-	F bool   // Finished ?
-	P int    // processed Args
-	C string // last choice
+	T int    `json:",omitempty"` // TemplateActionID
+	F bool   `json:",omitempty"` // Finished ?
+	P int    `json:",omitempty"` // processed Args
+	C string `json:",omitempty"` // last choice
+	K bool   `json:",omitempty"` // request to type value instead of choosing
 }
 
 func (r *Telegraminator) Shutdown(ctx context.Context) {
 	r.bot.StopReceivingUpdates()
 }
 
-func (r *Telegraminator) newBase64Button(name string, tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardButton {
+func (r *Telegraminator) newJSONButton(name string, tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardButton {
 	byt, err := json.Marshal(tcr)
 	if err != nil {
 		panic(err)
@@ -50,7 +52,7 @@ func (r *Telegraminator) getModButtons() []tgbotapi.InlineKeyboardButton {
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(r.Modinator.Mods))
 	for k := range r.Modinator.Mods {
 		tcr := TelegramCallbackResponse{T: r.Modinator.CreateTemporaryTemplateAction(), F: false, P: -1, C: k}
-		keys = append(keys, r.newBase64Button(k, &tcr))
+		keys = append(keys, r.newJSONButton(k, &tcr))
 	}
 	return keys
 }
@@ -59,9 +61,12 @@ func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []tgbotapi.
 	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
 	fn := r.Modinator.Mods[ta.Mod].GetFunctions()
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(fn))
+	tcr.K = true
+	keys = append(keys, r.newJSONButton("<CUSTOM>", tcr))
+	tcr.K = false
 	for _, k := range fn {
 		tcr.C = k
-		keys = append(keys, r.newBase64Button(k, tcr))
+		keys = append(keys, r.newJSONButton(k, tcr))
 	}
 	return keys
 }
@@ -71,12 +76,15 @@ func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackRespons
 	argOptions := r.Modinator.Mods[ta.Mod].GetArgSuggestions(ta.Fn, arg)
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(argOptions)+2)
 	tcr.F = true
-	keys = append(keys, r.newBase64Button("<Execute>", tcr))
+	keys = append(keys, r.newJSONButton("<Execute>", tcr))
 	tcr.F = false
-	keys = append(keys, r.newBase64Button("<Skip "+arg+">", tcr))
+	keys = append(keys, r.newJSONButton("<Skip "+arg+">", tcr))
+	tcr.K = true
+	keys = append(keys, r.newJSONButton("<CUSTOM>", tcr))
+	tcr.K = false
 	for k, v := range argOptions {
 		tcr.C = v
-		keys = append(keys, r.newBase64Button(k, tcr))
+		keys = append(keys, r.newJSONButton(k, tcr))
 	}
 	return keys
 }
@@ -127,7 +135,7 @@ func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
 	r.sendMessage(msg)
 }
 
-func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
+func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, inputText string) {
 	msg := tgbotapi.NewMessage(chat.ID, "Hello "+chat.FirstName+".")
 	allowed := false
 	for _, v := range r.tgc.AllowedUsers {
@@ -143,17 +151,24 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
 		}
 		return
 	}
-	if input == "" {
-		r.sendStartMessage(&msg)
-		return
-	}
-	tcr := TelegramCallbackResponse{}
-	byt := []byte(input)
-	err := json.Unmarshal(byt, &tcr)
-	if err != nil {
-		msg.Text = err.Error()
-		r.sendStartMessage(&msg)
-		return
+
+	tcr, ok := r.chatState[chat.ID]
+	if !ok {
+		if callbackData == "" {
+			r.sendStartMessage(&msg)
+			return
+		}
+		tcr = TelegramCallbackResponse{}
+		byt := []byte(callbackData)
+		err := json.Unmarshal(byt, &tcr)
+		if err != nil {
+			msg.Text = err.Error()
+			r.sendStartMessage(&msg)
+			return
+		}
+	} else {
+		tcr.C = inputText
+		delete(r.chatState, chat.ID)
 	}
 
 	tpl := r.Modinator.GetTemporaryTemplateAction(tcr.T)
@@ -169,10 +184,16 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
 			r.sendStartMessage(&msg)
 			return
 		}
-		msg.Text = "Pick a function"
+		msg.Text = "Pick a function for " + tpl.Mod
 		msg.ReplyMarkup = r.getFnKeyboard(&tcr)
 	} else if len(tpl.Fn) == 0 {
-		tpl.Fn = tcr.C
+		if tcr.K {
+			msg.Text = "Type a function for " + tpl.Mod
+			tcr.K = false
+			r.chatState[chat.ID] = tcr
+		} else {
+			tpl.Fn = tcr.C
+		}
 	}
 
 	if len(tpl.Fn) > 0 && !tcr.F {
@@ -180,16 +201,22 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, input string) {
 		if tcr.P == 0 {
 			tpl.Args = map[string]interface{}{}
 		}
-		if tcr.P >= 0 {
-			tpl.Args[args[tcr.P]] = tcr.C
-		}
-		tcr.C = ""
-		tcr.P += 1
-		if tcr.P >= len(args) {
-			tcr.F = true
+		if tcr.K {
+			msg.Text = fmt.Sprintf("Type a Value for %s (%s/%s)", args[tcr.P], tpl.Mod, tpl.Fn)
+			tcr.K = false
+			r.chatState[chat.ID] = tcr
 		} else {
-			msg.Text = "Pick a Value for " + args[tcr.P]
-			msg.ReplyMarkup = r.getArgsKeyboard(args[tcr.P], &tcr)
+			if tcr.P >= 0 {
+				tpl.Args[args[tcr.P]] = tcr.C
+			}
+			tcr.C = ""
+			tcr.P += 1
+			if tcr.P >= len(args) {
+				tcr.F = true
+			} else {
+				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], tpl.Mod, tpl.Fn)
+				msg.ReplyMarkup = r.getArgsKeyboard(args[tcr.P], &tcr)
+			}
 		}
 	}
 
@@ -218,13 +245,13 @@ func (r *Telegraminator) MainLoop() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			r.Respond(update.CallbackQuery.Message.Chat, update.CallbackQuery.Data)
+			r.Respond(update.CallbackQuery.Message.Chat, update.CallbackQuery.Data, "")
 			continue
 		}
 		if update.Message == nil { // ignore any non-Message updates
 			continue
 		}
-		r.Respond(update.Message.Chat, "")
+		r.Respond(update.Message.Chat, "", update.Message.Text)
 	}
 }
 
@@ -244,7 +271,7 @@ func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel c
 	}
 
 	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	t := &Telegraminator{Modinator: doer, bot: bot, tgc: &tgc}
+	t := &Telegraminator{Modinator: doer, bot: bot, tgc: &tgc, chatState: make(map[int64]TelegramCallbackResponse)}
 	if err != nil {
 		log.Printf("Error on Telegram registration: %v", err)
 		return t

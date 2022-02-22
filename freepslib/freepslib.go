@@ -24,7 +24,9 @@ type FBconfig struct {
 	FB_pass    string
 }
 
-var DefaultConfig = FBconfig{"fritz.box", "user", "pass"}
+var DefaultConfig = FBconfig{"fritz.box",
+	"user",
+	"pass"}
 
 type Freeps struct {
 	conf          FBconfig
@@ -354,7 +356,8 @@ func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[s
 }
 
 func (f *Freeps) GetDeviceList() (*AvmDeviceList, error) {
-	byt, err := f.queryHomeAutomation("getdevicelistinfos", "", make(map[string]string))
+	byt, err := f.queryHomeAutomation("getdevicelistinfos",
+		"", make(map[string]string))
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +373,8 @@ func (f *Freeps) GetDeviceList() (*AvmDeviceList, error) {
 }
 
 func (f *Freeps) GetTemplateList() (*AvmTemplateList, error) {
-	byt, err := f.queryHomeAutomation("gettemplatelistinfos", "", make(map[string]string))
+	byt, err := f.queryHomeAutomation("gettemplatelistinfos",
+		"", make(map[string]string))
 	if err != nil {
 		return nil, err
 	}
@@ -390,25 +394,8 @@ func (f *Freeps) HomeAutoSwitch(switchcmd string, ain string, payload map[string
 	return err
 }
 
-func (f *Freeps) HomeAutomation(switchcmd string, ain string, payload map[string]string) (map[string]interface{}, error) {
-	byt, err := f.queryHomeAutomation(switchcmd, ain, payload)
-	if err != nil {
-		return nil, err
-	}
-	var result map[string]interface{}
-
-	err = xml.Unmarshal(byt, &result)
-	if err != nil {
-		return map[string]interface{}{
-			"result": string(byt),
-		}, nil
-	}
-	return result, nil
-}
-
-func (f *Freeps) SwitchDevice(ain string) error {
-	_, err := f.queryHomeAutomation("setsimpleonoff", ain, make(map[string]string))
-	return err
+func (f *Freeps) HomeAutomation(switchcmd string, ain string, payload map[string]string) ([]byte, error) {
+	return f.queryHomeAutomation(switchcmd, ain, payload)
 }
 
 func (f *Freeps) SetLevel(ain string, level int) error {
@@ -417,4 +404,43 @@ func (f *Freeps) SetLevel(ain string, level int) error {
 	}
 	_, err := f.queryHomeAutomation("setlevel", ain, payload)
 	return err
+}
+
+/// GetSuggestedSwitchCmds returns all known switch commands and their expected parameters
+func (f *Freeps) GetSuggestedSwitchCmds() map[string][]string {
+	return switchCmds
+}
+
+var switchCmds map[string][]string = map[string][]string{
+	"getswitchlist":        {"device"},
+	"setswitchon":          {"device"},
+	"setswitchoff":         {"device"},
+	"setswitchtoggle":      {"device"},
+	"getswitchstate":       {"device"},
+	"getswitchpresent":     {"device"},
+	"getswitchpower":       {"device"},
+	"getswitchenergy":      {"device"},
+	"getswitchname":        {"device"},
+	"getdevicelistinfos":   {""},
+	"gettemperature":       {"device"},
+	"gethkrtsoll":          {"device"},
+	"gethkrkomfort":        {"device"},
+	"gethkrabsenk":         {"device"},
+	"sethkrtsoll":          {"device", "param"},
+	"getbasicdevicestats":  {"device"},
+	"gettemplatelistinfos": {"device"},
+	"applytemplate":        {"device"},
+	"setsimpleonoff":       {"device", "simpleonoff"},
+	"setlevel":             {"device", "level"},
+	"setlevelpercentage":   {"device", "level"},
+	"setcolor":             {"device", "hue", "saturation", "duration"},
+	"setcolortemperature":  {"device", "temperature", "duration"},
+	"getcolordefaults":     {"device"},
+	"sethkrboost":          {"device", "endtimestamp"},
+	"sethkrwindowopen":     {"device"},
+	"setblind":             {"device", "target"},
+	"setname":              {"device", "name"},
+	"startulesubscription": {"device"},
+	"getsubscriptionstate": {"device"},
+	"getdeviceinfos":       {"device"},
 }

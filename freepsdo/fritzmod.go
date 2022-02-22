@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 
 	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/freepslib"
@@ -64,18 +65,56 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 	if fn == "wakeup" {
 		log.Printf("Waking Up %v", dev)
 		err = m.fl.WakeUpDevice(dev)
-	} else {
+		if err != nil {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+			return
+		}
+		jrw.WriteSuccessf("Woke up %s", dev)
+	} else if fn[0:3] == "set" {
 		err = m.fl.HomeAutoSwitch(fn, dev, vars)
+		if err != nil {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+			return
+		}
+		jrw.WriteSuccessf("%v, %v, %v", fn, dev, vars)
+	} else {
+		var r []byte
+		r, err = m.fl.HomeAutomation(fn, dev, vars)
+
+		if err != nil {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+			return
+		}
+		jrw.WriteSuccessMessage(r)
 	}
-	if err != nil {
-		jrw.WriteError(http.StatusInternalServerError, err.Error())
-		return
-	}
-	jrw.WriteSuccessf("%v, %v, %v", fn, dev, vars)
 }
 
 func (m *FritzMod) GetFunctions() []string {
-	return []string{"wakeup", "push", "getswitchlist", "setswitchon", "setswitchoff", "setswitchtoggle", "getswitchstate", "getswitchpresent", "getswitchpower", "getswitchenergy", "getswitchname", "getdevicelistinfos", "gettemperature", "gethkrtsoll", "gethkrkomfort", "gethkrabsenk", "sethkrtsoll", "getbasicdevicestats", "gettemplatelistinfos", "applytemplate", "setsimpleonoff", "setlevel", "setlevelpercentage", "setcolor", "setcolortemperature", "getcolordefaults", "sethkrboost", "sethkrwindowopen", "setblind", "setname", "startulesubscription", "getsubscriptionstate", "getdeviceinfos"}
+	swc := m.fl.GetSuggestedSwitchCmds()
+	switchcmds := make([]string, 0, len(swc))
+	for k := range swc {
+		switchcmds = append(switchcmds, k)
+	}
+	sort.Strings(switchcmds)
+	return switchcmds
+}
+
+func (m *FritzMod) GetPossibleArgs(fn string) []string {
+	swc := m.fl.GetSuggestedSwitchCmds()
+	if f, ok := swc[fn]; ok {
+		return f
+	}
+	return make([]string, 0)
+}
+
+func (m *FritzMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	if arg == "device" {
+		return m.GetDevices()
+	}
+	if arg == "onoff" {
+		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
+	}
+	return map[string]string{}
 }
 
 func (m *FritzMod) GetDevices() map[string]string {
@@ -89,23 +128,4 @@ func (m *FritzMod) GetDevices() map[string]string {
 		retMap[dev.Name] = dev.AIN
 	}
 	return retMap
-}
-
-func (m *FritzMod) GetPossibleArgs(fn string) []string {
-	if fn == "getdevicelistinfos" {
-		return []string{}
-	}
-	ret := []string{"device", "onoff"}
-	return ret
-}
-
-func (m *FritzMod) GetArgSuggestions(fn string, arg string) map[string]string {
-	if arg == "device" {
-		return m.GetDevices()
-	}
-	if arg == "onoff" {
-		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
-	}
-	ret := map[string]string{}
-	return ret
 }
