@@ -108,11 +108,13 @@ func (m *FritzMod) GetPossibleArgs(fn string) []string {
 }
 
 func (m *FritzMod) GetArgSuggestions(fn string, arg string) map[string]string {
-	if arg == "device" {
+	switch arg {
+	case "device":
 		return m.GetDevices()
-	}
-	if arg == "onoff" {
+	case "onoff":
 		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
+	case "param":
+		return map[string]string{"Off": "253", "16": "32", "18": "36", "20": "40", "22": "44", "24": "48"}
 	}
 	return map[string]string{}
 }
