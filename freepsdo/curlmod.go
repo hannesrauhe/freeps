@@ -2,7 +2,8 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/url"
 )
@@ -10,7 +11,9 @@ import (
 type CurlMod struct {
 }
 
-func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseWriter) {
+var _ Mod = &CurlMod{}
+
+func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseCollector) {
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
 
@@ -31,18 +34,31 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseWri
 	case "Get":
 		resp, err = c.Get(vars["url"])
 	default:
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "function %v unknown", function)
+		jrw.WriteError(http.StatusNotFound, "function %v unknown", function)
 		return
 	}
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "CurlMod\nFunction: %v\nArgs: %v\nError: %v", function, vars, string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, "%v", string(err.Error()))
 		return
 	}
-	w.WriteHeader(resp.StatusCode)
-	fmt.Fprintf(w, "CurlMod: %v, %v", vars, resp)
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	jrw.WriteResponseWithCodeAndType(resp.StatusCode, "text/plain", string(b))
+	log.Printf("%v , %v", err, string(b))
 }
 
-var _ Mod = &CurlMod{}
+func (m *CurlMod) GetFunctions() []string {
+	keys := []string{"PostForm", "Get"}
+	return keys
+}
+
+func (m *CurlMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *CurlMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
+}

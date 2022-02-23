@@ -3,7 +3,6 @@ package freepslisten
 import (
 	"encoding/json"
 	"log"
-	"net/http"
 
 	"crypto/tls"
 	"fmt"
@@ -85,9 +84,10 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		if err != nil {
 			panic(err)
 		}
-		w := &utils.StoreWriter{StoredHeader: make(http.Header)}
-		fm.Doer.DoWithJSON(tc.TemplateToCall, jsonStr, w)
-		w.Print()
+		jrw := freepsdo.NewResponseCollector()
+		fm.Doer.ExecuteModWithJson("template", tc.TemplateToCall, jsonStr, jrw)
+		status, _, _ := jrw.GetFinalResponse()
+		log.Printf("Template %v finished with %v", tc.TemplateToCall, status)
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
 	}
@@ -112,9 +112,8 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
-	w := &utils.StoreWriter{StoredHeader: make(http.Header)}
-	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, w)
-	w.Print()
+	jrw := freepsdo.NewResponseCollector()
+	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, jrw)
 }
 
 func (fm *FreepsMqtt) Shutdown() {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/hannesrauhe/freeps/freepsdo"
 	"github.com/hannesrauhe/freeps/freepslisten"
@@ -32,10 +32,16 @@ func main() {
 	doer := freepsdo.NewTemplateMod(cr)
 
 	if mod != "" {
-		w := utils.StoreWriter{StoredHeader: make(http.Header)}
+		jrw := freepsdo.NewResponseCollector()
 		args, _ := url.ParseQuery(argstring)
-		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), &w)
-		w.Print()
+		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
+		_, t, b := jrw.GetFinalResponse()
+		if t == "text/plain" || t == "application/json" {
+			os.Stdout.Write(b)
+			println("")
+		} else {
+			println("Binary response not printed")
+		}
 		return
 	}
 
@@ -44,12 +50,16 @@ func main() {
 
 	rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
 	mqtt := freepslisten.NewMqttSubscriber(cr, doer)
+	telg := freepslisten.NewTelegramBot(cr, doer, cancel)
 
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
 		rest.Shutdown(ctx)
 		mqtt.Shutdown()
+		if telg != nil {
+			telg.Shutdown(ctx)
+		}
 	}
 	log.Printf("Server stopped")
 }

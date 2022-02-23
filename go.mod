@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/123Haynes/go-http-digest-auth-client v0.3.1-0.20171226204513-4c2ff1556cab
 	github.com/eclipse/paho.mqtt.golang v1.3.5
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/influxdata/influxdb-client-go/v2 v2.6.0

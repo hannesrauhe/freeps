@@ -2,9 +2,9 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"sort"
 
 	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/freepslib"
@@ -40,7 +40,7 @@ func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 	return &FritzMod{fl: f, ff: ff, fc: &conf, ffc: &ffc}
 }
 
-func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
+func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	var err error
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
@@ -48,24 +48,16 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) 
 	if fn == "freepsflux" {
 		err = m.ff.Push()
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Freepsflux error when pushing: %v", err.Error())
+			jrw.WriteError(http.StatusInternalServerError, "Freepsflux error when pushing: %v", err.Error())
 		}
 		return
 	} else if fn == "getdevicelistinfos" {
 		devl, err := m.fl.GetDeviceList()
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when getting device list: %v", vars, err.Error())
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
 			return
 		}
-		jsonbytes, err := json.MarshalIndent(devl, "", "  ")
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError when creating JSON reponse: %v", vars, err.Error())
-			return
-		}
-		w.Write(jsonbytes)
+		jrw.WriteSuccessMessage(devl)
 		return
 	}
 
@@ -73,13 +65,69 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) 
 	if fn == "wakeup" {
 		log.Printf("Waking Up %v", dev)
 		err = m.fl.WakeUpDevice(dev)
-	} else {
+		if err != nil {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+			return
+		}
+		jrw.WriteSuccessf("Woke up %s", dev)
+	} else if fn[0:3] == "set" {
 		err = m.fl.HomeAutoSwitch(fn, dev, vars)
+		if err != nil {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+			return
+		}
+		jrw.WriteSuccessf("%v, %v, %v", fn, dev, vars)
+	} else {
+		var r []byte
+		r, err = m.fl.HomeAutomation(fn, dev, vars)
+
+		if err != nil {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+			return
+		}
+		jrw.WriteSuccessMessage(r)
 	}
+}
+
+func (m *FritzMod) GetFunctions() []string {
+	swc := m.fl.GetSuggestedSwitchCmds()
+	switchcmds := make([]string, 0, len(swc))
+	for k := range swc {
+		switchcmds = append(switchcmds, k)
+	}
+	sort.Strings(switchcmds)
+	return switchcmds
+}
+
+func (m *FritzMod) GetPossibleArgs(fn string) []string {
+	swc := m.fl.GetSuggestedSwitchCmds()
+	if f, ok := swc[fn]; ok {
+		return f
+	}
+	return make([]string, 0)
+}
+
+func (m *FritzMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	switch arg {
+	case "device":
+		return m.GetDevices()
+	case "onoff":
+		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
+	case "param":
+		return map[string]string{"Off": "253", "16": "32", "18": "36", "20": "40", "22": "44", "24": "48"}
+	}
+	return map[string]string{}
+}
+
+func (m *FritzMod) GetDevices() map[string]string {
+	retMap := map[string]string{}
+	devl, err := m.fl.GetDeviceList()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "FritzHandler\nParameters: %v\nError: %v", vars, string(err.Error()))
-		return
+		log.Println(err)
+		return retMap
 	}
-	fmt.Fprintf(w, "Fritz: %v, %v, %v", fn, dev, vars)
+	for _, dev := range devl.Device {
+		retMap[dev.Name] = dev.AIN
+	}
+	return retMap
 }

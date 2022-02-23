@@ -35,18 +35,28 @@ func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (
 	return byt, nil
 }
 
-func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
-	bytes, err := CaptureRaspiStill(1600, 1200, map[string]interface{}{"--quality": 90, "--brightness": 50})
+func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
+	b, err := CaptureRaspiStill(1600, 1200, map[string]interface{}{"--quality": 90, "--brightness": 50})
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error executing raspistill: %v", string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, "Error executing raspistill: %v", err.Error())
+		return
 	}
 
-	w.Header().Set("Content-Type", "image/jpeg")
-	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
-	if _, err := w.Write(bytes); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "unable to write image to response: %v", string(err.Error()))
-	}
+	jrw.WriteResponseWithCodeAndType(200, "image/jpeg", b)
+}
+
+func (m *RaspistillMod) GetFunctions() []string {
+	ret := []string{"do"}
+	return ret
+}
+
+func (m *RaspistillMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *RaspistillMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
 }

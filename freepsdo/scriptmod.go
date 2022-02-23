@@ -2,7 +2,6 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
@@ -41,14 +40,13 @@ func NewScriptMod(cr *utils.ConfigReader) *ScriptMod {
 	return &ScriptMod{ScriptDir: conf.ScriptDir}
 }
 
-func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseWriter) {
+func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseCollector) {
 	params := ScriptParameters{}
 	err := json.Unmarshal(jsonStr, &params)
 
 	if err != nil {
 		log.Printf("%q", jsonStr)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		jrw.WriteError(http.StatusBadRequest, "%v", err.Error())
 		return
 	}
 	scriptName := path.Base(function)
@@ -60,11 +58,23 @@ func (m *ScriptMod) DoWithJSON(function string, jsonStr []byte, w http.ResponseW
 		stdout, err = cmd.Output()
 	}
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nError: %v", scriptName, params.Args, string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, "Executed: %v\nParameters: %v\nError: %v", scriptName, params.Args, string(err.Error()))
 	} else {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Executed: %v\nParameters: %v\nOutput: %v", scriptName, params.Args, string(stdout))
+		jrw.WriteSuccessf("Executed: %v\nParameters: %v\nOutput: %v", scriptName, params.Args, string(stdout))
 	}
+}
 
+func (m *ScriptMod) GetFunctions() []string {
+	keys := make([]string, 0)
+	return keys
+}
+
+func (m *ScriptMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *ScriptMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
 }

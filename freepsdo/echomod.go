@@ -1,15 +1,35 @@
 package freepsdo
 
-import (
-	"fmt"
-	"net/http"
-)
+import "encoding/json"
 
 type EchoMod struct {
 }
 
-func (m *EchoMod) DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter) {
-	fmt.Fprintf(w, "Function: %v\nArgs: %q\n", fn, jsonStr)
+var _ Mod = &EchoMod{}
+
+func (m *EchoMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
+	if fn == "bytes" {
+		jrw.WriteSuccessMessage(jsonStr)
+	} else if fn == "direct" {
+		var v interface{}
+		json.Unmarshal(jsonStr, &v)
+		jrw.WriteSuccessMessage(v)
+	} else if fn == "escaped" {
+		jrw.WriteSuccessMessage(string(jsonStr))
+	}
 }
 
-var _ Mod = &EchoMod{}
+func (m *EchoMod) GetFunctions() []string {
+	keys := make([]string, 0)
+	return keys
+}
+
+func (m *EchoMod) GetPossibleArgs(fn string) []string {
+	ret := []string{}
+	return ret
+}
+
+func (m *EchoMod) GetArgSuggestions(fn string, arg string) map[string]string {
+	ret := map[string]string{}
+	return ret
+}

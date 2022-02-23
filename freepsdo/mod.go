@@ -1,9 +1,8 @@
 package freepsdo
 
-import (
-	"net/http"
-)
-
 type Mod interface {
-	DoWithJSON(fn string, jsonStr []byte, w http.ResponseWriter)
+	DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
+	GetFunctions() []string
+	GetPossibleArgs(fn string) []string
+	GetArgSuggestions(fn string, arg string) map[string]string
 }
