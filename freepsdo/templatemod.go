@@ -49,8 +49,10 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
 	mods["raspistill"] = &RaspistillMod{}
+	tmc["_last"] = &Template{Actions: []TemplateAction{{Mod: "echo", Fn: "hello"}}}
 	tm := &TemplateMod{Mods: mods, Templates: tmc}
 	mods["template"] = tm
+	mods["system"] = NewSystemeMod(tm)
 	return tm
 }
 
@@ -72,7 +74,6 @@ func (m *TemplateMod) GetFunctions() []string {
 	for k := range m.Templates {
 		keys = append(keys, k)
 	}
-
 	return keys
 }
 
@@ -111,6 +112,7 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		return
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
+	m.Templates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
 	if len(t.FwdTemplateName) > 0 {
 		o, err := jrw.GetMarshalledOutput()
 		if err == nil {
@@ -135,14 +137,16 @@ func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, 
 	m.ExecuteTemplateAction(&ta, jrw)
 }
 
-func (m *TemplateMod) CreateTemporaryTemplateAction() int {
+func (m *TemplateMod) CreateTemporaryTemplateAction() (int, *TemplateAction) {
 	tpl, ok := m.Templates["_tmp"]
 	if !ok {
-		m.Templates["_tmp"] = &Template{Actions: make([]TemplateAction, 1)}
-		return 0
+		tpl := &Template{Actions: make([]TemplateAction, 1)}
+		m.Templates["_tmp"] = tpl
+		return 0, &tpl.Actions[0]
 	}
 	tpl.Actions = append(tpl.Actions, TemplateAction{})
-	return len(tpl.Actions) - 1
+	ID := len(tpl.Actions) - 1
+	return ID, &tpl.Actions[ID]
 }
 
 func (m *TemplateMod) GetTemporaryTemplateAction(ID int) *TemplateAction {

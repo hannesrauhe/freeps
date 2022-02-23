@@ -48,6 +48,14 @@ func (r *Telegraminator) newJSONButton(name string, tcr *TelegramCallbackRespons
 	return tgbotapi.NewInlineKeyboardButtonData(name, s)
 }
 
+func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
+	keys := make([]tgbotapi.KeyboardButton, 0, len(r.Modinator.Mods))
+	for k := range r.Modinator.Mods {
+		keys = append(keys, tgbotapi.NewKeyboardButton(k))
+	}
+	return tgbotapi.NewReplyKeyboard(keys)
+}
+
 func (r *Telegraminator) getModButtons() []tgbotapi.InlineKeyboardButton {
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(r.Modinator.Mods))
 	for k := range r.Modinator.Mods {
@@ -233,6 +241,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 		} else {
 			msg.Text = fmt.Sprintf("%v: %q", status, byt)
 		}
+		// msg.ReplyMarkup=r.getReplyKeyboard()
 	}
 	r.sendMessage(&msg)
 }

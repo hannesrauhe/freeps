@@ -430,7 +430,7 @@ var switchCmds map[string][]string = map[string][]string{
 	"getbasicdevicestats":  {"device"},
 	"gettemplatelistinfos": {"device"},
 	"applytemplate":        {"device"},
-	"setsimpleonoff":       {"device", "simpleonoff"},
+	"setsimpleonoff":       {"device", "onoff"},
 	"setlevel":             {"device", "level"},
 	"setlevelpercentage":   {"device", "level"},
 	"setcolor":             {"device", "hue", "saturation", "duration"},
