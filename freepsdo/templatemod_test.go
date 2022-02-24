@@ -82,39 +82,21 @@ func TestTemporaryTemplateActions(t *testing.T) {
 	tm := &TemplateMod{Mods: mods, Templates: map[string]*Template{"tpl1": tpl}}
 	mods["template"] = tm
 
-	if tm.GetTemporaryTemplateAction(0) != nil {
+	tta := tm.GetTemporaryTemplateAction("1")
+	if tta == nil && tta.Mod != "" {
 		t.Fatal("unexpected TA")
 	}
 
-	if tm.CreateTemporaryTemplateAction() != 0 {
-		t.Fatal("unexpected Temporary ID")
-	}
-
-	if tm.GetTemporaryTemplateAction(1) != nil {
-		t.Fatal("unexpected TA")
-	}
-
-	if tm.CreateTemporaryTemplateAction() != 1 {
-		t.Fatal("unexpected Temporary ID")
-	}
-
-	if tm.CreateTemporaryTemplateAction() != 2 {
-		t.Fatal("unexpected Temporary ID")
-	}
-
-	tta := tm.GetTemporaryTemplateAction(1)
-	if tta == nil {
-		t.Fatal("unexpected TTA")
-	}
 	tta.Mod = "foo"
 
-	tta = tm.GetTemporaryTemplateAction(0)
-	if tta.Mod != "" {
+	tta2 := tm.GetTemporaryTemplateAction("1")
+	if tta.Mod != tta2.Mod {
 		t.Fatal("unexpected TTA")
 	}
+	tm.RemoveTemporaryTemplate("1")
 
-	tta = tm.GetTemporaryTemplateAction(1)
-	if tta.Mod != "foo" {
-		t.Fatal("unexpected TTA")
+	tta3 := tm.GetTemporaryTemplateAction("1")
+	if tta3 == nil && tta3.Mod != "" {
+		t.Fatal("unexpected TA")
 	}
 }

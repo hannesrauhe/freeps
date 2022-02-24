@@ -137,25 +137,15 @@ func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, 
 	m.ExecuteTemplateAction(&ta, jrw)
 }
 
-func (m *TemplateMod) CreateTemporaryTemplateAction() (int, *TemplateAction) {
-	tpl, ok := m.Templates["_tmp"]
+func (m *TemplateMod) GetTemporaryTemplateAction(ID string) *TemplateAction {
+	tpl, ok := m.Templates["_"+ID]
 	if !ok {
-		tpl := &Template{Actions: make([]TemplateAction, 1)}
-		m.Templates["_tmp"] = tpl
-		return 0, &tpl.Actions[0]
+		tpl = &Template{Actions: make([]TemplateAction, 1)}
+		m.Templates["_"+ID] = tpl
 	}
-	tpl.Actions = append(tpl.Actions, TemplateAction{})
-	ID := len(tpl.Actions) - 1
-	return ID, &tpl.Actions[ID]
+	return &tpl.Actions[0]
 }
 
-func (m *TemplateMod) GetTemporaryTemplateAction(ID int) *TemplateAction {
-	tpl, ok := m.Templates["_tmp"]
-	if !ok {
-		return nil
-	}
-	if ID >= len(tpl.Actions) {
-		return nil
-	}
-	return &tpl.Actions[ID]
+func (m *TemplateMod) RemoveTemporaryTemplate(ID string) {
+	delete(m.Templates, "_"+ID)
 }
