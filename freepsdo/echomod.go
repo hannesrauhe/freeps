@@ -10,6 +10,8 @@ var _ Mod = &EchoMod{}
 func (m *EchoMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	if fn == "bytes" {
 		jrw.WriteSuccessMessage(jsonStr)
+	} else if fn == "hello" {
+		jrw.WriteSuccessf("Hello World")
 	} else if fn == "direct" {
 		var v interface{}
 		json.Unmarshal(jsonStr, &v)

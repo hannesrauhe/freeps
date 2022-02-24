@@ -28,7 +28,7 @@ type Telegraminator struct {
 }
 
 type TelegramCallbackResponse struct {
-	T int    `json:",omitempty"` // TemplateActionID
+	T string `json:",omitempty"` // TemplateActionID
 	F bool   `json:",omitempty"` // Finished ?
 	P int    `json:",omitempty"` // processed Args
 	C string `json:",omitempty"` // last choice
@@ -48,10 +48,19 @@ func (r *Telegraminator) newJSONButton(name string, tcr *TelegramCallbackRespons
 	return tgbotapi.NewInlineKeyboardButtonData(name, s)
 }
 
+func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
+	keys := make([]tgbotapi.KeyboardButton, 0, len(r.Modinator.Mods))
+	for k := range r.Modinator.Mods {
+		keys = append(keys, tgbotapi.NewKeyboardButton(k))
+	}
+	board := tgbotapi.NewOneTimeReplyKeyboard(keys)
+	return board
+}
+
 func (r *Telegraminator) getModButtons() []tgbotapi.InlineKeyboardButton {
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(r.Modinator.Mods))
 	for k := range r.Modinator.Mods {
-		tcr := TelegramCallbackResponse{T: r.Modinator.CreateTemporaryTemplateAction(), F: false, P: -1, C: k}
+		tcr := TelegramCallbackResponse{F: false, P: -1, C: k}
 		keys = append(keys, r.newJSONButton(k, &tcr))
 	}
 	return keys
@@ -154,33 +163,34 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 
 	tcr, ok := r.chatState[chat.ID]
 	if !ok {
-		if callbackData == "" {
-			r.sendStartMessage(&msg)
-			return
-		}
 		tcr = TelegramCallbackResponse{}
-		byt := []byte(callbackData)
-		err := json.Unmarshal(byt, &tcr)
-		if err != nil {
-			msg.Text = err.Error()
-			r.sendStartMessage(&msg)
-			return
+		if callbackData != "" {
+			// a button on the InlineKeyboard was pressed
+			byt := []byte(callbackData)
+			err := json.Unmarshal(byt, &tcr)
+			if err != nil {
+				msg.Text = err.Error()
+				r.sendStartMessage(&msg)
+				return
+			}
+		} else {
+			// inputText contains the mod to use
+			r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
+			tcr.P = -1
+			tcr.C = inputText
 		}
 	} else {
+		// the user was asked to provide input
 		tcr.C = inputText
 		delete(r.chatState, chat.ID)
 	}
-
+	tcr.T = fmt.Sprint(chat.ID)
 	tpl := r.Modinator.GetTemporaryTemplateAction(tcr.T)
-	if tpl == nil {
-		msg.Text = "Cannot resume because of missing data. Please restart."
-		r.sendStartMessage(&msg)
-		return
-	}
 
 	if len(tpl.Mod) == 0 {
 		tpl.Mod = tcr.C
 		if _, ok := r.Modinator.Mods[tpl.Mod]; !ok {
+			msg.Text += " Please pick a Mod"
 			r.sendStartMessage(&msg)
 			return
 		}
@@ -233,6 +243,8 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 		} else {
 			msg.Text = fmt.Sprintf("%v: %q", status, byt)
 		}
+		r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
+		msg.ReplyMarkup = r.getReplyKeyboard()
 	}
 	r.sendMessage(&msg)
 }
