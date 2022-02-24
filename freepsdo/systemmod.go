@@ -34,6 +34,10 @@ func (m *SystemMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector
 	switch fn {
 	case "GetTemplate":
 		m.getTemplate(args["name"], jrw)
+	case "RenameTemplate":
+		m.renameTemplate(args["name"], args["newName"], jrw)
+	case "DeleteTemplate":
+		m.deleteTemplate(args["name"], jrw)
 	case "SaveLast":
 		m.saveLast(args["newName"], jrw)
 	case "MergeTemplates":
@@ -76,6 +80,8 @@ func (m *SystemMod) GetArgSuggestions(fn string, arg string) map[string]string {
 
 var fnArgs map[string][]string = map[string][]string{
 	"GetTemplate":    {"name"},
+	"DeleteTemplate": {"name"},
+	"RenameTemplate": {"name", "newName"},
 	"SaveLast":       {"newName"},
 	"MergeTemplates": {"src", "dest"},
 }
@@ -94,12 +100,30 @@ func (m *SystemMod) saveLast(name string, jrw *ResponseCollector) {
 	jrw.WriteSuccessf("Saved as %s", name)
 }
 
+func (m *SystemMod) deleteTemplate(name string, jrw *ResponseCollector) {
+	delete(m.Modinator.Templates, name)
+}
+
+func (m *SystemMod) renameTemplate(name string, newName string, jrw *ResponseCollector) {
+	_, ok := m.Modinator.Templates[name]
+	if !ok {
+		jrw.WriteError(404, "Template named %s not found", name)
+	}
+	_, ok = m.Modinator.Templates[newName]
+	if ok {
+		jrw.WriteError(http.StatusConflict, "Template %s already exists", newName)
+		return
+	}
+	m.Modinator.Templates[newName] = m.Modinator.Templates[name]
+	delete(m.Modinator.Templates, name)
+}
+
 func (m *SystemMod) mergeTemplates(srcName string, destName string, jrw *ResponseCollector) {
 	src, ok := m.Modinator.Templates[srcName]
 	if !ok {
 		jrw.WriteError(404, "Src template named %s not found", srcName)
 	}
-	dest, ok := m.Modinator.Templates[srcName]
+	dest, ok := m.Modinator.Templates[destName]
 	if !ok {
 		jrw.WriteError(404, "Dest template named %s not found", destName)
 	}
