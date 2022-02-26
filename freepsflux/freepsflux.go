@@ -77,23 +77,25 @@ func (ff *FreepsFlux) Push() error {
 		}
 	}
 
+	mTime := time.Now()
 	devl, err := ff.f.GetDeviceList()
 	if err != nil {
 		return err
 	}
-
+	time1 := time.Now().Unix() - mTime.Unix()
 	met, err := ff.f.GetMetrics()
 	if err != nil {
 		return err
 	}
-
+	time2 := time.Now().Unix() - mTime.Unix()
 	netd, err := ff.f.GetData()
 	if err != nil {
 		return err
 	}
+	time3 := time.Now().Unix() - mTime.Unix()
+	log.Printf("Retrieving FB data to push to Influx took %vs/%vs/%vs", time1, time2, time3)
 
 	// influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
-	mTime := time.Now()
 
 	for i, writeAPI := range ff.writeApis {
 		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
