@@ -2,7 +2,11 @@ package freepsdo
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
 	"testing"
+
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type MockMod struct {
@@ -42,10 +46,12 @@ type TestStruct struct {
 }
 
 func NewTMMock(templates map[string]*Template) (*TemplateMod, *MockMod) {
+	tmpFile, _ := ioutil.TempFile(os.TempDir(), "freeps-")
+	cr, _ := utils.NewConfigReader(tmpFile.Name())
 	mods := map[string]Mod{}
 	mm := &MockMod{}
 	mods["mock"] = mm
-	tm := &TemplateMod{Mods: mods, Config: TemplateModConfig{Templates: templates}, TemporaryTemplates: map[string]*Template{}, ExternalTemplates: map[string]*Template{}}
+	tm := &TemplateMod{Mods: mods, cr: cr, Config: TemplateModConfig{Templates: templates}, TemporaryTemplates: map[string]*Template{}, ExternalTemplates: map[string]*Template{}}
 	mods["template"] = tm
 	return tm, mm
 }
