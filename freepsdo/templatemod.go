@@ -51,6 +51,7 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods := map[string]Mod{}
 	mods["curl"] = &CurlMod{}
 	mods["echo"] = &EchoMod{}
+	mods["eval"] = &EvalMod{}
 	mods["script"] = NewScriptMod(cr)
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
@@ -145,7 +146,9 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 			m.ExecuteTemplateWithAdditionalArgs(t.FwdTemplate, o, jrw)
 		}
 	}
-	jrw.WriteSuccess()
+	if !jrw.isSubtreeFinished() {
+		jrw.WriteSuccess()
+	}
 }
 
 func (m *TemplateMod) ExecuteTemplateAction(ta *TemplateAction, jrw *ResponseCollector) {
