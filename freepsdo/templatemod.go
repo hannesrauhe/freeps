@@ -28,9 +28,11 @@ type Template struct {
 }
 
 type TemplateMod struct {
-	Mods      map[string]Mod
-	Config    TemplateModConfig
-	Templates map[string]*Template
+	Mods               map[string]Mod
+	Config             TemplateModConfig
+	TemporaryTemplates map[string]*Template
+	ExternalTemplates  map[string]*Template
+	cr                 *utils.ConfigReader
 }
 
 var _ Mod = &TemplateMod{}
@@ -57,15 +59,21 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	if tmc.Templates == nil {
 		tmc.Templates = map[string]*Template{}
 	}
-	tmc.Templates["_last"] = &Template{Actions: []TemplateAction{{Mod: "echo", Fn: "hello"}}}
-	tm := &TemplateMod{Mods: mods, Config: tmc, Templates: tmc.Templates}
+	ext := map[string]*Template{}
+	byt := utils.ReadBytesFromUrl(tmc.TemplatesFromUrl)
+	if len(byt) > 0 {
+		json.Unmarshal(byt, &ext)
+	}
+
+	tm := &TemplateMod{Mods: mods, Config: tmc, ExternalTemplates: ext, cr: cr,
+		TemporaryTemplates: map[string]*Template{"_last": &Template{Actions: []TemplateAction{{Mod: "echo", Fn: "hello"}}}}}
 	mods["template"] = tm
 	mods["system"] = NewSystemeMod(tm)
 	return tm
 }
 
 func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *ResponseCollector) {
-	template, exists := m.Templates[templateName]
+	template, exists := m.GetTemplate(templateName)
 	if !exists {
 		jrw.WriteError(http.StatusNotFound, "template %v unknown", templateName)
 		return
@@ -78,8 +86,9 @@ func (m *TemplateMod) DoWithJSON(templateName string, jsonStr []byte, jrw *Respo
 }
 
 func (m *TemplateMod) GetFunctions() []string {
-	keys := make([]string, 0, len(m.Templates))
-	for k := range m.Templates {
+	t := m.GetAllTemplates(false)
+	keys := make([]string, 0, len(t))
+	for k := range t {
 		keys = append(keys, k)
 	}
 	return keys
@@ -124,7 +133,7 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		return
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
-	m.Templates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
+	m.TemporaryTemplates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
 	if len(t.FwdTemplateName) > 0 {
 		o, err := jrw.GetMarshalledOutput()
 		if err == nil {
@@ -149,15 +158,44 @@ func (m *TemplateMod) ExecuteModWithJson(mod string, fn string, jsonStr []byte, 
 	m.ExecuteTemplateAction(&ta, jrw)
 }
 
+func (m *TemplateMod) GetTemplate(templateName string) (*Template, bool) {
+	template, exists := m.TemporaryTemplates[templateName]
+	if exists {
+		return template, true
+	}
+	template, exists = m.Config.Templates[templateName]
+	if exists {
+		return template, true
+	}
+	template, exists = m.ExternalTemplates[templateName]
+	return template, exists
+}
+
+func (m *TemplateMod) GetAllTemplates(includeTemp bool) map[string]*Template {
+	retMap := map[string]*Template{}
+	if includeTemp {
+		for k, v := range m.TemporaryTemplates {
+			retMap[k] = v
+		}
+	}
+	for k, v := range m.ExternalTemplates {
+		retMap[k] = v
+	}
+	for k, v := range m.Config.Templates {
+		retMap[k] = v
+	}
+	return retMap
+}
+
 func (m *TemplateMod) GetTemporaryTemplateAction(ID string) *TemplateAction {
-	tpl, ok := m.Templates["_"+ID]
+	tpl, ok := m.TemporaryTemplates["_"+ID]
 	if !ok {
 		tpl = &Template{Actions: make([]TemplateAction, 1)}
-		m.Templates["_"+ID] = tpl
+		m.TemporaryTemplates["_"+ID] = tpl
 	}
 	return &tpl.Actions[0]
 }
 
 func (m *TemplateMod) RemoveTemporaryTemplate(ID string) {
-	delete(m.Templates, "_"+ID)
+	delete(m.TemporaryTemplates, "_"+ID)
 }

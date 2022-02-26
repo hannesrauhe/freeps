@@ -168,7 +168,7 @@ func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct 
 	return err
 }
 
-func (c *ConfigReader) WriteSection(sectionName string, configStruct interface{}) error {
+func (c *ConfigReader) WriteSection(sectionName string, configStruct interface{}, persistImmediately bool) error {
 	c.lck.Lock()
 	defer c.lck.Unlock()
 
@@ -176,6 +176,22 @@ func (c *ConfigReader) WriteSection(sectionName string, configStruct interface{}
 	if len(newb) > 0 {
 		c.configChanged = true
 		c.configFileContent = newb
+		if persistImmediately {
+			err = c.writeConfig()
+		}
+	}
+	return err
+}
+
+func (c *ConfigReader) writeConfig() error {
+	dir := filepath.Dir(c.configFilePath)
+	err := os.MkdirAll(dir, 0751)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
+	if err == nil {
+		c.configChanged = false
 	}
 	return err
 }
@@ -187,14 +203,5 @@ func (c *ConfigReader) WriteBackConfigIfChanged() error {
 	if !c.configChanged {
 		return nil
 	}
-	dir := filepath.Dir(c.configFilePath)
-	err := os.MkdirAll(dir, 0751)
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
-	if err == nil {
-		c.configChanged = false
-	}
-	return err
+	return c.writeConfig()
 }

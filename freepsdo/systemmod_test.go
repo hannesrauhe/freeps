@@ -9,13 +9,9 @@ func TestTemplateFunctions(t *testing.T) {
 	actions := []TemplateAction{ta}
 	tpl := &Template{Actions: actions}
 
-	mods := map[string]Mod{}
-	mm := &MockMod{}
-	mods["mock"] = mm
-	tm := &TemplateMod{Mods: mods, Templates: map[string]*Template{"tpl1": tpl}}
+	tm, _ := NewTMMock(map[string]*Template{"tpl1": tpl})
 	sm := NewSystemeMod(tm)
-	mods["template"] = tm
-	mods["system"] = sm
+	tm.Mods["system"] = sm
 
 	w := NewResponseCollector()
 	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"newArg":3, "overwriteArg":5}`), w)
@@ -25,7 +21,7 @@ func TestTemplateFunctions(t *testing.T) {
 	if w2.IsStatusFailed() {
 		t.Fatal(w2.GetFinalResponse())
 	}
-	if len(tm.Templates["tpl1"].Actions) != 2 {
+	if len(tm.Config.Templates["tpl1"].Actions) != 2 {
 		t.Fatal("Merging failed")
 	}
 
@@ -34,7 +30,7 @@ func TestTemplateFunctions(t *testing.T) {
 	if w3.IsStatusFailed() {
 		t.Fatal(w3.GetFinalResponse())
 	}
-	if len(tm.Templates["tpl2"].Actions) != 2 {
+	if len(tm.Config.Templates["tpl2"].Actions) != 2 {
 		t.Fatal("Merging failed")
 	}
 
@@ -43,7 +39,7 @@ func TestTemplateFunctions(t *testing.T) {
 	if w4.IsStatusFailed() {
 		t.Fatal(w4.GetFinalResponse())
 	}
-	if _, ok := tm.Templates["tpl2"]; ok {
+	if _, ok := tm.Config.Templates["tpl2"]; ok {
 		t.Fatal("Merging failed")
 	}
 }

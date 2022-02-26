@@ -41,16 +41,20 @@ type TestStruct struct {
 	DiffArg      int
 }
 
+func NewTMMock(templates map[string]*Template) (*TemplateMod, *MockMod) {
+	mods := map[string]Mod{}
+	mm := &MockMod{}
+	mods["mock"] = mm
+	tm := &TemplateMod{Mods: mods, Config: TemplateModConfig{Templates: templates}, TemporaryTemplates: map[string]*Template{}, ExternalTemplates: map[string]*Template{}}
+	mods["template"] = tm
+	return tm, mm
+}
+
 func TestCallTemplateWithJsonArgs(t *testing.T) {
 	ta := TemplateAction{Mod: "mock", Fn: "fn", Args: map[string]interface{}{"defaultArg": 1, "overwriteArg": 1}}
 	actions := []TemplateAction{ta}
 	tpl := &Template{Actions: actions}
-
-	mods := map[string]Mod{}
-	mm := &MockMod{}
-	mods["mock"] = mm
-	tm := &TemplateMod{Mods: mods, Templates: map[string]*Template{"tpl1": tpl}}
-	mods["template"] = tm
+	tm, mm := NewTMMock(map[string]*Template{"tpl1": tpl})
 
 	w := NewResponseCollector()
 	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"newArg":3, "overwriteArg":5}`), w)
@@ -79,7 +83,7 @@ func TestTemporaryTemplateActions(t *testing.T) {
 	mods := map[string]Mod{}
 	mm := &MockMod{}
 	mods["mock"] = mm
-	tm := &TemplateMod{Mods: mods, Templates: map[string]*Template{"tpl1": tpl}}
+	tm := &TemplateMod{Mods: mods, TemporaryTemplates: map[string]*Template{"tpl1": tpl}}
 	mods["template"] = tm
 
 	tta := tm.GetTemporaryTemplateAction("1")
