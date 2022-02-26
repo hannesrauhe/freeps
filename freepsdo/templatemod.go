@@ -8,7 +8,10 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-type TemplateModConfig map[string]*Template
+type TemplateModConfig struct {
+	Templates        map[string]*Template
+	TemplatesFromUrl string
+}
 
 var DefaultConfig = TemplateModConfig{}
 
@@ -26,14 +29,15 @@ type Template struct {
 
 type TemplateMod struct {
 	Mods      map[string]Mod
-	Templates TemplateModConfig
+	Config    TemplateModConfig
+	Templates map[string]*Template
 }
 
 var _ Mod = &TemplateMod{}
 
 func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	tmc := DefaultConfig
-	err := cr.ReadSectionWithDefaults("templates", &tmc)
+	err := cr.ReadSectionWithDefaults("TemplateMod", &tmc)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,8 +53,12 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
 	mods["raspistill"] = &RaspistillMod{}
-	tmc["_last"] = &Template{Actions: []TemplateAction{{Mod: "echo", Fn: "hello"}}}
-	tm := &TemplateMod{Mods: mods, Templates: tmc}
+
+	if tmc.Templates == nil {
+		tmc.Templates = map[string]*Template{}
+	}
+	tmc.Templates["_last"] = &Template{Actions: []TemplateAction{{Mod: "echo", Fn: "hello"}}}
+	tm := &TemplateMod{Mods: mods, Config: tmc, Templates: tmc.Templates}
 	mods["template"] = tm
 	mods["system"] = NewSystemeMod(tm)
 	return tm
@@ -105,10 +113,14 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 	for k, v := range t.Args {
 		copiedArgs[k] = v
 	}
-	jsonStr, err := utils.OverwriteValuesWithJson(moreJsonArgs, copiedArgs)
-
+	err := json.Unmarshal(moreJsonArgs, &copiedArgs)
 	if err != nil {
 		jrw.WriteError(http.StatusInternalServerError, "error when merging json values with json string \"%q\": %v", moreJsonArgs, err)
+		return
+	}
+	jsonStr, err := json.Marshal(copiedArgs)
+	if err != nil {
+		jrw.WriteError(http.StatusInternalServerError, "error when merging arguments: %v", err)
 		return
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
