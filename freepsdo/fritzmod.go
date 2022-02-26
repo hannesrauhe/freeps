@@ -115,6 +115,10 @@ func (m *FritzMod) GetArgSuggestions(fn string, arg string) map[string]string {
 		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
 	case "param":
 		return map[string]string{"Off": "253", "16": "32", "18": "36", "20": "40", "22": "44", "24": "48"}
+	case "temperature": // fn=="setcolortemperature"
+		return map[string]string{"2700K": "2700", "3500K": "3500", "4250K": "4250", "5000K": "5000", "6500K": "6500"}
+	case "duration":
+		return map[string]string{"0": "0", "0.1s": "1", "1s": "10"}
 	}
 	return map[string]string{}
 }

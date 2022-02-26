@@ -88,6 +88,7 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		fm.Doer.ExecuteModWithJson("template", tc.TemplateToCall, jsonStr, jrw)
 		status, _, _ := jrw.GetFinalResponse()
 		log.Printf("Template %v finished with %v", tc.TemplateToCall, status)
+		// log.Printf("%q", jrw.GetResponseTree())
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
 	}
