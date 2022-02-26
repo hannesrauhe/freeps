@@ -23,6 +23,18 @@
       }
     ]
   },
+  "denonleise": {
+    "Actions": [
+      {
+        "Mod": "curl",
+        "Fn": "PostForm",
+        "Args": {
+          "url": "http://denon.fritz.box/MainZone/index.put.asp",
+          "cmd0": "PutMasterVolumeSet/-60.0"
+        }
+      }
+    ]
+  },
   "sleep": {
     "Actions": [
       {

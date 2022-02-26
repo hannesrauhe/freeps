@@ -66,13 +66,14 @@ func (m *SystemMod) GetPossibleArgs(fn string) []string {
 func (m *SystemMod) GetArgSuggestions(fn string, arg string) map[string]string {
 	if arg == "src" || arg == "dest" || arg == "name" {
 		ret := map[string]string{}
-		for k := range m.Modinator.Templates {
+		for k := range m.Modinator.GetAllTemplates(false) {
 			ret[k] = k
 		}
 		return ret
 	}
 	if fn == "SaveLast" {
-		sug := fmt.Sprintf("%s-%s", m.Modinator.Templates["_last"].Actions[0].Mod, m.Modinator.Templates["_last"].Actions[0].Fn)
+		lastT, _ := m.Modinator.GetTemplate("_last")
+		sug := fmt.Sprintf("%s-%s", lastT.Actions[0].Mod, lastT.Actions[0].Fn)
 		return map[string]string{sug: sug}
 	}
 	return map[string]string{}
@@ -87,7 +88,7 @@ var fnArgs map[string][]string = map[string][]string{
 }
 
 func (m *SystemMod) getTemplate(name string, jrw *ResponseCollector) {
-	tpl, ok := m.Modinator.Templates[name]
+	tpl, ok := m.Modinator.GetTemplate(name)
 	if !ok {
 		jrw.WriteError(404, "No template named %s found", name)
 	}
@@ -96,39 +97,47 @@ func (m *SystemMod) getTemplate(name string, jrw *ResponseCollector) {
 
 func (m *SystemMod) saveLast(name string, jrw *ResponseCollector) {
 	name = m.pickFreeTemplateName(name)
-	m.Modinator.Templates[name] = m.Modinator.Templates["_last"]
+	m.Modinator.Config.Templates[name] = m.Modinator.TemporaryTemplates["_last"]
+	m.Modinator.cr.WriteSection("TemplateMod", m.Modinator.Config, true)
 	jrw.WriteSuccessf("Saved as %s", name)
 }
 
 func (m *SystemMod) deleteTemplate(name string, jrw *ResponseCollector) {
-	delete(m.Modinator.Templates, name)
+	delete(m.Modinator.Config.Templates, name)
+	m.Modinator.cr.WriteSection("TemplateMod", m.Modinator.Config, true)
+	jrw.WriteSuccessf("Deleted %s", name)
 }
 
 func (m *SystemMod) renameTemplate(name string, newName string, jrw *ResponseCollector) {
-	_, ok := m.Modinator.Templates[name]
+	template, ok := m.Modinator.GetTemplate(name)
 	if !ok {
 		jrw.WriteError(404, "Template named %s not found", name)
 	}
-	_, ok = m.Modinator.Templates[newName]
+	_, ok = m.Modinator.Config.Templates[newName]
 	if ok {
 		jrw.WriteError(http.StatusConflict, "Template %s already exists", newName)
 		return
 	}
-	m.Modinator.Templates[newName] = m.Modinator.Templates[name]
-	delete(m.Modinator.Templates, name)
+	m.Modinator.Config.Templates[newName] = template
+	delete(m.Modinator.Config.Templates, name)
+	m.Modinator.cr.WriteSection("TemplateMod", m.Modinator.Config, true)
+	jrw.WriteSuccessf("Renamed %s to %s", name, newName)
 }
 
 func (m *SystemMod) mergeTemplates(srcName string, destName string, jrw *ResponseCollector) {
-	src, ok := m.Modinator.Templates[srcName]
+	src, ok := m.Modinator.GetTemplate(srcName)
 	if !ok {
 		jrw.WriteError(404, "Src template named %s not found", srcName)
 	}
-	dest, ok := m.Modinator.Templates[destName]
+	dest, ok := m.Modinator.GetTemplate(destName)
 	if !ok {
 		jrw.WriteError(404, "Dest template named %s not found", destName)
 	}
+	// make sure the template is in a writable location
+	m.Modinator.Config.Templates[destName] = dest
 	dest.Actions = append(dest.Actions, src.Actions...)
 	jrw.WriteSuccessf("Merged %s into %s", srcName, destName)
+	m.Modinator.cr.WriteSection("TemplateMod", m.Modinator.Config, true)
 }
 
 func (m *SystemMod) pickFreeTemplateName(name string) string {
@@ -136,7 +145,7 @@ func (m *SystemMod) pickFreeTemplateName(name string) string {
 	newName := name
 	i := 0
 	for {
-		_, ok = m.Modinator.Templates[newName]
+		_, ok = m.Modinator.Config.Templates[newName]
 		if !ok {
 			return newName
 		}

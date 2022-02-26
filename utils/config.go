@@ -2,106 +2,58 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 )
 
-func StructToMap(someStruct interface{}) (map[string]interface{}, error) {
-	jsonbytes, err := json.MarshalIndent(someStruct, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	ret := make(map[string]interface{})
-	err = json.Unmarshal(jsonbytes, &ret)
-
-	if err != nil {
-		return nil, err
-	}
-	return ret, nil
-}
-
-// OverwriteValuesWithJson will use the values in jsonBytes to append/overwrite the data in valueMap
-// and returns the json string of the combined values
-func OverwriteValuesWithJson(jsonBytes []byte, valueMap map[string]interface{}) ([]byte, error) {
-	err := json.Unmarshal(jsonBytes, &valueMap)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(valueMap)
-}
-
-func MergeJsonWithDefaults(jsonBytes []byte, configStruct interface{}) error {
-	valueMap, err := StructToMap(configStruct)
-	if err != nil {
-		return err
-	}
-	mergedBytes, err := OverwriteValuesWithJson(jsonBytes, valueMap)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(mergedBytes, &configStruct)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 type ConfigIncluder struct {
-	Include string
+	Include        string
+	IncludeFromURL string
 }
 
-// func TemplatesFromUrl(url string) map[string]Template {
-// 	t := map[string]Template{}
-// 	c := http.Client{}
-// 	resp, err := c.Get(url)
-// 	if err != nil {
-// 		log.Printf("Error when reading from %v: %v", url, err)
-// 		return t
-// 	}
-// 	if resp.StatusCode > 300 {
-// 		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
-// 		return t
-// 	}
-// 	byt, err := ioutil.ReadAll(resp.Body)
-// 	if err != nil {
-// 		log.Printf("Error when reading from %v: %v", url, err)
-// 		return t
-// 	}
-// 	err = json.Unmarshal(byt, &t)
-// 	if err != nil {
-// 		log.Printf("Error when parsing json: %v\n %q", err, byt)
-// 	}
-
-// 	return t
-// }
-
-// func TemplatesFromFile(path string) map[string]Template {
-// 	t := map[string]Template{}
-// 	byt, err := ioutil.ReadFile(path)
-// 	if err != nil {
-// 		log.Printf("Error when reading from %v: %v", path, err)
-// 		return t
-// 	}
-// 	err = json.Unmarshal(byt, &t)
-// 	if err != nil {
-// 		log.Printf("Error when parsing json: %v\n %q", err, byt)
-// 	}
-// 	return t
-// }
-
-///TryIncluding check if sectionBytes contains the include keyword. If it does TryIncluding replaces sectionBytes with the content of the given path
-func TryInlcuding(sectionBytes []byte) {
-	var ci ConfigIncluder
-	err := json.Unmarshal(sectionBytes, &ci)
-	if err != nil || len(ci.Include) == 0 {
-		return
+func ReadBytesFromUrl(url string) []byte {
+	c := http.Client{}
+	resp, err := c.Get(url)
+	if err != nil {
+		log.Printf("Error when reading from %v: %v", url, err)
+		return []byte{}
 	}
-
+	if resp.StatusCode > 300 {
+		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
+		return []byte{}
+	}
+	byt, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error when reading from %v: %v", url, err)
+		return []byte{}
+	}
+	return byt
 }
 
-func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
+func ReadBytesFromFile(filePath string, configFileDir string) []byte {
+	if !path.IsAbs(filePath) {
+		filePath = path.Join(configFileDir, filePath)
+	}
+	byt, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		log.Printf("Error when reading from %v: %v", filePath, err)
+		return []byte{}
+	}
+	return byt
+}
+
+// ReadSectionWithDefaults parses the content of the first-level-JSON object in <sectionName> into configStruct
+//
+// if the section exists, configStruct will first get overwritten by an optional included file, then by the contents of the section
+// (append+overwrite in both cases), returns an empty byte-slice
+// if the section does not exist, the serialized content of configStruct (assuming these are default values) is added to jsonBytes and returned
+func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct interface{}, configFileDir string) ([]byte, error) {
 	sectionsMap := make(map[string]interface{})
 	var err error
 
@@ -113,10 +65,8 @@ func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct 
 	}
 
 	if sectionsMap[sectionName] == nil {
-		sectionsMap[sectionName], err = StructToMap(configStruct)
-		if err != nil {
-			return []byte{}, err
-		}
+		// section is missing, will include the values from configStruct in the JSON string
+		sectionsMap[sectionName] = configStruct
 		return json.MarshalIndent(sectionsMap, "", "  ")
 	}
 	sectionBytes, err := json.Marshal(sectionsMap[sectionName])
@@ -124,9 +74,61 @@ func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct 
 		return []byte{}, err
 	}
 
-	TryInlcuding(sectionBytes)
+	// checking if the section just redirects to another config
+	var ci ConfigIncluder
+	err = json.Unmarshal(sectionBytes, &ci)
+	if err == nil {
+		externalSectionBytes := []byte{}
+		if len(ci.Include) > 0 {
+			externalSectionBytes = ReadBytesFromFile(ci.Include, configFileDir)
+		} else if len(ci.IncludeFromURL) > 0 {
+			externalSectionBytes = ReadBytesFromUrl(ci.IncludeFromURL)
+		}
+		if len(externalSectionBytes) > 0 {
+			// redirected file contains values, merging
+			err := json.Unmarshal(externalSectionBytes, configStruct)
+			if err != nil {
+				return []byte{}, err
+			}
+		}
+	}
 
-	return []byte{}, MergeJsonWithDefaults(sectionBytes, configStruct)
+	// finally merge defaults, the external struct and the actual sectionBytes from the config file
+	return []byte{}, json.Unmarshal(sectionBytes, configStruct)
+}
+
+// WriteSection puts the ConfigStruct object in the config file by preserving everything that is part of the section
+func WriteSection(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
+	sectionsMap := make(map[string]interface{})
+	var err error
+
+	if len(jsonBytes) > 0 {
+		err = json.Unmarshal(jsonBytes, &sectionsMap)
+		if err != nil {
+			return []byte{}, err
+		}
+	}
+
+	if sectionsMap[sectionName] == nil {
+		// section is missing, will include the values from configStruct in the JSON string
+		sectionsMap[sectionName] = configStruct
+		return json.MarshalIndent(sectionsMap, "", "  ")
+	}
+
+	sectionBytes, err := json.Marshal(configStruct)
+	if err != nil {
+		return []byte{}, err
+	}
+	section, ok := sectionsMap[sectionName].(map[string]interface{})
+	if !ok {
+		return []byte{}, fmt.Errorf("Section %s in config file does not contain an object but %T", sectionName, sectionsMap[sectionName])
+	}
+	err = json.Unmarshal(sectionBytes, &section)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return json.MarshalIndent(sectionsMap, "", "  ")
 }
 
 func GetDefaultPath(productname string) string {
@@ -158,10 +160,38 @@ func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct 
 	c.lck.Lock()
 	defer c.lck.Unlock()
 
-	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct)
+	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct, path.Dir(c.configFilePath))
 	if len(newb) > 0 {
 		c.configChanged = true
 		c.configFileContent = newb
+	}
+	return err
+}
+
+func (c *ConfigReader) WriteSection(sectionName string, configStruct interface{}, persistImmediately bool) error {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
+	newb, err := WriteSection(c.configFileContent, sectionName, configStruct)
+	if len(newb) > 0 {
+		c.configChanged = true
+		c.configFileContent = newb
+		if persistImmediately {
+			err = c.writeConfig()
+		}
+	}
+	return err
+}
+
+func (c *ConfigReader) writeConfig() error {
+	dir := filepath.Dir(c.configFilePath)
+	err := os.MkdirAll(dir, 0751)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
+	if err == nil {
+		c.configChanged = false
 	}
 	return err
 }
@@ -173,14 +203,5 @@ func (c *ConfigReader) WriteBackConfigIfChanged() error {
 	if !c.configChanged {
 		return nil
 	}
-	dir := filepath.Dir(c.configFilePath)
-	err := os.MkdirAll(dir, 0751)
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
-	if err == nil {
-		c.configChanged = false
-	}
-	return err
+	return c.writeConfig()
 }

@@ -140,6 +140,7 @@ func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
+	r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
 	msg.ReplyMarkup = r.getModKeyboard()
 	r.sendMessage(msg)
 }
@@ -206,6 +207,13 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 		}
 	}
 
+	// sanity check
+	if _, ok := r.Modinator.Mods[tpl.Mod]; !ok {
+		msg.Text += " Something went wrong. Please pick a Mod"
+		r.sendStartMessage(&msg)
+		return
+	}
+
 	if len(tpl.Fn) > 0 && !tcr.F {
 		args := r.Modinator.Mods[tpl.Mod].GetPossibleArgs(tpl.Fn)
 		if tcr.P == 0 {
@@ -220,7 +228,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 				tpl.Args[args[tcr.P]] = tcr.C
 			}
 			tcr.C = ""
-			tcr.P += 1
+			tcr.P++
 			if tcr.P >= len(args) {
 				tcr.F = true
 			} else {
