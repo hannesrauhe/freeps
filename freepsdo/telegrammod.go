@@ -3,6 +3,7 @@ package freepsdo
 import (
 	"encoding/json"
 	"log"
+	"net/http"
 	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -54,9 +55,21 @@ func (m *TelegramMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseC
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
 
-	chatid, _ := strconv.ParseInt(vars["ChatID"], 10, 64)
-	msg := tgbotapi.NewMessage(chatid, vars["Text"])
-	m.bot.Send(msg)
+	chatid, err := strconv.ParseInt(vars["ChatID"], 10, 64)
+	if err != nil {
+		jrw.WriteError(http.StatusBadRequest, err.Error())
+	}
+	text := vars["Text"]
+	if text == "" {
+		text = string(jsonStr)
+	}
+	msg := tgbotapi.NewMessage(chatid, text)
+	res, err := m.bot.Send(msg)
+
+	if err != nil {
+		jrw.WriteError(http.StatusBadRequest, err.Error())
+	}
+	jrw.WriteSuccessMessage(res)
 }
 
 func (m *TelegramMod) GetFunctions() []string {
