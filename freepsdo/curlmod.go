@@ -49,16 +49,13 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseColle
 }
 
 func (m *CurlMod) GetFunctions() []string {
-	keys := []string{"PostForm", "Get"}
-	return keys
+	return []string{"PostForm", "Get"}
 }
 
 func (m *CurlMod) GetPossibleArgs(fn string) []string {
-	ret := []string{}
-	return ret
+	return []string{}
 }
 
 func (m *CurlMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
-	ret := map[string]string{}
-	return ret
+	return map[string]string{}
 }

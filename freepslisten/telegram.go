@@ -11,18 +11,10 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-type TelegramConfig struct {
-	Token         string
-	AllowedUsers  []string
-	DebugMessages bool
-}
-
-var DefaultTelegramConfig = TelegramConfig{Token: ""}
-
 type Telegraminator struct {
 	Modinator   *freepsdo.TemplateMod
 	bot         *tgbotapi.BotAPI
-	tgc         *TelegramConfig
+	tgc         *freepsdo.TelegramConfig
 	lastMessage int
 	chatState   map[int64]TelegramCallbackResponse
 }
@@ -307,7 +299,7 @@ func (r *Telegraminator) MainLoop() {
 }
 
 func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel context.CancelFunc) *Telegraminator {
-	tgc := DefaultTelegramConfig
+	tgc := freepsdo.DefaultTelegramConfig
 	err := cr.ReadSectionWithDefaults("telegrambot", &tgc)
 	if err != nil {
 		log.Fatal(err)
@@ -330,7 +322,6 @@ func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel c
 	bot.Debug = tgc.DebugMessages
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
-	bot.GetMyCommands()
 
 	go t.MainLoop()
 	return t
