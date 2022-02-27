@@ -57,12 +57,22 @@ func (r *Telegraminator) newJSONButton(name string, tcr *TelegramCallbackRespons
 }
 
 func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
-	keys := make([]tgbotapi.KeyboardButton, 0, len(r.Modinator.Mods))
+	rows := [][]tgbotapi.KeyboardButton{}
+	row := []tgbotapi.KeyboardButton{}
+	counter := 0
 	for k := range r.Modinator.Mods {
-		keys = append(keys, tgbotapi.NewKeyboardButton(k))
+		row = append(row, tgbotapi.NewKeyboardButton(k))
+		counter++
+		if counter != 0 && counter%3 == 0 {
+			rows = append(rows, row)
+			row = []tgbotapi.KeyboardButton{}
+		}
 	}
-	board := tgbotapi.NewOneTimeReplyKeyboard(keys)
-	return board
+	if len(row) > 0 {
+		rows = append(rows, row)
+	}
+
+	return tgbotapi.NewOneTimeReplyKeyboard(rows...)
 }
 
 func (r *Telegraminator) getModButtons() []*ButtonWrapper {
@@ -122,6 +132,9 @@ func (r *Telegraminator) multiChoiceKeyboard(buttons []*ButtonWrapper) (tgbotapi
 			rows = append(rows, tgbotapi.NewInlineKeyboardRow(row...))
 			row = []tgbotapi.InlineKeyboardButton{}
 		}
+	}
+	if len(row) > 0 {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(row...))
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(rows...), addVals
 }
