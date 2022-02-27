@@ -63,7 +63,7 @@ func (m *SystemMod) GetPossibleArgs(fn string) []string {
 	return make([]string, 0)
 }
 
-func (m *SystemMod) GetArgSuggestions(fn string, arg string) map[string]string {
+func (m *SystemMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
 	if arg == "src" || arg == "dest" || arg == "name" {
 		ret := map[string]string{}
 		for k := range m.Modinator.GetAllTemplates(false) {

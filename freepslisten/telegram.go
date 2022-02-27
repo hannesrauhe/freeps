@@ -82,7 +82,7 @@ func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []tgbotapi.
 
 func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackResponse) []tgbotapi.InlineKeyboardButton {
 	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
-	argOptions := r.Modinator.Mods[ta.Mod].GetArgSuggestions(ta.Fn, arg)
+	argOptions := r.Modinator.Mods[ta.Mod].GetArgSuggestions(ta.Fn, arg, ta.Args)
 	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(argOptions)+2)
 	tcr.F = true
 	keys = append(keys, r.newJSONButton("<Execute>", tcr))
@@ -92,6 +92,13 @@ func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackRespons
 	keys = append(keys, r.newJSONButton("<CUSTOM>", tcr))
 	tcr.K = false
 	for k, v := range argOptions {
+		if len(v) > 40 {
+			v = v[0:40]
+			k = "INVALID: " + k
+			if len(k) > 15 {
+				k = k[0:15]
+			}
+		}
 		tcr.C = v
 		keys = append(keys, r.newJSONButton(k, tcr))
 	}

@@ -100,7 +100,7 @@ func (m *TemplateMod) GetPossibleArgs(fn string) []string {
 	return ret
 }
 
-func (m *TemplateMod) GetArgSuggestions(fn string, arg string) map[string]string {
+func (m *TemplateMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
 	ret := map[string]string{}
 	return ret
 }

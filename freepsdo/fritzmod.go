@@ -45,6 +45,16 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
 
+	if fn == "upnp" {
+		m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
+		if err == nil {
+			jrw.WriteSuccessMessage(m)
+		} else {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
 	if fn == "freepsflux" {
 		err = m.ff.Push()
 		if err != nil {
@@ -91,15 +101,19 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 
 func (m *FritzMod) GetFunctions() []string {
 	swc := m.fl.GetSuggestedSwitchCmds()
-	switchcmds := make([]string, 0, len(swc))
+	fn := make([]string, 0, len(swc)+1)
 	for k := range swc {
-		switchcmds = append(switchcmds, k)
+		fn = append(fn, k)
 	}
-	sort.Strings(switchcmds)
-	return switchcmds
+	fn = append(fn, "upnp")
+	sort.Strings(fn)
+	return fn
 }
 
 func (m *FritzMod) GetPossibleArgs(fn string) []string {
+	if fn == "upnp" {
+		return []string{"serviceName", "actionName"}
+	}
 	swc := m.fl.GetSuggestedSwitchCmds()
 	if f, ok := swc[fn]; ok {
 		return f
@@ -107,7 +121,27 @@ func (m *FritzMod) GetPossibleArgs(fn string) []string {
 	return make([]string, 0)
 }
 
-func (m *FritzMod) GetArgSuggestions(fn string, arg string) map[string]string {
+func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+	if fn == "upnp" {
+		ret := map[string]string{}
+		if arg == "serviceName" {
+			svc, _ := m.fl.GetUpnpServicesShort()
+			for _, v := range svc {
+				ret[v] = v
+			}
+			return ret
+		} else if arg == "actionName" {
+			serviceName, ok := otherArgs["serviceName"].(string)
+			if !ok {
+				return ret
+			}
+			actions, _ := m.fl.GetUpnpServiceActions(serviceName)
+			for _, v := range actions {
+				ret[v] = v
+			}
+			return ret
+		}
+	}
 	switch arg {
 	case "device":
 		return m.GetDevices()

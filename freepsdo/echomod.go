@@ -31,7 +31,7 @@ func (m *EchoMod) GetPossibleArgs(fn string) []string {
 	return ret
 }
 
-func (m *EchoMod) GetArgSuggestions(fn string, arg string) map[string]string {
+func (m *EchoMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
 	ret := map[string]string{}
 	return ret
 }

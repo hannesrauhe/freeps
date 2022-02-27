@@ -78,7 +78,7 @@ func (m *EvalMod) GetPossibleArgs(fn string) []string {
 	return ret
 }
 
-func (m *EvalMod) GetArgSuggestions(fn string, arg string) map[string]string {
+func (m *EvalMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
 	switch arg {
 	case "valueType":
 		return map[string]string{"int": "int"}
