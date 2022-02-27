@@ -151,6 +151,11 @@ func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string
 		return map[string]string{"Off": "253", "16": "32", "18": "36", "20": "40", "22": "44", "24": "48"}
 	case "temperature": // fn=="setcolortemperature"
 		return map[string]string{"2700K": "2700", "3500K": "3500", "4250K": "4250", "5000K": "5000", "6500K": "6500"}
+	case "level":
+		if fn == "setlevel" {
+			return map[string]string{"50": "50", "100": "100", "150": "150", "200": "200", "255": "255"}
+		}
+		return map[string]string{"5": "5", "25": "25", "50": "50", "75": "75", "100": "100"}
 	case "duration":
 		return map[string]string{"0": "0", "0.1s": "1", "1s": "10"}
 	}
