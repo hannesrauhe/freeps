@@ -39,13 +39,21 @@ func (r *Telegraminator) Shutdown(ctx context.Context) {
 	r.bot.StopReceivingUpdates()
 }
 
-func (r *Telegraminator) newJSONButton(name string, tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardButton {
+type ButtonWrapper struct {
+	Button tgbotapi.InlineKeyboardButton
+	Choice string
+}
+
+func (r *Telegraminator) newJSONButton(name string, tcr *TelegramCallbackResponse) *ButtonWrapper {
+	if len(name) > 15 {
+		name = name[0:15]
+	}
 	byt, err := json.Marshal(tcr)
 	if err != nil {
 		panic(err)
 	}
 	s := string(byt)
-	return tgbotapi.NewInlineKeyboardButtonData(name, s)
+	return &ButtonWrapper{Button: tgbotapi.NewInlineKeyboardButtonData(name, s), Choice: tcr.C}
 }
 
 func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
@@ -57,8 +65,8 @@ func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return board
 }
 
-func (r *Telegraminator) getModButtons() []tgbotapi.InlineKeyboardButton {
-	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(r.Modinator.Mods))
+func (r *Telegraminator) getModButtons() []*ButtonWrapper {
+	keys := make([]*ButtonWrapper, 0, len(r.Modinator.Mods))
 	for k := range r.Modinator.Mods {
 		tcr := TelegramCallbackResponse{F: false, P: -1, C: k}
 		keys = append(keys, r.newJSONButton(k, &tcr))
@@ -66,10 +74,10 @@ func (r *Telegraminator) getModButtons() []tgbotapi.InlineKeyboardButton {
 	return keys
 }
 
-func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []tgbotapi.InlineKeyboardButton {
+func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []*ButtonWrapper {
 	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
 	fn := r.Modinator.Mods[ta.Mod].GetFunctions()
-	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(fn))
+	keys := make([]*ButtonWrapper, 0, len(fn))
 	tcr.K = true
 	keys = append(keys, r.newJSONButton("<CUSTOM>", tcr))
 	tcr.K = false
@@ -80,10 +88,10 @@ func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []tgbotapi.
 	return keys
 }
 
-func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackResponse) []tgbotapi.InlineKeyboardButton {
+func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackResponse) []*ButtonWrapper {
 	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
 	argOptions := r.Modinator.Mods[ta.Mod].GetArgSuggestions(ta.Fn, arg, ta.Args)
-	keys := make([]tgbotapi.InlineKeyboardButton, 0, len(argOptions)+2)
+	keys := make([]*ButtonWrapper, 0, len(argOptions)+2)
 	tcr.F = true
 	keys = append(keys, r.newJSONButton("<Execute>", tcr))
 	tcr.F = false
@@ -92,43 +100,41 @@ func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackRespons
 	keys = append(keys, r.newJSONButton("<CUSTOM>", tcr))
 	tcr.K = false
 	for k, v := range argOptions {
-		if len(v) > 40 {
-			v = v[0:40]
-			k = "INVALID: " + k
-			if len(k) > 15 {
-				k = k[0:15]
-			}
-		}
 		tcr.C = v
 		keys = append(keys, r.newJSONButton(k, tcr))
 	}
 	return keys
 }
 
-func (r *Telegraminator) multiChoiceKeyboard(buttons []tgbotapi.InlineKeyboardButton) tgbotapi.InlineKeyboardMarkup {
-	row := [][]tgbotapi.InlineKeyboardButton{}
-	for i := range buttons {
-		if i%3 == 0 {
-			b := i
-			e := i + 3
-			if e > len(buttons) {
-				e = len(buttons)
-			}
-			row = append(row, tgbotapi.NewInlineKeyboardRow(buttons[b:e]...))
+func (r *Telegraminator) multiChoiceKeyboard(buttons []*ButtonWrapper) (tgbotapi.InlineKeyboardMarkup, string) {
+	rows := [][]tgbotapi.InlineKeyboardButton{}
+	row := []tgbotapi.InlineKeyboardButton{}
+	counter := 0
+	addVals := ""
+	for _, b := range buttons {
+		if len(*b.Button.CallbackData) > 60 {
+			addVals += " " + b.Choice
+			continue
+		}
+		row = append(row, b.Button)
+		counter++
+		if counter != 0 && counter%3 == 0 {
+			rows = append(rows, tgbotapi.NewInlineKeyboardRow(row...))
+			row = []tgbotapi.InlineKeyboardButton{}
 		}
 	}
-	return tgbotapi.NewInlineKeyboardMarkup(row...)
+	return tgbotapi.NewInlineKeyboardMarkup(rows...), addVals
 }
 
-func (r *Telegraminator) getModKeyboard() tgbotapi.InlineKeyboardMarkup {
+func (r *Telegraminator) getModKeyboard() (tgbotapi.InlineKeyboardMarkup, string) {
 	return r.multiChoiceKeyboard(r.getModButtons())
 }
 
-func (r *Telegraminator) getFnKeyboard(tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardMarkup {
+func (r *Telegraminator) getFnKeyboard(tcr *TelegramCallbackResponse) (tgbotapi.InlineKeyboardMarkup, string) {
 	return r.multiChoiceKeyboard(r.getFnButtons(tcr))
 }
 
-func (r *Telegraminator) getArgsKeyboard(arg string, tcr *TelegramCallbackResponse) tgbotapi.InlineKeyboardMarkup {
+func (r *Telegraminator) getArgsKeyboard(arg string, tcr *TelegramCallbackResponse) (tgbotapi.InlineKeyboardMarkup, string) {
 	return r.multiChoiceKeyboard(r.getArgsButtons(arg, tcr))
 }
 
@@ -148,7 +154,7 @@ func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
 
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
 	r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
-	msg.ReplyMarkup = r.getModKeyboard()
+	msg.ReplyMarkup, _ = r.getModKeyboard()
 	r.sendMessage(msg)
 }
 
@@ -203,7 +209,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			return
 		}
 		msg.Text = "Pick a function for " + tpl.Mod
-		msg.ReplyMarkup = r.getFnKeyboard(&tcr)
+		msg.ReplyMarkup, _ = r.getFnKeyboard(&tcr)
 	} else if len(tpl.Fn) == 0 {
 		if tcr.K {
 			msg.Text = "Type a function for " + tpl.Mod
@@ -239,8 +245,13 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			if tcr.P >= len(args) {
 				tcr.F = true
 			} else {
+				addVals := ""
 				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], tpl.Mod, tpl.Fn)
-				msg.ReplyMarkup = r.getArgsKeyboard(args[tcr.P], &tcr)
+				msg.ReplyMarkup, addVals = r.getArgsKeyboard(args[tcr.P], &tcr)
+				if len(addVals) > 0 {
+					// do not use SendMessage, because that message gets deleted.... yeah, I need to clean this up
+					r.bot.Send(tgbotapi.NewMessage(chat.ID, "More values:"+addVals+"."))
+				}
 			}
 		}
 	}
