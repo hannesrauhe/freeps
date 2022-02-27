@@ -1,1 +1,0 @@
-This directory is copied from https://github.com/mxschmitt/fritzbox_exporter/tree/master/pkg/fritzboxmetrics because freepslib does not need the prometheus functionality
