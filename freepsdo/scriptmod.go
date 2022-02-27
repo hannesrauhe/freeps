@@ -74,7 +74,7 @@ func (m *ScriptMod) GetPossibleArgs(fn string) []string {
 	return ret
 }
 
-func (m *ScriptMod) GetArgSuggestions(fn string, arg string) map[string]string {
+func (m *ScriptMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
 	ret := map[string]string{}
 	return ret
 }

@@ -36,7 +36,7 @@ type Freeps struct {
 }
 
 func NewFreepsLib(conf *FBconfig) (*Freeps, error) {
-	f := &Freeps{*conf, "", false, nil}
+	f := &Freeps{conf: *conf, Verbose: false}
 	// return f, f.login()
 	return f, nil
 }
