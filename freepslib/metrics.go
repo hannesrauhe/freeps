@@ -14,8 +14,8 @@ type FritzBoxMetrics struct {
 	DeviceModelName      string
 	DeviceFriendlyName   string
 	Uptime               int64
-	BytesReceived        int64 `json:"X_AVM_DE_TotalBytesReceived64"`
-	BytesSent            int64 `json:"X_AVM_DE_TotalBytesSent64"`
+	BytesReceived        int64 `json:"X_AVM_DE_TotalBytesReceived64",string`
+	BytesSent            int64 `json:"X_AVM_DE_TotalBytesSent64",string`
 	TransmissionRateUp   int64 `json:"ByteReceiveRate"`
 	TransmissionRateDown int64 `json:"ByteSendRate"`
 }
