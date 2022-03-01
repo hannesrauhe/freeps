@@ -15,7 +15,7 @@ import (
 	"net/url"
 	"unicode/utf16"
 
-	"github.com/hannesrauhe/freeps/freepslib/fritzbox_upnp"
+	"github.com/hannesrauhe/freeps/freepslib/fritzboxmetrics"
 )
 
 type FBconfig struct {
@@ -32,7 +32,7 @@ type Freeps struct {
 	conf          FBconfig
 	SID           string
 	Verbose       bool
-	metricsObject *fritzbox_upnp.Root
+	metricsObject *fritzboxmetrics.Root
 }
 
 func NewFreepsLib(conf *FBconfig) (*Freeps, error) {

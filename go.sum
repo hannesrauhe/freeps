@@ -1,3 +1,5 @@
+github.com/123Haynes/go-http-digest-auth-client v0.3.1-0.20171226204513-4c2ff1556cab h1:FQO+Wk1cfsj8IRyLQXorAfgyWwRnH7hs7/GXPu4xTtE=
+github.com/123Haynes/go-http-digest-auth-client v0.3.1-0.20171226204513-4c2ff1556cab/go.mod h1:QBTQTKXpTpwXFy0QjvHU3Dkbtnxe/A2ER6EIvnI6mCg=
 github.com/cyberdelia/templates v0.0.0-20141128023046-ca7fffd4298c/go.mod h1:GyV+0YP4qX0UQ7r2MoYZ+AvYDp12OF5yg4q8rGnyNh4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
