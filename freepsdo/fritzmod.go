@@ -44,6 +44,7 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 	var err error
 	var vars map[string]string
 	json.Unmarshal(jsonStr, &vars)
+	dev := vars["device"]
 
 	if fn == "upnp" {
 		m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
@@ -52,50 +53,43 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 		} else {
 			jrw.WriteError(http.StatusInternalServerError, err.Error())
 		}
-		return
-	}
-
-	if fn == "freepsflux" {
+	} else if fn == "freepsflux" {
 		err = m.ff.Push()
-		if err != nil {
+		if err == nil {
+			jrw.WriteSuccess()
+		} else {
 			jrw.WriteError(http.StatusInternalServerError, "Freepsflux error when pushing: %v", err.Error())
 		}
-		return
 	} else if fn == "getdevicelistinfos" {
 		devl, err := m.fl.GetDeviceList()
-		if err != nil {
+		if err == nil {
+			jrw.WriteSuccessMessage(devl)
+		} else {
 			jrw.WriteError(http.StatusInternalServerError, err.Error())
-			return
 		}
-		jrw.WriteSuccessMessage(devl)
-		return
-	}
-
-	dev := vars["device"]
-	if fn == "wakeup" {
+	} else if fn == "wakeup" {
 		log.Printf("Waking Up %v", dev)
 		err = m.fl.WakeUpDevice(dev)
-		if err != nil {
+		if err == nil {
+			jrw.WriteSuccessf("Woke up %s", dev)
+		} else {
 			jrw.WriteError(http.StatusInternalServerError, err.Error())
-			return
 		}
-		jrw.WriteSuccessf("Woke up %s", dev)
 	} else if fn[0:3] == "set" {
 		err = m.fl.HomeAutoSwitch(fn, dev, vars)
-		if err != nil {
+		if err == nil {
+			vars["fn"] = fn
+			jrw.WriteSuccessMessage(vars)
+		} else {
 			jrw.WriteError(http.StatusInternalServerError, err.Error())
-			return
 		}
-		jrw.WriteSuccessf("%v, %v, %v", fn, dev, vars)
 	} else {
-		var r []byte
-		r, err = m.fl.HomeAutomation(fn, dev, vars)
-
-		if err != nil {
+		r, err := m.fl.HomeAutomation(fn, dev, vars)
+		if err == nil {
+			jrw.WriteSuccessMessage(r)
+		} else {
 			jrw.WriteError(http.StatusInternalServerError, err.Error())
-			return
 		}
-		jrw.WriteSuccessMessage(r)
 	}
 }
 
