@@ -53,7 +53,7 @@ func (m *CurlMod) GetFunctions() []string {
 }
 
 func (m *CurlMod) GetPossibleArgs(fn string) []string {
-	return []string{}
+	return []string{"url"}
 }
 
 func (m *CurlMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
