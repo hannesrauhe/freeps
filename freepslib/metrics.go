@@ -7,21 +7,21 @@ import (
 	"log"
 	"strings"
 
-	"github.com/hannesrauhe/freeps/freepslib/fritzboxmetrics"
+	"github.com/hannesrauhe/freeps/freepslib/fritzbox_upnp"
 )
 
 type FritzBoxMetrics struct {
 	DeviceModelName      string
 	DeviceFriendlyName   string
 	Uptime               int64
-	BytesReceived        int64 `json:"X_AVM_DE_TotalBytesReceived64"`
-	BytesSent            int64 `json:"X_AVM_DE_TotalBytesSent64"`
+	BytesReceived        int64 `json:"X_AVM_DE_TotalBytesReceived64,string"`
+	BytesSent            int64 `json:"X_AVM_DE_TotalBytesSent64,string"`
 	TransmissionRateUp   int64 `json:"ByteReceiveRate"`
 	TransmissionRateDown int64 `json:"ByteSendRate"`
 }
 
-func (f *Freeps) getMetricsMap(serviceName string, actionName string) (fritzboxmetrics.Result, error) {
-	rmap := fritzboxmetrics.Result{}
+func (f *Freeps) getMetricsMap(serviceName string, actionName string) (fritzbox_upnp.Result, error) {
+	rmap := fritzbox_upnp.Result{}
 
 	service, ok := f.getService(serviceName)
 	if !ok {
@@ -38,7 +38,7 @@ func (f *Freeps) getMetricsMap(serviceName string, actionName string) (fritzboxm
 		return rmap, fmt.Errorf("cannot find action %s/%s ", serviceName, actionName)
 	}
 
-	rmap, err := action.Call()
+	rmap, err := action.Call(nil)
 	if err != nil {
 		return rmap, errors.New("cannot call action " + actionName)
 	}
@@ -48,7 +48,7 @@ func (f *Freeps) getMetricsMap(serviceName string, actionName string) (fritzboxm
 func (f *Freeps) initMetrics() error {
 	var err error
 	if f.metricsObject == nil {
-		f.metricsObject, err = fritzboxmetrics.LoadServices(f.conf.FB_address, uint16(49000), f.conf.FB_user, f.conf.FB_pass)
+		f.metricsObject, err = fritzbox_upnp.LoadServices("http://"+f.conf.FB_address+":49000", f.conf.FB_user, f.conf.FB_pass, false)
 		if err != nil {
 			return err
 		}
@@ -152,7 +152,7 @@ func (f *Freeps) getShortServiceName(svcName string) string {
 }
 
 // helper function to deal with short service names
-func (f *Freeps) getService(svcName string) (*fritzboxmetrics.Service, bool) {
+func (f *Freeps) getService(svcName string) (*fritzbox_upnp.Service, bool) {
 	svc, ok := f.metricsObject.Services[svcName]
 	if !ok {
 		for k, v := range f.metricsObject.Services {
