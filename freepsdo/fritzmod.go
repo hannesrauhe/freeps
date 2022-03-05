@@ -12,10 +12,11 @@ import (
 )
 
 type FritzMod struct {
-	fl  *freepslib.Freeps
-	ff  *freepsflux.FreepsFlux
-	fc  *freepslib.FBconfig
-	ffc *freepsflux.FreepsFluxConfig
+	fl            *freepslib.Freeps
+	ff            *freepsflux.FreepsFlux
+	fc            *freepslib.FBconfig
+	ffc           *freepsflux.FreepsFluxConfig
+	cachedDevices map[string]string
 }
 
 var _ Mod = &FritzMod{}
@@ -61,7 +62,7 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 			jrw.WriteError(http.StatusInternalServerError, "Freepsflux error when pushing: %v", err.Error())
 		}
 	} else if fn == "getdevicelistinfos" {
-		devl, err := m.fl.GetDeviceList()
+		devl, err := m.getDeviceList()
 		if err == nil {
 			jrw.WriteSuccessMessage(devl)
 		} else {
@@ -157,14 +158,22 @@ func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string
 }
 
 func (m *FritzMod) GetDevices() map[string]string {
-	retMap := map[string]string{}
+	if len(m.cachedDevices) == 0 {
+		m.getDeviceList()
+	}
+	return m.cachedDevices
+}
+
+// getDeviceList retrieves the devicelist and caches
+func (m *FritzMod) getDeviceList() (*freepslib.AvmDeviceList, error) {
+	m.cachedDevices = map[string]string{}
 	devl, err := m.fl.GetDeviceList()
 	if err != nil {
 		log.Println(err)
-		return retMap
+		return nil, err
 	}
 	for _, dev := range devl.Device {
-		retMap[dev.Name] = dev.AIN
+		m.cachedDevices[dev.Name] = dev.AIN
 	}
-	return retMap
+	return devl, nil
 }
