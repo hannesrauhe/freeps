@@ -10,7 +10,9 @@ import (
 	"github.com/hannesrauhe/freeps/freepsdo"
 )
 
-const templateString = `<form action="#" method="Get">
+const templateString = `
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<form action="#" method="Get">
 <p>
 	Mod:
 		{{ range $key, $value := .ModSuggestions }}
