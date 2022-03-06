@@ -56,6 +56,8 @@ func (m *EvalMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 	switch args.ValueType {
 	case "int":
 		result, err = m.EvalInt(v, args.Operation, args.Operand)
+	case "bool":
+		result = v=="true" //TODO: proper parsing
 	default:
 		err = fmt.Errorf("No such type %s", args.ValueType)
 	}
