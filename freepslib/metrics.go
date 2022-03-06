@@ -25,14 +25,14 @@ func (f *Freeps) getMetricsMap(serviceName string, actionName string) (fritzbox_
 
 	service, ok := f.getService(serviceName)
 	if !ok {
-		if f.Verbose {
+		if f.conf.Verbose {
 			log.Printf("Available services:\n %v\n", f.metricsObject.Services)
 		}
 		return rmap, errors.New("cannot find service " + serviceName)
 	}
 	action, ok := service.Actions[actionName]
 	if !ok {
-		if f.Verbose {
+		if f.conf.Verbose {
 			log.Printf("Available actions:\n %v\n", service.Actions)
 		}
 		return rmap, fmt.Errorf("cannot find action %s/%s ", serviceName, actionName)
@@ -82,7 +82,7 @@ func (f *Freeps) GetMetrics() (FritzBoxMetrics, error) {
 	if err != nil {
 		return r, err
 	}
-	if f.Verbose {
+	if f.conf.Verbose {
 		log.Printf("Received metrics:\n %q\n", byt)
 	}
 	err = json.Unmarshal(byt, &r)
