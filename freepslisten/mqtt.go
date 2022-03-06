@@ -132,6 +132,10 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 		log.Print(err)
 	}
 
+	if fmc.Server == "" {
+		return nil
+	}
+
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
 	fmqtt := &FreepsMqtt{Config: &fmc, Doer: doer}

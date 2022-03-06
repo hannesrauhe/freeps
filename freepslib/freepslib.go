@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 	"unicode/utf16"
 
 	"github.com/hannesrauhe/freeps/freepslib/fritzbox_upnp"
@@ -54,7 +55,7 @@ func (f *Freeps) login() error {
 func (f *Freeps) getHttpClient() *http.Client {
 	tr := &http.Transport{}
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	return &http.Client{Transport: tr}
+	return &http.Client{Transport: tr, Timeout: time.Second * 10}
 }
 
 /****** AUTH *****/
@@ -325,7 +326,7 @@ func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[s
 
 		dataResp, err = f.getHttpClient().Get(dataURL)
 		if err != nil {
-			return nil, errors.New("cannot get")
+			return nil, fmt.Errorf("Request to '%s' failed: %v", dataURL, err)
 		}
 		defer dataResp.Body.Close()
 

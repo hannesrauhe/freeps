@@ -52,7 +52,7 @@ const templateString = `<form action="#" method="Get">
 <button type="submit" name="Execute" value="Execute">Execute</button>
 <input type="text" name="TemplateName" />
 <button type="submit" name="SaveTemplate">Save Template</button>
-<button type="reset"  value="Reset" />Reset</button>
+<button type="submit" name="TemplateJSON" value="" />Reset</button>
 </form>
 
 {{ if .Output }}
@@ -93,7 +93,9 @@ func (r *HTMLUI) buildPartialTemplate(vars url.Values) *freepsdo.TemplateAction 
 		return ta
 	}
 	if vars.Has("TemplateJSON") {
-		json.Unmarshal([]byte(vars["TemplateJSON"][0]), ta)
+		vArr := vars["TemplateJSON"]
+		v := vArr[len(vArr)-1]
+		json.Unmarshal([]byte(v), ta)
 	}
 	for k, vArr := range vars {
 		v := vArr[len(vArr)-1]
