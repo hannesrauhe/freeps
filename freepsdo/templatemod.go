@@ -175,6 +175,17 @@ func (m *TemplateMod) GetTemplate(templateName string) (*Template, bool) {
 	return template, exists
 }
 
+func (m *TemplateMod) SaveTemplateAction(templateName string, ta *TemplateAction) error {
+	template, exists := m.Config.Templates[templateName]
+	if !exists {
+		m.Config.Templates[templateName] = &Template{Actions: make([]TemplateAction, 0, 1)}
+		template = m.Config.Templates[templateName]
+	}
+	template.Actions = append(template.Actions, *ta)
+	m.cr.WriteSection("TemplateMod", m.Config, true)
+	return nil
+}
+
 func (m *TemplateMod) GetAllTemplates(includeTemp bool) map[string]*Template {
 	retMap := map[string]*Template{}
 	if includeTemp {
