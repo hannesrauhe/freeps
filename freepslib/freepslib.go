@@ -23,27 +23,30 @@ type FBconfig struct {
 	FB_address string
 	FB_user    string
 	FB_pass    string
+	Verbose    bool
 }
 
-var DefaultConfig = FBconfig{"fritz.box",
-	"user",
-	"pass"}
+var DefaultConfig = FBconfig{"fritz.box", "user", "pass", false}
 
 type Freeps struct {
 	conf          FBconfig
 	SID           string
-	Verbose       bool
 	metricsObject *fritzbox_upnp.Root
 }
 
 func NewFreepsLib(conf *FBconfig) (*Freeps, error) {
-	f := &Freeps{conf: *conf, Verbose: false}
+	f := &Freeps{conf: *conf}
 	// return f, f.login()
 	return f, nil
 }
 
 func (f *Freeps) login() error {
 	var err error
+
+	if f.conf.Verbose {
+		log.Println("Trying to log into fritzbox")
+	}
+
 	f.SID, err = f.getSid()
 	if err != nil {
 		log.Print("Failed to authenticate")
@@ -166,7 +169,7 @@ func (f *Freeps) queryData(payload map[string]string, AvmResponse interface{}) e
 			return errors.New("http status code != 200")
 		}
 
-		if f.Verbose {
+		if f.conf.Verbose {
 			log.Printf("Received data:\n %q\n", byt)
 		}
 
@@ -308,6 +311,8 @@ type AvmTemplateList struct {
 }
 
 func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[string]string) ([]byte, error) {
+	mTime := time.Now()
+
 	baseUrl := "https://" + f.conf.FB_address + "/webservices/homeautoswitch.lua"
 	var dataURL string
 	var dataResp *http.Response
@@ -350,8 +355,10 @@ func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[s
 		return nil, errors.New("http status code != 200")
 	}
 
-	if f.Verbose {
-		log.Printf("Received data:\n %q\n", byt)
+	time1 := time.Now().Unix() - mTime.Unix()
+
+	if f.conf.Verbose {
+		log.Printf("Request took %vs.\nReceived data:\n %q\n", time1, byt)
 	}
 	return byt, nil
 }
