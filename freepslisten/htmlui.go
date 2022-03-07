@@ -46,6 +46,18 @@ const templateString = `
 <p>
 <input type="text" name="newarg" /> <input type="text" name="newvalue" /><button name="addarg">Add Arg</button>
 <p>
+
+<p>
+	FwdTemplateName:
+		{{ range $key, $value := .Templates }}
+			{{ if $value}}
+				<button name="FwdTemplateName" value="{{ $key }}" disabled="true" >{{ $key }}</button>
+			{{ else}}
+				<button name="FwdTemplateName" value="{{ $key }}">{{ $key }}</button>
+			{{ end }}
+		{{ end }}
+</p>
+
 <textarea name="TemplateJSON" cols="50" rows="10">
 {{ .TemplateJSON }}
 </textarea>
@@ -76,6 +88,7 @@ type TemplateData struct {
 	ModSuggestions map[string]bool
 	FnSuggestions  map[string]bool
 	ArgSuggestions map[string]map[string]string
+	Templates      map[string]bool
 	TemplateJSON   string
 	Output         string
 }
@@ -112,6 +125,9 @@ func (r *HTMLUI) buildPartialTemplate(vars url.Values) *freepsdo.TemplateAction 
 		if k == "fn" {
 			ta.Fn = v
 		}
+		if k == "FwdTemplateName" {
+			ta.FwdTemplateName = v
+		}
 	}
 	if vars.Get("newarg") != "" {
 		ta.Args[vars.Get("newarg")] = vars.Get("newvalue")
@@ -123,7 +139,7 @@ func (r *HTMLUI) buildPartialTemplate(vars url.Values) *freepsdo.TemplateAction 
 func (r *HTMLUI) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := req.URL.Query()
 	ta := r.buildPartialTemplate(vars)
-	td := &TemplateData{ModSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string)}
+	td := &TemplateData{ModSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), Templates: map[string]bool{}}
 	b, _ := json.MarshalIndent(ta, "", "  ")
 	td.TemplateJSON = string(b)
 
@@ -138,6 +154,10 @@ func (r *HTMLUI) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	for _, k := range mod.GetPossibleArgs(ta.Fn) {
 		td.ArgSuggestions[k] = mod.GetArgSuggestions(ta.Fn, k, ta.Args)
+	}
+
+	for k := range r.modinator.GetAllTemplates(false) {
+		td.Templates[k] = (k == ta.FwdTemplateName)
 	}
 
 	if vars.Has("Execute") {
