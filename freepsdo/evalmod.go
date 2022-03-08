@@ -24,7 +24,7 @@ type EvalArgs struct {
 func (m *EvalMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	var args EvalArgs
 	err := json.Unmarshal(jsonStr, &args)
-	if err != nil || args.ValueName == "" || args.ValueType == "" || args.Operation == "" || args.Operand == "" {
+	if err != nil || args.ValueName == "" || args.ValueType == "" {
 		jrw.WriteError(http.StatusBadRequest, "request cannot be parsed or is missing a value")
 		return
 	}
