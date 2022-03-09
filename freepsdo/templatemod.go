@@ -32,6 +32,7 @@ type TemplateMod struct {
 	Config             TemplateModConfig
 	TemporaryTemplates map[string]*Template
 	ExternalTemplates  map[string]*Template
+	Cache              map[string][]byte
 	cr                 *utils.ConfigReader
 }
 
@@ -67,7 +68,7 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 		json.Unmarshal(byt, &ext)
 	}
 
-	tm := &TemplateMod{Mods: mods, Config: tmc, ExternalTemplates: ext, cr: cr,
+	tm := &TemplateMod{Mods: mods, Config: tmc, ExternalTemplates: ext, cr: cr, Cache: map[string][]byte{},
 		TemporaryTemplates: map[string]*Template{"_last": &Template{Actions: []TemplateAction{{Mod: "echo", Fn: "hello"}}}}}
 	mods["template"] = tm
 	mods["system"] = NewSystemeMod(tm)
@@ -135,7 +136,6 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		return
 	}
 	mod.DoWithJSON(t.Fn, jsonStr, jrw)
-	m.TemporaryTemplates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
 	if len(t.FwdTemplateName) > 0 {
 		o, err := jrw.GetMarshalledOutput()
 		if err == nil {
@@ -149,6 +149,10 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 	}
 	if !jrw.isSubtreeFinished() {
 		jrw.WriteSuccess()
+	}
+	if jrw.IsRoot() {
+		m.TemporaryTemplates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
+		m.Cache["_last"] = jrw.GetResponseTree()
 	}
 }
 

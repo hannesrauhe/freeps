@@ -139,9 +139,13 @@ func (j *ResponseCollector) IsStatusFailed() bool {
 	return j.context.StatusCode >= 300
 }
 
+func (j *ResponseCollector) IsRoot() bool {
+	return j.root == nil
+}
+
 func (j *ResponseCollector) GetResponseTree() []byte {
 	j.collectandFinalizeSubtreeResponse()
-	b, _ := json.Marshal(j.context)
+	b, _ := json.MarshalIndent(j.context, "", "  ")
 	return b
 }
 
