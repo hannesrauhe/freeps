@@ -40,7 +40,7 @@ type FreepsMqttConfig struct {
 	Topics   []TopicConfig
 }
 
-var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "pushtoinflux"}
+var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "mqttaction"}
 var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 
 type FieldWithType struct {
@@ -130,6 +130,10 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 	cr.WriteBackConfigIfChanged()
 	if err != nil {
 		log.Print(err)
+	}
+
+	if fmc.Server == "" {
+		return nil
 	}
 
 	hostname, _ := os.Hostname()

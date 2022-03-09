@@ -153,6 +153,10 @@ func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string
 		return map[string]string{"5": "5", "25": "25", "50": "50", "75": "75", "100": "100"}
 	case "duration":
 		return map[string]string{"0": "0", "0.1s": "1", "1s": "10"}
+	case "hue":
+		return map[string]string{"red": "358"}
+	case "saturation":
+		return map[string]string{"red": "180"}
 	}
 	return map[string]string{}
 }

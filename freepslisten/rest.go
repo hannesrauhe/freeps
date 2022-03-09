@@ -16,6 +16,7 @@ import (
 type Restonator struct {
 	Modinator *freepsdo.TemplateMod
 	srv       *http.Server
+	ui        *HTMLUI
 }
 
 func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -44,10 +45,11 @@ func (r *Restonator) Shutdown(ctx context.Context) {
 }
 
 func NewRestEndpoint(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel context.CancelFunc) *Restonator {
-	rest := &Restonator{Modinator: doer}
+	rest := &Restonator{Modinator: doer, ui: NewHTMLUI(doer)}
 	r := mux.NewRouter()
 	r.Handle("/{mod}/{function}", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
+	r.Handle("/ui", rest.ui)
 	r.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Shutdown Request Sucess"))
 		// Cancel the context on request
