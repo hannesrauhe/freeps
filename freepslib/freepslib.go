@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"time"
 	"unicode/utf16"
+	"bytes"
 
 	"github.com/hannesrauhe/freeps/freepslib/fritzbox_upnp"
 )
@@ -360,7 +361,7 @@ func (f *Freeps) queryHomeAutomation(switchcmd string, ain string, payload map[s
 	if f.conf.Verbose {
 		log.Printf("Request took %vs.\nReceived data:\n %q\n", time1, byt)
 	}
-	return byt, nil
+	return bytes.Trim(byt, "\n"), nil
 }
 
 func (f *Freeps) GetDeviceList() (*AvmDeviceList, error) {
