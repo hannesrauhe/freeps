@@ -9,7 +9,6 @@ import (
 )
 
 type RaspistillMod struct {
-	functions map[string][]string
 }
 
 var _ Mod = &RaspistillMod{}

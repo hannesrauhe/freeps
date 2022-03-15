@@ -22,8 +22,7 @@ func (m *EchoMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 }
 
 func (m *EchoMod) GetFunctions() []string {
-	keys := make([]string, 0)
-	return keys
+	return []string{"bytes", "hello", "direct", "escaped"}
 }
 
 func (m *EchoMod) GetPossibleArgs(fn string) []string {

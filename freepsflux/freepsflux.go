@@ -93,7 +93,10 @@ func (ff *FreepsFlux) Push() error {
 		return err
 	}
 	time3 := time.Now().Unix() - mTime.Unix()
-	log.Printf("Retrieving FB data to push to Influx took %vs/%vs/%vs", time1, time2, time3)
+
+	if ff.Verbose {
+		log.Printf("Retrieving FB data to push to Influx took %vs/%vs/%vs", time1, time2, time3)
+	}
 
 	// influxOptions.AddDefaultTag("fb", "6490").AddDefaultTag("hostname", ff.config.Hostname)
 
@@ -102,7 +105,9 @@ func (ff *FreepsFlux) Push() error {
 		ff.MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		ff.NetDeviceListToPoints(netd, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		writeAPI.Flush()
-		log.Printf("Written to Connection %v", ff.config.InfluxdbConnections[i].URL)
+		if ff.Verbose {
+			log.Printf("Written to Connection %v", ff.config.InfluxdbConnections[i].URL)
+		}
 	}
 
 	if ff.Verbose {

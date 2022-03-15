@@ -42,6 +42,8 @@ func (m *SystemMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector
 		m.saveLast(args["newName"], jrw)
 	case "MergeTemplates":
 		m.mergeTemplates(args["src"], args["dest"], jrw)
+	case "GetLastResponse":
+		jrw.WriteSuccessMessage(m.Modinator.Cache["_last"])
 	default:
 		jrw.WriteError(404, "Function %s not found", fn)
 	}
@@ -80,11 +82,12 @@ func (m *SystemMod) GetArgSuggestions(fn string, arg string, otherArgs map[strin
 }
 
 var fnArgs map[string][]string = map[string][]string{
-	"GetTemplate":    {"name"},
-	"DeleteTemplate": {"name"},
-	"RenameTemplate": {"name", "newName"},
-	"SaveLast":       {"newName"},
-	"MergeTemplates": {"src", "dest"},
+	"GetTemplate":     {"name"},
+	"DeleteTemplate":  {"name"},
+	"RenameTemplate":  {"name", "newName"},
+	"SaveLast":        {"newName"},
+	"MergeTemplates":  {"src", "dest"},
+	"GetLastResponse": {},
 }
 
 func (m *SystemMod) getTemplate(name string, jrw *ResponseCollector) {

@@ -51,7 +51,7 @@ func NewTMMock(templates map[string]*Template) (*TemplateMod, *MockMod) {
 	mods := map[string]Mod{}
 	mm := &MockMod{}
 	mods["mock"] = mm
-	tm := &TemplateMod{Mods: mods, cr: cr, Config: TemplateModConfig{Templates: templates}, TemporaryTemplates: map[string]*Template{}, ExternalTemplates: map[string]*Template{}}
+	tm := &TemplateMod{Mods: mods, cr: cr, Config: TemplateModConfig{Templates: templates}, TemporaryTemplates: map[string]*Template{}, ExternalTemplates: map[string]*Template{}, Cache: make(map[string][]byte)}
 	mods["template"] = tm
 	return tm, mm
 }
