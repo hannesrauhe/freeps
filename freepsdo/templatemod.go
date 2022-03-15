@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -11,6 +12,7 @@ import (
 type TemplateModConfig struct {
 	Templates        map[string]*Template
 	TemplatesFromUrl string
+	Verbose          bool
 }
 
 var DefaultConfig = TemplateModConfig{}
@@ -114,6 +116,8 @@ func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, json
 }
 
 func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction, moreJsonArgs []byte, jrw *ResponseCollector) {
+	startTime := time.Now()
+
 	jrw.SetContext(t)
 	mod, modExists := m.Mods[t.Mod]
 	if !modExists {
@@ -153,6 +157,9 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 	if jrw.IsRoot() {
 		m.TemporaryTemplates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
 		m.Cache["_last"] = jrw.GetResponseTree()
+		if m.Config.Verbose {
+			log.Printf("Executed %v in %ds", *t, time.Now().Unix()-startTime.Unix())
+		}
 	}
 }
 
