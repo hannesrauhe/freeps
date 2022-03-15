@@ -48,20 +48,25 @@ func ReadBytesFromFile(filePath string, configFileDir string) []byte {
 	return byt
 }
 
+func GetSectionsMap(jsonBytes []byte) (map[string]interface{}, error) {
+	sectionsMap := make(map[string]interface{})
+	var err error
+
+	if len(jsonBytes) > 0 {
+		err = json.Unmarshal(jsonBytes, &sectionsMap)
+	}
+	return sectionsMap, err
+}
+
 // ReadSectionWithDefaults parses the content of the first-level-JSON object in <sectionName> into configStruct
 //
 // if the section exists, configStruct will first get overwritten by an optional included file, then by the contents of the section
 // (append+overwrite in both cases), returns an empty byte-slice
 // if the section does not exist, the serialized content of configStruct (assuming these are default values) is added to jsonBytes and returned
 func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct interface{}, configFileDir string) ([]byte, error) {
-	sectionsMap := make(map[string]interface{})
-	var err error
-
-	if len(jsonBytes) > 0 {
-		err = json.Unmarshal(jsonBytes, &sectionsMap)
-		if err != nil {
-			return []byte{}, err
-		}
+	sectionsMap, err := GetSectionsMap(jsonBytes)
+	if err != nil {
+		return []byte{}, err
 	}
 
 	if sectionsMap[sectionName] == nil {
@@ -99,14 +104,9 @@ func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct 
 
 // WriteSection puts the ConfigStruct object in the config file by preserving everything that is part of the section
 func WriteSection(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
-	sectionsMap := make(map[string]interface{})
-	var err error
-
-	if len(jsonBytes) > 0 {
-		err = json.Unmarshal(jsonBytes, &sectionsMap)
-		if err != nil {
-			return []byte{}, err
-		}
+	sectionsMap, err := GetSectionsMap(jsonBytes)
+	if err != nil {
+		return []byte{}, err
 	}
 
 	if sectionsMap[sectionName] == nil {
@@ -154,6 +154,37 @@ func NewConfigReader(configFilePath string) (*ConfigReader, error) {
 		return nil, err
 	}
 	return &ConfigReader{configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
+}
+
+// GetSectionBytes returns the bytes of the section given by sectionName
+func (c *ConfigReader) GetSectionBytes(sectionName string) ([]byte, error) {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
+	sectionsMap, err := GetSectionsMap(c.configFileContent)
+	if err != nil {
+		return []byte{}, err
+	}
+	if sectionsMap[sectionName] == nil {
+		return []byte{}, nil
+	}
+	return json.Marshal(sectionsMap[sectionName])
+}
+
+// GetSectionNames returns the names of all sections in the config file
+func (c *ConfigReader) GetSectionNames() ([]string, error) {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
+	sectionsMap, err := GetSectionsMap(c.configFileContent)
+	if err != nil {
+		return []string{}, err
+	}
+	keys := make([]string, 0, len(sectionsMap))
+	for k := range sectionsMap {
+		keys = append(keys, k)
+	}
+	return keys, nil
 }
 
 func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct interface{}) error {

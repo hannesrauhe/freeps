@@ -44,6 +44,8 @@ func (m *SystemMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector
 		m.mergeTemplates(args["src"], args["dest"], jrw)
 	case "GetLastResponse":
 		jrw.WriteSuccessMessage(m.Modinator.Cache["_last"])
+	case "GetConfigSection":
+		m.getConfigSection(args["section"], jrw)
 	default:
 		jrw.WriteError(404, "Function %s not found", fn)
 	}
@@ -66,28 +68,42 @@ func (m *SystemMod) GetPossibleArgs(fn string) []string {
 }
 
 func (m *SystemMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+	ret := map[string]string{}
+
 	if arg == "src" || arg == "dest" || arg == "name" {
-		ret := map[string]string{}
 		for k := range m.Modinator.GetAllTemplates(false) {
 			ret[k] = k
 		}
 		return ret
 	}
-	if fn == "SaveLast" {
-		lastT, _ := m.Modinator.GetTemplate("_last")
-		sug := fmt.Sprintf("%s-%s", lastT.Actions[0].Mod, lastT.Actions[0].Fn)
-		return map[string]string{sug: sug}
+	switch fn {
+	case "SaveLast":
+		{
+			lastT, _ := m.Modinator.GetTemplate("_last")
+			sug := fmt.Sprintf("%s-%s", lastT.Actions[0].Mod, lastT.Actions[0].Fn)
+			return map[string]string{sug: sug}
+		}
+	case "GetConfigSection":
+		{
+			r, err := m.Modinator.cr.GetSectionNames()
+			if err == nil {
+				for _, v := range r {
+					ret[v] = v
+				}
+			}
+		}
 	}
-	return map[string]string{}
+	return ret
 }
 
 var fnArgs map[string][]string = map[string][]string{
-	"GetTemplate":     {"name"},
-	"DeleteTemplate":  {"name"},
-	"RenameTemplate":  {"name", "newName"},
-	"SaveLast":        {"newName"},
-	"MergeTemplates":  {"src", "dest"},
-	"GetLastResponse": {},
+	"GetTemplate":      {"name"},
+	"DeleteTemplate":   {"name"},
+	"RenameTemplate":   {"name", "newName"},
+	"SaveLast":         {"newName"},
+	"MergeTemplates":   {"src", "dest"},
+	"GetConfigSection": {"section"},
+	"GetLastResponse":  {},
 }
 
 func (m *SystemMod) getTemplate(name string, jrw *ResponseCollector) {
@@ -141,6 +157,14 @@ func (m *SystemMod) mergeTemplates(srcName string, destName string, jrw *Respons
 	dest.Actions = append(dest.Actions, src.Actions...)
 	jrw.WriteSuccessf("Merged %s into %s", srcName, destName)
 	m.Modinator.cr.WriteSection("TemplateMod", m.Modinator.Config, true)
+}
+
+func (m *SystemMod) getConfigSection(section string, jrw *ResponseCollector) {
+	src, err := m.Modinator.cr.GetSectionBytes(section)
+	if err != nil {
+		jrw.WriteError(500, "Cannot read section %v", err)
+	}
+	jrw.WriteSuccessMessage(src)
 }
 
 func (m *SystemMod) pickFreeTemplateName(name string) string {
