@@ -59,6 +59,7 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods["script"] = NewScriptMod(cr)
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
+	mods["mutt"] = NewMuttMod(cr)
 	mods["raspistill"] = &RaspistillMod{}
 
 	if tmc.Templates == nil {
