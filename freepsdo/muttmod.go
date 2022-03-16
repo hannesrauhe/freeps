@@ -24,10 +24,9 @@ var MuttModDefaultConfig = MuttModConfig{DefaultSubject: "default subject", Defa
 var _ Mod = &MuttMod{}
 
 type MuttParameters struct {
-	Subject    string
-	Attachment string
-	Body       string
-	Recv       string
+	Subject string
+	Body    string
+	Recv    string
 }
 
 func NewMuttMod(cr *utils.ConfigReader) *MuttMod {
