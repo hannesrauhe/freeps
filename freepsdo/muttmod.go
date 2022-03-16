@@ -39,7 +39,7 @@ func NewMuttMod(cr *utils.ConfigReader) *MuttMod {
 	if err != nil {
 		log.Print(err)
 	}
-	return &MuttMod{}
+	return &MuttMod{config: &conf}
 }
 
 func (m *MuttMod) DoWithJSON(function string, inputBytes []byte, jrw *ResponseCollector) {

@@ -106,9 +106,6 @@ func (j *ResponseCollector) GetOutput() (interface{}, string, error) {
 	if !j.isSubtreeFinished() {
 		return nil, "", fmt.Errorf("Children haven't finished processing")
 	}
-	if j.IsStatusFailed() {
-		return j.context.Output, j.context.OutputType, fmt.Errorf("Status is failed")
-	}
 	if j.context.Output != nil {
 		return j.context.Output, j.context.OutputType, nil
 	}
@@ -119,6 +116,9 @@ func (j *ResponseCollector) GetOutput() (interface{}, string, error) {
 				return o, t, err
 			}
 		}
+	}
+	if j.IsStatusFailed() {
+		return j.context.Output, j.context.OutputType, fmt.Errorf("Status is failed")
 	}
 	return nil, "", nil
 }
@@ -139,6 +139,10 @@ func (j *ResponseCollector) IsStatusFailed() bool {
 	return j.context.StatusCode >= 300
 }
 
+func (j *ResponseCollector) GetStatusCode() int {
+	return j.context.StatusCode
+}
+
 func (j *ResponseCollector) IsRoot() bool {
 	return j.root == nil
 }
@@ -151,19 +155,21 @@ func (j *ResponseCollector) GetResponseTree() []byte {
 
 func (j *ResponseCollector) GetFinalResponse() (int, string, []byte) {
 	j.collectandFinalizeSubtreeResponse()
-	o, t, _ := j.GetOutput()
+	o, t, err := j.GetOutput()
+	if err != nil {
+		if t == "text/plain" {
+			return j.context.StatusCode, t, []byte(t)
+		}
+		return j.context.StatusCode, "text/plain", []byte(err.Error())
+	}
 	var b []byte
-	var err error
 	switch t := o.(type) {
 	case string:
 		b = []byte(t)
 	case []byte:
 		b = t
 	default:
-		b, err = json.Marshal(o)
-	}
-	if err != nil {
-		panic(err)
+		b, _ = json.Marshal(o)
 	}
 	return j.context.StatusCode, t, b
 }
@@ -202,13 +208,10 @@ func (j *ResponseCollector) collectandFinalizeSubtreeResponse() bool {
 		j.context.ChildrenContext[k] = c.context
 		if c.IsStatusFailed() {
 			j.context.StatusCode = 424 // http.StatusFailedDependency
-		} else if j.context.Output == nil {
-			var err error
-			// collect the output of the first successful child - it's like the throne hierarchy in the British Royal family...
-			j.context.Output, j.context.OutputType, err = c.GetOutput()
-			if err != nil {
-				panic(err)
-			}
+		}
+		if j.context.Output == nil {
+			// collect the output of the first child - it's like the throne hierarchy in the British Royal family...
+			j.context.Output, j.context.OutputType, _ = c.GetOutput()
 		}
 	}
 	j.children = nil
