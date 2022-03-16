@@ -3,6 +3,7 @@ package freepslisten
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,14 +23,28 @@ type Restonator struct {
 func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 
-	args := req.URL.Query()
-	device, exists := vars["device"]
-	if exists {
-		args["device"] = make([]string, 1)
-		args["device"][0] = device
-	}
 	jrw := freepsdo.NewResponseCollector()
-	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], utils.URLArgsToJSON(args), jrw)
+	var byteargs []byte
+	var err error
+
+	if req.Method == "POST" {
+		defer req.Body.Close()
+		byteargs, err = io.ReadAll(req.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Error reading request body: %v", err)
+			return
+		}
+	} else {
+		args := req.URL.Query()
+		device, exists := vars["device"]
+		if exists {
+			args["device"] = make([]string, 1)
+			args["device"][0] = device
+		}
+		byteargs = utils.URLArgsToJSON(args)
+	}
+	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], byteargs, jrw)
 	status, otype, bytes := jrw.GetFinalResponse()
 	w.Header().Set("Content-Type", otype)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
