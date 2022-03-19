@@ -23,7 +23,7 @@ type Restonator struct {
 func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 
-	jrw := freepsdo.NewResponseCollector()
+	jrw := freepsdo.NewResponseCollector(fmt.Sprintf("rest API: %v", req.RemoteAddr))
 	var byteargs []byte
 	var err error
 
@@ -45,7 +45,7 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		byteargs = utils.URLArgsToJSON(args)
 	}
 	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], byteargs, jrw)
-	status, otype, bytes := jrw.GetFinalResponse()
+	status, otype, bytes := jrw.GetFinalResponse(false)
 	w.Header().Set("Content-Type", otype)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 	w.WriteHeader(status)

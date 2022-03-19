@@ -32,10 +32,10 @@ func main() {
 	doer := freepsdo.NewTemplateMod(cr)
 
 	if mod != "" {
-		jrw := freepsdo.NewResponseCollector()
+		jrw := freepsdo.NewResponseCollector("freepsd command")
 		args, _ := url.ParseQuery(argstring)
 		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
-		_, t, b := jrw.GetFinalResponse()
+		_, t, b := jrw.GetFinalResponse(true)
 		if t == "text/plain" || t == "application/json" {
 			os.Stdout.Write(b)
 			println("")

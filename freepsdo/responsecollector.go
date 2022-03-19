@@ -9,6 +9,7 @@ import (
 
 type internalContext struct {
 	TemplateAction
+	Creator         string             `json:",omitempty"`
 	StatusCode      int                `json:",omitempty"`
 	Output          interface{}        `json:",omitempty"`
 	OutputType      string             `json:",omitempty"`
@@ -16,14 +17,14 @@ type internalContext struct {
 }
 
 type ResponseCollector struct {
-	children    []*ResponseCollector
-	root        *ResponseCollector
-	context     *internalContext
-	prettyPrint bool
+	children []*ResponseCollector
+	root     *ResponseCollector
+	context  *internalContext
+	creator  string
 }
 
-func NewResponseCollector() *ResponseCollector {
-	return &ResponseCollector{}
+func NewResponseCollector(creator string) *ResponseCollector {
+	return &ResponseCollector{creator: creator}
 }
 
 func (j *ResponseCollector) SetContext(ta *TemplateAction) {
@@ -31,7 +32,7 @@ func (j *ResponseCollector) SetContext(ta *TemplateAction) {
 		log.Print("Context is already set")
 		return
 	}
-	j.context = &internalContext{TemplateAction: *ta}
+	j.context = &internalContext{TemplateAction: *ta, Creator: j.creator}
 }
 
 func (j *ResponseCollector) Clone() *ResponseCollector {
@@ -147,13 +148,20 @@ func (j *ResponseCollector) IsRoot() bool {
 	return j.root == nil
 }
 
+func (j *ResponseCollector) GetCreator() string {
+	if j.root == nil {
+		return j.creator
+	}
+	return j.root.creator
+}
+
 func (j *ResponseCollector) GetResponseTree() []byte {
 	j.collectandFinalizeSubtreeResponse()
 	b, _ := json.MarshalIndent(j.context, "", "  ")
 	return b
 }
 
-func (j *ResponseCollector) GetFinalResponse() (int, string, []byte) {
+func (j *ResponseCollector) GetFinalResponse(pretty bool) (int, string, []byte) {
 	j.collectandFinalizeSubtreeResponse()
 	o, t, err := j.GetOutput()
 	if err != nil {
@@ -169,7 +177,11 @@ func (j *ResponseCollector) GetFinalResponse() (int, string, []byte) {
 	case []byte:
 		b = t
 	default:
-		b, _ = json.Marshal(o)
+		if !pretty {
+			b, _ = json.Marshal(o)
+		} else {
+			b, _ = json.MarshalIndent(o, "", "  ")
+		}
 	}
 	return j.context.StatusCode, t, b
 }
