@@ -1,6 +1,7 @@
 package freepslib
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
@@ -15,7 +16,6 @@ import (
 	"net/url"
 	"time"
 	"unicode/utf16"
-	"bytes"
 
 	"github.com/hannesrauhe/freeps/freepslib/fritzbox_upnp"
 )
@@ -157,7 +157,7 @@ func (f *Freeps) queryData(payload map[string]string, AvmResponse interface{}) e
 
 		dataResp, err := f.getHttpClient().PostForm(dataURL, data)
 		if err != nil {
-			return errors.New("cannot PostForm")
+			return errors.New("cannot PostForm: " + err.Error())
 		}
 		defer dataResp.Body.Close()
 

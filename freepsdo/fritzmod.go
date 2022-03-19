@@ -68,11 +68,19 @@ func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector)
 		} else {
 			jrw.WriteError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "wakeup" {
-		log.Printf("Waking Up %v", dev)
-		err = m.fl.WakeUpDevice(dev)
+	} else if fn == "getdata" {
+		r, err := m.fl.GetData()
 		if err == nil {
-			jrw.WriteSuccessf("Woke up %s", dev)
+			jrw.WriteSuccessMessage(r)
+		} else {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+		}
+	} else if fn == "wakeup" {
+		netdev := vars["netdevice"]
+		log.Printf("Waking Up %v", netdev)
+		err = m.fl.WakeUpDevice(netdev)
+		if err == nil {
+			jrw.WriteSuccessf("Woke up %s", netdev)
 		} else {
 			jrw.WriteError(http.StatusInternalServerError, err.Error())
 		}
@@ -100,7 +108,7 @@ func (m *FritzMod) GetFunctions() []string {
 	for k := range swc {
 		fn = append(fn, k)
 	}
-	fn = append(fn, "upnp")
+	fn = append(fn, "upnp", "getdata", "wakeup")
 	sort.Strings(fn)
 	return fn
 }
@@ -108,6 +116,9 @@ func (m *FritzMod) GetFunctions() []string {
 func (m *FritzMod) GetPossibleArgs(fn string) []string {
 	if fn == "upnp" {
 		return []string{"serviceName", "actionName"}
+	}
+	if fn == "wakeup" {
+		return []string{"netdevice"}
 	}
 	swc := m.fl.GetSuggestedSwitchCmds()
 	if f, ok := swc[fn]; ok {
@@ -138,6 +149,16 @@ func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string
 		}
 	}
 	switch arg {
+	case "netdevice":
+		ret := map[string]string{}
+		nd, err := m.fl.GetData()
+		if err != nil || nd == nil {
+			return ret
+		}
+		for _, dev := range nd.Data.Active {
+			ret[dev.Name] = dev.UID
+		}
+		return ret
 	case "device":
 		return m.GetDevices()
 	case "onoff":

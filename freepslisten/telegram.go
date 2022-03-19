@@ -262,9 +262,9 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	}
 
 	if tcr.F {
-		jrw := freepsdo.NewResponseCollector()
+		jrw := freepsdo.NewResponseCollector(fmt.Sprintf("telegram: %v", chat.FirstName))
 		r.Modinator.ExecuteTemplateAction(tpl, jrw)
-		status, otype, byt := jrw.GetFinalResponse()
+		status, otype, byt := jrw.GetFinalResponse(true)
 		if otype == "image/jpeg" {
 			msg.Text = "Here is a picture for you"
 			m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})

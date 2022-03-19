@@ -62,7 +62,7 @@ func TestCallTemplateWithJsonArgs(t *testing.T) {
 	tpl := &Template{Actions: actions}
 	tm, mm := NewTMMock(map[string]*Template{"tpl1": tpl})
 
-	w := NewResponseCollector()
+	w := NewResponseCollector("")
 	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"newArg":3, "overwriteArg":5}`), w)
 	expected := TestStruct{DefaultArg: 1, OverwriteArg: 5, NewArg: 3}
 	var actual TestStruct
@@ -71,7 +71,7 @@ func TestCallTemplateWithJsonArgs(t *testing.T) {
 		t.Errorf("Unexpected parameters passed to Tpl: %v", actual)
 	}
 
-	w2 := NewResponseCollector()
+	w2 := NewResponseCollector("")
 	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"DiffArg":42}`), w2)
 	expected2 := TestStruct{DefaultArg: 1, OverwriteArg: 1, DiffArg: 42}
 	var actual2 TestStruct

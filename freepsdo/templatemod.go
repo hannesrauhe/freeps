@@ -159,7 +159,7 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		m.TemporaryTemplates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
 		m.Cache["_last"] = jrw.GetResponseTree()
 		if m.Config.Verbose {
-			log.Printf("Executed %v in %ds; Status: %v", *t, time.Now().Unix()-startTime.Unix(), jrw.GetStatusCode())
+			log.Printf("Executed %v in %ds; Status: %v; triggered by: %v", *t, time.Now().Unix()-startTime.Unix(), jrw.GetStatusCode(), jrw.GetCreator())
 		}
 	}
 }
