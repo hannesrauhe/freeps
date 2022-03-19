@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/influxdata/influxdb-client-go/v2 v2.6.0
 	github.com/jeremywohl/flatten v1.0.1
+	github.com/mackerelio/go-osstat v0.2.1
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gotest.tools/v3 v3.0.3
 )
