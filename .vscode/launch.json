@@ -35,7 +35,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "LGauth"]
+      "args": ["-m", "template", "-f", "LGauth", "-v"]
     },
     {
       "name": "test",
@@ -43,7 +43,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "test"]
+      "args": ["-m", "template", "-f", "evaltest"]
     },
     {
       "name": "fritztemplate",

@@ -13,7 +13,6 @@ type internalContext struct {
 	StatusCode      int                `json:",omitempty"`
 	Output          interface{}        `json:",omitempty"`
 	OutputType      string             `json:",omitempty"`
-	OutputError     error              `json:",omitempty"`
 	ChildrenContext []*internalContext `json:",omitempty"`
 }
 
@@ -108,8 +107,13 @@ func (j *ResponseCollector) GetOutput() (interface{}, string, error) {
 	if !j.isSubtreeFinished() {
 		return nil, "", fmt.Errorf("Children haven't finished processing")
 	}
+	var err error
+	err = nil
+	if j.IsStatusFailed() {
+		err = fmt.Errorf("Status Code %v", j.context.StatusCode)
+	}
 	if j.context.Output != nil {
-		return j.context.Output, j.context.OutputType, j.context.OutputError
+		return j.context.Output, j.context.OutputType, err
 	}
 	if j.children != nil {
 		for _, rc := range j.children {
@@ -119,10 +123,7 @@ func (j *ResponseCollector) GetOutput() (interface{}, string, error) {
 			}
 		}
 	}
-	if j.IsStatusFailed() {
-		return j.context.Output, j.context.OutputType, fmt.Errorf("Status is failed")
-	}
-	return nil, "", nil
+	return nil, "", err
 }
 
 // GetMarshalledOutput runs GetOutput and returnes the json-encoded Output
@@ -135,7 +136,12 @@ func (j *ResponseCollector) GetMarshalledOutput() ([]byte, error) {
 		return []byte{}, nil
 	}
 	if outputType == "text/plain" {
-		i = map[string]interface{}{"Output:": i}
+		switch i.(type) {
+		case string:
+			i = map[string]string{"output": i.(string)}
+		default:
+			return nil, fmt.Errorf("Output is not plain text as expected")
+		}
 	}
 	return json.Marshal(i)
 }
@@ -170,7 +176,7 @@ func (j *ResponseCollector) GetFinalResponse(pretty bool) (int, string, []byte) 
 	o, t, err := j.GetOutput()
 	if err != nil {
 		if t == "text/plain" {
-			return j.context.StatusCode, t, []byte(t)
+			return j.context.StatusCode, t, []byte(o.(string))
 		}
 		return j.context.StatusCode, "text/plain", []byte(err.Error())
 	}
@@ -227,7 +233,7 @@ func (j *ResponseCollector) collectandFinalizeSubtreeResponse() bool {
 		}
 		if j.context.Output == nil {
 			// collect the output of the first child - it's like the throne hierarchy in the British Royal family...
-			j.context.Output, j.context.OutputType, j.context.OutputError = c.GetOutput()
+			j.context.Output, j.context.OutputType, _ = c.GetOutput()
 		}
 	}
 	j.children = nil
