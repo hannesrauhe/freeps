@@ -13,6 +13,7 @@ type internalContext struct {
 	StatusCode      int                `json:",omitempty"`
 	Output          interface{}        `json:",omitempty"`
 	OutputType      string             `json:",omitempty"`
+	OutputError     error              `json:",omitempty"`
 	ChildrenContext []*internalContext `json:",omitempty"`
 }
 
@@ -108,7 +109,7 @@ func (j *ResponseCollector) GetOutput() (interface{}, string, error) {
 		return nil, "", fmt.Errorf("Children haven't finished processing")
 	}
 	if j.context.Output != nil {
-		return j.context.Output, j.context.OutputType, nil
+		return j.context.Output, j.context.OutputType, j.context.OutputError
 	}
 	if j.children != nil {
 		for _, rc := range j.children {
@@ -126,12 +127,15 @@ func (j *ResponseCollector) GetOutput() (interface{}, string, error) {
 
 // GetMarshalledOutput runs GetOutput and returnes the json-encoded Output
 func (j *ResponseCollector) GetMarshalledOutput() ([]byte, error) {
-	i, _, err := j.GetOutput() // ignore the outputType for now
+	i, outputType, err := j.GetOutput() // ignore the outputType for now
 	if err != nil {
 		return nil, err
 	}
 	if i == nil {
 		return []byte{}, nil
+	}
+	if outputType == "text/plain" {
+		i = map[string]interface{}{"Output:": i}
 	}
 	return json.Marshal(i)
 }
@@ -223,7 +227,7 @@ func (j *ResponseCollector) collectandFinalizeSubtreeResponse() bool {
 		}
 		if j.context.Output == nil {
 			// collect the output of the first child - it's like the throne hierarchy in the British Royal family...
-			j.context.Output, j.context.OutputType, _ = c.GetOutput()
+			j.context.Output, j.context.OutputType, j.context.OutputError = c.GetOutput()
 		}
 	}
 	j.children = nil

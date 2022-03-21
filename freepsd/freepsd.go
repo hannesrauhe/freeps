@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -41,6 +42,9 @@ func main() {
 			println("")
 		} else {
 			println("Binary response not printed")
+		}
+		if verbose {
+			fmt.Printf("%q", jrw.GetResponseTree())
 		}
 		return
 	}

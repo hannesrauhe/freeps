@@ -30,6 +30,14 @@
       "args": ["-m", "template", "-f", "denonon"]
     },
     {
+      "name": "lgauth",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "template", "-f", "LGauth"]
+    },
+    {
       "name": "test",
       "type": "go",
       "request": "launch",
