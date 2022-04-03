@@ -15,6 +15,5 @@ require (
 	github.com/mackerelio/go-osstat v0.2.2
 	golang.org/x/net v0.0.0-20220403103023-749bd193bc2b // indirect
 	golang.org/x/sys v0.0.0-20220403020550-483a9cbc67c0 // indirect
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gotest.tools/v3 v3.1.0
 )
