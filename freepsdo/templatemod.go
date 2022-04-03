@@ -26,7 +26,8 @@ type TemplateAction struct {
 }
 
 type Template struct {
-	Actions []TemplateAction
+	Actions    []TemplateAction
+	OutputMode utils.OutputModeT `json:",omitempty"`
 }
 
 type TemplateMod struct {
@@ -111,6 +112,7 @@ func (m *TemplateMod) GetArgSuggestions(fn string, arg string, otherArgs map[str
 }
 
 func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, jsonStr []byte, jrw *ResponseCollector) {
+	jrw.SetOutputMode(template.OutputMode)
 	for _, t := range template.Actions {
 		m.ExecuteTemplateActionWithAdditionalArgs(&t, jsonStr, jrw.Clone())
 	}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"log"
+
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type Response struct {
@@ -41,7 +43,11 @@ func (j *ResponseCollector) SetContext(ta *TemplateAction) {
 	j.context = &internalContext{TemplateAction: *ta, Creator: j.creator}
 }
 
-func (j *ResponseCollector) Clone(outputMode OutputModeT) *ResponseCollector {
+func (j *ResponseCollector) SetOutputMode(outputMode utils.OutputModeT) {
+	j.outputMode = outputMode
+}
+
+func (j *ResponseCollector) Clone() *ResponseCollector {
 	if j.context == nil {
 		log.Print("Context is not yet set")
 		return nil
@@ -53,7 +59,7 @@ func (j *ResponseCollector) Clone(outputMode OutputModeT) *ResponseCollector {
 	if root == nil {
 		root = j
 	}
-	c := &ResponseCollector{root: root, outputMode: outputMode}
+	c := &ResponseCollector{root: root}
 	j.children = append(j.children, c)
 	return c
 }
@@ -98,8 +104,12 @@ func (j *ResponseCollector) WriteSuccessf(format string, a ...interface{}) {
 	j.WriteMessageWithCode(200, fmt.Sprintf(format, a...))
 }
 
+func responseIsEmpty(r *Response) bool {
+	return r == nil || r.Output == nil
+}
+
 // GetOutput collects the output of the collector and all it's children
-func (j *ResponseCollector) GetOutput() (*Response, err) {
+func (j *ResponseCollector) GetOutput() (*Response, error) {
 	if !j.isSubtreeFinished() {
 		return nil, fmt.Errorf("Children haven't finished processing")
 	}
@@ -109,28 +119,37 @@ func (j *ResponseCollector) GetOutput() (*Response, err) {
 
 	var err error
 	err = nil
-	if j.outputMode == OutputModeFirstNonEmpty {
-		j.context.CollectedResponse = j.context.Response
-	}
-	for k, c := range j.children {
-		cr := c.GetOutput()
-		j.context.ChildrenContext[k] = c.context
-		switch j.outputMode {
-		case OutputModeFirstNonEmpty:
-			if j.outputMode == OutputModeFirstNonEmpty && j.context.CollectedResponse != nil {
-				j.context.CollectedResponse = c.Response
+	switch j.outputMode {
+	// keep this logic for backward compatibiliy; will hopefully get thrown out at some point
+	case utils.OutputModeFirstNonEmpty:
+		if j.context.CollectedResponse == nil {
+			j.context.CollectedResponse = &Response{StatusCode: 200}
+		}
+		if !responseIsEmpty(j.context.Response) {
+			j.context.CollectedResponse.Output = j.context.Response.Output
+			j.context.CollectedResponse.OutputType = j.context.Response.OutputType
+		}
+		for k, c := range j.children {
+			cr, cErr := c.GetOutput()
+			if cErr != nil {
+				err = cErr
+			}
+			j.context.ChildrenContext[k] = c.context
+			if responseIsEmpty(j.context.CollectedResponse) && !responseIsEmpty(cr) {
+				j.context.CollectedResponse.Output = cr.Output
+				j.context.CollectedResponse.OutputType = cr.OutputType
 			}
 			if c.IsStatusFailed() {
 				j.context.CollectedResponse.StatusCode = 424
 			}
 		}
+		j.children = nil
 	}
-	j.children = nil
 
-	return j.context.CollectedResponse
+	return j.context.CollectedResponse, err
 }
 
-// GetMarshalledOutput runs GetOutput and returnes the json-encoded Output
+// GetMarshalledOutput runs GetOutput and returnes the json-encoded Output or an error if the operation failed
 func (j *ResponseCollector) GetMarshalledOutput() ([]byte, error) {
 	r, err := j.GetOutput()
 	if err != nil {
@@ -139,18 +158,19 @@ func (j *ResponseCollector) GetMarshalledOutput() ([]byte, error) {
 	if j.IsStatusFailed() {
 		return nil, fmt.Errorf("Status Code: %v", j.GetStatusCode())
 	}
-	if i == nil {
+	if r.Output == nil {
 		return []byte{}, nil
 	}
-	if outputType == "text/plain" {
-		switch i.(type) {
+	outputObject := r.Output
+	if r.OutputType == "text/plain" {
+		switch r.Output.(type) {
 		case string:
-			i = map[string]string{"output": i.(string)}
+			outputObject = map[string]string{"output": outputObject.(string)}
 		default:
 			return nil, fmt.Errorf("Output is not plain text as expected")
 		}
 	}
-	return json.Marshal(i)
+	return json.Marshal(outputObject)
 }
 
 func (j *ResponseCollector) GetFinalResponse(pretty bool) (int, string, []byte) {
@@ -182,7 +202,7 @@ func (j *ResponseCollector) GetStatusCode() int {
 	if j.context == nil {
 		return 0
 	}
-	if j.context.Reponse == nil {
+	if j.context.Response == nil {
 		return 0
 	}
 	return j.context.Response.StatusCode
@@ -209,7 +229,7 @@ func (j *ResponseCollector) isSubtreeFinished() bool {
 	if j.context == nil {
 		return false
 	}
-	if j.context.StatusCode == 0 {
+	if j.context.Response == nil {
 		return false
 	}
 	if j.children == nil {

@@ -8,8 +8,8 @@ import (
 type OutputModeT int
 
 const (
-	OutputModeIgnore = iota,
-		OutputModeFirstNonEmpty
+	OutputModeFirstNonEmpty = iota
+	OutputModeIgnore
 )
 
 var toString = map[OutputModeT]string{
