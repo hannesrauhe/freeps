@@ -37,7 +37,7 @@ func main() {
 		args, _ := url.ParseQuery(argstring)
 		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
 		_, t, b := jrw.GetFinalResponse(true)
-		if t == "text/plain" || t == "application/json" {
+		if t == freepsdo.ResponseTypePlainText || t == freepsdo.ResponseTypeJSON {
 			os.Stdout.Write(b)
 			println("")
 		} else {

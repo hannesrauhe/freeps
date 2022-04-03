@@ -42,7 +42,7 @@ func (m *RaspistillMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseColle
 		return
 	}
 
-	jrw.WriteResponseWithCodeAndType(200, "image/jpeg", b)
+	jrw.WriteResponseWithCodeAndType(200, ResponseTypeJPEG, b)
 }
 
 func (m *RaspistillMod) GetFunctions() []string {

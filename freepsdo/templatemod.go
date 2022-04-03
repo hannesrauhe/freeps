@@ -27,7 +27,7 @@ type TemplateAction struct {
 
 type Template struct {
 	Actions    []TemplateAction
-	OutputMode utils.OutputModeT `json:",omitempty"`
+	OutputMode OutputModeT `json:",omitempty"`
 }
 
 type TemplateMod struct {

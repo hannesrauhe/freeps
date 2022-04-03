@@ -46,7 +46,8 @@ func (r *Restonator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	r.Modinator.ExecuteModWithJson(vars["mod"], vars["function"], byteargs, jrw)
 	status, otype, bytes := jrw.GetFinalResponse(false)
-	w.Header().Set("Content-Type", otype)
+	ctype, _ := otype.ToString()
+	w.Header().Set("Content-Type", ctype)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 	w.WriteHeader(status)
 	if _, err := w.Write(bytes); err != nil {

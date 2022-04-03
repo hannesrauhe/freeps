@@ -47,7 +47,7 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseColle
 	}
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
-	jrw.WriteResponseWithCodeAndType(resp.StatusCode, "text/plain", string(b))
+	jrw.WriteResponseWithCodeAndType(resp.StatusCode, ResponseTypePlainText, string(b))
 }
 
 func (m *CurlMod) GetFunctions() []string {

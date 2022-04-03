@@ -5,14 +5,12 @@ import (
 	"fmt"
 
 	"log"
-
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 type Response struct {
-	StatusCode int         `json:",omitempty"`
-	Output     interface{} `json:",omitempty"`
-	OutputType string      `json:",omitempty"`
+	StatusCode int          `json:",omitempty"`
+	Output     interface{}  `json:",omitempty"`
+	OutputType ResponseType `json:",omitempty"`
 }
 
 type internalContext struct {
@@ -28,7 +26,7 @@ type ResponseCollector struct {
 	root       *ResponseCollector
 	context    *internalContext
 	creator    string
-	outputMode utils.OutputModeT
+	outputMode OutputModeT
 }
 
 func NewResponseCollector(creator string) *ResponseCollector {
@@ -43,7 +41,7 @@ func (j *ResponseCollector) SetContext(ta *TemplateAction) {
 	j.context = &internalContext{TemplateAction: *ta, Creator: j.creator}
 }
 
-func (j *ResponseCollector) SetOutputMode(outputMode utils.OutputModeT) {
+func (j *ResponseCollector) SetOutputMode(outputMode OutputModeT) {
 	j.outputMode = outputMode
 }
 
@@ -64,7 +62,7 @@ func (j *ResponseCollector) Clone() *ResponseCollector {
 	return c
 }
 
-func (j *ResponseCollector) WriteResponseWithCodeAndType(statusCode int, outputType string, response interface{}) {
+func (j *ResponseCollector) WriteResponseWithCodeAndType(statusCode int, outputType ResponseType, response interface{}) {
 	if j.context == nil {
 		log.Print("Context is not yet set")
 		return
@@ -81,19 +79,19 @@ func (j *ResponseCollector) WriteResponseWithCodeAndType(statusCode int, outputT
 }
 
 func (j *ResponseCollector) WriteMessageWithCode(statusCode int, response interface{}) {
-	j.WriteResponseWithCodeAndType(statusCode, "application/json", response)
+	j.WriteResponseWithCodeAndType(statusCode, ResponseTypeJSON, response)
 }
 
 func (j *ResponseCollector) WriteSuccess() {
-	j.WriteMessageWithCode(200, nil)
+	j.WriteResponseWithCodeAndType(200, ResponseTypeNone, nil)
 }
 
 func (j *ResponseCollector) WriteMessageWithCodef(statusCode int, format string, a ...interface{}) {
-	j.WriteResponseWithCodeAndType(statusCode, "text/plain", fmt.Sprintf(format, a...))
+	j.WriteResponseWithCodeAndType(statusCode, ResponseTypePlainText, fmt.Sprintf(format, a...))
 }
 
 func (j *ResponseCollector) WriteError(statusCode int, format string, a ...interface{}) {
-	j.WriteResponseWithCodeAndType(statusCode, "text/plain", fmt.Sprintf(format, a...))
+	j.WriteResponseWithCodeAndType(statusCode, ResponseTypePlainText, fmt.Sprintf(format, a...))
 }
 
 func (j *ResponseCollector) WriteSuccessMessage(response interface{}) {
@@ -101,7 +99,7 @@ func (j *ResponseCollector) WriteSuccessMessage(response interface{}) {
 }
 
 func (j *ResponseCollector) WriteSuccessf(format string, a ...interface{}) {
-	j.WriteMessageWithCode(200, fmt.Sprintf(format, a...))
+	j.WriteResponseWithCodeAndType(200, ResponseTypePlainText, fmt.Sprintf(format, a...))
 }
 
 func responseIsEmpty(r *Response) bool {
@@ -121,7 +119,7 @@ func (j *ResponseCollector) GetOutput() (*Response, error) {
 	err = nil
 	switch j.outputMode {
 	// keep this logic for backward compatibiliy; will hopefully get thrown out at some point
-	case utils.OutputModeFirstNonEmpty:
+	case OutputModeFirstNonEmpty:
 		if j.context.CollectedResponse == nil {
 			j.context.CollectedResponse = &Response{StatusCode: 200}
 		}
@@ -162,7 +160,7 @@ func (j *ResponseCollector) GetMarshalledOutput() ([]byte, error) {
 		return []byte{}, nil
 	}
 	outputObject := r.Output
-	if r.OutputType == "text/plain" {
+	if r.OutputType == ResponseTypePlainText {
 		switch r.Output.(type) {
 		case string:
 			outputObject = map[string]string{"output": outputObject.(string)}
@@ -173,10 +171,10 @@ func (j *ResponseCollector) GetMarshalledOutput() ([]byte, error) {
 	return json.Marshal(outputObject)
 }
 
-func (j *ResponseCollector) GetFinalResponse(pretty bool) (int, string, []byte) {
+func (j *ResponseCollector) GetFinalResponse(pretty bool) (int, ResponseType, []byte) {
 	r, err := j.GetOutput()
 	if err != nil {
-		return 500, "text/plain", []byte(err.Error())
+		return 500, ResponseTypePlainText, []byte(err.Error())
 	}
 	var b []byte
 	switch t := r.Output.(type) {
