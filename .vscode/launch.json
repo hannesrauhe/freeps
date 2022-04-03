@@ -30,12 +30,20 @@
       "args": ["-m", "template", "-f", "denonon"]
     },
     {
+      "name": "lgauth",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "template", "-f", "LGauth", "-v"]
+    },
+    {
       "name": "test",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "test"]
+      "args": ["-m", "template", "-f", "evaltest"]
     },
     {
       "name": "fritztemplate",

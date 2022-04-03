@@ -173,7 +173,11 @@ func (r *HTMLUI) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		jrw := freepsdo.NewResponseCollector(fmt.Sprintf("HTML UI: %v", req.RemoteAddr))
 		r.modinator.ExecuteTemplateAction(ta, jrw)
 		_, _, bytes := jrw.GetFinalResponse(true)
-		td.Output = string(bytes)
+		if len(bytes) == 0 {
+			td.Output = "<no content>"
+		} else {
+			td.Output = string(bytes)
+		}
 	}
 
 	if vars.Has("SaveTemplate") {

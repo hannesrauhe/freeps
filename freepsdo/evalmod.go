@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/jeremywohl/flatten"
@@ -48,26 +49,39 @@ func (m *EvalMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 		return
 	}
 
-	result := false
-	switch args.ValueType {
-	case "int":
-		result, err = m.EvalInt(vInterface, args.Operation, args.Operand)
-	case "float":
-		result, err = m.EvalFloat(vInterface, args.Operation, args.Operand)
-	case "string":
-		result, err = m.EvalString(vInterface, args.Operation, args.Operand)
-	case "bool":
-		result, err = parseBoolOrReturnDirectly(vInterface)
+	switch fn {
+	case "eval":
+		result := false
+		switch args.ValueType {
+		case "int":
+			result, err = m.EvalInt(vInterface, args.Operation, args.Operand)
+		case "float":
+			result, err = m.EvalFloat(vInterface, args.Operation, args.Operand)
+		case "string":
+			result, err = m.EvalString(vInterface, args.Operation, args.Operand)
+		case "bool":
+			result, err = parseBoolOrReturnDirectly(vInterface)
+		default:
+			err = fmt.Errorf("No such type %s", args.ValueType)
+		}
+		if err != nil {
+			jrw.WriteError(http.StatusBadRequest, "%v", err)
+		}
+		if result {
+			jrw.WriteSuccessMessage(nestedArgsMap)
+		} else {
+			jrw.WriteMessageWithCodef(http.StatusExpectationFailed, "Eval resulted in false")
+		}
+		return
+	case "regexp":
+		resultString, err := m.Regexp(vInterface, args.Operation, args.Operand)
+		if err != nil {
+			jrw.WriteError(http.StatusBadRequest, "%v", err)
+			return
+		}
+		jrw.WriteSuccessMessage(resultString)
 	default:
-		err = fmt.Errorf("No such type %s", args.ValueType)
-	}
-	if err != nil {
-		jrw.WriteError(http.StatusBadRequest, "%v", err)
-	}
-	if result {
-		jrw.WriteSuccessMessage(nestedArgsMap)
-	} else {
-		jrw.WriteMessageWithCodef(http.StatusExpectationFailed, "Eval resulted in false")
+		jrw.WriteError(http.StatusBadRequest, "No such function \"%v\"", fn)
 	}
 }
 
@@ -146,6 +160,30 @@ func (m *EvalMod) EvalString(vInterface interface{}, op string, v2Interface inte
 		return v == v2, nil
 	}
 	return false, fmt.Errorf("No such operation \"%s\"", op)
+}
+
+func (m *EvalMod) Regexp(vInterface interface{}, op string, regexpInterface interface{}) (string, error) {
+	v, err := parseStringOrReturnDirectly(vInterface)
+	if err != nil {
+		return "", err
+	}
+	regexpString, err := parseStringOrReturnDirectly(regexpInterface)
+	if err != nil {
+		return "", err
+	}
+	re, err := regexp.Compile(regexpString)
+	if err != nil {
+		return "", err
+	}
+	switch op {
+	case "find":
+		loc := re.FindStringIndex(v)
+		if loc == nil {
+			return "", fmt.Errorf("No match")
+		}
+		return v[loc[0]:loc[1]], nil
+	}
+	return "", fmt.Errorf("No such operation \"%s\"", op)
 }
 
 func parseIntOrReturnDirectly(v interface{}) (int, error) {
