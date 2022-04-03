@@ -22,7 +22,7 @@ func (g OutputModeT) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("Unknown OutputMode")
 	}
-	return []byte(s), nil
+	return []byte("\"" + s + "\""), nil
 }
 
 func (g *OutputModeT) UnmarshalJSON(b []byte) error {
@@ -70,7 +70,7 @@ func (g ResponseType) ToString() (string, error) {
 
 func (g ResponseType) MarshalJSON() ([]byte, error) {
 	s, err := g.ToString()
-	return []byte(s), err
+	return []byte("\"" + s + "\""), err
 }
 
 func (g *ResponseType) UnmarshalJSON(b []byte) error {

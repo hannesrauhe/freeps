@@ -219,7 +219,10 @@ func (j *ResponseCollector) GetCreator() string {
 
 func (j *ResponseCollector) GetResponseTree() []byte {
 	j.GetOutput()
-	b, _ := json.MarshalIndent(j.context, "", "  ")
+	b, err := json.MarshalIndent(j.context, "", "  ")
+	if err != nil {
+		log.Printf("Error when marshalling response tree: %v", err)
+	}
 	return b
 }
 
