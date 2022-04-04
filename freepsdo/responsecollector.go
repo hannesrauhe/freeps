@@ -127,12 +127,12 @@ func (j *ResponseCollector) GetOutput() (*Response, error) {
 			j.context.CollectedResponse.Output = j.context.Response.Output
 			j.context.CollectedResponse.OutputType = j.context.Response.OutputType
 		}
-		for k, c := range j.children {
+		for _, c := range j.children {
 			cr, cErr := c.GetOutput()
 			if cErr != nil {
 				err = cErr
 			}
-			j.context.ChildrenContext[k] = c.context
+			j.context.ChildrenContext = append(j.context.ChildrenContext, c.context)
 			if responseIsEmpty(j.context.CollectedResponse) && !responseIsEmpty(cr) {
 				j.context.CollectedResponse.Output = cr.Output
 				j.context.CollectedResponse.OutputType = cr.OutputType
