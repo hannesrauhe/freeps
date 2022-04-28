@@ -1,17 +1,26 @@
 package freepsdo
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/jeremywohl/flatten"
 )
 
+type MessageAndTime struct {
+	msg     []byte
+	expires time.Time
+	counter int
+}
+
 type EvalMod struct {
+	lastMessage MessageAndTime
 }
 
 var _ Mod = &EvalMod{}
@@ -23,7 +32,66 @@ type EvalArgs struct {
 	Operand   interface{}
 }
 
+type DedupArgs struct {
+	Retention string
+}
+
 func (m *EvalMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
+	switch fn {
+	case "eval":
+		fallthrough
+	case "regexp":
+		m.EvalAndRegexp(fn, jsonStr, jrw)
+	case "dedup":
+		var args DedupArgs
+		err := json.Unmarshal(jsonStr, &args)
+		if err != nil {
+			jrw.WriteError(http.StatusBadRequest, "request cannot be parsed into a map: %v", err)
+			return
+		}
+		retDur, err := time.ParseDuration(args.Retention)
+		if err != nil {
+			jrw.WriteError(http.StatusBadRequest, "cannot parse retention time: %v", err)
+			return
+		}
+		if time.Now().Before(m.lastMessage.expires) && bytes.Compare(m.lastMessage.msg, jsonStr) == 0 {
+			m.lastMessage.expires = time.Now().Add(retDur)
+			m.lastMessage.counter++
+			jrw.WriteError(http.StatusConflict, "Msg received %v times", m.lastMessage.counter)
+			return
+		}
+		m.lastMessage = MessageAndTime{msg: jsonStr, expires: time.Now().Add(retDur), counter: 1}
+		jrw.WriteSuccessMessage(jsonStr)
+	default:
+		jrw.WriteError(http.StatusBadRequest, "No such function \"%v\"", fn)
+	}
+}
+
+func (m *EvalMod) GetFunctions() []string {
+	return []string{"eval", "regexp", "dedup"}
+}
+
+func (m *EvalMod) GetPossibleArgs(fn string) []string {
+	if fn == "dedup" {
+		return []string{"retention"}
+	}
+	ret := []string{"valueName", "valueType", "operation", "operand"}
+	return ret
+}
+
+func (m *EvalMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+	switch arg {
+	case "valueType":
+		return map[string]string{"int": "int"}
+	case "operation":
+		return map[string]string{"eq": "eq", "gt": "gt", "lt": "lt"}
+	case "retention":
+		return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+	}
+	return map[string]string{}
+}
+
+func (m *EvalMod) EvalAndRegexp(fn string, jsonStr []byte, jrw *ResponseCollector) {
 	var args EvalArgs
 	err := json.Unmarshal(jsonStr, &args)
 	if err != nil || args.ValueName == "" || args.ValueType == "" {
@@ -39,7 +107,7 @@ func (m *EvalMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 
 	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
 	if err != nil {
-		jrw.WriteError(http.StatusBadRequest, "request cannot be parsed into a flat map")
+		jrw.WriteError(http.StatusBadRequest, "request cannot be parsed into a flat map: %v", err)
 		return
 	}
 
@@ -80,28 +148,7 @@ func (m *EvalMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 			return
 		}
 		jrw.WriteSuccessMessage(resultString)
-	default:
-		jrw.WriteError(http.StatusBadRequest, "No such function \"%v\"", fn)
 	}
-}
-
-func (m *EvalMod) GetFunctions() []string {
-	return []string{"eval"}
-}
-
-func (m *EvalMod) GetPossibleArgs(fn string) []string {
-	ret := []string{"valueName", "valueType", "operation", "operand"}
-	return ret
-}
-
-func (m *EvalMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
-	switch arg {
-	case "valueType":
-		return map[string]string{"int": "int"}
-	case "operation":
-		return map[string]string{"eq": "eq", "gt": "gt", "lt": "lt"}
-	}
-	return map[string]string{}
 }
 
 func (m *EvalMod) EvalInt(vInterface interface{}, op string, v2Interface interface{}) (bool, error) {
