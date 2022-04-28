@@ -48,6 +48,7 @@ func ReadBytesFromFile(filePath string, configFileDir string) []byte {
 	return byt
 }
 
+// GetSectionsMap returns a map of section names to config-objects, the type of config-object depends on the section
 func GetSectionsMap(jsonBytes []byte) (map[string]interface{}, error) {
 	sectionsMap := make(map[string]interface{})
 	var err error
