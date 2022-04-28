@@ -61,7 +61,12 @@ func (m *EvalMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 			return
 		}
 		m.lastMessage = MessageAndTime{msg: jsonStr, expires: time.Now().Add(retDur), counter: 1}
-		jrw.WriteSuccessMessage(jsonStr)
+
+		var fwdMsg map[string]interface{}
+		json.Unmarshal(jsonStr, &fwdMsg)
+		delete(fwdMsg, "Retention")
+		delete(fwdMsg, "retention")
+		jrw.WriteSuccessMessage(fwdMsg)
 	default:
 		jrw.WriteError(http.StatusBadRequest, "No such function \"%v\"", fn)
 	}
