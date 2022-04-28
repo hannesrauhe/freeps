@@ -6,6 +6,9 @@ import (
 	"os"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -21,6 +24,9 @@ func (m *MockMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 	m.DoCount++
 	m.LastFunction = fn
 	m.LastJSON = jsonStr
+	var retMap map[string]interface{}
+	json.Unmarshal(jsonStr, &retMap)
+	jrw.WriteSuccessMessage(retMap)
 }
 
 func (m *MockMod) GetFunctions() []string {
@@ -62,23 +68,23 @@ func TestCallTemplateWithJsonArgs(t *testing.T) {
 	tpl := &Template{Actions: actions}
 	tm, mm := NewTMMock(map[string]*Template{"tpl1": tpl})
 
-	w := NewResponseCollector()
+	w := NewResponseCollector("")
 	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"newArg":3, "overwriteArg":5}`), w)
 	expected := TestStruct{DefaultArg: 1, OverwriteArg: 5, NewArg: 3}
 	var actual TestStruct
 	json.Unmarshal(mm.LastJSON, &actual)
-	if expected != actual {
-		t.Errorf("Unexpected parameters passed to Tpl: %v", actual)
-	}
+	assert.Equal(t, expected, actual)
+	r, err := w.GetOutput()
+	assert.NilError(t, err)
+	assert.Assert(t, r != nil)
+	assert.Assert(t, is.Contains(r.Output, "defaultArg"))
 
-	w2 := NewResponseCollector()
+	w2 := NewResponseCollector("")
 	tm.ExecuteModWithJson("template", "tpl1", []byte(`{"DiffArg":42}`), w2)
 	expected2 := TestStruct{DefaultArg: 1, OverwriteArg: 1, DiffArg: 42}
 	var actual2 TestStruct
 	json.Unmarshal(mm.LastJSON, &actual2)
-	if expected2 != actual2 {
-		t.Errorf("Unexpected parameters passed to Tpl: %v", actual2)
-	}
+	assert.Equal(t, expected2, actual2)
 }
 
 func TestTemporaryTemplateActions(t *testing.T) {

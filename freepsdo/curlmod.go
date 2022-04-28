@@ -1,9 +1,9 @@
 package freepsdo
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 )
@@ -31,6 +31,9 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseColle
 			data.Set(k, v)
 		}
 		resp, err = c.PostForm(vars["url"], data)
+	case "Post":
+		breader := bytes.NewReader([]byte(vars["body"]))
+		resp, err = c.Post(vars["url"], vars["content-type"], breader)
 	case "Get":
 		resp, err = c.Get(vars["url"])
 	default:
@@ -39,13 +42,12 @@ func (m *CurlMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseColle
 	}
 
 	if err != nil {
-		jrw.WriteError(http.StatusInternalServerError, "%v", string(err.Error()))
+		jrw.WriteError(http.StatusInternalServerError, "%v", err.Error())
 		return
 	}
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
-	jrw.WriteResponseWithCodeAndType(resp.StatusCode, "text/plain", string(b))
-	log.Printf("%v , %v", err, string(b))
+	jrw.WriteResponseWithCodeAndType(resp.StatusCode, ResponseTypePlainText, string(b))
 }
 
 func (m *CurlMod) GetFunctions() []string {

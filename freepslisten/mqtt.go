@@ -84,10 +84,10 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		if err != nil {
 			panic(err)
 		}
-		jrw := freepsdo.NewResponseCollector()
+		jrw := freepsdo.NewResponseCollector("mqtt " + topic)
 		fm.Doer.ExecuteModWithJson("template", tc.TemplateToCall, jsonStr, jrw)
-		status, _, _ := jrw.GetFinalResponse()
-		log.Printf("Template %v finished with %v", tc.TemplateToCall, status)
+		jrw.GetFinalResponse(false) // trigger finalization
+		// log.Printf("Template %v finished with %v", tc.TemplateToCall, status)
 		// log.Printf("%q", jrw.GetResponseTree())
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
@@ -113,7 +113,7 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
-	jrw := freepsdo.NewResponseCollector()
+	jrw := freepsdo.NewResponseCollector("mqtt system message")
 	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, jrw)
 }
 

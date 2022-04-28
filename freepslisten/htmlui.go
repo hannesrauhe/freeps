@@ -2,7 +2,9 @@ package freepslisten
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -12,7 +14,7 @@ import (
 
 const templateString = `
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<form action="#" method="Get">
+<form action="#" method="Post">
 <p>
 	Mod:
 		{{ range $key, $value := .ModSuggestions }}
@@ -70,11 +72,11 @@ const templateString = `
 </form>
 
 {{ if .Output }}
-<p>
-<textarea cols="50" rows="10" readonly="true">
+<div style="background-color: lightgoldenrodyellow;">
+<pre><code>
 {{ .Output }}
-</textarea>
-</p>
+</code></pre>
+</div>
 {{ end }}
 `
 
@@ -137,7 +139,14 @@ func (r *HTMLUI) buildPartialTemplate(vars url.Values) *freepsdo.TemplateAction 
 }
 
 func (r *HTMLUI) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	vars := req.URL.Query()
+	var vars url.Values
+	if req.Method == "GET" {
+		vars = req.URL.Query()
+	} else {
+		defer req.Body.Close()
+		b, _ := io.ReadAll(req.Body)
+		vars, _ = url.ParseQuery(string(b))
+	}
 	ta := r.buildPartialTemplate(vars)
 	td := &TemplateData{ModSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), Templates: map[string]bool{}}
 	b, _ := json.MarshalIndent(ta, "", "  ")
@@ -161,10 +170,14 @@ func (r *HTMLUI) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if vars.Has("Execute") {
-		jrw := freepsdo.NewResponseCollector()
+		jrw := freepsdo.NewResponseCollector(fmt.Sprintf("HTML UI: %v", req.RemoteAddr))
 		r.modinator.ExecuteTemplateAction(ta, jrw)
-		_, _, bytes := jrw.GetFinalResponse()
-		td.Output = string(bytes)
+		_, _, bytes := jrw.GetFinalResponse(true)
+		if len(bytes) == 0 {
+			td.Output = "<no content>"
+		} else {
+			td.Output = string(bytes)
+		}
 	}
 
 	if vars.Has("SaveTemplate") {

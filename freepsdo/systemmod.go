@@ -5,6 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+
+	"github.com/mackerelio/go-osstat/cpu"
+	"github.com/mackerelio/go-osstat/disk"
+	"github.com/mackerelio/go-osstat/loadavg"
+	"github.com/mackerelio/go-osstat/memory"
+	"github.com/mackerelio/go-osstat/network"
+	"github.com/mackerelio/go-osstat/uptime"
 )
 
 type SystemMod struct {
@@ -46,6 +53,30 @@ func (m *SystemMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector
 		jrw.WriteSuccessMessage(m.Modinator.Cache["_last"])
 	case "GetConfigSection":
 		m.getConfigSection(args["section"], jrw)
+	case "OSStats":
+		var s interface{}
+		var err error
+		switch args["statType"] {
+		case "cpu":
+			s, err = cpu.Get()
+		case "disk":
+			s, err = disk.Get()
+		case "loadavg":
+			s, err = loadavg.Get()
+		case "memory":
+			s, err = memory.Get()
+		case "network":
+			s, err = network.Get()
+		case "uptime ":
+			s, err = uptime.Get()
+		default:
+			err = fmt.Errorf("Unknown statistics Type: %s", args["statType"])
+		}
+		if err == nil {
+			jrw.WriteSuccessMessage(s)
+		} else {
+			jrw.WriteError(http.StatusInternalServerError, err.Error())
+		}
 	default:
 		jrw.WriteError(404, "Function %s not found", fn)
 	}
@@ -92,6 +123,17 @@ func (m *SystemMod) GetArgSuggestions(fn string, arg string, otherArgs map[strin
 				}
 			}
 		}
+	case "OSStats":
+		{
+			if arg == "statType" {
+				return map[string]string{"cpu": "cpu",
+					"disk":    "disk",
+					"loadavg": "loadavg",
+					"memory":  "memory",
+					"network": "network",
+					"uptime ": "uptime "}
+			}
+		}
 	}
 	return ret
 }
@@ -102,8 +144,9 @@ var fnArgs map[string][]string = map[string][]string{
 	"RenameTemplate":   {"name", "newName"},
 	"SaveLast":         {"newName"},
 	"MergeTemplates":   {"src", "dest"},
-	"GetConfigSection": {"section"},
 	"GetLastResponse":  {},
+	"GetConfigSection": {"section"},
+	"OSStats":          {"statType"},
 }
 
 func (m *SystemMod) getTemplate(name string, jrw *ResponseCollector) {

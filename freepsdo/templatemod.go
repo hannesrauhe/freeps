@@ -26,7 +26,8 @@ type TemplateAction struct {
 }
 
 type Template struct {
-	Actions []TemplateAction
+	Actions    []TemplateAction
+	OutputMode OutputModeT `json:",omitempty"`
 }
 
 type TemplateMod struct {
@@ -59,6 +60,7 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods["script"] = NewScriptMod(cr)
 	mods["fritz"] = NewFritzMod(cr)
 	mods["flux"] = NewFluxMod(cr)
+	mods["mutt"] = NewMuttMod(cr)
 	mods["raspistill"] = &RaspistillMod{}
 
 	if tmc.Templates == nil {
@@ -110,6 +112,7 @@ func (m *TemplateMod) GetArgSuggestions(fn string, arg string, otherArgs map[str
 }
 
 func (m *TemplateMod) ExecuteTemplateWithAdditionalArgs(template *Template, jsonStr []byte, jrw *ResponseCollector) {
+	jrw.SetOutputMode(template.OutputMode)
 	for _, t := range template.Actions {
 		m.ExecuteTemplateActionWithAdditionalArgs(&t, jsonStr, jrw.Clone())
 	}
@@ -158,7 +161,7 @@ func (m *TemplateMod) ExecuteTemplateActionWithAdditionalArgs(t *TemplateAction,
 		m.TemporaryTemplates["_last"] = &Template{Actions: []TemplateAction{{Mod: t.Mod, Fn: t.Fn, Args: copiedArgs}}}
 		m.Cache["_last"] = jrw.GetResponseTree()
 		if m.Config.Verbose {
-			log.Printf("Executed %v in %ds", *t, time.Now().Unix()-startTime.Unix())
+			log.Printf("Executed %v in %ds; Status: %v; triggered by: %v", *t, time.Now().Unix()-startTime.Unix(), jrw.GetStatusCode(), jrw.GetCreator())
 		}
 	}
 }

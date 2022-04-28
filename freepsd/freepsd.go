@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -32,15 +33,18 @@ func main() {
 	doer := freepsdo.NewTemplateMod(cr)
 
 	if mod != "" {
-		jrw := freepsdo.NewResponseCollector()
+		jrw := freepsdo.NewResponseCollector("freepsd command")
 		args, _ := url.ParseQuery(argstring)
 		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
-		_, t, b := jrw.GetFinalResponse()
-		if t == "text/plain" || t == "application/json" {
+		_, t, b := jrw.GetFinalResponse(true)
+		if t == freepsdo.ResponseTypePlainText || t == freepsdo.ResponseTypeJSON {
 			os.Stdout.Write(b)
 			println("")
 		} else {
 			println("Binary response not printed")
+		}
+		if verbose {
+			fmt.Printf("%q", jrw.GetResponseTree())
 		}
 		return
 	}

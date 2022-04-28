@@ -49,6 +49,9 @@ func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 
 		var args JsonArgs
 		err = json.Unmarshal(jsonStr, &args)
+		if len(args.Measurement) == 0 {
+			jrw.WriteError(http.StatusBadGateway, "Name of measurement is empty")
+		}
 		for k, v := range args.Fields {
 			fields[k] = v
 		}
@@ -82,8 +85,7 @@ func (m *FluxMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) 
 }
 
 func (m *FluxMod) GetFunctions() []string {
-	keys := make([]string, 0)
-	return keys
+	return []string{"pushfields"}
 }
 
 func (m *FluxMod) GetPossibleArgs(fn string) []string {
