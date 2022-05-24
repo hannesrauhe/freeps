@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepslib"
+	"github.com/hannesrauhe/freepslib"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
