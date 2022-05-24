@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepslib"
+	"github.com/hannesrauhe/freepslib"
 	"gotest.tools/v3/assert"
 )
 

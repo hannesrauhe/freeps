@@ -7,8 +7,8 @@ import (
 	"sort"
 
 	"github.com/hannesrauhe/freeps/freepsflux"
-	"github.com/hannesrauhe/freeps/freepslib"
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/hannesrauhe/freepslib"
 )
 
 type FritzMod struct {
