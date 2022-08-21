@@ -56,6 +56,7 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	mods["curl"] = &CurlMod{}
 	mods["echo"] = &EchoMod{}
 	mods["eval"] = &EvalMod{}
+	mods["store"] = NewStoreMod()
 	mods["telegram"] = NewTelegramBot(cr)
 	mods["script"] = NewScriptMod(cr)
 	mods["fritz"] = NewFritzMod(cr)
