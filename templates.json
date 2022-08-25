@@ -70,10 +70,9 @@
     "Actions": [
       {
         "Mod": "curl",
-        "Fn": "Post",
+        "Fn": "Get",
         "Args": {
-          "url": "https://query.wikidata.org/sparql?format=json",
-          "body": "query=select%20distinct%20%3Fitem%20%3FitemLabel%20%3FitemDescription%20%3Fimage%20%3Farticle%20where%20%7B%0A%20%20%20%20%3Fitem%20wdt%3AP31%20wd%3AQ5%3B%20%20%23%20Any%20instance%20of%20a%20human.%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP39%20wd%3AQ40779%3B%20%2$
+          "url": "https://query.wikidata.org/sparql?format=json&query=select%20distinct%20%3Fitem%20%3FitemLabel%20%3FitemDescription%20%3Fimage%20%3Farticle%20where%20%7B%0A%20%20%20%20%3Fitem%20wdt%3AP31%20wd%3AQ5%3B%20%20%23%20Any%20instance%20of%20a%20human.%0A%20%20%20%20%20%20%20%20%20%20wdt%3AP39%20wd%3AQ40779%3B%20%20%23%20%20Who%20held%20position%20consul%0A%20%20%20%20%20%20OPTIONAL%20%7B%20%3Fitem%20wdt%3AP18%20%3Fimage%20.%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Farticle%20schema%3Aabout%20%3Fitem%20.%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Farticle%20schema%3AisPartOf%20%3Chttps%3A%2F%2Fen.wikipedia.org%2F%3E.%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20SERVICE%20wikibase%3Alabel%20%7B%20bd%3AserviceParam%20wikibase%3Alanguage%20%22en%22%20%7D%0A%7D"
         }
       }
     ]
