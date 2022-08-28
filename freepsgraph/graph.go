@@ -1,6 +1,8 @@
 package freepsgraph
 
-import "fmt"
+import (
+	"github.com/hannesrauhe/freeps/utils"
+)
 
 var ROOT_SYMBOL = "_"
 
@@ -14,6 +16,7 @@ type GraphEngineConfig struct {
 type GraphOperationDesc struct {
 	Name          string
 	Operator      string
+	Function      string
 	Arguments     map[string]string
 	InputFrom     string
 	ArgumentsFrom string
@@ -26,72 +29,53 @@ type GraphDesc struct {
 	Operations []GraphOperationDesc
 }
 
-type OutputT string
-
-const (
-	Unknown OutputT = ""
-	Error   OutputT = "error"
-	String  OutputT = "string"
-)
-
-type OperatorIO struct {
-	OutputType OutputT
-	HttpCode   uint32
-	Ouput      interface{}
-}
-
 type Graph struct {
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*OperatorIO
 }
 
-type Operator struct {
-	OutputType string
-}
-
 type GraphEngine struct {
 	graphs    map[string]Graph
-	operators map[string]Operator
+	operators map[string]FreepsOperator
 }
 
-func NewGraph(desc *GraphDesc) *Graph {
-	g := &Graph{desc: desc}
+func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
+	ops := make(map[string]FreepsOperator)
+	ops["template"] = NewTemplateOperator(cr)
+	return &GraphEngine{graphs: make(map[string]Graph), operators: ops}
+}
+
+func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs map[string]string) *OperatorIO {
+	g := NewGraph(nil, ge)
+	g.opOutputs[ROOT_SYMBOL] = nil
+	return g.ExecuteOperation(&GraphOperationDesc{Name: "#0", Operator: opName, Function: fn, InputFrom: ROOT_SYMBOL}, mainArgs)
+}
+
+func NewGraph(desc *GraphDesc, engine *GraphEngine) *Graph {
+	g := &Graph{desc: desc, engine: engine}
 	g.opOutputs = make(map[string]*OperatorIO)
 	return g
 }
 
-func MakeOutputError(code uint32, msg string, a ...interface{}) *OperatorIO {
-	return &OperatorIO{OutputType: Error, HttpCode: code, fmt.Errorf(msg, a...)}
-}
-
-func (io *OperatorIO) GetMap() (map[string]string, error) {
-	//TODO(HR) implement
-	return make(map[string]string), nil
-}
-
-func (io *OperatorIO) IsError() bool {
-	return io.OutputType == Error
-}
-
-func (op *Operator) Execute(mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	return MakeOutputError(500, "Not Implemented")
-}
-
-// Operators: OR, AND, PARALLEL, NOT(?), InputTransform
 func (g *Graph) ExecuteOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
 	//TODO(HR): what to do if InputFrom/ArgumentsFrom is empty
 
-	input := g.opOutputs[opDesc.InputFrom]
+	input, exists := g.opOutputs[opDesc.InputFrom]
+	if !exists {
+		return MakeOutputError(404, "Output of \"%s\" cannot be used as input for \"%v\", because there is no such output", opDesc.InputFrom, opDesc.Name)
+	}
 	combinedArgs := make(map[string]string)
-	for k, v := range opDesc.Arguments {
-		combinedArgs[k] = v
+	if opDesc.Arguments != nil {
+		for k, v := range opDesc.Arguments {
+			combinedArgs[k] = v
+		}
 	}
 	if opDesc.ArgumentsFrom == ROOT_SYMBOL {
 		for k, v := range mainArgs {
 			combinedArgs[k] = v
 		}
-	} else {
+	} else if opDesc.ArgumentsFrom != "" {
 		outputToBeArgs, exists := g.opOutputs[opDesc.ArgumentsFrom]
 		if !exists {
 			return MakeOutputError(404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
@@ -105,25 +89,30 @@ func (g *Graph) ExecuteOperation(opDesc *GraphOperationDesc, mainArgs map[string
 		}
 	}
 
-	op, exists := g.engine.operators[opDesc.Name]
+	op, exists := g.engine.operators[opDesc.Operator]
 	if exists {
-		return op.Execute(combinedArgs, input)
+		return op.Execute(opDesc.Function, combinedArgs, input)
 	}
-	subGraph, exists := g.engine.graphs[opDesc.Name]
-	if exists {
-		return subGraph.Execute(combinedArgs, input)
-	}
-	return MakeOutputError(404, "Neither graph nor operator with name \"%s\" found", opDesc.Name)
+	return MakeOutputError(404, "No operator with name \"%s\" found", opDesc.Operator)
 }
 
 func (g *Graph) Execute(mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
+
 	for _, operation := range g.desc.Operations {
+		_, exist := g.opOutputs[operation.Name]
+		if exist {
+			return MakeOutputError(404, "Multiple operations with name \"%s\" found", operation.Name)
+		}
 		output := g.ExecuteOperation(&operation, mainArgs)
 		g.opOutputs[operation.Name] = output
 		if output.IsError() {
 			return output
 		}
+	}
+	if g.desc.OutputFrom == "" {
+		lastOperation := g.desc.Operations[len(g.desc.Operations)-1]
+		return g.opOutputs[lastOperation.Name]
 	}
 	return g.opOutputs[g.desc.OutputFrom]
 }

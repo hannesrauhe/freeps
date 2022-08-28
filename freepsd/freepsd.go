@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 
 	"github.com/hannesrauhe/freeps/freepsdo"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -31,21 +31,25 @@ func main() {
 	}
 
 	doer := freepsdo.NewTemplateMod(cr)
+	ge := freepsgraph.NewGraphEngine(cr)
 
 	if mod != "" {
-		jrw := freepsdo.NewResponseCollector("freepsd command")
 		args, _ := url.ParseQuery(argstring)
-		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
-		_, t, b := jrw.GetFinalResponse(true)
-		if t == freepsdo.ResponseTypePlainText || t == freepsdo.ResponseTypeJSON {
-			os.Stdout.Write(b)
-			println("")
-		} else {
-			println("Binary response not printed")
-		}
-		if verbose {
-			fmt.Printf("%q", jrw.GetResponseTree())
-		}
+		output := ge.ExecuteOperatorByName(mod, fn, utils.URLArgsToMap(args))
+		fmt.Printf("%v", output.ToString())
+
+		// jrw := freepsdo.NewResponseCollector("freepsd command")
+		// doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
+		// _, t, b := jrw.GetFinalResponse(true)
+		// if t == freepsdo.ResponseTypePlainText || t == freepsdo.ResponseTypeJSON {
+		// 	os.Stdout.Write(b)
+		// 	println("")
+		// } else {
+		// 	println("Binary response not printed")
+		// }
+		// if verbose {
+		// 	fmt.Printf("%q", jrw.GetResponseTree())
+		// }
 		return
 	}
 
