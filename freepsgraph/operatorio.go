@@ -1,6 +1,9 @@
 package freepsgraph
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type OutputT string
 
@@ -37,6 +40,7 @@ func (io *OperatorIO) ToString() string {
 	if io.IsError() {
 		return fmt.Sprintf("Error Code: %v,\n%v\n", io.HttpCode, io.Output.(error))
 	} else {
-		return fmt.Sprintf("Error Code: %v,\nOutput Type: %T,\n%v\n", io.HttpCode, io.Output, io.Output)
+		o, _ := json.MarshalIndent(io.Output, "", "  ")
+		return fmt.Sprintf("Error Code: %v,\nOutput Type: %T,\n%v\n", io.HttpCode, io.Output, string(o))
 	}
 }
