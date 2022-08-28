@@ -21,34 +21,34 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 	if fn == "convertAll" {
 		r := make(map[string]GraphDesc)
 		for n, t := range o.tmc.Config.Templates {
-			gd := o.Convert(n, t)
+			pos := 0
+			gd := GraphDesc{Name: n, Operations: make([]GraphOperationDesc, 0)}
+			o.Convert(&pos, &gd, t, ROOT_SYMBOL)
+			gd.OutputFrom = fmt.Sprintf("#%v", pos-1)
 			r[n] = gd
 		}
-		return &OperatorIO{HttpCode: 200, Output: r}
+		return &OperatorIO{HTTPCode: 200, Output: r}
 	}
 	return MakeOutputError(404, "No template with name \"%s\" found", fn)
 }
 
-func (o *OpTemplate) ConvertAction(pos int, ta *freepsdo.TemplateAction) GraphOperationDesc {
-	args := make(map[string]string, 0)
-	for k, v := range ta.Args {
-		args[k] = fmt.Sprintf("%v", v)
-	}
-	return GraphOperationDesc{Name: fmt.Sprintf("%v", pos), Operator: ta.Mod, Function: ta.Fn, Arguments: args}
-}
-
-func (o *OpTemplate) Convert(name string, t *freepsdo.Template) GraphDesc {
-	gd := GraphDesc{Name: name, Operations: make([]GraphOperationDesc, 0)}
-	pos := 0
-	for _, a := range t.Actions {
-		parentPos := pos
-		god := o.ConvertAction(pos, &a)
-		pos++
+func (o *OpTemplate) Convert(pos *int, gd *GraphDesc, t *freepsdo.Template, ArgsFrom string) {
+	for _, ta := range t.Actions {
+		args := make(map[string]string, 0)
+		for k, v := range ta.Args {
+			args[k] = fmt.Sprintf("%v", v)
+		}
+		god := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: ta.Mod, Function: ta.Fn, Arguments: args, ArgumentsFrom: ArgsFrom}
 		gd.Operations = append(gd.Operations, god)
-		if a.FwdTemplateName != "" {
-			fwdGod := GraphOperationDesc{Name: fmt.Sprintf("%v", pos), Operator: "graph", Function: a.FwdTemplateName, InputFrom: fmt.Sprintf("%v", parentPos)}
+		fwdArgsFrom := fmt.Sprintf("%v", *pos)
+		*pos++
+		if ta.FwdTemplate != nil {
+			o.Convert(pos, gd, ta.FwdTemplate, fwdArgsFrom)
+		}
+		if ta.FwdTemplateName != "" {
+			fwdGod := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: "graph", Function: ta.FwdTemplateName, ArgumentsFrom: fwdArgsFrom}
 			gd.Operations = append(gd.Operations, fwdGod)
+			*pos++
 		}
 	}
-	return gd
 }

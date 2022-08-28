@@ -6,17 +6,13 @@ type FreepsOperator interface {
 }
 
 type OpGraph struct {
-	g *Graph
+	ge *GraphEngine
 }
 
 var _ FreepsOperator = &OpGraph{}
 
 func (o *OpGraph) Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	subGraph, exists := o.g.engine.graphs[fn]
-	if exists {
-		return subGraph.Execute(mainArgs, mainInput)
-	}
-	return MakeOutputError(404, "No graph with name \"%s\" found", fn)
+	return o.ge.ExecuteGraph(fn, mainArgs, mainInput)
 }
 
 // Operators: OR, AND, PARALLEL, NOT(?), InputTransform

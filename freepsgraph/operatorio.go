@@ -8,20 +8,24 @@ import (
 type OutputT string
 
 const (
-	Unknown OutputT = ""
-	Error   OutputT = "error"
-	String  OutputT = "string"
+	Empty  OutputT = ""
+	Error  OutputT = "error"
+	String OutputT = "string"
 )
 
 type OperatorIO struct {
 	OutputType OutputT
-	HttpCode   uint32
+	HTTPCode   uint32
 	Output     interface{}
 }
 
 func MakeOutputError(code uint32, msg string, a ...interface{}) *OperatorIO {
 	err := fmt.Errorf(msg, a...)
-	return &OperatorIO{OutputType: Error, HttpCode: code, Output: err}
+	return &OperatorIO{OutputType: Error, HTTPCode: code, Output: err}
+}
+
+func MakeEmptyOutput() *OperatorIO {
+	return &OperatorIO{OutputType: Empty, HTTPCode: 200, Output: nil}
 }
 
 func (io *OperatorIO) GetMap() (map[string]string, error) {
@@ -38,9 +42,9 @@ func (io *OperatorIO) IsError() bool {
 
 func (io *OperatorIO) ToString() string {
 	if io.IsError() {
-		return fmt.Sprintf("Error Code: %v,\n%v\n", io.HttpCode, io.Output.(error))
+		return fmt.Sprintf("Error Code: %v,\n%v\n", io.HTTPCode, io.Output.(error))
 	} else {
 		o, _ := json.MarshalIndent(io.Output, "", "  ")
-		return fmt.Sprintf("Error Code: %v,\nOutput Type: %T,\n%v\n", io.HttpCode, io.Output, string(o))
+		return fmt.Sprintf("Error Code: %v,\nOutput Type: %T,\n%v\n", io.HTTPCode, io.Output, string(o))
 	}
 }

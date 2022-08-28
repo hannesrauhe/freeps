@@ -17,9 +17,9 @@ type GraphOperationDesc struct {
 	Name          string
 	Operator      string
 	Function      string
-	Arguments     map[string]string
-	InputFrom     string
-	ArgumentsFrom string
+	Arguments     map[string]string `json:",omitempty"`
+	InputFrom     string            `json:",omitempty"`
+	ArgumentsFrom string            `json:",omitempty"`
 }
 
 //GraphDesc contains a number of operations and defines which output to use
@@ -29,38 +29,49 @@ type GraphDesc struct {
 	Operations []GraphOperationDesc
 }
 
+//Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*OperatorIO
 }
 
+//GraphEngine holds all available graphs and operators
 type GraphEngine struct {
-	graphs    map[string]Graph
+	graphs    map[string]GraphDesc
 	operators map[string]FreepsOperator
 }
 
+//NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
-	ops := make(map[string]FreepsOperator)
-	ops["template"] = NewTemplateOperator(cr)
-	return &GraphEngine{graphs: make(map[string]Graph), operators: ops}
+	ge := &GraphEngine{graphs: make(map[string]GraphDesc)}
+	ge.operators = make(map[string]FreepsOperator)
+	ge.operators["template"] = NewTemplateOperator(cr)
+	ge.operators["graph"] = &OpGraph{ge: ge}
+	return ge
 }
 
-func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs map[string]string) *OperatorIO {
-	g := NewGraph(nil, ge)
-	g.opOutputs[ROOT_SYMBOL] = nil
-	return g.ExecuteOperation(&GraphOperationDesc{Name: "#0", Operator: opName, Function: fn, InputFrom: ROOT_SYMBOL}, mainArgs)
-}
-
-func NewGraph(desc *GraphDesc, engine *GraphEngine) *Graph {
-	g := &Graph{desc: desc, engine: engine}
+//ExecuteOperatorByName executes an operator directly
+func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	g := &Graph{engine: ge}
 	g.opOutputs = make(map[string]*OperatorIO)
-	return g
+	g.opOutputs[ROOT_SYMBOL] = mainInput
+	return g.executeOperation(&GraphOperationDesc{Name: "#0", Operator: opName, Function: fn, InputFrom: ROOT_SYMBOL}, mainArgs)
 }
 
-func (g *Graph) ExecuteOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
-	//TODO(HR): what to do if InputFrom/ArgumentsFrom is empty
+//ExecuteGraph executes a graph stored in the enginedirectly
+func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	gd, exists := ge.graphs[graphName]
+	if exists {
+		g := &Graph{engine: ge, desc: &gd}
+		g.opOutputs = make(map[string]*OperatorIO)
+		g.opOutputs[ROOT_SYMBOL] = mainInput
+		return g.execute(mainArgs)
+	}
+	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
+}
 
+func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
 	input, exists := g.opOutputs[opDesc.InputFrom]
 	if !exists {
 		return MakeOutputError(404, "Output of \"%s\" cannot be used as input for \"%v\", because there is no such output", opDesc.InputFrom, opDesc.Name)
@@ -96,15 +107,13 @@ func (g *Graph) ExecuteOperation(opDesc *GraphOperationDesc, mainArgs map[string
 	return MakeOutputError(404, "No operator with name \"%s\" found", opDesc.Operator)
 }
 
-func (g *Graph) Execute(mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	g.opOutputs[ROOT_SYMBOL] = mainInput
-
+func (g *Graph) execute(mainArgs map[string]string) *OperatorIO {
 	for _, operation := range g.desc.Operations {
 		_, exist := g.opOutputs[operation.Name]
 		if exist {
 			return MakeOutputError(404, "Multiple operations with name \"%s\" found", operation.Name)
 		}
-		output := g.ExecuteOperation(&operation, mainArgs)
+		output := g.executeOperation(&operation, mainArgs)
 		g.opOutputs[operation.Name] = output
 		if output.IsError() {
 			return output

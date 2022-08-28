@@ -35,7 +35,7 @@ func main() {
 
 	if mod != "" {
 		args, _ := url.ParseQuery(argstring)
-		output := ge.ExecuteOperatorByName(mod, fn, utils.URLArgsToMap(args))
+		output := ge.ExecuteOperatorByName(mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
 		fmt.Printf("%v", output.ToString())
 
 		// jrw := freepsdo.NewResponseCollector("freepsd command")
