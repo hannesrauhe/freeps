@@ -1,8 +1,10 @@
 package freepsgraph
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 type OutputT string
@@ -11,6 +13,7 @@ const (
 	Empty  OutputT = ""
 	Error  OutputT = "error"
 	String OutputT = "string"
+	Byte   OutputT = "byte"
 )
 
 type OperatorIO struct {
@@ -28,6 +31,10 @@ func MakeEmptyOutput() *OperatorIO {
 	return &OperatorIO{OutputType: Empty, HTTPCode: 200, Output: nil}
 }
 
+func MakeByteOutput(output []byte) *OperatorIO {
+	return &OperatorIO{OutputType: Byte, HTTPCode: 200, Output: output}
+}
+
 func (io *OperatorIO) GetMap() (map[string]string, error) {
 	v, ok := io.Output.(map[string]string)
 	if ok {
@@ -40,11 +47,22 @@ func (io *OperatorIO) IsError() bool {
 	return io.OutputType == Error
 }
 
-func (io *OperatorIO) ToString() string {
-	if io.IsError() {
-		return fmt.Sprintf("Error Code: %v,\n%v\n", io.HTTPCode, io.Output.(error))
-	} else {
-		o, _ := json.MarshalIndent(io.Output, "", "  ")
-		return fmt.Sprintf("Error Code: %v,\nOutput Type: %T,\n%v\n", io.HTTPCode, io.Output, string(o))
+func (oio *OperatorIO) ToString() string {
+	b := bytes.NewBufferString("")
+	oio.WriteTo(b)
+	return b.String()
+}
+
+func (oio *OperatorIO) WriteTo(bwriter io.Writer) {
+	if oio.IsError() {
+		fmt.Fprintf(bwriter, "Error Code: %v,\n%v\n", oio.HTTPCode, oio.Output.(error))
+		return
 	}
+	fmt.Fprintf(bwriter, "Error Code: %v,\nOutput Type: %T,\n", oio.HTTPCode, oio.Output)
+	if oio.OutputType == Byte {
+		bwriter.Write(oio.Output.([]byte))
+		return
+	}
+	o, _ := json.MarshalIndent(oio.Output, "", "  ")
+	fmt.Fprintf(bwriter, "%v\n", string(o))
 }

@@ -157,6 +157,11 @@ func NewConfigReader(configFilePath string) (*ConfigReader, error) {
 	return &ConfigReader{configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
 }
 
+// GetConfigDir returns the basepath of the config file
+func (c *ConfigReader) GetConfigDir() string {
+	return path.Dir(c.configFilePath)
+}
+
 // GetSectionBytes returns the bytes of the section given by sectionName
 func (c *ConfigReader) GetSectionBytes(sectionName string) ([]byte, error) {
 	c.lck.Lock()
@@ -192,7 +197,7 @@ func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct 
 	c.lck.Lock()
 	defer c.lck.Unlock()
 
-	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct, path.Dir(c.configFilePath))
+	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct, c.GetConfigDir())
 	if len(newb) > 0 {
 		c.configChanged = true
 		c.configFileContent = newb
@@ -236,4 +241,27 @@ func (c *ConfigReader) WriteBackConfigIfChanged() error {
 		return nil
 	}
 	return c.writeConfig()
+}
+
+func (c *ConfigReader) WriteObjectToFile(obj interface{}, filename string) error {
+	fullPath := c.GetConfigDir() + "/" + filename
+	f, err := os.Create(fullPath)
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	err = enc.Encode(obj)
+	return err
+}
+
+func (c *ConfigReader) ReadObjectFromFile(obj interface{}, filename string) error {
+	fullPath := c.GetConfigDir() + "/" + filename
+	f, err := os.Open(fullPath)
+	if err != nil {
+		return err
+	}
+	d := json.NewDecoder(f)
+	err = d.Decode(obj)
+	return err
 }

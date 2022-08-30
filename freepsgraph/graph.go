@@ -1,6 +1,8 @@
 package freepsgraph
 
 import (
+	"log"
+
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -8,9 +10,12 @@ var ROOT_SYMBOL = "_"
 
 //GraphEngineConfig is the configuration for the GraphEngine
 type GraphEngineConfig struct {
-	Graphs        map[string]Graph
-	GraphsFromURL string
+	Graphs         map[string]Graph
+	GraphsFromURL  string
+	GraphsFromFile string
 }
+
+var DEFAULT_CONFIG = GraphEngineConfig{GraphsFromFile: "graphs.json"}
 
 //GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
@@ -45,9 +50,25 @@ type GraphEngine struct {
 //NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
 	ge := &GraphEngine{graphs: make(map[string]GraphDesc)}
+	config := DEFAULT_CONFIG
+	err := cr.ReadSectionWithDefaults("graphs", &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cr.WriteBackConfigIfChanged()
+	if err != nil {
+		log.Print(err)
+	}
+	err = cr.ReadObjectFromFile(&ge.graphs, config.GraphsFromFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	ge.operators = make(map[string]FreepsOperator)
 	ge.operators["template"] = NewTemplateOperator(cr)
 	ge.operators["graph"] = &OpGraph{ge: ge}
+	ge.operators["curl"] = &OpCurl{}
+
 	return ge
 }
 
@@ -72,9 +93,13 @@ func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string
 }
 
 func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
-	input, exists := g.opOutputs[opDesc.InputFrom]
-	if !exists {
-		return MakeOutputError(404, "Output of \"%s\" cannot be used as input for \"%v\", because there is no such output", opDesc.InputFrom, opDesc.Name)
+	input := MakeEmptyOutput()
+	if opDesc.InputFrom != "" {
+		var exists bool
+		input, exists = g.opOutputs[opDesc.InputFrom]
+		if !exists {
+			return MakeOutputError(404, "Output of \"%s\" cannot be used as input for \"%v\", because there is no such output", opDesc.InputFrom, opDesc.Name)
+		}
 	}
 	combinedArgs := make(map[string]string)
 	if opDesc.Arguments != nil {

@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net/url"
+	"os"
 
 	"github.com/hannesrauhe/freeps/freepsdo"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -36,7 +36,8 @@ func main() {
 	if mod != "" {
 		args, _ := url.ParseQuery(argstring)
 		output := ge.ExecuteOperatorByName(mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
-		fmt.Printf("%v", output.ToString())
+		// fmt.Printf("%v", output.ToString())
+		output.WriteTo(os.Stdout)
 
 		// jrw := freepsdo.NewResponseCollector("freepsd command")
 		// doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
