@@ -60,6 +60,7 @@ func main() {
 	rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
 	mqtt := freepslisten.NewMqttSubscriber(cr, doer)
 	telg := freepslisten.NewTelegramBot(cr, doer, cancel)
+	http := freepslisten.NewFreepsHttp(cr, ge, cancel)
 
 	select {
 	case <-ctx.Done():
@@ -69,6 +70,7 @@ func main() {
 		if telg != nil {
 			telg.Shutdown(ctx)
 		}
+		http.Shutdown(ctx)
 	}
 	log.Printf("Server stopped")
 }

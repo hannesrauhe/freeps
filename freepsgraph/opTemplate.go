@@ -23,7 +23,7 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 		r := make(map[string]GraphDesc)
 		for n, t := range o.tmc.Config.Templates {
 			pos := 0
-			gd := GraphDesc{Name: n, Operations: make([]GraphOperationDesc, 0)}
+			gd := GraphDesc{Operations: make([]GraphOperationDesc, 0)}
 			o.Convert(&pos, &gd, t, ROOT_SYMBOL, ROOT_SYMBOL)
 			gd.OutputFrom = fmt.Sprintf("#%v", pos-1)
 			r[n] = gd
@@ -40,7 +40,11 @@ func (o *OpTemplate) Convert(pos *int, gd *GraphDesc, t *freepsdo.Template, Args
 		for k, v := range ta.Args {
 			args[k] = fmt.Sprintf("%v", v)
 		}
-		god := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: ta.Mod, Function: ta.Fn, Arguments: args, ArgumentsFrom: ArgsFrom}
+		operator := ta.Mod
+		if operator == "template" {
+			operator = "graph"
+		}
+		god := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: operator, Function: ta.Fn, Arguments: args, ArgumentsFrom: ArgsFrom}
 		gd.Operations = append(gd.Operations, god)
 		fwdArgsFrom := fmt.Sprintf("%v", *pos)
 		*pos++

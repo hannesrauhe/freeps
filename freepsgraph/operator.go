@@ -11,8 +11,6 @@ type OpGraph struct {
 
 var _ FreepsOperator = &OpGraph{}
 
-func (o *OpGraph) Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	return o.ge.ExecuteGraph(fn, mainArgs, mainInput)
+func (o *OpGraph) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+	return o.ge.ExecuteGraph(fn, args, input)
 }
-
-// Operators: OR, AND, PARALLEL, NOT(?), InputTransform

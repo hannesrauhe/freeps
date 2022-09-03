@@ -10,10 +10,11 @@ import (
 type OutputT string
 
 const (
-	Empty  OutputT = ""
-	Error  OutputT = "error"
-	String OutputT = "string"
-	Byte   OutputT = "byte"
+	Empty     OutputT = ""
+	Error     OutputT = "error"
+	PlainText OutputT = "plain"
+	Byte      OutputT = "byte"
+	Object    OutputT = "object"
 )
 
 type OperatorIO struct {
@@ -31,8 +32,16 @@ func MakeEmptyOutput() *OperatorIO {
 	return &OperatorIO{OutputType: Empty, HTTPCode: 200, Output: nil}
 }
 
+func MakePlainOutput(msg string, a ...interface{}) *OperatorIO {
+	return &OperatorIO{OutputType: PlainText, HTTPCode: 200, Output: fmt.Sprintf(msg, a...)}
+}
+
 func MakeByteOutput(output []byte) *OperatorIO {
 	return &OperatorIO{OutputType: Byte, HTTPCode: 200, Output: output}
+}
+
+func MakeObjectOutput(output interface{}) *OperatorIO {
+	return &OperatorIO{OutputType: Object, HTTPCode: 200, Output: output}
 }
 
 func (io *OperatorIO) GetMap() (map[string]string, error) {
@@ -41,6 +50,21 @@ func (io *OperatorIO) GetMap() (map[string]string, error) {
 		return v, nil
 	}
 	return nil, fmt.Errorf("Output is not of type map")
+}
+
+func (io *OperatorIO) GetBytes() ([]byte, error) {
+	switch io.OutputType {
+	case Empty:
+		return make([]byte, 0), nil
+	case Byte:
+		return io.Output.([]byte), nil
+	case PlainText:
+		return []byte(io.Output.(string)), nil
+	case Error:
+		return []byte(io.Output.(error).Error()), nil
+	default:
+		return json.MarshalIndent(io.Output, "", "  ")
+	}
 }
 
 func (io *OperatorIO) IsError() bool {

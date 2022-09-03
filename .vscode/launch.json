@@ -22,12 +22,12 @@
       "args": []
     },
     {
-      "name": "denonoff",
+      "name": "consul",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "denonon"]
+      "args": ["-m", "graph", "-f", "consuloftheday"]
     },
     {
       "name": "config-test",
