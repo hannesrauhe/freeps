@@ -10,12 +10,12 @@ var ROOT_SYMBOL = "_"
 
 //GraphEngineConfig is the configuration for the GraphEngine
 type GraphEngineConfig struct {
-	Graphs         map[string]Graph
-	GraphsFromURL  string
-	GraphsFromFile string
+	Graphs         map[string]GraphDesc
+	GraphsFromURL  []string
+	GraphsFromFile []string
 }
 
-var DEFAULT_CONFIG = GraphEngineConfig{GraphsFromFile: "graphs.json"}
+var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{"graphs.json"}}
 
 //GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
@@ -42,14 +42,16 @@ type Graph struct {
 
 //GraphEngine holds all available graphs and operators
 type GraphEngine struct {
-	graphs    map[string]GraphDesc
-	operators map[string]FreepsOperator
+	configGraphs    map[string]GraphDesc
+	externalGraphs  map[string]GraphDesc
+	temporaryGraphs map[string]GraphDesc
+	operators       map[string]FreepsOperator
 }
 
 //NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
-	ge := &GraphEngine{graphs: make(map[string]GraphDesc)}
-	config := DEFAULT_CONFIG
+	ge := &GraphEngine{configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc)}
+	config := DefaultGraphEngineConfig
 	err := cr.ReadSectionWithDefaults("graphs", &config)
 	if err != nil {
 		log.Fatal(err)
@@ -58,9 +60,11 @@ func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
 	if err != nil {
 		log.Print(err)
 	}
-	err = cr.ReadObjectFromFile(&ge.graphs, config.GraphsFromFile)
-	if err != nil {
-		log.Fatal(err)
+	for _, fName := range config.GraphsFromFile {
+		err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	ge.operators = make(map[string]FreepsOperator)
@@ -79,16 +83,32 @@ func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs 
 	return g.executeOperation(&GraphOperationDesc{Name: "#0", Operator: opName, Function: fn, InputFrom: ROOT_SYMBOL}, mainArgs)
 }
 
-//ExecuteGraph executes a graph stored in the enginedirectly
+//ExecuteGraph executes a graph stored in the engine
 func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	gd, exists := ge.graphs[graphName]
+	gd, exists := ge.GetGraphDesc(graphName)
 	if exists {
-		g := &Graph{engine: ge, desc: &gd}
+		g := &Graph{engine: ge, desc: gd}
 		g.opOutputs = make(map[string]*OperatorIO)
 		g.opOutputs[ROOT_SYMBOL] = mainInput
 		return g.execute(mainArgs)
 	}
 	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
+}
+
+func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
+	gd, exists := ge.configGraphs[graphName]
+	if exists {
+		return &gd, exists
+	}
+	gd, exists = ge.externalGraphs[graphName]
+	if exists {
+		return &gd, exists
+	}
+	gd, exists = ge.temporaryGraphs[graphName]
+	if exists {
+		return &gd, exists
+	}
+	return nil, false
 }
 
 func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {

@@ -52,6 +52,17 @@ func (io *OperatorIO) GetMap() (map[string]string, error) {
 	return nil, fmt.Errorf("Output is not of type map")
 }
 
+func (io *OperatorIO) ParseJSON(obj interface{}) error {
+	if io.OutputType == Byte {
+		v, ok := io.Output.([]byte)
+		if ok {
+			return json.Unmarshal(v, obj)
+		}
+	}
+
+	return fmt.Errorf("Output is not of type %v and cannot be parsed to JSON")
+}
+
 func (io *OperatorIO) GetBytes() ([]byte, error) {
 	switch io.OutputType {
 	case Empty:
