@@ -2,6 +2,7 @@ package freepsgraph
 
 import (
 	"log"
+	"sync"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -46,6 +47,7 @@ type GraphEngine struct {
 	externalGraphs  map[string]GraphDesc
 	temporaryGraphs map[string]GraphDesc
 	operators       map[string]FreepsOperator
+	graphLock       sync.Mutex
 }
 
 //NewGraphEngine creates the graph engine from the config
@@ -68,9 +70,11 @@ func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
 	}
 
 	ge.operators = make(map[string]FreepsOperator)
-	ge.operators["template"] = NewTemplateOperator(cr)
+	tOp := NewTemplateOperator(cr)
+	ge.operators["template"] = tOp
 	ge.operators["graph"] = &OpGraph{ge: ge}
 	ge.operators["curl"] = &OpCurl{}
+	ge.operators["ui"] = NewHTMLUI(tOp.tmc, ge)
 
 	return ge
 }
@@ -96,6 +100,8 @@ func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string
 }
 
 func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
 	gd, exists := ge.configGraphs[graphName]
 	if exists {
 		return &gd, exists
@@ -109,6 +115,23 @@ func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 		return &gd, exists
 	}
 	return nil, false
+}
+
+func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
+	r := make(map[string]*GraphDesc)
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+
+	for n, g := range ge.externalGraphs {
+		r[n] = &g
+	}
+	for n, g := range ge.temporaryGraphs {
+		r[n] = &g
+	}
+	for n, g := range ge.configGraphs {
+		r[n] = &g
+	}
+	return r
 }
 
 func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
@@ -126,11 +149,11 @@ func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string
 			combinedArgs[k] = v
 		}
 	}
-	if opDesc.ArgumentsFrom == ROOT_SYMBOL {
-		for k, v := range mainArgs {
-			combinedArgs[k] = v
-		}
-	} else if opDesc.ArgumentsFrom != "" {
+	for k, v := range mainArgs {
+		combinedArgs[k] = v
+	}
+
+	if opDesc.ArgumentsFrom != "" {
 		outputToBeArgs, exists := g.opOutputs[opDesc.ArgumentsFrom]
 		if !exists {
 			return MakeOutputError(404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)

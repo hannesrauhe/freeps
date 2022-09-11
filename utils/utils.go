@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 )
 
 // URLArgsToMap converts the string map of arrays to a string map of strings by dropping
@@ -54,4 +55,9 @@ func ArgsMapToObject(args map[string]string, obj interface{}) error {
 	}
 	err = json.Unmarshal(data, obj)
 	return err
+}
+
+func ClearString(str string) string {
+	var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
+	return nonAlphanumericRegex.ReplaceAllString(str, "")
 }

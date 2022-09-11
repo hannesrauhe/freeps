@@ -18,9 +18,10 @@ const (
 )
 
 type OperatorIO struct {
-	OutputType OutputT
-	HTTPCode   uint32
-	Output     interface{}
+	OutputType  OutputT
+	HTTPCode    uint32
+	Output      interface{}
+	ContentType string
 }
 
 func MakeOutputError(code uint32, msg string, a ...interface{}) *OperatorIO {
@@ -38,6 +39,10 @@ func MakePlainOutput(msg string, a ...interface{}) *OperatorIO {
 
 func MakeByteOutput(output []byte) *OperatorIO {
 	return &OperatorIO{OutputType: Byte, HTTPCode: 200, Output: output}
+}
+
+func MakeByteOutputWithContentType(output []byte, contentType string) *OperatorIO {
+	return &OperatorIO{OutputType: Byte, HTTPCode: 200, Output: output, ContentType: contentType}
 }
 
 func MakeObjectOutput(output interface{}) *OperatorIO {
@@ -80,6 +85,19 @@ func (io *OperatorIO) GetBytes() ([]byte, error) {
 
 func (io *OperatorIO) IsError() bool {
 	return io.OutputType == Error
+}
+
+func (io *OperatorIO) IsEmpty() bool {
+	switch io.OutputType {
+	case Empty:
+		return true
+	case Byte:
+		return len(io.Output.([]byte)) == 0
+	case PlainText:
+		return len(io.Output.(string)) == 0
+	default:
+		return false
+	}
 }
 
 func (oio *OperatorIO) ToString() string {
