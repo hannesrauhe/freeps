@@ -38,12 +38,11 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	query := req.URL.Query()
+	mainArgs = utils.URLArgsToMap(query)
 	device, exists := vars["device"]
 	if exists {
-		query["device"] = make([]string, 1)
-		query["device"][0] = device
+		mainArgs["device"] = device
 	}
-	mainArgs = utils.URLArgsToMap(query)
 
 	opio := r.graphengine.ExecuteOperatorByName(vars["mod"], vars["function"], mainArgs, &mainInput)
 
@@ -52,7 +51,7 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error creating response: %v", err)
 	}
-	w.Header().Set("Content-Type", string(opio.OutputType))
+	w.Header().Set("Content-Type", opio.ContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 	w.WriteHeader(int(opio.HTTPCode))
 	if _, err := w.Write(bytes); err != nil {
@@ -65,16 +64,13 @@ func (r *FreepsHttp) Shutdown(ctx context.Context) {
 	r.srv.Shutdown(ctx)
 }
 
-func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine, cancel context.CancelFunc) *FreepsHttp {
+func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsHttp {
 	rest := &FreepsHttp{graphengine: ge}
 	r := mux.NewRouter()
+
+	r.Handle("/{mod}", rest)
 	r.Handle("/{mod}/{function}", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
-	r.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Shutdown Request Sucess"))
-		// Cancel the context on request
-		cancel()
-	})
 
 	rest.srv = &http.Server{
 		Handler:      r,

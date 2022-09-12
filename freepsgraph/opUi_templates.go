@@ -83,6 +83,5 @@ const templateShowGraphs = `
 <textarea name="dot" cols="50" rows="10">
 {{ .Dot }}
 </textarea>
-<a href="https://dreampuf.github.io/GraphvizOnline/#{{ .Dot | urlescaper }}">Show Online</a>
 </div>
 `

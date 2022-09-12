@@ -30,47 +30,42 @@ func main() {
 		log.Fatal(err)
 	}
 
-	doer := freepsdo.NewTemplateMod(cr)
-	ge := freepsgraph.NewGraphEngine(cr)
+	running := true
+	for running {
+		log.Printf("Starting Listeners")
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	if mod != "" {
-		args, _ := url.ParseQuery(argstring)
-		output := ge.ExecuteOperatorByName(mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
-		// fmt.Printf("%v", output.ToString())
-		output.WriteTo(os.Stdout)
+		doer := freepsdo.NewTemplateMod(cr)
+		ge := freepsgraph.NewGraphEngine(cr, cancel)
 
-		// jrw := freepsdo.NewResponseCollector("freepsd command")
-		// doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
-		// _, t, b := jrw.GetFinalResponse(true)
-		// if t == freepsdo.ResponseTypePlainText || t == freepsdo.ResponseTypeJSON {
-		// 	os.Stdout.Write(b)
-		// 	println("")
-		// } else {
-		// 	println("Binary response not printed")
-		// }
-		// if verbose {
-		// 	fmt.Printf("%q", jrw.GetResponseTree())
-		// }
-		return
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
-	mqtt := freepslisten.NewMqttSubscriber(cr, doer)
-	telg := freepslisten.NewTelegramBot(cr, doer, cancel)
-	http := freepslisten.NewFreepsHttp(cr, ge, cancel)
-
-	select {
-	case <-ctx.Done():
-		// Shutdown the server when the context is canceled
-		rest.Shutdown(ctx)
-		mqtt.Shutdown()
-		if telg != nil {
-			telg.Shutdown(ctx)
+		if mod != "" {
+			args, _ := url.ParseQuery(argstring)
+			output := ge.ExecuteOperatorByName(mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
+			output.WriteTo(os.Stdout)
+			return
 		}
-		http.Shutdown(ctx)
+
+		http := freepslisten.NewFreepsHttp(cr, ge)
+
+		//TODO(HR): rewrite to fit new ge model
+		rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
+		mqtt := freepslisten.NewMqttSubscriber(cr, doer)
+		telg := freepslisten.NewTelegramBot(cr, doer, cancel)
+
+		select {
+		case <-ctx.Done():
+			// Shutdown the server when the context is canceled
+			rest.Shutdown(ctx)
+			if mqtt != nil {
+				mqtt.Shutdown()
+			}
+			if telg != nil {
+				telg.Shutdown(ctx)
+			}
+			http.Shutdown(ctx)
+		}
+		running = ge.ReloadRequested()
+		log.Printf("Stopping Listeners")
 	}
-	log.Printf("Server stopped")
 }

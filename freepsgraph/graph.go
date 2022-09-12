@@ -1,6 +1,7 @@
 package freepsgraph
 
 import (
+	"context"
 	"log"
 	"sync"
 
@@ -47,12 +48,13 @@ type GraphEngine struct {
 	externalGraphs  map[string]GraphDesc
 	temporaryGraphs map[string]GraphDesc
 	operators       map[string]FreepsOperator
+	reloadRequested bool
 	graphLock       sync.Mutex
 }
 
 //NewGraphEngine creates the graph engine from the config
-func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
-	ge := &GraphEngine{configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc)}
+func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
+	ge := &GraphEngine{configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), reloadRequested: false}
 	config := DefaultGraphEngineConfig
 	err := cr.ReadSectionWithDefaults("graphs", &config)
 	if err != nil {
@@ -75,8 +77,14 @@ func NewGraphEngine(cr *utils.ConfigReader) *GraphEngine {
 	ge.operators["graph"] = &OpGraph{ge: ge}
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["ui"] = NewHTMLUI(tOp.tmc, ge)
+	ge.operators["system"] = NewSytemOp(ge, cancel)
 
 	return ge
+}
+
+//ReloadRequested returns true if a reload was requested instead of a restart
+func (ge *GraphEngine) ReloadRequested() bool {
+	return ge.reloadRequested
 }
 
 //ExecuteOperatorByName executes an operator directly

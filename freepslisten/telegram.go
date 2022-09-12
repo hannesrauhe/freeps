@@ -17,6 +17,7 @@ type Telegraminator struct {
 	tgc         *freepsdo.TelegramConfig
 	lastMessage int
 	chatState   map[int64]TelegramCallbackResponse
+	closeChan   chan int
 }
 
 type TelegramCallbackResponse struct {
@@ -29,6 +30,8 @@ type TelegramCallbackResponse struct {
 
 func (r *Telegraminator) Shutdown(ctx context.Context) {
 	r.bot.StopReceivingUpdates()
+	<-r.closeChan
+	r.bot = nil
 }
 
 type ButtonWrapper struct {
@@ -296,6 +299,8 @@ func (r *Telegraminator) MainLoop() {
 		}
 		r.Respond(update.Message.Chat, "", update.Message.Text)
 	}
+	log.Print("Telegram Main Loop stopped")
+	r.closeChan <- 1
 }
 
 func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel context.CancelFunc) *Telegraminator {
@@ -314,7 +319,7 @@ func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel c
 	}
 
 	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	t := &Telegraminator{Modinator: doer, bot: bot, tgc: &tgc, chatState: make(map[int64]TelegramCallbackResponse)}
+	t := &Telegraminator{Modinator: doer, bot: bot, tgc: &tgc, chatState: make(map[int64]TelegramCallbackResponse), closeChan: make(chan int)}
 	if err != nil {
 		log.Printf("Error on Telegram registration: %v", err)
 		return t
