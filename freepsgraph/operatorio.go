@@ -65,7 +65,7 @@ func (io *OperatorIO) ParseJSON(obj interface{}) error {
 		}
 	}
 
-	return fmt.Errorf("Output is not of type %v and cannot be parsed to JSON")
+	return fmt.Errorf("Output is of type %v and cannot be parsed to JSON", io.OutputType)
 }
 
 func (io *OperatorIO) GetBytes() ([]byte, error) {

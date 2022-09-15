@@ -56,28 +56,33 @@ type GraphEngine struct {
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
 	ge := &GraphEngine{configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), reloadRequested: false}
 	config := DefaultGraphEngineConfig
-	err := cr.ReadSectionWithDefaults("graphs", &config)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
-	}
-	for _, fName := range config.GraphsFromFile {
-		err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
+
+	ge.operators = make(map[string]FreepsOperator)
+	ge.operators["graph"] = &OpGraph{ge: ge}
+	ge.operators["curl"] = &OpCurl{}
+	ge.operators["system"] = NewSytemOp(ge, cancel)
+	ge.operators["eval"] = &OpEval{}
+
+	if cr != nil {
+		err := cr.ReadSectionWithDefaults("graphs", &config)
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
+		cr.WriteBackConfigIfChanged()
+		if err != nil {
+			log.Print(err)
+		}
+		for _, fName := range config.GraphsFromFile {
+			err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		tOp := NewTemplateOperator(cr)
 
-	ge.operators = make(map[string]FreepsOperator)
-	tOp := NewTemplateOperator(cr)
-	ge.operators["template"] = tOp
-	ge.operators["graph"] = &OpGraph{ge: ge}
-	ge.operators["curl"] = &OpCurl{}
-	ge.operators["ui"] = NewHTMLUI(tOp.tmc, ge)
-	ge.operators["system"] = NewSytemOp(ge, cancel)
+		ge.operators["template"] = tOp
+		ge.operators["ui"] = NewHTMLUI(tOp.tmc, ge)
+	}
 
 	return ge
 }
@@ -183,10 +188,12 @@ func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string
 }
 
 func (g *Graph) execute(mainArgs map[string]string) *OperatorIO {
-	for _, operation := range g.desc.Operations {
-		_, exist := g.opOutputs[operation.Name]
-		if exist {
+	for i, operation := range g.desc.Operations {
+		if _, exist := g.opOutputs[operation.Name]; exist {
 			return MakeOutputError(404, "Multiple operations with name \"%s\" found", operation.Name)
+		}
+		if i == 0 && operation.InputFrom == "" {
+			operation.InputFrom = ROOT_SYMBOL
 		}
 		output := g.executeOperation(&operation, mainArgs)
 		g.opOutputs[operation.Name] = output

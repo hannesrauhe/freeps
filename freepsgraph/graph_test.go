@@ -18,8 +18,48 @@ func (*MockOperator) Execute(fn string, mainArgs map[string]string, mainInput *O
 
 var _ FreepsOperator = &MockOperator{}
 
+const testGraph = `
+"mqttaction": {
+	"Actions": [
+		{
+			"Fn": "pushfields",
+			"Mod": "flux"
+		},
+		{
+			"Args": {
+				"valueName": "FieldsWithType.open.FieldValue",
+				"valueType": "bool"
+			},
+			"Fn": "eval",
+			"FwdTemplateName": "dooropen",
+			"Mod": "eval"
+		},
+		{
+			"Args": {
+				"operand": "20",
+				"operation": "lt",
+				"valueName": "FieldsWithType.battery.FieldValue",
+				"valueType": "int"
+			},
+			"Fn": "eval",
+			"FwdTemplateName": "phonebatterylow",
+			"Mod": "eval"
+		}
+	]
+}
+`
+
 func TestCallFreepsOperator(t *testing.T) {
-	g := NewGraph(&GraphDesc{Name: "Test", Operations: make([]GraphOperationDesc, 0)})
-	o := g.ExecuteOperation("", &GraphOperationDesc{Name: "myname", Operator: "mock", Arguments: make(map[string]string), InputFrom: "NOTTHERE", ArgumentsFrom: "NOTTHERE"}, make(map[string]string))
-	assert.Assert(t, o.IsError())
+	ge := NewGraphEngine(nil, func() {})
+	ge.configGraphs["test"] = GraphDesc{Operations: []GraphOperationDesc{
+		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
+			"valueType": "bool"}},
+		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
+	}}
+	oError := ge.ExecuteGraph("test", make(map[string]string), MakeEmptyOutput())
+	assert.Assert(t, oError.IsError())
+
+	testInput := MakeByteOutput([]byte(`{"FieldsWithType": {"open" : {"FieldValue": "true", "FieldType": "bool"} }}`))
+	oTrue := ge.ExecuteGraph("test", make(map[string]string), testInput)
+	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
 }

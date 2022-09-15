@@ -20,6 +20,7 @@ type OpFritz struct {
 
 var _ FreepsOperator = &OpFritz{}
 
+// NewOpFritz creates a new operator for Freeps and Freepsflux
 func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
 	conf := freepslib.DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepslib", &conf)

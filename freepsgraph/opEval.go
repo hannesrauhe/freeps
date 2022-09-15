@@ -38,10 +38,15 @@ type DedupArgs struct {
 
 func (m *OpEval) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
+	case "echo":
+		if m, ok := vars["output"]; ok {
+			return MakePlainOutput(m)
+		}
+		return MakeEmptyOutput()
 	case "eval":
 		fallthrough
 	case "regexp":
-		m.EvalAndRegexp(fn, vars, input)
+		return m.EvalAndRegexp(fn, vars, input)
 	case "dedup":
 		var args DedupArgs
 		err := utils.ArgsMapToObject(vars, &args)

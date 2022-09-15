@@ -2,6 +2,7 @@ package freepsgraph
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/hannesrauhe/freeps/freepsdo"
 	"github.com/hannesrauhe/freeps/utils"
@@ -19,22 +20,37 @@ func NewTemplateOperator(cr *utils.ConfigReader) *OpTemplate {
 }
 
 func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	if fn == "convertAndStore" {
+	switch fn {
+	case "convertAndStore":
 		r := make(map[string]GraphDesc)
 		for n, t := range o.tmc.Config.Templates {
-			pos := 0
-			gd := GraphDesc{Operations: make([]GraphOperationDesc, 0)}
-			o.Convert(&pos, &gd, t, ROOT_SYMBOL, ROOT_SYMBOL)
-			gd.OutputFrom = fmt.Sprintf("#%v", pos-1)
-			r[n] = gd
+			r[n] = *o.convertTemplateToGraphDesc(t)
 		}
 		o.cr.WriteObjectToFile(r, "convertedGraphs.json")
-		return &OperatorIO{HTTPCode: 200, Output: r}
+		return MakeObjectOutput(r)
+	case "convert":
+		tName, ok := mainArgs["name"]
+		if !ok {
+			return MakeOutputError(http.StatusBadRequest, "Missing argument name")
+		}
+		t, ok := o.tmc.GetTemplate(tName)
+		if !ok {
+			return MakeOutputError(http.StatusBadRequest, "Unknown template %v", tName)
+		}
+		return MakeObjectOutput(o.convertTemplateToGraphDesc(t))
 	}
-	return MakeOutputError(404, "No template with name \"%s\" found", fn)
+	return MakeOutputError(http.StatusBadRequest, "Unknown function %v", fn)
 }
 
-func (o *OpTemplate) Convert(pos *int, gd *GraphDesc, t *freepsdo.Template, ArgsFrom string, InputFrom string) {
+func (o *OpTemplate) convertTemplateToGraphDesc(t *freepsdo.Template) *GraphDesc {
+	pos := 0
+	gd := &GraphDesc{Operations: make([]GraphOperationDesc, 0)}
+	o.convert(&pos, gd, t, ROOT_SYMBOL, ROOT_SYMBOL)
+	gd.OutputFrom = fmt.Sprintf("#%v", pos-1)
+	return gd
+}
+
+func (o *OpTemplate) convert(pos *int, gd *GraphDesc, t *freepsdo.Template, ArgsFrom string, InputFrom string) {
 	for _, ta := range t.Actions {
 		args := make(map[string]string, 0)
 		for k, v := range ta.Args {
@@ -49,7 +65,7 @@ func (o *OpTemplate) Convert(pos *int, gd *GraphDesc, t *freepsdo.Template, Args
 		fwdArgsFrom := fmt.Sprintf("%v", *pos)
 		*pos++
 		if ta.FwdTemplate != nil {
-			o.Convert(pos, gd, ta.FwdTemplate, fwdArgsFrom, fwdArgsFrom)
+			o.convert(pos, gd, ta.FwdTemplate, fwdArgsFrom, fwdArgsFrom)
 		}
 		if ta.FwdTemplateName != "" {
 			fwdGod := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: "graph", Function: ta.FwdTemplateName, ArgumentsFrom: fwdArgsFrom}
