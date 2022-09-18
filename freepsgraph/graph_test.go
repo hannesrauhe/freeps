@@ -63,3 +63,38 @@ func TestCallFreepsOperator(t *testing.T) {
 	oTrue := ge.ExecuteGraph("test", make(map[string]string), testInput)
 	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
 }
+
+func TestCheckGraph(t *testing.T) {
+	ge := NewGraphEngine(nil, func() {})
+	ge.configGraphs["test_noinput"] = GraphDesc{Operations: []GraphOperationDesc{
+		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
+	}}
+	opIO := ge.CheckGraph("test_noinput")
+	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
+
+	ge.configGraphs["test_noargs"] = GraphDesc{Operations: []GraphOperationDesc{
+		{Operator: "eval", Function: "eval", ArgumentsFrom: "NOTEXISTING"},
+	}}
+	opIO = ge.CheckGraph("test_noargs")
+
+	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
+	ge.configGraphs["test_noop"] = GraphDesc{Operations: []GraphOperationDesc{
+		{Operator: "NOTHERE"},
+	}}
+
+	opIO = ge.CheckGraph("test_noargs")
+	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
+
+	ge.configGraphs["test_valid"] = GraphDesc{Operations: []GraphOperationDesc{
+		{Operator: "eval"},
+	}}
+	opIO = ge.CheckGraph("test_valid")
+	assert.Assert(t, !opIO.IsError(), "unexpected output: %v", opIO)
+
+	gd, _ := ge.GetGraphDesc("test_valid")
+	// assert.Equal(t, gd.Operations[0].Name, "", "original graph should not be modified")
+
+	g := NewGraph(gd, ge)
+	g.prepareAndCheck()
+	assert.Equal(t, g.desc.Operations[0].Name, "#0")
+}

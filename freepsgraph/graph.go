@@ -2,6 +2,8 @@ package freepsgraph
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -94,24 +96,43 @@ func (ge *GraphEngine) ReloadRequested() bool {
 
 //ExecuteOperatorByName executes an operator directly
 func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	g := &Graph{engine: ge}
-	g.opOutputs = make(map[string]*OperatorIO)
-	g.opOutputs[ROOT_SYMBOL] = mainInput
-	return g.executeOperation(&GraphOperationDesc{Name: "#0", Operator: opName, Function: fn, InputFrom: ROOT_SYMBOL}, mainArgs)
+	g := NewGraph(&GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
+	err := g.prepareAndCheck()
+	if err != nil {
+		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
+	}
+	return g.execute(mainArgs, mainInput)
 }
 
 //ExecuteGraph executes a graph stored in the engine
 func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	gd, exists := ge.GetGraphDesc(graphName)
 	if exists {
-		g := &Graph{engine: ge, desc: gd}
-		g.opOutputs = make(map[string]*OperatorIO)
-		g.opOutputs[ROOT_SYMBOL] = mainInput
-		return g.execute(mainArgs)
+		g := NewGraph(gd, ge)
+		err := g.prepareAndCheck()
+		if err != nil {
+			return MakeOutputError(500, "Graph preparation failed: "+err.Error())
+		}
+		return g.execute(mainArgs, mainInput)
 	}
 	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
 }
 
+//CheckGraph checks if the graph is valid
+func (ge *GraphEngine) CheckGraph(graphName string) *OperatorIO {
+	gd, exists := ge.GetGraphDesc(graphName)
+	if exists {
+		g := NewGraph(gd, ge)
+		err := g.prepareAndCheck()
+		if err != nil {
+			return MakeOutputError(500, "Graph preparation failed: "+err.Error())
+		}
+		return MakeEmptyOutput()
+	}
+	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
+}
+
+//GetGraphDesc returns the graph description stored under graphName
 func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
@@ -130,6 +151,7 @@ func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	return nil, false
 }
 
+//GetAllGraphDesc returns all graphs by name
 func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 	r := make(map[string]*GraphDesc)
 	ge.graphLock.Lock()
@@ -145,6 +167,78 @@ func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 		r[n] = &g
 	}
 	return r
+}
+
+//HasOperator returns true if the graph is stored in the engine
+func (ge *GraphEngine) HasOperator(opName string) bool {
+	_, exists := ge.operators[opName]
+	return exists
+}
+
+//NewGraph creates a new graph from a graph description
+func NewGraph(gd *GraphDesc, ge *GraphEngine) *Graph {
+	return &Graph{desc: gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}
+}
+
+func (g *Graph) prepareAndCheck() error {
+	if g.engine == nil {
+		return errors.New("GraphEngine not set")
+	}
+	if g.desc == nil {
+		return errors.New("GraphDesc not set")
+	}
+	if len(g.desc.Operations) == 0 {
+		return errors.New("No operations defined")
+	}
+	outputNames := make(map[string]bool)
+	outputNames[ROOT_SYMBOL] = true
+	for i := 0; i < len(g.desc.Operations); i++ {
+		op := &g.desc.Operations[i]
+		if op.Name == ROOT_SYMBOL {
+			return errors.New("Operation name cannot be " + ROOT_SYMBOL)
+		}
+		if op.Name == "" {
+			op.Name = fmt.Sprintf("#%d", i)
+		}
+		if !g.engine.HasOperator(op.Operator) {
+			return fmt.Errorf("Operation \"%v\" references unknown operator \"%v\"", op.Operator, op.Name)
+		}
+		if op.ArgumentsFrom != "" && outputNames[op.ArgumentsFrom] != true {
+			return fmt.Errorf("Operation \"%v\" references unknown argumentsFrom \"%v\"", op.Name, op.ArgumentsFrom)
+		}
+		if op.InputFrom == "" && i == 0 {
+			op.InputFrom = ROOT_SYMBOL
+		}
+		if outputNames[op.InputFrom] != true {
+			return fmt.Errorf("Operation \"%v\" references unknown inputFrom \"%v\"", op.Name, op.InputFrom)
+		}
+		outputNames[op.Name] = true
+	}
+	if g.desc.OutputFrom == "" {
+		if len(g.desc.Operations) == 1 {
+			g.desc.OutputFrom = g.desc.Operations[0].Name
+		}
+	}
+	return nil
+}
+
+func (g *Graph) execute(mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	g.opOutputs[ROOT_SYMBOL] = mainInput
+
+	for i, operation := range g.desc.Operations {
+		if _, exist := g.opOutputs[operation.Name]; exist {
+			return MakeOutputError(404, "Multiple operations with name \"%s\" found", operation.Name)
+		}
+		if i == 0 && operation.InputFrom == "" {
+			operation.InputFrom = ROOT_SYMBOL
+		}
+		output := g.executeOperation(&operation, mainArgs)
+		g.opOutputs[operation.Name] = output
+	}
+	if g.desc.OutputFrom == "" {
+		return MakeObjectOutput(g.opOutputs)
+	}
+	return g.opOutputs[g.desc.OutputFrom]
 }
 
 func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
@@ -185,25 +279,4 @@ func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string
 		return op.Execute(opDesc.Function, combinedArgs, input)
 	}
 	return MakeOutputError(404, "No operator with name \"%s\" found", opDesc.Operator)
-}
-
-func (g *Graph) execute(mainArgs map[string]string) *OperatorIO {
-	for i, operation := range g.desc.Operations {
-		if _, exist := g.opOutputs[operation.Name]; exist {
-			return MakeOutputError(404, "Multiple operations with name \"%s\" found", operation.Name)
-		}
-		if i == 0 && operation.InputFrom == "" {
-			operation.InputFrom = ROOT_SYMBOL
-		}
-		output := g.executeOperation(&operation, mainArgs)
-		g.opOutputs[operation.Name] = output
-		if output.IsError() {
-			return output
-		}
-	}
-	if g.desc.OutputFrom == "" {
-		lastOperation := g.desc.Operations[len(g.desc.Operations)-1]
-		return g.opOutputs[lastOperation.Name]
-	}
-	return g.opOutputs[g.desc.OutputFrom]
 }
