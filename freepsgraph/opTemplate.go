@@ -9,24 +9,26 @@ import (
 )
 
 type OpTemplate struct {
+	ge  *GraphEngine
 	tmc *freepsdo.TemplateMod
 	cr  *utils.ConfigReader
 }
 
 var _ FreepsOperator = &OpTemplate{}
 
-func NewTemplateOperator(cr *utils.ConfigReader) *OpTemplate {
-	return &OpTemplate{tmc: freepsdo.NewTemplateMod(cr), cr: cr}
+func NewTemplateOperator(ge *GraphEngine, cr *utils.ConfigReader) *OpTemplate {
+	return &OpTemplate{ge: ge, tmc: freepsdo.NewTemplateMod(cr), cr: cr}
 }
 
 func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	switch fn {
-	case "convertAndStore":
+	case "convertAll":
 		r := make(map[string]GraphDesc)
 		for n, t := range o.tmc.Config.Templates {
-			r[n] = *o.convertTemplateToGraphDesc(t)
+			g := o.convertTemplateToGraphDesc(t)
+			o.ge.AddTemporaryGraph(n, g)
+			r[n] = *g
 		}
-		o.cr.WriteObjectToFile(r, "convertedGraphs.json")
 		return MakeObjectOutput(r)
 	case "convert":
 		tName, ok := mainArgs["name"]
@@ -37,7 +39,9 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 		if !ok {
 			return MakeOutputError(http.StatusBadRequest, "Unknown template %v", tName)
 		}
-		return MakeObjectOutput(o.convertTemplateToGraphDesc(t))
+		g := o.convertTemplateToGraphDesc(t)
+		o.ge.AddTemporaryGraph(tName, g)
+		return MakeObjectOutput(g)
 	}
 	return MakeOutputError(http.StatusBadRequest, "Unknown function %v", fn)
 }

@@ -49,19 +49,23 @@ const testGraph = `
 }
 `
 
-func TestCallFreepsOperator(t *testing.T) {
+func TestOperatorErrorChain(t *testing.T) {
 	ge := NewGraphEngine(nil, func() {})
 	ge.configGraphs["test"] = GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
-	}}
+	}, OutputFrom: "echook"}
 	oError := ge.ExecuteGraph("test", make(map[string]string), MakeEmptyOutput())
-	assert.Assert(t, oError.IsError())
+	assert.Assert(t, oError.IsError(), "unexpected output: %v", oError)
 
 	testInput := MakeByteOutput([]byte(`{"FieldsWithType": {"open" : {"FieldValue": "true", "FieldType": "bool"} }}`))
 	oTrue := ge.ExecuteGraph("test", make(map[string]string), testInput)
 	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
+
+	// test that output of single operation is directly returned and not merged
+	oDirect := ge.ExecuteOperatorByName("eval", "echo", map[string]string{"output": "true"}, MakeEmptyOutput())
+	assert.Assert(t, oDirect.IsPlain(), "unexpected output: %v", oDirect)
 }
 
 func TestCheckGraph(t *testing.T) {
@@ -92,9 +96,9 @@ func TestCheckGraph(t *testing.T) {
 	assert.Assert(t, !opIO.IsError(), "unexpected output: %v", opIO)
 
 	gd, _ := ge.GetGraphDesc("test_valid")
-	// assert.Equal(t, gd.Operations[0].Name, "", "original graph should not be modified")
+	assert.Equal(t, gd.Operations[0].Name, "", "original graph should not be modified")
 
-	g := NewGraph(gd, ge)
-	g.prepareAndCheck()
+	g, err := NewGraph(gd, ge)
+	assert.NilError(t, err)
 	assert.Equal(t, g.desc.Operations[0].Name, "#0")
 }

@@ -87,6 +87,10 @@ func (io *OperatorIO) IsError() bool {
 	return io.OutputType == Error
 }
 
+func (io *OperatorIO) IsPlain() bool {
+	return io.OutputType == PlainText
+}
+
 func (io *OperatorIO) IsEmpty() bool {
 	switch io.OutputType {
 	case Empty:
