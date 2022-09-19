@@ -49,7 +49,7 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 func (o *OpTemplate) convertTemplateToGraphDesc(t *freepsdo.Template) *GraphDesc {
 	pos := 0
 	gd := &GraphDesc{Operations: make([]GraphOperationDesc, 0)}
-	o.convert(&pos, gd, t, ROOT_SYMBOL, ROOT_SYMBOL)
+	o.convert(&pos, gd, t, "", "")
 	gd.OutputFrom = fmt.Sprintf("#%v", pos-1)
 	return gd
 }
@@ -64,15 +64,15 @@ func (o *OpTemplate) convert(pos *int, gd *GraphDesc, t *freepsdo.Template, Args
 		if operator == "template" {
 			operator = "graph"
 		}
-		god := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: operator, Function: ta.Fn, Arguments: args, ArgumentsFrom: ArgsFrom}
+		god := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: operator, Function: ta.Fn, Arguments: args, ArgumentsFrom: ArgsFrom, InputFrom: InputFrom}
 		gd.Operations = append(gd.Operations, god)
-		fwdArgsFrom := fmt.Sprintf("%v", *pos)
+		fwdArgsFrom := fmt.Sprintf("#%v", *pos)
 		*pos++
 		if ta.FwdTemplate != nil {
-			o.convert(pos, gd, ta.FwdTemplate, fwdArgsFrom, fwdArgsFrom)
+			o.convert(pos, gd, ta.FwdTemplate, fwdArgsFrom, "")
 		}
 		if ta.FwdTemplateName != "" {
-			fwdGod := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: "graph", Function: ta.FwdTemplateName, ArgumentsFrom: fwdArgsFrom}
+			fwdGod := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: "graph", Function: ta.FwdTemplateName, ArgumentsFrom: fwdArgsFrom, InputFrom: InputFrom}
 			gd.Operations = append(gd.Operations, fwdGod)
 			*pos++
 		}

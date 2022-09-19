@@ -10,7 +10,7 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-var ROOT_SYMBOL = "_"
+const ROOT_SYMBOL = "_"
 
 //GraphEngineConfig is the configuration for the GraphEngine
 type GraphEngineConfig struct {
@@ -23,7 +23,7 @@ var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{"graph
 
 //GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
-	Name          string
+	Name          string `json:",omitempty"`
 	Operator      string
 	Function      string
 	Arguments     map[string]string `json:",omitempty"`
@@ -84,6 +84,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 
 		ge.operators["template"] = tOp
 		ge.operators["ui"] = NewHTMLUI(tOp.tmc, ge)
+		ge.operators["fritz"] = NewOpFritz(cr)
 	}
 
 	return ge
