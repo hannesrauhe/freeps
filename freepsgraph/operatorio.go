@@ -63,9 +63,15 @@ func (io *OperatorIO) ParseJSON(obj interface{}) error {
 		if ok {
 			return json.Unmarshal(v, obj)
 		}
+	} else {
+		byt, err := json.Marshal(io.Output)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(byt, obj)
 	}
 
-	return fmt.Errorf("Output is of type %v and cannot be parsed to JSON", io.OutputType)
+	return fmt.Errorf("Output is of type \"%v\" and cannot be parsed to JSON", io.OutputType)
 }
 
 func (io *OperatorIO) GetBytes() ([]byte, error) {

@@ -12,7 +12,7 @@ import (
 
 const ROOT_SYMBOL = "_"
 
-//GraphEngineConfig is the configuration for the GraphEngine
+// GraphEngineConfig is the configuration for the GraphEngine
 type GraphEngineConfig struct {
 	Graphs         map[string]GraphDesc
 	GraphsFromURL  []string
@@ -21,7 +21,7 @@ type GraphEngineConfig struct {
 
 var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{"graphs.json"}}
 
-//GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
+// GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
 	Name          string `json:",omitempty"`
 	Operator      string
@@ -31,20 +31,20 @@ type GraphOperationDesc struct {
 	ArgumentsFrom string            `json:",omitempty"`
 }
 
-//GraphDesc contains a number of operations and defines which output to use
+// GraphDesc contains a number of operations and defines which output to use
 type GraphDesc struct {
 	OutputFrom string
 	Operations []GraphOperationDesc
 }
 
-//Graph is the instance created from a GraphDesc and contains the runtime data
+// Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*OperatorIO
 }
 
-//GraphEngine holds all available graphs and operators
+// GraphEngine holds all available graphs and operators
 type GraphEngine struct {
 	configGraphs    map[string]GraphDesc
 	externalGraphs  map[string]GraphDesc
@@ -54,7 +54,7 @@ type GraphEngine struct {
 	graphLock       sync.Mutex
 }
 
-//NewGraphEngine creates the graph engine from the config
+// NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
 	ge := &GraphEngine{configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), reloadRequested: false}
 	config := DefaultGraphEngineConfig
@@ -85,17 +85,18 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		ge.operators["template"] = tOp
 		ge.operators["ui"] = NewHTMLUI(tOp.tmc, ge)
 		ge.operators["fritz"] = NewOpFritz(cr)
+		ge.operators["flux"] = NewFluxMod(cr)
 	}
 
 	return ge
 }
 
-//ReloadRequested returns true if a reload was requested instead of a restart
+// ReloadRequested returns true if a reload was requested instead of a restart
 func (ge *GraphEngine) ReloadRequested() bool {
 	return ge.reloadRequested
 }
 
-//ExecuteOperatorByName executes an operator directly
+// ExecuteOperatorByName executes an operator directly
 func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g, err := NewGraph(&GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
 	if err != nil {
@@ -104,7 +105,7 @@ func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs 
 	return g.execute(mainArgs, mainInput)
 }
 
-//ExecuteGraph executes a graph stored in the engine
+// ExecuteGraph executes a graph stored in the engine
 func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	gd, exists := ge.GetGraphDesc(graphName)
 	if exists {
@@ -117,7 +118,7 @@ func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string
 	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
 }
 
-//CheckGraph checks if the graph is valid
+// CheckGraph checks if the graph is valid
 func (ge *GraphEngine) CheckGraph(graphName string) *OperatorIO {
 	gd, exists := ge.GetGraphDesc(graphName)
 	if exists {
@@ -130,7 +131,7 @@ func (ge *GraphEngine) CheckGraph(graphName string) *OperatorIO {
 	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
 }
 
-//GetGraphDesc returns the graph description stored under graphName
+// GetGraphDesc returns the graph description stored under graphName
 func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
@@ -149,7 +150,7 @@ func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	return nil, false
 }
 
-//GetAllGraphDesc returns all graphs by name
+// GetAllGraphDesc returns all graphs by name
 func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 	r := make(map[string]*GraphDesc)
 	ge.graphLock.Lock()
@@ -167,20 +168,20 @@ func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 	return r
 }
 
-//HasOperator returns true if the graph is stored in the engine
+// HasOperator returns true if the graph is stored in the engine
 func (ge *GraphEngine) HasOperator(opName string) bool {
 	_, exists := ge.operators[opName]
 	return exists
 }
 
-//AddTemporaryGraph adds a graph to the temporary graph list
+// AddTemporaryGraph adds a graph to the temporary graph list
 func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	ge.temporaryGraphs[graphName] = *gd
 }
 
-//NewGraph creates a new graph from a graph description
+// NewGraph creates a new graph from a graph description
 func NewGraph(graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 	if ge == nil {
 		return nil, errors.New("GraphEngine not set")

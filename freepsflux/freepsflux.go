@@ -66,6 +66,38 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 	return nil
 }
 
+func (ff *FreepsFlux) PushDeviceList(devl *freepslib.AvmDeviceList) (error, string) {
+	if len(ff.writeApis) == 0 {
+		err := ff.InitInflux()
+		if err != nil {
+			return err, ""
+		}
+	}
+
+	mTime := time.Now()
+
+	retString := ""
+	for i, writeAPI := range ff.writeApis {
+		builder := strings.Builder{}
+		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) {
+			writeAPI.WritePoint(point)
+			write.PointToLineProtocolBuffer(point, &builder, time.Second)
+		})
+		writeAPI.Flush()
+		if i == 0 {
+			retString = builder.String()
+		}
+		if ff.Verbose {
+			if i == 0 {
+				log.Println(retString)
+			}
+			log.Printf("Written to Connection %v", ff.config.InfluxdbConnections[i].URL)
+		}
+	}
+
+	return nil, retString
+}
+
 func (ff *FreepsFlux) Push() error {
 	if ff.f == nil {
 		return errors.New("Freepslib unintialized")

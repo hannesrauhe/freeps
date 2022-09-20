@@ -22,12 +22,12 @@
       "args": []
     },
     {
-      "name": "consul",
+      "name": "pushfritz",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "graph", "-f", "consuloftheday"]
+      "args": ["-m", "graph", "-f", "pushfritz"]
     },
     {
       "name": "config-test",
