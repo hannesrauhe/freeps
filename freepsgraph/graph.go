@@ -80,6 +80,12 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 				log.Fatal(err)
 			}
 		}
+		for _, fURL := range config.GraphsFromURL {
+			err = cr.ReadObjectFromURL(&ge.externalGraphs, fURL)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 		tOp := NewTemplateOperator(ge, cr)
 
 		ge.operators["template"] = tOp

@@ -265,3 +265,19 @@ func (c *ConfigReader) ReadObjectFromFile(obj interface{}, filename string) erro
 	err = d.Decode(obj)
 	return err
 }
+
+func (c *ConfigReader) ReadObjectFromURL(obj interface{}, url string) error {
+	hc := http.Client{}
+	resp, err := hc.Get(url)
+	if err != nil {
+		log.Printf("Error when reading from %v: %v", url, err)
+		return err
+	}
+	if resp.StatusCode > 300 {
+		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
+		return err
+	}
+	d := json.NewDecoder(resp.Body)
+	err = d.Decode(obj)
+	return err
+}

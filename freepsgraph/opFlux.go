@@ -82,21 +82,55 @@ func (m *OpFlux) Execute(fn string, vars map[string]string, input *OperatorIO) *
 				return MakeOutputError(http.StatusInternalServerError, "%v", err)
 			}
 		}
-	case "pushdevicelist":
+	case "pushfreepsdevicelist":
 		{
-			return m.PushDeviceList(input)
+			return m.pushFreepsDeviceList(input)
+		}
+	case "pushfreepsmetrics":
+		{
+			return m.pushFreepsMetrics(input)
+		}
+	case "pushfreepsdata":
+		{
+			return m.pushFreepsData(input)
 		}
 	}
 	return MakeOutputError(http.StatusBadRequest, "Unknown function: %v", fn)
 }
 
-func (m *OpFlux) PushDeviceList(input *OperatorIO) *OperatorIO {
+func (m *OpFlux) pushFreepsDeviceList(input *OperatorIO) *OperatorIO {
 	var devicelist freepslib.AvmDeviceList
 	err := input.ParseJSON(&devicelist)
 	if err != nil {
 		return MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
-	err, lp := m.ff.PushDeviceList(&devicelist)
+	err, lp := m.ff.PushFreepsDeviceList(&devicelist)
+	if err != nil {
+		return MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
+	}
+	return MakePlainOutput("%v", lp)
+}
+
+func (m *OpFlux) pushFreepsData(input *OperatorIO) *OperatorIO {
+	var devicelist freepslib.AvmDataResponse
+	err := input.ParseJSON(&devicelist)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
+	}
+	err, lp := m.ff.PushFreepsNetDeviceList(&devicelist)
+	if err != nil {
+		return MakeOutputError(http.StatusInternalServerError, "Error when pushing netdevice list: %v", err)
+	}
+	return MakePlainOutput("%v", lp)
+}
+
+func (m *OpFlux) pushFreepsMetrics(input *OperatorIO) *OperatorIO {
+	var metrics freepslib.FritzBoxMetrics
+	err := input.ParseJSON(&metrics)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
+	}
+	err, lp := m.ff.PushFreepsMetrics(&metrics)
 	if err != nil {
 		return MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}

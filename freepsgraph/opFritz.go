@@ -5,16 +5,13 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
 
 type OpFritz struct {
 	fl            *freepslib.Freeps
-	ff            *freepsflux.FreepsFlux
 	fc            *freepslib.FBconfig
-	ffc           *freepsflux.FreepsFluxConfig
 	cachedDevices map[string]string
 }
 
@@ -27,69 +24,70 @@ func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ffc := freepsflux.DefaultConfig
-	err = cr.ReadSectionWithDefaults("freepsflux", &ffc)
-	if err != nil {
-		log.Fatal(err)
-	}
 	cr.WriteBackConfigIfChanged()
 	if err != nil {
 		log.Print(err)
 	}
 	f, _ := freepslib.NewFreepsLib(&conf)
-	ff, _ := freepsflux.NewFreepsFlux(&ffc, f)
-	return &OpFritz{fl: f, ff: ff, fc: &conf, ffc: &ffc}
+	return &OpFritz{fl: f, fc: &conf}
 }
 
 func (m *OpFritz) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
-	var err error
 	dev := vars["device"]
 
-	if fn == "upnp" {
-		m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
-		if err == nil {
-			return MakeObjectOutput(m)
-		} else {
+	switch fn {
+	case "upnp":
+		{
+			m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
+			if err == nil {
+				return MakeObjectOutput(m)
+			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "freepsflux" {
-		err = m.ff.Push()
-		if err == nil {
-			return MakeEmptyOutput()
-		} else {
-			return MakeOutputError(http.StatusInternalServerError, "Freepsflux error when pushing: %v", err.Error())
-		}
-	} else if fn == "getdevicelistinfos" {
-		devl, err := m.getDeviceList()
-		if err == nil {
-			return MakeObjectOutput(devl)
-		} else {
+	case "getmetrics":
+		{
+			met, err := m.fl.GetMetrics()
+			if err == nil {
+				return MakeObjectOutput(&met)
+			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "getdata" {
-		r, err := m.fl.GetData()
-		if err == nil {
-			return MakeObjectOutput(r)
-		} else {
+	case "getdevicelistinfos":
+		{
+			devl, err := m.getDeviceList()
+			if err == nil {
+				return MakeObjectOutput(devl)
+			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "wakeup" {
-		netdev := vars["netdevice"]
-		log.Printf("Waking Up %v", netdev)
-		err = m.fl.WakeUpDevice(netdev)
-		if err == nil {
-			return MakePlainOutput("Woke up %s", netdev)
-		} else {
+	case "getdata":
+		{
+			r, err := m.fl.GetData()
+			if err == nil {
+				return MakeObjectOutput(r)
+			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn[0:3] == "set" {
-		err = m.fl.HomeAutoSwitch(fn, dev, vars)
+	case "wakeup":
+		{
+			netdev := vars["netdevice"]
+			log.Printf("Waking Up %v", netdev)
+			err := m.fl.WakeUpDevice(netdev)
+			if err == nil {
+				return MakePlainOutput("Woke up %s", netdev)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+	}
+
+	if fn[0:3] == "set" {
+		err := m.fl.HomeAutoSwitch(fn, dev, vars)
 		if err == nil {
 			vars["fn"] = fn
 			return MakeObjectOutput(vars)
-		} else {
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
+		return MakeOutputError(http.StatusInternalServerError, err.Error())
+
 	}
 
 	r, err := m.fl.HomeAutomation(fn, dev, vars)

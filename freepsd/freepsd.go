@@ -32,7 +32,7 @@ func main() {
 
 	running := true
 	for running {
-		log.Printf("Starting Listeners")
+		log.Printf("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -46,6 +46,7 @@ func main() {
 			return
 		}
 
+		log.Printf("Starting Listeners")
 		http := freepslisten.NewFreepsHttp(cr, ge)
 
 		//TODO(HR): rewrite to fit new ge model
