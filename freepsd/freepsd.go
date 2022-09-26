@@ -25,13 +25,13 @@ func main() {
 
 	flag.Parse()
 
-	cr, err := utils.NewConfigReader(configpath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	running := true
 	for running {
+		cr, err := utils.NewConfigReader(configpath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		log.Printf("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -51,7 +51,7 @@ func main() {
 
 		//TODO(HR): rewrite to fit new ge model
 		rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
-		mqtt := freepslisten.NewMqttSubscriber(cr, doer)
+		mqtt := freepslisten.NewMqttSubscriber(cr, ge)
 		telg := freepslisten.NewTelegramBot(cr, doer, cancel)
 
 		select {

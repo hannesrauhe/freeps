@@ -1,7 +1,6 @@
 package freepslisten
 
 import (
-	"encoding/json"
 	"log"
 
 	"crypto/tls"
@@ -11,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepsdo"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -55,7 +54,7 @@ type JsonArgs struct {
 type FreepsMqtt struct {
 	client   MQTT.Client
 	Config   *FreepsMqttConfig
-	Doer     *freepsdo.TemplateMod
+	ge       *freepsgraph.GraphEngine
 	Callback func(string, map[string]string, map[string]interface{}) error
 }
 
@@ -80,15 +79,9 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		fwt := FieldWithType{fconf.Datatype, value}
 		args := JsonArgs{Measurement: t[tc.MeasurementIndex], FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
 
-		jsonStr, err := json.Marshal(args)
-		if err != nil {
-			panic(err)
-		}
-		jrw := freepsdo.NewResponseCollector("mqtt " + topic)
-		fm.Doer.ExecuteModWithJson("template", tc.TemplateToCall, jsonStr, jrw)
-		jrw.GetFinalResponse(false) // trigger finalization
-		// log.Printf("Template %v finished with %v", tc.TemplateToCall, status)
-		// log.Printf("%q", jrw.GetResponseTree())
+		input := freepsgraph.MakeObjectOutput(args)
+		output := fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
+		output.WriteTo(os.Stdout)
 	} else {
 		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
 	}
@@ -113,15 +106,16 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
-	jrw := freepsdo.NewResponseCollector("mqtt system message")
-	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, jrw)
+	input := freepsgraph.MakeObjectOutput(message.Payload())
+	output := fm.ge.ExecuteOperatorByName(t[1], t[2], map[string]string{"topic": message.Topic()}, input)
+	output.WriteTo(os.Stdout)
 }
 
 func (fm *FreepsMqtt) Shutdown() {
 	fm.client.Disconnect(100)
 }
 
-func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *FreepsMqtt {
+func NewMqttSubscriber(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsMqtt {
 	fmc := DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsmqtt", &fmc)
 	if err != nil {
@@ -138,7 +132,7 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqtt{Config: &fmc, Doer: doer}
+	fmqtt := &FreepsMqtt{Config: &fmc, ge: ge}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true)
 	if fmc.Username != "" {

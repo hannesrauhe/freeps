@@ -24,7 +24,7 @@ func TestMetricsToPoints(t *testing.T) {
 		TransmissionRateDown: 23}
 
 	mtime := time.Unix(1, 0)
-	lp, err := ff.MetricsToLineProtocol(met, mtime)
+	lp, err := ff.MetricsToLineProtocol(&met, mtime)
 	assert.NilError(t, err)
 	expectedString :=
 		`uptime,fb=7777,name=myb seconds=2i 1
