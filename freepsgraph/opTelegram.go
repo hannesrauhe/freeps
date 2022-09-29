@@ -81,6 +81,6 @@ func (m *OpTelegram) GetPossibleArgs(fn string) []string {
 	return []string{"ChatID", "Text"}
 }
 
-func (m *OpTelegram) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+func (m *OpTelegram) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }

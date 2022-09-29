@@ -85,7 +85,7 @@ func (m *OpEval) GetPossibleArgs(fn string) []string {
 	return ret
 }
 
-func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {
 	case "valueType":
 		return map[string]string{"int": "int"}

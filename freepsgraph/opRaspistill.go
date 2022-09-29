@@ -54,7 +54,7 @@ func (m *OpRaspistill) GetPossibleArgs(fn string) []string {
 	return ret
 }
 
-func (m *OpRaspistill) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+func (m *OpRaspistill) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	ret := map[string]string{}
 	return ret
 }

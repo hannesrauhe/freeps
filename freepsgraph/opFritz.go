@@ -123,7 +123,7 @@ func (m *OpFritz) GetPossibleArgs(fn string) []string {
 	return make([]string, 0)
 }
 
-func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	if fn == "upnp" {
 		ret := map[string]string{}
 		if arg == "serviceName" {
@@ -133,7 +133,7 @@ func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 			}
 			return ret
 		} else if arg == "actionName" {
-			serviceName, ok := otherArgs["serviceName"].(string)
+			serviceName, ok := otherArgs["serviceName"]
 			if !ok {
 				return ret
 			}

@@ -3,15 +3,18 @@ package freepsgraph
 const templateEditGraph = `
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <form action="#" method="POST">
-<label for="NumOps">Number of operations:</label>
-<input type="number" id="NumOps" name="NumOps" min="1" max="50">
+<p>
+<label for="numop">Number of operation:</label>
+<input type="number" id="numop" name="numop" min="0" max="50" value="{{ .Numop }}" />
+<button name="goop">GO</button>
+</p>
 <p>
 	Mod:
-		{{ range $key, $value := .ModSuggestions }}
+		{{ range $key, $value := .OpSuggestions }}
 			{{ if $value}}
-				<button name="mod" value="{{ $key }}" disabled="true" >{{ $key }}</button>
+				<button name="op" value="{{ $key }}" disabled="true" >{{ $key }}</button>
 			{{ else}}
-				<button name="mod" value="{{ $key }}">{{ $key }}</button>
+				<button name="op" value="{{ $key }}">{{ $key }}</button>
 			{{ end }}
 		{{ end }}
 </p>
@@ -40,25 +43,25 @@ const templateEditGraph = `
 <p>
 
 <p>
-	FwdTemplateName:
-		{{ range $key, $value := .Templates }}
+	InputFrom:
+		{{ range $key, $value := .InputFromSuggestions }}
 			{{ if $value}}
-				<button name="FwdTemplateName" value="{{ $key }}" disabled="true" >{{ $key }}</button>
+				<button name="inputFrom" value="{{ $key }}" disabled="true" >{{ $key }}</button>
 			{{ else}}
-				<button name="FwdTemplateName" value="{{ $key }}">{{ $key }}</button>
+				<button name="inputFrom" value="{{ $key }}">{{ $key }}</button>
 			{{ end }}
 		{{ end }}
 </p>
 
-<textarea name="TemplateJSON" cols="50" rows="10">
-{{ .TemplateJSON }}
+<textarea name="GraphJSON" cols="200" rows="50">
+{{ .GraphJSON }}
 </textarea>
 </p>
 
 <button type="submit" name="Execute" value="Execute">Execute</button>
-<input type="text" name="TemplateName" />
-<button type="submit" name="SaveTemplate">Save Template</button>
-<button type="submit" name="TemplateJSON" value="" />Reset</button>
+<input type="text" name="GraphName" />
+<button type="submit" name="SaveGraph">Save Graph</button>
+<button type="submit" name="GraphJSON" value="" />Reset</button>
 </form>
 
 {{ if .Output }}

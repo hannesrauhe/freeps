@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -10,25 +11,24 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hannesrauhe/freeps/freepsdo"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpUI struct {
-	modinator *freepsdo.TemplateMod
-	ge        *GraphEngine
+	ge *GraphEngine
 }
 
 var _ FreepsOperator = &OpUI{}
 
 type TemplateData struct {
-	Args           map[string]string
-	ModSuggestions map[string]bool
-	FnSuggestions  map[string]bool
-	ArgSuggestions map[string]map[string]string
-	Templates      map[string]bool
-	TemplateJSON   string
-	Output         string
+	Args                 map[string]string
+	OpSuggestions        map[string]bool
+	FnSuggestions        map[string]bool
+	ArgSuggestions       map[string]map[string]string
+	InputFromSuggestions map[string]bool
+	GraphJSON            string
+	Output               string
+	Numop                int
 }
 
 type ShowGraphsData struct {
@@ -37,8 +37,8 @@ type ShowGraphsData struct {
 }
 
 // NewHTMLUI creates a UI interface based on the inline template above
-func NewHTMLUI(modinator *freepsdo.TemplateMod, graphEngine *GraphEngine) *OpUI {
-	h := OpUI{modinator: modinator, ge: graphEngine}
+func NewHTMLUI(graphEngine *GraphEngine) *OpUI {
+	h := OpUI{ge: graphEngine}
 
 	return &h
 }
@@ -92,42 +92,53 @@ func (o *OpUI) createTemplate(templateString string, templateData interface{}) *
 	return MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")
 }
 
-func (o *OpUI) buildPartialTemplate(vars map[string]string) *GraphDesc {
+func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) {
 	gd := &GraphDesc{}
-	v, ok := vars["TemplateJSON"]
+	v, ok := formInput["GraphJSON"]
 	if ok {
 		json.Unmarshal([]byte(v), gd)
 	}
-	opNum, _ := vars["NumOps"]
-	if gd.Operations == nil || len(gd.Operations) == 0 {
-		gd.Operations = make([]GraphOperationDesc, 1)
-		gd.Operations[0] = GraphOperationDesc{Operator: "echo", Function: "hello", Arguments: map[string]string{}}
-	}
+	opNum, _ := formInput["numop"]
 	targetNum, _ := strconv.Atoi(opNum)
+	if targetNum < 0 {
+		targetNum = 0
+	}
+	if gd.Operations == nil || len(gd.Operations) == 0 {
+		gd.Operations = make([]GraphOperationDesc, targetNum+1)
+	}
 	for len(gd.Operations) <= targetNum {
 		gd.Operations = append(gd.Operations, GraphOperationDesc{Operator: "echo", Function: "hello", Arguments: map[string]string{}})
 	}
 	gopd := &gd.Operations[targetNum]
-	for k, v := range vars {
+	for k, v := range formInput {
 		if len(k) > 4 && k[0:4] == "arg." {
+			if gopd.Arguments == nil {
+				gopd.Arguments = make(map[string]string)
+			}
 			gopd.Arguments[k[4:]] = v
 		}
-		if k == "mod" {
-			if _, ok := o.modinator.Mods[v]; ok {
-				gopd.Operator = v
-			}
+		if k == "op" {
+			gopd.Operator = v
 		}
 		if k == "fn" {
 			gopd.Function = v
 		}
+		if k == "inputFrom" {
+			gopd.InputFrom = v
+		}
 	}
 
-	return gd
+	if _, ok := formInput["SaveGraph"]; ok {
+		name := formInput["GraphName"]
+		o.ge.AddTemporaryGraph(name, gd)
+	}
+	return gd, targetNum
 }
 
 func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO {
 	var gd *GraphDesc
 	var exists bool
+	targetNum := 0
 	if input.IsEmpty() {
 		gd, exists = o.ge.GetGraphDesc(vars["graph"])
 	}
@@ -141,25 +152,36 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 			return MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
-		gd = o.buildPartialTemplate(formInput)
+		gd, targetNum = o.buildPartialGraph(formInput)
 	}
-	td := &TemplateData{ModSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), Templates: map[string]bool{}}
+	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: map[string]bool{}}
 	b, _ := json.MarshalIndent(gd, "", "  ")
-	td.TemplateJSON = string(b)
-	gopd := &gd.Operations[0]
-	for k := range o.modinator.Mods {
-		td.ModSuggestions[k] = (k == gopd.Operator)
+	td.GraphJSON = string(b)
+	gopd := &gd.Operations[targetNum]
+	td.Numop = targetNum
+	td.Args = gopd.Arguments
+	for _, k := range o.ge.GetOperators() {
+		td.OpSuggestions[k] = (k == gopd.Operator)
 	}
 
-	mod := o.modinator.Mods[gopd.Operator]
-	for _, k := range mod.GetFunctions() {
-		td.FnSuggestions[k] = (k == gopd.Function)
+	if o.ge.HasOperator(gopd.Operator) {
+		mod := o.ge.GetOperator(gopd.Operator)
+		for _, k := range mod.GetFunctions() {
+			td.FnSuggestions[k] = (k == gopd.Function)
+		}
+		for _, k := range mod.GetPossibleArgs(gopd.Function) {
+			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, map[string]string{})
+		}
 	}
 
-	for _, k := range mod.GetPossibleArgs(gopd.Function) {
-		td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, map[string]interface{}{})
+	td.InputFromSuggestions[ROOT_SYMBOL] = (ROOT_SYMBOL == gopd.InputFrom)
+	for i, op := range gd.Operations {
+		name := op.Name
+		if name == "" {
+			name = fmt.Sprintf("#%d", i)
+		}
+		td.InputFromSuggestions[name] = (name == gopd.InputFrom)
 	}
-
 	// if vars.Has("Execute") {
 	// 	jrw := freepsdo.NewResponseCollector(fmt.Sprintf("HTML UI: %v", req.RemoteAddr))
 	// 	r.modinator.ExecuteTemplateAction(ta, jrw)
@@ -169,12 +191,6 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 	// 	} else {
 	// 		td.Output = string(bytes)
 	// 	}
-	// }
-
-	// if vars.Has("SaveTemplate") {
-	// 	//TODO: use systemmod instead
-	// 	r.modinator.SaveTemplateAction(vars.Get("TemplateName"), ta)
-	// 	td.Output = "Saved " + vars.Get("TemplateName")
 	// }
 
 	return o.createTemplate(templateEditGraph, td)
@@ -203,4 +219,16 @@ func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *Op
 		return o.editGraph(vars, input)
 	}
 	return o.showGraphs(vars, input)
+}
+
+func (o *OpUI) GetFunctions() []string {
+	return []string{"edit", "show"}
+}
+
+func (o *OpUI) GetPossibleArgs(fn string) []string {
+	return []string{"graph"}
+}
+
+func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	return map[string]string{}
 }

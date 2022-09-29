@@ -43,3 +43,15 @@ func (o *OpCurl) Execute(function string, vars map[string]string, mainInput *Ope
 	b, err := io.ReadAll(resp.Body)
 	return &OperatorIO{HTTPCode: uint32(resp.StatusCode), Output: b, OutputType: Byte}
 }
+
+func (o *OpCurl) GetFunctions() []string {
+	return []string{"PostForm", "Post", "Get"}
+}
+
+func (o *OpCurl) GetPossibleArgs(fn string) []string {
+	return []string{"url", "body", "content-type"}
+}
+
+func (o *OpCurl) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	return map[string]string{}
+}

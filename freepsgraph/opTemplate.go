@@ -78,3 +78,15 @@ func (o *OpTemplate) convert(pos *int, gd *GraphDesc, t *freepsdo.Template, Args
 		}
 	}
 }
+
+func (o *OpTemplate) GetFunctions() []string {
+	return []string{"convert", "convertAll"}
+}
+
+func (o *OpTemplate) GetPossibleArgs(fn string) []string {
+	return []string{}
+}
+
+func (o *OpTemplate) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	return map[string]string{}
+}

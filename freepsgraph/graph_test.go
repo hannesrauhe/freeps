@@ -16,6 +16,18 @@ func (*MockOperator) Execute(fn string, mainArgs map[string]string, mainInput *O
 	return mainInput
 }
 
+func (*MockOperator) GetFunctions() []string {
+	return []string{"convert", "convertAll"}
+}
+
+func (*MockOperator) GetPossibleArgs(fn string) []string {
+	return []string{}
+}
+
+func (*MockOperator) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	return map[string]string{}
+}
+
 var _ FreepsOperator = &MockOperator{}
 
 const testGraph = `

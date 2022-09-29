@@ -15,14 +15,26 @@ func NewSytemOp(ge *GraphEngine, cancel context.CancelFunc) *OpSystem {
 	return &OpSystem{ge: ge, cancel: cancel}
 }
 
-func (m *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "shutdown":
-		m.ge.reloadRequested = false
-		m.cancel()
+		o.ge.reloadRequested = false
+		o.cancel()
 	case "reload":
-		m.ge.reloadRequested = true
-		m.cancel()
+		o.ge.reloadRequested = true
+		o.cancel()
 	}
 	return MakeEmptyOutput()
+}
+
+func (o *OpSystem) GetFunctions() []string {
+	return []string{"shutdown", "reload"}
+}
+
+func (o *OpSystem) GetPossibleArgs(fn string) []string {
+	return []string{}
+}
+
+func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	return map[string]string{}
 }

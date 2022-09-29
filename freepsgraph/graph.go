@@ -64,6 +64,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
+	ge.operators["ui"] = NewHTMLUI(ge)
 
 	if cr != nil {
 		err := cr.ReadSectionWithDefaults("graphs", &config)
@@ -89,7 +90,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		tOp := NewTemplateOperator(ge, cr)
 
 		ge.operators["template"] = tOp
-		ge.operators["ui"] = NewHTMLUI(tOp.tmc, ge)
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["flux"] = NewFluxMod(cr)
 	}
@@ -174,10 +174,28 @@ func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 	return r
 }
 
-// HasOperator returns true if the graph is stored in the engine
+// HasOperator returns true if this operator is available in the engine
 func (ge *GraphEngine) HasOperator(opName string) bool {
 	_, exists := ge.operators[opName]
 	return exists
+}
+
+// GetOperators returns the list of available operators
+func (ge *GraphEngine) GetOperators() []string {
+	r := make([]string, 0, len(ge.operators))
+	for n := range ge.operators {
+		r = append(r, n)
+	}
+	return r
+}
+
+// GetOperator returns the operator with the given name
+func (ge *GraphEngine) GetOperator(opName string) FreepsOperator {
+	op, exists := ge.operators[opName]
+	if !exists {
+		return nil
+	}
+	return op
 }
 
 // AddTemporaryGraph adds a graph to the temporary graph list
