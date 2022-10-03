@@ -14,6 +14,7 @@ type OpStore struct {
 
 var _ FreepsOperator = &OpStore{}
 
+// NewOpStore creates a new store operator
 func NewOpStore() *OpStore {
 	defaultStore := &StoreNamespaces{inMemory: map[string]*OperatorIO{}}
 	return &OpStore{namespaces: map[string]*StoreNamespaces{"default": defaultStore}}
@@ -81,10 +82,12 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	return MakeOutputError(http.StatusBadRequest, "Unknown function")
 }
 
+// GetFunctions returns the functions of this operator
 func (o *OpStore) GetFunctions() []string {
 	return []string{"get", "set", "del", "setSimpleValue"}
 }
 
+// GetPossibleArgs returns the possible arguments for a function
 func (o *OpStore) GetPossibleArgs(fn string) []string {
 	switch fn {
 	case "get":
@@ -99,6 +102,7 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	return []string{}
 }
 
+// GetArgsSuggestions returns suggestions for arguments
 func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {
 	case "namespace":

@@ -89,6 +89,22 @@ func (io *OperatorIO) GetBytes() ([]byte, error) {
 	}
 }
 
+func (io *OperatorIO) GetString() string {
+	switch io.OutputType {
+	case Empty:
+		return ""
+	case Byte:
+		return string(io.Output.([]byte))
+	case PlainText:
+		return io.Output.(string)
+	case Error:
+		return io.Output.(error).Error()
+	default:
+		byt, _ := json.MarshalIndent(io.Output, "", "  ")
+		return string(byt)
+	}
+}
+
 func (io *OperatorIO) IsError() bool {
 	return io.OutputType == Error
 }
