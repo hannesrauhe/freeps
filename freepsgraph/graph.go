@@ -19,7 +19,7 @@ type GraphEngineConfig struct {
 	GraphsFromFile []string
 }
 
-var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{"graphs.json"}}
+var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{}, GraphsFromURL: []string{}, Graphs: map[string]GraphDesc{}}
 
 // GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {

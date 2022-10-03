@@ -21,16 +21,16 @@ func ReadBytesFromUrl(url string) []byte {
 	c := http.Client{}
 	resp, err := c.Get(url)
 	if err != nil {
-		log.Printf("Error when reading from %v: %v", url, err)
+		log.Printf("curl error when reading from %v: %v", url, err)
 		return []byte{}
 	}
 	if resp.StatusCode > 300 {
-		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
+		log.Printf("curl error when reading from %v: Status code %v", url, resp.StatusCode)
 		return []byte{}
 	}
 	byt, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Error when reading from %v: %v", url, err)
+		log.Printf("curl error when reading from %v: %v", url, err)
 		return []byte{}
 	}
 	return byt

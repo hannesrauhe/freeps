@@ -49,10 +49,9 @@ func main() {
 		log.Printf("Starting Listeners")
 		http := freepslisten.NewFreepsHttp(cr, ge)
 
-		//TODO(HR): rewrite to fit new ge model
 		rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
 		mqtt := freepslisten.NewMqttSubscriber(cr, ge)
-		telg := freepslisten.NewTelegramBot(cr, doer, cancel)
+		telg := freepslisten.NewTelegramBot(cr, ge, cancel)
 
 		select {
 		case <-ctx.Done():
