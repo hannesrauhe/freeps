@@ -41,7 +41,7 @@ func (m *OpRaspistill) Execute(fn string, vars map[string]string, input *Operato
 		return MakeOutputError(http.StatusInternalServerError, "Error executing raspistill: %v", err.Error())
 	}
 
-	return MakeByteOutput(b)
+	return MakeByteOutputWithContentType(b, "image/jpeg")
 }
 
 func (m *OpRaspistill) GetFunctions() []string {

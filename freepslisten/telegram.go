@@ -182,8 +182,7 @@ func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
-	// TODO
-	// r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
+	r.ge.DeleteTemporaryGraph(fmt.Sprint(msg.ChatID))
 	msg.ReplyMarkup, _ = r.getModKeyboard()
 	r.sendMessage(msg)
 }
@@ -219,8 +218,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			}
 		} else {
 			// inputText contains the mod to use
-			//TODO
-			// r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
+			r.ge.DeleteTemporaryGraph(fmt.Sprint(chat.ID))
 			tcr.P = -1
 			tcr.C = inputText
 		}
@@ -252,15 +250,6 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 		}
 	}
 
-	/*
-		// sanity check
-		if _, ok := r.Modinator.Mods[tpl.Mod]; !ok {
-			msg.Text += " Something went wrong. Please pick a Mod"
-			r.sendStartMessage(&msg)
-			return
-		}
-	*/
-
 	if len(god.Function) > 0 && !tcr.F {
 		args := op.GetPossibleArgs(god.Function)
 		if tcr.P == 0 {
@@ -291,22 +280,23 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	}
 
 	if tcr.F {
-		/*
-			jrw := freepsdo.NewResponseCollector(fmt.Sprintf("telegram: %v", chat.FirstName))
-			r.Modinator.ExecuteTemplateAction(tpl, jrw)
-			status, otype, byt := jrw.GetFinalResponse(true)
-			if otype == freepsdo.ResponseTypeJPEG {
+		io := r.ge.ExecuteGraph(tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
+		byt, err := io.GetBytes()
+		if err != nil {
+			msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)
+		} else {
+			if io.ContentType == "image/png" {
 				msg.Text = "Here is a picture for you"
 				m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})
 				if _, err := r.bot.Send(m); err != nil {
 					log.Println(err)
 				}
 			} else {
-				msg.Text = fmt.Sprintf("%v: %q", status, byt)
+				msg.Text = fmt.Sprintf("%v: %q", io.HTTPCode, byt)
 			}
-			r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
+			r.ge.DeleteTemporaryGraph(tcr.T)
 			msg.ReplyMarkup = r.getReplyKeyboard()
-		*/
+		}
 	}
 	r.sendMessage(&msg)
 }

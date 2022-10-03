@@ -65,6 +65,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
 	ge.operators["ui"] = NewHTMLUI(ge)
+	ge.operators["store"] = NewOpStore()
 
 	if cr != nil {
 		err := cr.ReadSectionWithDefaults("graphs", &config)
@@ -92,6 +93,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		ge.operators["template"] = tOp
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["flux"] = NewFluxMod(cr)
+		ge.operators["telegram"] = NewTelegramBot(cr)
 	}
 
 	return ge
@@ -203,6 +205,13 @@ func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	ge.temporaryGraphs[graphName] = *gd
+}
+
+// DeleteTemporaryGraph deletes the graph from the temporary graph list
+func (ge *GraphEngine) DeleteTemporaryGraph(graphName string) {
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+	delete(ge.temporaryGraphs, graphName)
 }
 
 // NewGraph creates a new graph from a graph description
