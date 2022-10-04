@@ -94,7 +94,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["flux"] = NewFluxMod(cr)
 		ge.operators["telegram"] = NewTelegramBot(cr)
-		ge.operators["mqtt"] = NewMQTTOp(cr)
+		// ge.operators["mqtt"] = NewMQTTOp(cr)
 	}
 
 	return ge
