@@ -2,6 +2,14 @@ package freepsgraph
 
 import (
 	"context"
+	"net/http"
+
+	"github.com/mackerelio/go-osstat/cpu"
+	"github.com/mackerelio/go-osstat/disk"
+	"github.com/mackerelio/go-osstat/loadavg"
+	"github.com/mackerelio/go-osstat/memory"
+	"github.com/mackerelio/go-osstat/network"
+	"github.com/mackerelio/go-osstat/uptime"
 )
 
 type OpSystem struct {
@@ -23,18 +31,55 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 	case "reload":
 		o.ge.reloadRequested = true
 		o.cancel()
+	case "stats":
+		var s interface{}
+		var err error
+		switch args["statType"] {
+		case "cpu":
+			s, err = cpu.Get()
+		case "disk":
+			s, err = disk.Get()
+		case "loadavg":
+			s, err = loadavg.Get()
+		case "memory":
+			s, err = memory.Get()
+		case "network":
+			s, err = network.Get()
+		case "uptime ":
+			s, err = uptime.Get()
+		default:
+			return MakeOutputError("unknown statType: " + args["statType"])
+		}
+		if err == nil {
+			MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+		return MakeObjectOutput(s)
 	}
 	return MakeEmptyOutput()
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload"}
+	return []string{"shutdown", "reload", "stats"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
-	return []string{}
+	return []string{"statType"}
 }
 
 func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	switch fn {
+	case "stats":
+		switch arg {
+		case "statType":
+			return map[string]string{
+				"cpu":     "cpu",
+				"disk":    "disk",
+				"loadavg": "loadavg",
+				"memory":  "memory",
+				"network": "network",
+				"uptime":  "uptime",
+			}
+		}
+	}
 	return map[string]string{}
 }

@@ -1,7 +1,6 @@
 package freepsgraph
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
@@ -13,7 +12,7 @@ type OpRaspistill struct {
 
 var _ FreepsOperator = &OpRaspistill{}
 
-func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (bytes []byte, err error) {
+func CaptureRaspiStill(width, height int, cameraParams map[string]string) (bytes []byte, err error) {
 	args := []string{
 		"-w", strconv.Itoa(width),
 		"-h", strconv.Itoa(height),
@@ -21,8 +20,8 @@ func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (
 	}
 	for k, v := range cameraParams {
 		args = append(args, k)
-		if v != nil {
-			args = append(args, fmt.Sprintf("%v", v))
+		if v != "" {
+			args = append(args, v)
 		}
 	}
 
@@ -35,7 +34,7 @@ func CaptureRaspiStill(width, height int, cameraParams map[string]interface{}) (
 }
 
 func (m *OpRaspistill) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
-	b, err := CaptureRaspiStill(1600, 1200, map[string]interface{}{"--quality": 90, "--brightness": 50})
+	b, err := CaptureRaspiStill(1600, 1200, map[string]string{"--quality": "90", "--brightness": "50"})
 
 	if err != nil {
 		return MakeOutputError(http.StatusInternalServerError, "Error executing raspistill: %v", err.Error())

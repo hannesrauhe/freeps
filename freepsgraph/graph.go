@@ -66,6 +66,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["eval"] = &OpEval{}
 	ge.operators["ui"] = NewHTMLUI(ge)
 	ge.operators["store"] = NewOpStore()
+	ge.operators["raspistill"] = &OpRaspistill{}
 
 	if cr != nil {
 		err := cr.ReadSectionWithDefaults("graphs", &config)
