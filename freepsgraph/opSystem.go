@@ -48,7 +48,7 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 		case "uptime ":
 			s, err = uptime.Get()
 		default:
-			return MakeOutputError("unknown statType: " + args["statType"])
+			return MakeOutputError(http.StatusBadRequest, "unknown statType: "+args["statType"])
 		}
 		if err == nil {
 			MakeOutputError(http.StatusInternalServerError, err.Error())
