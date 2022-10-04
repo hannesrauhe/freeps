@@ -2,9 +2,10 @@ package freepsflux
 
 import (
 	"errors"
-	"log"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freepslib"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"

@@ -2,9 +2,10 @@ package freepsgraph
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/utils"

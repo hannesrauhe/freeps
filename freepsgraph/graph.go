@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/hannesrauhe/freeps/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 const ROOT_SYMBOL = "_"
@@ -64,7 +64,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
-	ge.operators["ui"] = NewHTMLUI(ge)
 	ge.operators["store"] = NewOpStore()
 	ge.operators["raspistill"] = &OpRaspistill{}
 
@@ -95,6 +94,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["flux"] = NewFluxMod(cr)
 		ge.operators["telegram"] = NewTelegramBot(cr)
+		ge.operators["ui"] = NewHTMLUI(cr, ge)
 		// ge.operators["mqtt"] = NewMQTTOp(cr)
 	}
 
@@ -107,23 +107,25 @@ func (ge *GraphEngine) ReloadRequested() bool {
 }
 
 // ExecuteOperatorByName executes an operator directly
-func (ge *GraphEngine) ExecuteOperatorByName(opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteOperatorByName(logger log.FieldLogger, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g, err := NewGraph(&GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
-	return g.execute(mainArgs, mainInput)
+	dlogger := logger.WithFields(log.Fields{"graph": "direct", "operator": opName, "function": fn})
+	return g.execute(dlogger, mainArgs, mainInput)
 }
 
 // ExecuteGraph executes a graph stored in the engine
 func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	logger := log.WithFields(log.Fields{"graph": graphName})
 	gd, exists := ge.GetGraphDesc(graphName)
 	if exists {
 		g, err := NewGraph(gd, ge)
 		if err != nil {
 			return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 		}
-		return g.execute(mainArgs, mainInput)
+		return g.execute(logger, mainArgs, mainInput)
 	}
 	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
 }
@@ -267,12 +269,17 @@ func NewGraph(graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 	return &Graph{desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
 }
 
-func (g *Graph) execute(mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 
 	for _, operation := range g.desc.Operations {
-		output := g.executeOperation(&operation, mainArgs)
+		output := g.executeOperation(logger, &operation, mainArgs)
 		g.opOutputs[operation.Name] = output
+		if output.IsError() {
+			logger.Errorf("Operation failed: %s", output.GetString())
+		} else {
+			logger.Debugf("Operation \"%s\" finished with output Type \"%v\"", operation.Name, output.OutputType)
+		}
 	}
 	if g.desc.OutputFrom == "" {
 		return MakeObjectOutput(g.opOutputs)
@@ -280,11 +287,12 @@ func (g *Graph) execute(mainArgs map[string]string, mainInput *OperatorIO) *Oper
 	return g.opOutputs[g.desc.OutputFrom]
 }
 
-func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
+func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
 	input := MakeEmptyOutput()
 	if opDesc.InputFrom != "" {
 		input = g.opOutputs[opDesc.InputFrom]
 		if input.IsError() {
+			logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", opDesc.Name, opDesc.InputFrom)
 			return input
 		}
 	}
@@ -314,6 +322,7 @@ func (g *Graph) executeOperation(opDesc *GraphOperationDesc, mainArgs map[string
 
 	op, exists := g.engine.operators[opDesc.Operator]
 	if exists {
+		logger.Debugf("Executing operation \"%v\" with arguments \"%v\"", opDesc.Name, combinedArgs)
 		return op.Execute(opDesc.Function, combinedArgs, input)
 	}
 	return MakeOutputError(404, "No operator with name \"%s\" found", opDesc.Operator)

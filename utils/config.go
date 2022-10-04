@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ConfigIncluder struct {
@@ -155,6 +156,22 @@ func NewConfigReader(configFilePath string) (*ConfigReader, error) {
 		return nil, err
 	}
 	return &ConfigReader{configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
+}
+
+// GetConfigFileContent returns the content of the config file
+func (c *ConfigReader) GetConfigFileContent() string {
+	return string(c.configFileContent)
+}
+
+// SetConfigFileContent validates the new Content and sets it if valid
+func (c *ConfigReader) SetConfigFileContent(newContent string) error {
+	_, err := GetSectionsMap([]byte(newContent))
+	if err != nil {
+		return err
+	}
+	c.configFileContent = []byte(newContent)
+	c.configChanged = true
+	return c.WriteBackConfigIfChanged()
 }
 
 // GetConfigDir returns the basepath of the config file

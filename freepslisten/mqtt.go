@@ -1,7 +1,7 @@
 package freepslisten
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 
 	"crypto/tls"
 	"fmt"
@@ -52,22 +52,23 @@ type JsonArgs struct {
 }
 
 type FreepsMqtt struct {
-	client   MQTT.Client
-	Config   *FreepsMqttConfig
-	ge       *freepsgraph.GraphEngine
-	Callback func(string, map[string]string, map[string]interface{}) error
+	client     MQTT.Client
+	Config     *FreepsMqttConfig
+	ge         *freepsgraph.GraphEngine
+	Callback   func(string, map[string]string, map[string]interface{}) error
+	mqttlogger log.FieldLogger
 }
 
 func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic string) {
 	t := strings.Split(topic, "/")
 	field := t[tc.FieldIndex]
 	fconf, fieldExists := tc.Fields[field]
+	value := string(message)
 	if fieldExists {
 		fieldAlias := field
 		if fconf.Alias != nil {
 			fieldAlias = *fconf.Alias
 		}
-		value := string(message)
 		if fconf.TrueValue != nil {
 			if value == *fconf.TrueValue {
 				value = "true"
@@ -81,9 +82,9 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 
 		input := freepsgraph.MakeObjectOutput(args)
 		output := fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
-		output.WriteTo(os.Stdout)
+		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": t[tc.MeasurementIndex], "field": field, "value": value}).Info(output.ToString())
 	} else {
-		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
+		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": t[tc.MeasurementIndex], "field": field, "value": value}).Info("No field config found")
 	}
 }
 
@@ -107,7 +108,7 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		return
 	}
 	input := freepsgraph.MakeObjectOutput(message.Payload())
-	output := fm.ge.ExecuteOperatorByName(t[1], t[2], map[string]string{"topic": message.Topic()}, input)
+	output := fm.ge.ExecuteOperatorByName(fm.mqttlogger, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
 	output.WriteTo(os.Stdout)
 }
 
@@ -115,7 +116,8 @@ func (fm *FreepsMqtt) Shutdown() {
 	fm.client.Disconnect(100)
 }
 
-func NewMqttSubscriber(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsMqtt {
+func NewMqttSubscriber(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsMqtt {
+	mqttlogger := logger.WithField("component", "mqtt")
 	fmc := DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsmqtt", &fmc)
 	if err != nil {
@@ -132,7 +134,7 @@ func NewMqttSubscriber(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *Fre
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqtt{Config: &fmc, ge: ge}
+	fmqtt := &FreepsMqtt{Config: &fmc, ge: ge, mqttlogger: mqttlogger}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true)
 	if fmc.Username != "" {

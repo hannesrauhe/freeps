@@ -1,9 +1,10 @@
 package freepsgraph
 
 import (
-	"log"
 	"net/http"
 	"sort"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"

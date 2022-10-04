@@ -2,10 +2,11 @@ package freepsdo
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os/exec"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type RaspistillMod struct {

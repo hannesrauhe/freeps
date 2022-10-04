@@ -132,16 +132,14 @@ func (oio *OperatorIO) ToString() string {
 	return b.String()
 }
 
-func (oio *OperatorIO) WriteTo(bwriter io.Writer) {
+func (oio *OperatorIO) WriteTo(bwriter io.Writer) (int, error) {
 	if oio.IsError() {
-		fmt.Fprintf(bwriter, "Error Code: %v,\n%v\n", oio.HTTPCode, oio.Output.(error))
-		return
+		return fmt.Fprintf(bwriter, "Error Code: %v,\n%v\n", oio.HTTPCode, oio.Output.(error))
 	}
 	fmt.Fprintf(bwriter, "Error Code: %v,\nOutput Type: %T,\n", oio.HTTPCode, oio.Output)
 	if oio.OutputType == Byte {
-		bwriter.Write(oio.Output.([]byte))
-		return
+		return bwriter.Write(oio.Output.([]byte))
 	}
 	o, _ := json.MarshalIndent(oio.Output, "", "  ")
-	fmt.Fprintf(bwriter, "%v\n", string(o))
+	return fmt.Fprintf(bwriter, "%v\n", string(o))
 }

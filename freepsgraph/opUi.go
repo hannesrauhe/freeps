@@ -5,17 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpUI struct {
 	ge *GraphEngine
+	cr *utils.ConfigReader
 }
 
 var _ FreepsOperator = &OpUI{}
@@ -36,9 +38,13 @@ type ShowGraphsData struct {
 	Dot    string
 }
 
+type EditConfigData struct {
+	ConfigText string
+}
+
 // NewHTMLUI creates a UI interface based on the inline template above
-func NewHTMLUI(graphEngine *GraphEngine) *OpUI {
-	h := OpUI{ge: graphEngine}
+func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
+	h := OpUI{ge: graphEngine, cr: cr}
 
 	return &h
 }
@@ -128,10 +134,6 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) 
 		}
 	}
 
-	if _, ok := formInput["SaveGraph"]; ok {
-		name := formInput["GraphName"]
-		o.ge.AddTemporaryGraph(name, gd)
-	}
 	return gd, targetNum
 }
 
@@ -139,6 +141,9 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 	var gd *GraphDesc
 	var exists bool
 	targetNum := 0
+
+	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: map[string]bool{}}
+
 	if input.IsEmpty() {
 		gd, exists = o.ge.GetGraphDesc(vars["graph"])
 	}
@@ -153,8 +158,18 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
 		gd, targetNum = o.buildPartialGraph(formInput)
+
+		if _, ok := formInput["SaveGraph"]; ok {
+			name := formInput["GraphName"]
+			o.ge.AddTemporaryGraph(name, gd)
+		}
+
+		if _, ok := formInput["Execute"]; ok {
+			o.ge.AddTemporaryGraph("UIgraph", gd)
+			output := o.ge.ExecuteGraph("UIgraph", map[string]string{}, MakeEmptyOutput())
+			td.Output = output.GetString()
+		}
 	}
-	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: map[string]bool{}}
 	b, _ := json.MarshalIndent(gd, "", "  ")
 	td.GraphJSON = string(b)
 	gopd := &gd.Operations[targetNum]
@@ -182,23 +197,11 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		}
 		td.InputFromSuggestions[name] = (name == gopd.InputFrom)
 	}
-	// if vars.Has("Execute") {
-	// 	jrw := freepsdo.NewResponseCollector(fmt.Sprintf("HTML UI: %v", req.RemoteAddr))
-	// 	r.modinator.ExecuteTemplateAction(ta, jrw)
-	// 	_, _, bytes := jrw.GetFinalResponse(true)
-	// 	if len(bytes) == 0 {
-	// 		td.Output = "<no content>"
-	// 	} else {
-	// 		td.Output = string(bytes)
-	// 	}
-	// }
 
 	return o.createTemplate(templateEditGraph, td)
 }
 
 func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO {
-	t := template.New("showGraphs")
-	t, _ = t.Parse(templateShowGraphs)
 	var d ShowGraphsData
 	d.Graphs = make([]string, 0)
 	for n := range o.ge.GetAllGraphDesc() {
@@ -213,16 +216,39 @@ func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO
 	return o.createTemplate(templateShowGraphs, &d)
 }
 
+func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO {
+	var d EditConfigData
+	d.ConfigText = o.cr.GetConfigFileContent()
+	if !input.IsEmpty() {
+		inBytes, err := input.GetBytes()
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, err.Error())
+		}
+		formInputQueryFormat, err := url.ParseQuery(string(inBytes))
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, err.Error())
+		}
+		formInput := utils.URLArgsToMap(formInputQueryFormat)
+		if _, ok := formInput["SaveConfig"]; ok {
+			o.cr.SetConfigFileContent(formInput["ConfigText"])
+		}
+	}
+
+	return o.createTemplate(templateEditConfig, &d)
+}
+
 func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "edit":
 		return o.editGraph(vars, input)
+	case "config":
+		return o.editConfig(vars, input)
 	}
 	return o.showGraphs(vars, input)
 }
 
 func (o *OpUI) GetFunctions() []string {
-	return []string{"edit", "show"}
+	return []string{"edit", "show", "config"}
 }
 
 func (o *OpUI) GetPossibleArgs(fn string) []string {

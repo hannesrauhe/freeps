@@ -88,3 +88,17 @@ const templateShowGraphs = `
 </textarea>
 </div>
 `
+
+const templateEditConfig = `
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<form action="#" method="POST">
+<p>
+<textarea name="ConfigText" cols="200" rows="50">
+{{ .ConfigText }}
+</textarea>
+</p>
+
+<button type="submit" name="SaveConfig">Save Config</button>
+</form>
+<a href="/system/reload">Reload Freeps after config change</a>
+`

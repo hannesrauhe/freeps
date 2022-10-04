@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/freepsdo"
 )

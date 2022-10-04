@@ -2,9 +2,10 @@ package utils
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"regexp"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // URLArgsToMap converts the string map of arrays to a string map of strings by dropping

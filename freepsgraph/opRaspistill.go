@@ -1,10 +1,11 @@
 package freepsgraph
 
 import (
-	"log"
 	"net/http"
 	"os/exec"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type OpRaspistill struct {

@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/gorilla/mux"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -21,8 +22,7 @@ type FreepsHttp struct {
 
 func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-
-	log.Printf("rest API: %v", req.RemoteAddr)
+	httplogger := log.WithField("restAPI", req.RemoteAddr)
 	var mainArgs map[string]string
 	var mainInput freepsgraph.OperatorIO
 
@@ -44,7 +44,8 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		mainArgs["device"] = device
 	}
 
-	opio := r.graphengine.ExecuteOperatorByName(vars["mod"], vars["function"], mainArgs, &mainInput)
+	opio := r.graphengine.ExecuteOperatorByName(httplogger, vars["mod"], vars["function"], mainArgs, &mainInput)
+	httplogger.Info(opio.ToString())
 
 	bytes, err := opio.GetBytes()
 	if err != nil {

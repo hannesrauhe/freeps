@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
 
@@ -76,7 +77,7 @@ func TestOperatorErrorChain(t *testing.T) {
 	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
 
 	// test that output of single operation is directly returned and not merged
-	oDirect := ge.ExecuteOperatorByName("eval", "echo", map[string]string{"output": "true"}, MakeEmptyOutput())
+	oDirect := ge.ExecuteOperatorByName(log.StandardLogger(), "eval", "echo", map[string]string{"output": "true"}, MakeEmptyOutput())
 	assert.Assert(t, oDirect.IsPlain(), "unexpected output: %v", oDirect)
 }
 
