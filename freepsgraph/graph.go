@@ -46,6 +46,7 @@ type Graph struct {
 
 // GraphEngine holds all available graphs and operators
 type GraphEngine struct {
+	cr              *utils.ConfigReader
 	configGraphs    map[string]GraphDesc
 	externalGraphs  map[string]GraphDesc
 	temporaryGraphs map[string]GraphDesc
@@ -56,8 +57,7 @@ type GraphEngine struct {
 
 // NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
-	ge := &GraphEngine{configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), reloadRequested: false}
-	config := DefaultGraphEngineConfig
+	ge := &GraphEngine{cr: cr, configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), reloadRequested: false}
 
 	ge.operators = make(map[string]FreepsOperator)
 	ge.operators["graph"] = &OpGraph{ge: ge}
@@ -68,13 +68,10 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["raspistill"] = &OpRaspistill{}
 
 	if cr != nil {
-		err := cr.ReadSectionWithDefaults("graphs", &config)
-		if err != nil {
-			log.Fatal(err)
-		}
-		cr.WriteBackConfigIfChanged()
-		if err != nil {
-			log.Print(err)
+		var err error
+		config := ge.ReadConfig()
+		if config.Graphs != nil {
+			ge.configGraphs = config.Graphs
 		}
 		for _, fName := range config.GraphsFromFile {
 			err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
@@ -99,6 +96,22 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	}
 
 	return ge
+}
+
+// ReadConfig reads the config from the config reader
+func (ge *GraphEngine) ReadConfig() GraphEngineConfig {
+	config := DefaultGraphEngineConfig
+	if ge.cr != nil {
+		err := ge.cr.ReadSectionWithDefaults("graphs", &config)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ge.cr.WriteBackConfigIfChanged()
+		if err != nil {
+			log.Print(err)
+		}
+	}
+	return config
 }
 
 // ReloadRequested returns true if a reload was requested instead of a restart
@@ -216,6 +229,49 @@ func (ge *GraphEngine) DeleteTemporaryGraph(graphName string) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	delete(ge.temporaryGraphs, graphName)
+}
+
+// SaveTemporaryGraphs saves adds all temporary graphs to the given file or to the first file in the list of external graphs or to graphs.json
+func (ge *GraphEngine) SaveTemporaryGraphs(fileName string) error {
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+	config := ge.ReadConfig()
+	graphs := make(map[string]GraphDesc)
+	exists := false
+	for _, fName := range config.GraphsFromFile {
+		if fName == fileName || fileName == "" {
+			fileName = fName
+			err := ge.cr.ReadObjectFromFile(&graphs, fName)
+			if err != nil {
+				return fmt.Errorf("Error reading graphs from file %s: %s", fName, err.Error())
+			}
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		if fileName != "" {
+			fileName = "template2graphs.json"
+		}
+		config.GraphsFromFile = append(config.GraphsFromFile, fileName)
+		err := ge.cr.WriteSection("graphs", config, true)
+		if err != nil {
+			return fmt.Errorf("Error writing config file: %s", err.Error())
+		}
+	}
+	for n, g := range ge.temporaryGraphs {
+		graphs[n] = g
+	}
+	err := ge.cr.WriteObjectToFile(graphs, fileName)
+	if err != nil {
+		return fmt.Errorf("Error writing graphs to file %s: %s", fileName, err.Error())
+	}
+	ge.temporaryGraphs = make(map[string]GraphDesc)
+	err = ge.cr.ReadObjectFromFile(&ge.externalGraphs, fileName)
+	if err != nil {
+		return fmt.Errorf("Error re-reading graphs from file %s: %s", fileName, err.Error())
+	}
+	return nil
 }
 
 // NewGraph creates a new graph from a graph description

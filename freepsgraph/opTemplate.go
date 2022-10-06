@@ -29,6 +29,7 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 			o.ge.AddTemporaryGraph(n, g)
 			r[n] = *g
 		}
+		o.ge.SaveTemporaryGraphs("template2graph.json")
 		return MakeObjectOutput(r)
 	case "convert":
 		tName, ok := mainArgs["name"]
