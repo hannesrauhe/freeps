@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -139,13 +140,14 @@ func GetDefaultPath(productname string) string {
 }
 
 type ConfigReader struct {
+	logger            logrus.FieldLogger
 	configFilePath    string
 	configFileContent []byte
 	configChanged     bool
 	lck               sync.Mutex
 }
 
-func NewConfigReader(configFilePath string) (*ConfigReader, error) {
+func NewConfigReader(logger logrus.FieldLogger, configFilePath string) (*ConfigReader, error) {
 	_, err := os.Stat(configFilePath)
 	if os.IsNotExist(err) {
 		return &ConfigReader{configFilePath: configFilePath, configChanged: true}, nil
@@ -155,7 +157,7 @@ func NewConfigReader(configFilePath string) (*ConfigReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ConfigReader{configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
+	return &ConfigReader{logger: logger, configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
 }
 
 // GetConfigFileContent returns the content of the config file
@@ -247,6 +249,7 @@ func (c *ConfigReader) writeConfig() error {
 	if err == nil {
 		c.configChanged = false
 	}
+	c.logger.Infof("Wrote config file to %s", c.configFilePath)
 	return err
 }
 
@@ -269,7 +272,15 @@ func (c *ConfigReader) WriteObjectToFile(obj interface{}, filename string) error
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	err = enc.Encode(obj)
-	return err
+	if err != nil {
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+	c.logger.Infof("Wrote file %s", fullPath)
+	return nil
 }
 
 func (c *ConfigReader) ReadObjectFromFile(obj interface{}, filename string) error {

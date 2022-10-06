@@ -39,7 +39,7 @@ func main() {
 
 	running := true
 	for running {
-		cr, err := utils.NewConfigReader(configpath)
+		cr, err := utils.NewConfigReader(log.StandardLogger().WithField("component", "config"), configpath)
 
 		if verbose {
 			log.SetLevel(log.DebugLevel)

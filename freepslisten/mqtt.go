@@ -82,7 +82,11 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 
 		input := freepsgraph.MakeObjectOutput(args)
 		output := fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
-		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": t[tc.MeasurementIndex], "field": field, "value": value}).Info(output.ToString())
+		logline := output.ToString()
+		if len(logline) > 1000 {
+			logline = logline[:1000] + "..."
+		}
+		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": t[tc.MeasurementIndex], "field": field, "value": value}).Info(logline)
 	} else {
 		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": t[tc.MeasurementIndex], "field": field, "value": value}).Info("No field config found")
 	}

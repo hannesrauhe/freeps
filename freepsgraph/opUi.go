@@ -218,7 +218,6 @@ func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO
 
 func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO {
 	var d EditConfigData
-	d.ConfigText = o.cr.GetConfigFileContent()
 	if !input.IsEmpty() {
 		inBytes, err := input.GetBytes()
 		if err != nil {
@@ -233,6 +232,7 @@ func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO
 			o.cr.SetConfigFileContent(formInput["ConfigText"])
 		}
 	}
+	d.ConfigText = o.cr.GetConfigFileContent()
 
 	return o.createTemplate(templateEditConfig, &d)
 }

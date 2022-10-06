@@ -136,7 +136,7 @@ func (oio *OperatorIO) WriteTo(bwriter io.Writer) (int, error) {
 	if oio.IsError() {
 		return fmt.Fprintf(bwriter, "Error Code: %v,\n%v\n", oio.HTTPCode, oio.Output.(error))
 	}
-	fmt.Fprintf(bwriter, "Error Code: %v,\nOutput Type: %T,\n", oio.HTTPCode, oio.Output)
+	fmt.Fprintf(bwriter, "Output Type: %T,\n", oio.OutputType)
 	if oio.OutputType == Byte {
 		return bwriter.Write(oio.Output.([]byte))
 	}

@@ -10,6 +10,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type MockMod struct {
@@ -53,7 +54,7 @@ type TestStruct struct {
 
 func NewTMMock(templates map[string]*Template) (*TemplateMod, *MockMod) {
 	tmpFile, _ := ioutil.TempFile(os.TempDir(), "freeps-")
-	cr, _ := utils.NewConfigReader(tmpFile.Name())
+	cr, _ := utils.NewConfigReader(logrus.StandardLogger(), tmpFile.Name())
 	mods := map[string]Mod{}
 	mm := &MockMod{}
 	mods["mock"] = mm
