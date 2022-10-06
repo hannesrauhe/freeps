@@ -229,7 +229,10 @@ func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
 		if _, ok := formInput["SaveConfig"]; ok {
-			o.cr.SetConfigFileContent(formInput["ConfigText"])
+			err = o.cr.SetConfigFileContent(formInput["ConfigText"])
+			if err != nil {
+				return MakeOutputError(http.StatusInternalServerError, err.Error())
+			}
 		}
 	}
 	d.ConfigText = o.cr.GetConfigFileContent()
