@@ -248,6 +248,7 @@ func (c *ConfigReader) writeConfig() error {
 	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
 	if err == nil {
 		c.configChanged = false
+		return err
 	}
 	c.logger.Infof("Wrote config file to %s", c.configFilePath)
 	return err
