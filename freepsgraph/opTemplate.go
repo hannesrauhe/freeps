@@ -29,8 +29,19 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 			o.ge.AddTemporaryGraph(n, g)
 			r[n] = *g
 		}
-		o.ge.SaveTemporaryGraphs("template2graph.json")
 		return MakeObjectOutput(r)
+	case "convertAllAndSave":
+		r := make(map[string]GraphDesc)
+		for n, t := range o.tmc.Config.Templates {
+			g := o.convertTemplateToGraphDesc(t)
+			o.ge.AddTemporaryGraph(n, g)
+			r[n] = *g
+		}
+		if err := o.ge.SaveTemporaryGraphs(""); err != nil {
+			return MakeOutputError(http.StatusInternalServerError, "Could not store: %s", err)
+		}
+		return MakeObjectOutput(r)
+
 	case "convert":
 		tName, ok := mainArgs["name"]
 		if !ok {
