@@ -250,7 +250,7 @@ func (ge *GraphEngine) SaveTemporaryGraphs(fileName string) error {
 		}
 	}
 	if !exists {
-		if fileName != "" {
+		if fileName == "" {
 			fileName = "template2graphs.json"
 		}
 		config.GraphsFromFile = append(config.GraphsFromFile, fileName)
