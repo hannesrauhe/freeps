@@ -253,12 +253,8 @@ func (ge *GraphEngine) SaveTemporaryGraphs(fileName string) error {
 		if fileName == "" {
 			fileName = "template2graphs.json"
 		}
-		config.GraphsFromFile = append(config.GraphsFromFile, fileName)
-		err := ge.cr.WriteSection("graphs", config, true)
-		if err != nil {
-			return fmt.Errorf("Error writing config file: %s", err.Error())
-		}
 	}
+
 	for n, g := range ge.temporaryGraphs {
 		graphs[n] = g
 	}
@@ -266,6 +262,15 @@ func (ge *GraphEngine) SaveTemporaryGraphs(fileName string) error {
 	if err != nil {
 		return fmt.Errorf("Error writing graphs to file %s: %s", fileName, err.Error())
 	}
+
+	if !exists {
+		config.GraphsFromFile = append(config.GraphsFromFile, fileName)
+		err := ge.cr.WriteSection("graphs", config, true)
+		if err != nil {
+			return fmt.Errorf("Error writing config file: %s", err.Error())
+		}
+	}
+
 	ge.temporaryGraphs = make(map[string]GraphDesc)
 	err = ge.cr.ReadObjectFromFile(&ge.externalGraphs, fileName)
 	if err != nil {
