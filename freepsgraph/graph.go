@@ -314,7 +314,7 @@ func NewGraph(graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 		if op.InputFrom == "" && i == 0 {
 			op.InputFrom = ROOT_SYMBOL
 		}
-		if outputNames[op.InputFrom] != true {
+		if op.InputFrom != "" && outputNames[op.InputFrom] != true {
 			return nil, fmt.Errorf("Operation \"%v\" references unknown inputFrom \"%v\"", op.Name, op.InputFrom)
 		}
 		outputNames[op.Name] = true
