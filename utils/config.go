@@ -249,8 +249,9 @@ func (c *ConfigReader) writeConfig() error {
 	if err == nil {
 		c.configChanged = false
 		c.logger.Infof("Wrote config file to %s", c.configFilePath)
+	} else {
+		c.logger.Errorf("Error writing config file to %s: %s", c.configFilePath, err)
 	}
-	c.logger.Errorf("Failed to write config file to %s: %v", c.configFilePath, err)
 	return err
 }
 
