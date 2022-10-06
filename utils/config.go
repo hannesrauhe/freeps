@@ -248,9 +248,9 @@ func (c *ConfigReader) writeConfig() error {
 	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
 	if err == nil {
 		c.configChanged = false
-		return err
+		c.logger.Infof("Wrote config file to %s", c.configFilePath)
 	}
-	c.logger.Infof("Wrote config file to %s", c.configFilePath)
+	c.logger.Errorf("Failed to write config file to %s: %v", c.configFilePath, err)
 	return err
 }
 
