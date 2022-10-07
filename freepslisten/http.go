@@ -45,11 +45,7 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	opio := r.graphengine.ExecuteOperatorByName(httplogger, vars["mod"], vars["function"], mainArgs, &mainInput)
-	logline := opio.ToString()
-	if len(logline) > 1000 {
-		logline = logline[:1000] + "..."
-	}
-	httplogger.Info(logline)
+	opio.Log(httplogger)
 
 	bytes, err := opio.GetBytes()
 	if err != nil {

@@ -332,15 +332,17 @@ func NewGraph(graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 
 func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
-
+	var failed []string
 	for _, operation := range g.desc.Operations {
 		output := g.executeOperation(logger, &operation, mainArgs)
 		g.opOutputs[operation.Name] = output
 		if output.IsError() {
-			logger.Errorf("Operation failed: %s", output.GetString())
-		} else {
-			logger.Debugf("Operation \"%s\" finished with output Type \"%v\"", operation.Name, output.OutputType)
+			failed = append(failed, operation.Name)
 		}
+		logger.Debugf("Operation \"%s\" finished with output Type \"%v\"", operation.Name, output.OutputType)
+	}
+	if len(failed) > 0 {
+		logger.Errorf("The following operations failed: %v", failed)
 	}
 	if g.desc.OutputFrom == "" {
 		return MakeObjectOutput(g.opOutputs)

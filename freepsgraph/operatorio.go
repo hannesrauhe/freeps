@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/sirupsen/logrus"
 )
 
 type OutputT string
@@ -124,6 +126,15 @@ func (io *OperatorIO) IsEmpty() bool {
 	default:
 		return false
 	}
+}
+
+func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
+	logline := oio.ToString()
+	if len(logline) > 1000 {
+		logger.Debug(logline)
+		logline = logline[:1000] + "..."
+	}
+	logger.Info(logline)
 }
 
 func (oio *OperatorIO) ToString() string {
