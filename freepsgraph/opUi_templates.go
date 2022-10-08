@@ -60,6 +60,7 @@ const templateEditGraph = `
 
 <button type="submit" name="Execute" value="Execute">Execute</button>
 <input type="text" name="GraphName" />
+<button type="submit" name="SaveTemp">Save Temporarily</button>
 <button type="submit" name="SaveGraph">Save Graph</button>
 <button type="submit" name="GraphJSON" value="" />Reset</button>
 </form>

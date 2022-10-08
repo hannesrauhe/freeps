@@ -34,10 +34,9 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 		r := make(map[string]GraphDesc)
 		for n, t := range o.tmc.Config.Templates {
 			g := o.convertTemplateToGraphDesc(t)
-			o.ge.AddTemporaryGraph(n, g)
 			r[n] = *g
 		}
-		if err := o.ge.SaveTemporaryGraphs(""); err != nil {
+		if err := o.ge.AddExternalGraphs(r, "template2graphs.json"); err != nil {
 			return MakeOutputError(http.StatusInternalServerError, "Could not store: %s", err)
 		}
 		return MakeObjectOutput(r)

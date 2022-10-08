@@ -233,17 +233,32 @@ func (ge *GraphEngine) DeleteTemporaryGraph(graphName string) {
 	delete(ge.temporaryGraphs, graphName)
 }
 
-// SaveTemporaryGraphs saves adds all temporary graphs to the given file or to the first file in the list of external graphs or to graphs.json
-func (ge *GraphEngine) SaveTemporaryGraphs(fileName string) error {
+// AddExternalGraph adds a graph to the external graph list and stores it in the config directory
+func (ge *GraphEngine) AddExternalGraph(graphName string, gd *GraphDesc, fileName string) error {
+	if fileName == "" {
+		fileName = "externalGraph_" + graphName + ".json"
+	}
+	graphs := make(map[string]GraphDesc)
+	graphs[graphName] = *gd
+	return ge.AddExternalGraphs(graphs, fileName)
+}
+
+// AddExternalGraphs adds a graph to the external graph list and stores it in the config directory
+func (ge *GraphEngine) AddExternalGraphs(graphs map[string]GraphDesc, fileName string) error {
+	if fileName == "" {
+		return errors.New("No filename given")
+	}
+
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	config := ge.ReadConfig()
-	graphs := make(map[string]GraphDesc)
 	exists := false
+
+	existingGraphs := make(map[string]GraphDesc)
 	for _, fName := range config.GraphsFromFile {
-		if fName == fileName || fileName == "" {
+		if fName == fileName {
 			fileName = fName
-			err := ge.cr.ReadObjectFromFile(&graphs, fName)
+			err := ge.cr.ReadObjectFromFile(&existingGraphs, fName)
 			if err != nil {
 				return fmt.Errorf("Error reading graphs from file %s: %s", fName, err.Error())
 			}
@@ -251,15 +266,14 @@ func (ge *GraphEngine) SaveTemporaryGraphs(fileName string) error {
 			break
 		}
 	}
-	if !exists {
-		if fileName == "" {
-			fileName = "template2graphs.json"
+
+	if exists {
+		for n, g := range graphs {
+			existingGraphs[n] = g
 		}
+		graphs = existingGraphs
 	}
 
-	for n, g := range ge.temporaryGraphs {
-		graphs[n] = g
-	}
 	err := ge.cr.WriteObjectToFile(graphs, fileName)
 	if err != nil {
 		return fmt.Errorf("Error writing graphs to file %s: %s", fileName, err.Error())
@@ -273,10 +287,14 @@ func (ge *GraphEngine) SaveTemporaryGraphs(fileName string) error {
 		}
 	}
 
-	ge.temporaryGraphs = make(map[string]GraphDesc)
 	err = ge.cr.ReadObjectFromFile(&ge.externalGraphs, fileName)
 	if err != nil {
 		return fmt.Errorf("Error re-reading graphs from file %s: %s", fileName, err.Error())
+	}
+
+	// make sure graphs are not in the temporary graph list
+	for n := range graphs {
+		delete(ge.temporaryGraphs, n)
 	}
 	return nil
 }

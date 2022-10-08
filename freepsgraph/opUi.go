@@ -161,10 +161,16 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 
 		if _, ok := formInput["SaveGraph"]; ok {
 			name := formInput["GraphName"]
-			o.ge.AddTemporaryGraph(name, gd)
+			if name == "" {
+				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
+			}
+			o.ge.AddExternalGraph(name, gd, "")
 		}
-		if _, ok := formInput["SaveTemporarily"]; ok {
+		if _, ok := formInput["SaveTemp"]; ok {
 			name := formInput["GraphName"]
+			if name == "" {
+				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
+			}
 			o.ge.AddTemporaryGraph(name, gd)
 		}
 

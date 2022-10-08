@@ -31,8 +31,6 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 	case "reload":
 		o.ge.reloadRequested = true
 		o.cancel()
-	case "saveTemporaryGraphs":
-		o.ge.SaveTemporaryGraphs(args["filename"])
 	case "stats":
 		var s interface{}
 		var err error
