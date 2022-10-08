@@ -137,7 +137,7 @@ func (io *OperatorIO) IsEmpty() bool {
 }
 
 func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
-	logline := "Ouput: " + oio.ToString()
+	logline := "Output: " + oio.ToString()
 	if len(logline) > 1000 {
 		logger.Debugf(logline)
 		logline = logline[:1000] + "..."

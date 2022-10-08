@@ -163,6 +163,10 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 			name := formInput["GraphName"]
 			o.ge.AddTemporaryGraph(name, gd)
 		}
+		if _, ok := formInput["SaveTemporarily"]; ok {
+			name := formInput["GraphName"]
+			o.ge.AddTemporaryGraph(name, gd)
+		}
 
 		if _, ok := formInput["Execute"]; ok {
 			o.ge.AddTemporaryGraph("UIgraph", gd)

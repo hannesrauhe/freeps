@@ -63,7 +63,6 @@ func main() {
 		ge := freepsgraph.NewGraphEngine(cr, cancel)
 
 		if mod != "" {
-			//TODO(HR): set logger to direct stdout output
 			args, _ := url.ParseQuery(argstring)
 			output := ge.ExecuteOperatorByName(logger, mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
 			output.WriteTo(os.Stdout)
@@ -72,8 +71,6 @@ func main() {
 
 		logger.Printf("Starting Listeners")
 		http := freepslisten.NewFreepsHttp(cr, ge)
-
-		// rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
 		mqtt := freepslisten.NewMqttSubscriber(logger, cr, ge)
 		telg := freepslisten.NewTelegramBot(cr, ge, cancel)
 
