@@ -61,7 +61,7 @@ func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *O
 func (o *OpTemplate) convertTemplateToGraphDesc(t *freepsdo.Template) *GraphDesc {
 	pos := 0
 	gd := &GraphDesc{Operations: make([]GraphOperationDesc, 0)}
-	o.convert(&pos, gd, t, "")
+	o.convert(&pos, gd, t, ROOT_SYMBOL)
 	gd.OutputFrom = fmt.Sprintf("#%v", pos-1)
 	return gd
 }
@@ -79,13 +79,19 @@ func (o *OpTemplate) convert(pos *int, gd *GraphDesc, t *freepsdo.Template, call
 		if operator == "template" {
 			operator = "graph"
 		}
+
 		// template mods only had one type of input, operators have args and input
 		// depending on the type of input they want arguments or input from the previous output
 		switch operator {
 		case "eval":
+			if ta.Fn == "eval" {
+				args["Output"] = "args" // eval output may be used as argument later
+			}
 			inputFrom = caller
-		default:
+		case "fritz":
 			argsFrom = caller
+		default:
+			inputFrom = caller
 		}
 		god := GraphOperationDesc{Name: name, Operator: operator, Function: ta.Fn, Arguments: args, ArgumentsFrom: argsFrom, InputFrom: inputFrom}
 		gd.Operations = append(gd.Operations, god)
@@ -94,7 +100,7 @@ func (o *OpTemplate) convert(pos *int, gd *GraphDesc, t *freepsdo.Template, call
 			o.convert(pos, gd, ta.FwdTemplate, name)
 		}
 		if ta.FwdTemplateName != "" {
-			fwdGod := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: "graph", Function: ta.FwdTemplateName, ArgumentsFrom: name}
+			fwdGod := GraphOperationDesc{Name: fmt.Sprintf("#%v", *pos), Operator: "graph", Function: ta.FwdTemplateName, InputFrom: name}
 			gd.Operations = append(gd.Operations, fwdGod)
 			*pos++
 		}

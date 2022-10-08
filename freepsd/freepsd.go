@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	logrus "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
@@ -16,15 +16,19 @@ import (
 var verbose bool
 
 type loggingConfig struct {
-	Level            log.Level
+	Level            logrus.Level
 	DisableTimestamp bool
 }
 
-func configureLogging(cr *utils.ConfigReader) {
-	loggingConfig := loggingConfig{Level: log.InfoLevel, DisableTimestamp: false}
+func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
+	loggingConfig := loggingConfig{Level: logrus.InfoLevel, DisableTimestamp: false}
 	cr.ReadSectionWithDefaults("logging", &loggingConfig)
-	log.StandardLogger().Formatter.(*log.TextFormatter).DisableTimestamp = loggingConfig.DisableTimestamp
-	log.SetLevel(loggingConfig.Level)
+	logger.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp: loggingConfig.DisableTimestamp,
+		PadLevelText:     true,
+		DisableQuote:     true,
+	})
+	logger.SetLevel(loggingConfig.Level)
 }
 
 func main() {
@@ -37,20 +41,21 @@ func main() {
 
 	flag.Parse()
 
+	logger := logrus.StandardLogger()
 	running := true
 	for running {
-		cr, err := utils.NewConfigReader(log.StandardLogger().WithField("component", "config"), configpath)
+		cr, err := utils.NewConfigReader(logger.WithField("component", "config"), configpath)
 
 		if verbose {
-			log.SetLevel(log.DebugLevel)
+			logger.SetLevel(logrus.DebugLevel)
 		}
 
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
-		configureLogging(cr)
+		configureLogging(cr, logger)
 
-		log.Debug("Loading graph engine")
+		logger.Debug("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -60,16 +65,16 @@ func main() {
 		if mod != "" {
 			//TODO(HR): set logger to direct stdout output
 			args, _ := url.ParseQuery(argstring)
-			output := ge.ExecuteOperatorByName(log.StandardLogger(), mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
+			output := ge.ExecuteOperatorByName(logger, mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
 			output.WriteTo(os.Stdout)
 			return
 		}
 
-		log.Printf("Starting Listeners")
+		logger.Printf("Starting Listeners")
 		http := freepslisten.NewFreepsHttp(cr, ge)
 
 		// rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
-		mqtt := freepslisten.NewMqttSubscriber(log.StandardLogger(), cr, ge)
+		mqtt := freepslisten.NewMqttSubscriber(logger, cr, ge)
 		telg := freepslisten.NewTelegramBot(cr, ge, cancel)
 
 		select {
@@ -85,6 +90,6 @@ func main() {
 			http.Shutdown(ctx)
 		}
 		running = ge.ReloadRequested()
-		log.Printf("Stopping Listeners")
+		logger.Printf("Stopping Listeners")
 	}
 }

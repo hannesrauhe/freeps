@@ -51,12 +51,20 @@ func MakeObjectOutput(output interface{}) *OperatorIO {
 	return &OperatorIO{OutputType: Object, HTTPCode: 200, Output: output}
 }
 
-func (io *OperatorIO) GetMap() (map[string]string, error) {
-	v, ok := io.Output.(map[string]string)
+func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
+	strmap, ok := io.Output.(map[string]string)
 	if ok {
-		return v, nil
+		return strmap, nil
 	}
-	return nil, fmt.Errorf("Output is not of type map")
+	generalmap, ok := io.Output.(map[string]interface{})
+	if ok {
+		strmap := make(map[string]string)
+		for k, v := range generalmap {
+			strmap[k] = fmt.Sprintf("%v", v)
+		}
+		return strmap, nil
+	}
+	return nil, fmt.Errorf("Output is not of type map, but %T", io.Output)
 }
 
 func (io *OperatorIO) ParseJSON(obj interface{}) error {
@@ -129,12 +137,12 @@ func (io *OperatorIO) IsEmpty() bool {
 }
 
 func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
-	logline := oio.ToString()
+	logline := "Ouput: " + oio.ToString()
 	if len(logline) > 1000 {
-		logger.Debug(logline)
+		logger.Debugf(logline)
 		logline = logline[:1000] + "..."
 	}
-	logger.Info(logline)
+	logger.Infof(logline)
 }
 
 func (oio *OperatorIO) ToString() string {
@@ -145,12 +153,12 @@ func (oio *OperatorIO) ToString() string {
 
 func (oio *OperatorIO) WriteTo(bwriter io.Writer) (int, error) {
 	if oio.IsError() {
-		return fmt.Fprintf(bwriter, "Error Code: %v,\n%v\n", oio.HTTPCode, oio.Output.(error))
+		return fmt.Fprintf(bwriter, "Error Code: %v, %v", oio.HTTPCode, oio.Output.(error))
 	}
-	fmt.Fprintf(bwriter, "Output Type: %T,\n", oio.OutputType)
+	fmt.Fprintf(bwriter, "Output Type: %T", oio.Output)
 	if oio.OutputType == Byte {
 		return bwriter.Write(oio.Output.([]byte))
 	}
 	o, _ := json.MarshalIndent(oio.Output, "", "  ")
-	return fmt.Fprintf(bwriter, "%v\n", string(o))
+	return fmt.Fprintf(bwriter, "%v", string(o))
 }

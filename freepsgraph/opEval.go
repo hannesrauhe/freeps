@@ -30,6 +30,7 @@ type EvalArgs struct {
 	ValueType string
 	Operation string
 	Operand   interface{}
+	Output    string
 }
 
 type DedupArgs struct {
@@ -139,10 +140,22 @@ func (m *OpEval) EvalAndRegexp(fn string, vars map[string]string, input *Operato
 			return MakeOutputError(http.StatusBadRequest, "%v", err)
 		}
 		if result {
-			return input
-		} else {
-			return MakeOutputError(http.StatusExpectationFailed, "Eval %v resulted in false", vars)
+			switch args.Output {
+			case "flat":
+				fallthrough
+			case "args":
+				{
+					return MakeObjectOutput(argsmap)
+				}
+			case "input":
+				{
+					return input
+				}
+			default:
+				return MakeEmptyOutput()
+			}
 		}
+		return MakeOutputError(http.StatusExpectationFailed, "Eval %v resulted in false", vars)
 	case "regexp":
 		resultString, err := m.Regexp(vInterface, args.Operation, args.Operand)
 		if err != nil {

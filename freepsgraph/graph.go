@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -64,6 +65,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
+	ge.operators["mutt"] = &OpMutt{}
 	ge.operators["store"] = NewOpStore()
 	ge.operators["raspistill"] = &OpRaspistill{}
 
@@ -335,11 +337,11 @@ func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput
 	var failed []string
 	for _, operation := range g.desc.Operations {
 		output := g.executeOperation(logger, &operation, mainArgs)
+		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 		g.opOutputs[operation.Name] = output
 		if output.IsError() {
 			failed = append(failed, operation.Name)
 		}
-		logger.Debugf("Operation \"%s\" finished with output Type \"%v\"", operation.Name, output.OutputType)
 	}
 	if len(failed) > 0 {
 		logger.Errorf("The following operations failed: %v", failed)
@@ -355,7 +357,10 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 	if opDesc.InputFrom != "" {
 		input = g.opOutputs[opDesc.InputFrom]
 		if input.IsError() {
-			logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", opDesc.Name, opDesc.InputFrom)
+			// reduce logging of eval-related "errors"
+			if input.HTTPCode != http.StatusExpectationFailed {
+				logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", opDesc.Name, opDesc.InputFrom)
+			}
 			return input
 		}
 	}
@@ -374,9 +379,9 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 		if !exists {
 			return MakeOutputError(404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
 		}
-		collectedArgs, err := outputToBeArgs.GetMap()
+		collectedArgs, err := outputToBeArgs.GetArgsMap()
 		if err != nil {
-			return MakeOutputError(500, "Output of \"%s\" cannot be used as arguments, because it's of type \"%s\"", opDesc.ArgumentsFrom, outputToBeArgs.OutputType)
+			return MakeOutputError(500, "Output of \"%s\" cannot be used as arguments: %v", opDesc.ArgumentsFrom, err)
 		}
 		for k, v := range collectedArgs {
 			combinedArgs[k] = v
@@ -385,8 +390,9 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 
 	op, exists := g.engine.operators[opDesc.Operator]
 	if exists {
-		logger.Debugf("Executing operation \"%v\" with arguments \"%v\"", opDesc.Name, combinedArgs)
-		return op.Execute(opDesc.Function, combinedArgs, input)
+		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", opDesc.Operator, opDesc.Function, combinedArgs)
+		output := op.Execute(opDesc.Function, combinedArgs, input)
+		return output
 	}
 	return MakeOutputError(404, "No operator with name \"%s\" found", opDesc.Operator)
 }
