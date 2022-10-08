@@ -94,19 +94,6 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 	}
 }
 
-func (fm *FreepsMqtt) configuredMessageReceived(client MQTT.Client, message MQTT.Message) {
-	topic := message.Topic()
-
-	// lazily trying to match topics -- assuming topic always end with "#"
-	// TODO(HR): figure out better matching or how to pass multiple handlers
-	for _, k := range fm.Config.Topics {
-		prefixLen := len(k.Topic) - 1
-		if len(topic) >= prefixLen && k.Topic[:prefixLen] == topic[:prefixLen] {
-			fm.processMessage(k, message.Payload(), topic)
-		}
-	}
-}
-
 func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
 	t := strings.Split(message.Topic(), "/")
 	if len(t) <= 2 {
@@ -152,9 +139,11 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 	connOpts.SetCleanSession(true)
 	connOpts.OnConnect = func(c MQTT.Client) {
 		for _, k := range fmc.Topics {
-			// giving a separate callback for each topic in this loop will cause the library to always call the last
-			// I'm doing something wrong here
-			if token := c.Subscribe(k.Topic, byte(k.Qos), fmqtt.configuredMessageReceived); token.Wait() && token.Error() != nil {
+			k := k // see https://go.dev/doc/faq#closures_and_goroutines
+			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+				fmqtt.processMessage(k, message.Payload(), message.Topic())
+			}
+			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
 				panic(token.Error())
 			}
 		}
