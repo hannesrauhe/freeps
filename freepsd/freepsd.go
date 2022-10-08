@@ -18,15 +18,15 @@ var verbose bool
 type loggingConfig struct {
 	Level            logrus.Level
 	DisableTimestamp bool
+	DisableQuote     bool
 }
 
 func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
-	loggingConfig := loggingConfig{Level: logrus.InfoLevel, DisableTimestamp: false}
+	loggingConfig := loggingConfig{Level: logrus.InfoLevel, DisableTimestamp: false, DisableQuote: false}
 	cr.ReadSectionWithDefaults("logging", &loggingConfig)
 	logger.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: loggingConfig.DisableTimestamp,
-		PadLevelText:     true,
-		DisableQuote:     true,
+		DisableQuote:     loggingConfig.DisableQuote,
 	})
 	logger.SetLevel(loggingConfig.Level)
 }
