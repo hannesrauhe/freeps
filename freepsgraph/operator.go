@@ -16,6 +16,9 @@ type OpGraph struct {
 var _ FreepsOperator = &OpGraph{}
 
 func (o *OpGraph) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+	if input.IsError() { // graph has been called by another operator, but the operator returned an error
+		return input
+	}
 	return o.ge.ExecuteGraph(fn, args, input)
 }
 

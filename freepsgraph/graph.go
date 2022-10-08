@@ -379,6 +379,13 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 		if !exists {
 			return MakeOutputError(404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
 		}
+		if outputToBeArgs.IsError() {
+			// reduce logging of eval-related "errors"
+			if outputToBeArgs.HTTPCode != http.StatusExpectationFailed {
+				logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", opDesc.Name, opDesc.InputFrom)
+			}
+			return input
+		}
 		collectedArgs, err := outputToBeArgs.GetArgsMap()
 		if err != nil {
 			return MakeOutputError(500, "Output of \"%s\" cannot be used as arguments: %v", opDesc.ArgumentsFrom, err)
