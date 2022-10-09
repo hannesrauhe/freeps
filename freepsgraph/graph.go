@@ -346,6 +346,8 @@ func NewGraph(graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 		if len(graphDesc.Operations) == 1 {
 			gd.OutputFrom = gd.Operations[0].Name
 		}
+	} else if outputNames[graphDesc.OutputFrom] != true {
+		return nil, fmt.Errorf("Graph references unknown outputFrom \"%v\"", graphDesc.OutputFrom)
 	}
 	return &Graph{desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
 }
