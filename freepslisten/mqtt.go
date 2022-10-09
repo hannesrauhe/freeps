@@ -61,7 +61,14 @@ type FreepsMqtt struct {
 
 func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic string) {
 	t := strings.Split(topic, "/")
-	field := t[tc.FieldIndex]
+	field := ""
+	if len(t) > tc.FieldIndex {
+		field = t[tc.FieldIndex]
+	}
+	measurement := ""
+	if len(t) > tc.MeasurementIndex {
+		measurement = t[tc.MeasurementIndex]
+	}
 	fconf, fieldExists := tc.Fields[field]
 	value := string(message)
 	if fieldExists {
@@ -78,13 +85,13 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		}
 
 		fwt := FieldWithType{fconf.Datatype, value}
-		args := JsonArgs{Measurement: t[tc.MeasurementIndex], FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
+		args := JsonArgs{Measurement: measurement, FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
 
 		input := freepsgraph.MakeObjectOutput(args)
 		output := fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
-		output.Log(fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": t[tc.MeasurementIndex], "field": field, "value": value}))
+		output.Log(fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}))
 	} else {
-		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": t[tc.MeasurementIndex], "field": field, "value": value}).Info("No field config found")
+		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 	}
 }
 

@@ -137,6 +137,10 @@ func (io *OperatorIO) IsEmpty() bool {
 }
 
 func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
+	if logger == nil {
+		logger = logrus.StandardLogger()
+		logger.Warnf("No logger provided to OperatorIO.Log, using standard logger")
+	}
 	logline := "Output: " + oio.ToString()
 	if len(logline) > 1000 {
 		logger.Debugf(logline)
