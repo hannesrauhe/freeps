@@ -64,7 +64,7 @@ const testGraph = `
 
 func TestOperatorErrorChain(t *testing.T) {
 	ge := NewGraphEngine(nil, func() {})
-	ge.configGraphs["test"] = GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test"] = GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
@@ -83,26 +83,26 @@ func TestOperatorErrorChain(t *testing.T) {
 
 func TestCheckGraph(t *testing.T) {
 	ge := NewGraphEngine(nil, func() {})
-	ge.configGraphs["test_noinput"] = GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test_noinput"] = GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
 	}}
 	opIO := ge.CheckGraph("test_noinput")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.configGraphs["test_noargs"] = GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test_noargs"] = GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", ArgumentsFrom: "NOTEXISTING"},
 	}}
 	opIO = ge.CheckGraph("test_noargs")
 
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
-	ge.configGraphs["test_noop"] = GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test_noop"] = GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "NOTHERE"},
 	}}
 
 	opIO = ge.CheckGraph("test_noargs")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.configGraphs["test_valid"] = GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test_valid"] = GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval"},
 	}}
 	opIO = ge.CheckGraph("test_valid")

@@ -48,7 +48,6 @@ type Graph struct {
 // GraphEngine holds all available graphs and operators
 type GraphEngine struct {
 	cr              *utils.ConfigReader
-	configGraphs    map[string]GraphDesc
 	externalGraphs  map[string]GraphDesc
 	temporaryGraphs map[string]GraphDesc
 	operators       map[string]FreepsOperator
@@ -58,7 +57,7 @@ type GraphEngine struct {
 
 // NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
-	ge := &GraphEngine{cr: cr, configGraphs: make(map[string]GraphDesc), externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), reloadRequested: false}
+	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), reloadRequested: false}
 
 	ge.operators = make(map[string]FreepsOperator)
 	ge.operators["graph"] = &OpGraph{ge: ge}
@@ -72,9 +71,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	if cr != nil {
 		var err error
 		config := ge.ReadConfig()
-		if config.Graphs != nil {
-			ge.configGraphs = config.Graphs
-		}
 		for _, fName := range config.GraphsFromFile {
 			err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
 			if err != nil {
@@ -162,11 +158,7 @@ func (ge *GraphEngine) CheckGraph(graphName string) *OperatorIO {
 func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	gd, exists := ge.configGraphs[graphName]
-	if exists {
-		return &gd, exists
-	}
-	gd, exists = ge.externalGraphs[graphName]
+	gd, exists := ge.externalGraphs[graphName]
 	if exists {
 		return &gd, exists
 	}
@@ -187,9 +179,6 @@ func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 		r[n] = &g
 	}
 	for n, g := range ge.temporaryGraphs {
-		r[n] = &g
-	}
-	for n, g := range ge.configGraphs {
 		r[n] = &g
 	}
 	return r
