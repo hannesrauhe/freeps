@@ -2,9 +2,10 @@ package freepsdo
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/utils"

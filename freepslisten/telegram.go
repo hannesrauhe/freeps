@@ -4,19 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/hannesrauhe/freeps/freepsdo"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type Telegraminator struct {
-	Modinator   *freepsdo.TemplateMod
+	ge          *freepsgraph.GraphEngine
 	bot         *tgbotapi.BotAPI
-	tgc         *freepsdo.TelegramConfig
+	tgc         *freepsgraph.TelegramConfig
 	lastMessage int
 	chatState   map[int64]TelegramCallbackResponse
+	closeChan   chan int
 }
 
 type TelegramCallbackResponse struct {
@@ -29,6 +31,8 @@ type TelegramCallbackResponse struct {
 
 func (r *Telegraminator) Shutdown(ctx context.Context) {
 	r.bot.StopReceivingUpdates()
+	<-r.closeChan
+	r.bot = nil
 }
 
 type ButtonWrapper struct {
@@ -52,7 +56,7 @@ func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	rows := [][]tgbotapi.KeyboardButton{}
 	row := []tgbotapi.KeyboardButton{}
 	counter := 0
-	for k := range r.Modinator.Mods {
+	for _, k := range r.ge.GetOperators() {
 		row = append(row, tgbotapi.NewKeyboardButton(k))
 		counter++
 		if counter != 0 && counter%3 == 0 {
@@ -67,9 +71,24 @@ func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewOneTimeReplyKeyboard(rows...)
 }
 
+func (r *Telegraminator) getCurrentOp(graphName string) (freepsgraph.FreepsOperator, *freepsgraph.GraphOperationDesc) {
+	graph, exists := r.ge.GetGraphDesc(graphName)
+	if !exists {
+		return nil, nil
+	}
+	if graph.Operations == nil || len(graph.Operations) == 0 {
+		return nil, nil
+	}
+	op := r.ge.GetOperator(graph.Operations[0].Operator)
+	if op == nil {
+		return nil, nil
+	}
+	return op, &graph.Operations[0]
+}
+
 func (r *Telegraminator) getModButtons() []*ButtonWrapper {
-	keys := make([]*ButtonWrapper, 0, len(r.Modinator.Mods))
-	for k := range r.Modinator.Mods {
+	keys := make([]*ButtonWrapper, 0, len(r.ge.GetOperators()))
+	for _, k := range r.ge.GetOperators() {
 		tcr := TelegramCallbackResponse{F: false, P: -1, C: k}
 		keys = append(keys, r.newJSONButton(k, &tcr))
 	}
@@ -77,8 +96,11 @@ func (r *Telegraminator) getModButtons() []*ButtonWrapper {
 }
 
 func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []*ButtonWrapper {
-	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
-	fn := r.Modinator.Mods[ta.Mod].GetFunctions()
+	op, _ := r.getCurrentOp(tcr.T)
+	if op == nil {
+		return make([]*ButtonWrapper, 0)
+	}
+	fn := op.GetFunctions()
 	keys := make([]*ButtonWrapper, 0, len(fn))
 	tcr.K = true
 	keys = append(keys, r.newJSONButton("<CUSTOM>", tcr))
@@ -91,8 +113,11 @@ func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []*ButtonWr
 }
 
 func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackResponse) []*ButtonWrapper {
-	ta := r.Modinator.GetTemporaryTemplateAction(tcr.T)
-	argOptions := r.Modinator.Mods[ta.Mod].GetArgSuggestions(ta.Fn, arg, ta.Args)
+	op, ta := r.getCurrentOp(tcr.T)
+	if op == nil {
+		return make([]*ButtonWrapper, 0)
+	}
+	argOptions := op.GetArgSuggestions(ta.Function, arg, ta.Arguments)
 	keys := make([]*ButtonWrapper, 0, len(argOptions)+2)
 	tcr.F = true
 	keys = append(keys, r.newJSONButton("<Execute>", tcr))
@@ -158,7 +183,7 @@ func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
-	r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
+	r.ge.DeleteTemporaryGraph(fmt.Sprint(msg.ChatID))
 	msg.ReplyMarkup, _ = r.getModKeyboard()
 	r.sendMessage(msg)
 }
@@ -194,7 +219,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			}
 		} else {
 			// inputText contains the mod to use
-			r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
+			r.ge.DeleteTemporaryGraph(fmt.Sprint(chat.ID))
 			tcr.P = -1
 			tcr.C = inputText
 		}
@@ -204,46 +229,40 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 		delete(r.chatState, chat.ID)
 	}
 	tcr.T = fmt.Sprint(chat.ID)
-	tpl := r.Modinator.GetTemporaryTemplateAction(tcr.T)
-
-	if len(tpl.Mod) == 0 {
-		tpl.Mod = tcr.C
-		if _, ok := r.Modinator.Mods[tpl.Mod]; !ok {
-			msg.Text += " Please pick a Mod"
+	op, god := r.getCurrentOp(tcr.T)
+	if op == nil {
+		if !r.ge.HasOperator(tcr.C) {
+			msg.Text += " Please pick an Operator"
 			r.sendStartMessage(&msg)
 			return
 		}
-		msg.Text = "Pick a function for " + tpl.Mod
+		tpl := &freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C}}}
+		r.ge.AddTemporaryGraph(tcr.T, tpl)
+		op, god = r.getCurrentOp(tcr.T)
+		msg.Text = "Pick a function for " + god.Operator
 		msg.ReplyMarkup, _ = r.getFnKeyboard(&tcr)
-	} else if len(tpl.Fn) == 0 {
+	} else if len(god.Function) == 0 {
 		if tcr.K {
-			msg.Text = "Type a function for " + tpl.Mod
+			msg.Text = "Type a function for " + god.Operator
 			tcr.K = false
 			r.chatState[chat.ID] = tcr
 		} else {
-			tpl.Fn = tcr.C
+			god.Function = tcr.C
 		}
 	}
 
-	// sanity check
-	if _, ok := r.Modinator.Mods[tpl.Mod]; !ok {
-		msg.Text += " Something went wrong. Please pick a Mod"
-		r.sendStartMessage(&msg)
-		return
-	}
-
-	if len(tpl.Fn) > 0 && !tcr.F {
-		args := r.Modinator.Mods[tpl.Mod].GetPossibleArgs(tpl.Fn)
+	if len(god.Function) > 0 && !tcr.F {
+		args := op.GetPossibleArgs(god.Function)
 		if tcr.P == 0 {
-			tpl.Args = map[string]interface{}{}
+			god.Arguments = map[string]string{}
 		}
 		if tcr.K {
-			msg.Text = fmt.Sprintf("Type a Value for %s (%s/%s)", args[tcr.P], tpl.Mod, tpl.Fn)
+			msg.Text = fmt.Sprintf("Type a Value for %s (%s/%s)", args[tcr.P], god.Operator, god.Function)
 			tcr.K = false
 			r.chatState[chat.ID] = tcr
 		} else {
 			if tcr.P >= 0 {
-				tpl.Args[args[tcr.P]] = tcr.C
+				god.Arguments[args[tcr.P]] = tcr.C
 			}
 			tcr.C = ""
 			tcr.P++
@@ -251,7 +270,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 				tcr.F = true
 			} else {
 				addVals := ""
-				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], tpl.Mod, tpl.Fn)
+				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], god.Operator, god.Function)
 				msg.ReplyMarkup, addVals = r.getArgsKeyboard(args[tcr.P], &tcr)
 				if len(addVals) > 0 {
 					// do not use SendMessage, because that message gets deleted.... yeah, I need to clean this up
@@ -262,20 +281,23 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	}
 
 	if tcr.F {
-		jrw := freepsdo.NewResponseCollector(fmt.Sprintf("telegram: %v", chat.FirstName))
-		r.Modinator.ExecuteTemplateAction(tpl, jrw)
-		status, otype, byt := jrw.GetFinalResponse(true)
-		if otype == freepsdo.ResponseTypeJPEG {
-			msg.Text = "Here is a picture for you"
-			m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})
-			if _, err := r.bot.Send(m); err != nil {
-				log.Println(err)
-			}
+		io := r.ge.ExecuteGraph(tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
+		byt, err := io.GetBytes()
+		if err != nil {
+			msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)
 		} else {
-			msg.Text = fmt.Sprintf("%v: %q", status, byt)
+			if io.ContentType == "image/png" {
+				msg.Text = "Here is a picture for you"
+				m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})
+				if _, err := r.bot.Send(m); err != nil {
+					log.Println(err)
+				}
+			} else {
+				msg.Text = fmt.Sprintf("%v: %q", io.HTTPCode, byt)
+			}
+			r.ge.DeleteTemporaryGraph(tcr.T)
+			msg.ReplyMarkup = r.getReplyKeyboard()
 		}
-		r.Modinator.RemoveTemporaryTemplate(fmt.Sprint(msg.ChatID))
-		msg.ReplyMarkup = r.getReplyKeyboard()
 	}
 	r.sendMessage(&msg)
 }
@@ -296,10 +318,12 @@ func (r *Telegraminator) MainLoop() {
 		}
 		r.Respond(update.Message.Chat, "", update.Message.Text)
 	}
+	log.Print("Telegram Main Loop stopped")
+	r.closeChan <- 1
 }
 
-func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel context.CancelFunc) *Telegraminator {
-	tgc := freepsdo.DefaultTelegramConfig
+func NewTelegramBot(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine, cancel context.CancelFunc) *Telegraminator {
+	tgc := freepsgraph.DefaultTelegramConfig
 	err := cr.ReadSectionWithDefaults("telegrambot", &tgc)
 	if err != nil {
 		log.Fatal(err)
@@ -314,7 +338,7 @@ func NewTelegramBot(cr *utils.ConfigReader, doer *freepsdo.TemplateMod, cancel c
 	}
 
 	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	t := &Telegraminator{Modinator: doer, bot: bot, tgc: &tgc, chatState: make(map[int64]TelegramCallbackResponse)}
+	t := &Telegraminator{ge: ge, bot: bot, tgc: &tgc, chatState: make(map[int64]TelegramCallbackResponse), closeChan: make(chan int)}
 	if err != nil {
 		log.Printf("Error on Telegram registration: %v", err)
 		return t

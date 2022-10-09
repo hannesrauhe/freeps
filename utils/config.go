@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type ConfigIncluder struct {
@@ -21,16 +23,16 @@ func ReadBytesFromUrl(url string) []byte {
 	c := http.Client{}
 	resp, err := c.Get(url)
 	if err != nil {
-		log.Printf("Error when reading from %v: %v", url, err)
+		log.Printf("curl error when reading from %v: %v", url, err)
 		return []byte{}
 	}
 	if resp.StatusCode > 300 {
-		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
+		log.Printf("curl error when reading from %v: Status code %v", url, resp.StatusCode)
 		return []byte{}
 	}
 	byt, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Error when reading from %v: %v", url, err)
+		log.Printf("curl error when reading from %v: %v", url, err)
 		return []byte{}
 	}
 	return byt
@@ -138,13 +140,14 @@ func GetDefaultPath(productname string) string {
 }
 
 type ConfigReader struct {
+	logger            logrus.FieldLogger
 	configFilePath    string
 	configFileContent []byte
 	configChanged     bool
 	lck               sync.Mutex
 }
 
-func NewConfigReader(configFilePath string) (*ConfigReader, error) {
+func NewConfigReader(logger logrus.FieldLogger, configFilePath string) (*ConfigReader, error) {
 	_, err := os.Stat(configFilePath)
 	if os.IsNotExist(err) {
 		return &ConfigReader{configFilePath: configFilePath, configChanged: true}, nil
@@ -154,7 +157,28 @@ func NewConfigReader(configFilePath string) (*ConfigReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ConfigReader{configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
+	return &ConfigReader{logger: logger, configFilePath: configFilePath, configFileContent: byteValue, configChanged: true}, nil
+}
+
+// GetConfigFileContent returns the content of the config file
+func (c *ConfigReader) GetConfigFileContent() string {
+	return string(c.configFileContent)
+}
+
+// SetConfigFileContent validates the new Content and sets it if valid
+func (c *ConfigReader) SetConfigFileContent(newContent string) error {
+	_, err := GetSectionsMap([]byte(newContent))
+	if err != nil {
+		return err
+	}
+	c.configFileContent = []byte(newContent)
+	c.configChanged = true
+	return c.WriteBackConfigIfChanged()
+}
+
+// GetConfigDir returns the basepath of the config file
+func (c *ConfigReader) GetConfigDir() string {
+	return path.Dir(c.configFilePath)
 }
 
 // GetSectionBytes returns the bytes of the section given by sectionName
@@ -192,7 +216,7 @@ func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct 
 	c.lck.Lock()
 	defer c.lck.Unlock()
 
-	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct, path.Dir(c.configFilePath))
+	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct, c.GetConfigDir())
 	if len(newb) > 0 {
 		c.configChanged = true
 		c.configFileContent = newb
@@ -224,6 +248,9 @@ func (c *ConfigReader) writeConfig() error {
 	err = ioutil.WriteFile(c.configFilePath, c.configFileContent, 0644)
 	if err == nil {
 		c.configChanged = false
+		c.logger.Infof("Wrote config file to %s", c.configFilePath)
+	} else {
+		c.logger.Errorf("Error writing config file to %s: %s", c.configFilePath, err)
 	}
 	return err
 }
@@ -236,4 +263,51 @@ func (c *ConfigReader) WriteBackConfigIfChanged() error {
 		return nil
 	}
 	return c.writeConfig()
+}
+
+func (c *ConfigReader) WriteObjectToFile(obj interface{}, filename string) error {
+	fullPath := c.GetConfigDir() + "/" + filename
+	f, err := os.Create(fullPath)
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	err = enc.Encode(obj)
+	if err != nil {
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+	c.logger.Infof("Wrote file %s", fullPath)
+	return nil
+}
+
+func (c *ConfigReader) ReadObjectFromFile(obj interface{}, filename string) error {
+	fullPath := c.GetConfigDir() + "/" + filename
+	f, err := os.Open(fullPath)
+	if err != nil {
+		return err
+	}
+	d := json.NewDecoder(f)
+	err = d.Decode(obj)
+	return err
+}
+
+func (c *ConfigReader) ReadObjectFromURL(obj interface{}, url string) error {
+	hc := http.Client{}
+	resp, err := hc.Get(url)
+	if err != nil {
+		log.Printf("Error when reading from %v: %v", url, err)
+		return err
+	}
+	if resp.StatusCode > 300 {
+		log.Printf("Error when reading from %v: Status code %v", url, resp.StatusCode)
+		return err
+	}
+	d := json.NewDecoder(resp.Body)
+	err = d.Decode(obj)
+	return err
 }

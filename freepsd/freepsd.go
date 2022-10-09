@@ -3,17 +3,33 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"log"
 	"net/url"
 	"os"
 
-	"github.com/hannesrauhe/freeps/freepsdo"
+	logrus "github.com/sirupsen/logrus"
+
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 var verbose bool
+
+type loggingConfig struct {
+	Level            logrus.Level
+	DisableTimestamp bool
+	DisableQuote     bool
+}
+
+func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
+	loggingConfig := loggingConfig{Level: logrus.InfoLevel, DisableTimestamp: false, DisableQuote: false}
+	cr.ReadSectionWithDefaults("logging", &loggingConfig)
+	logger.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp: loggingConfig.DisableTimestamp,
+		DisableQuote:     loggingConfig.DisableQuote,
+	})
+	logger.SetLevel(loggingConfig.Level)
+}
 
 func main() {
 	var configpath, fn, mod, argstring string
@@ -25,45 +41,52 @@ func main() {
 
 	flag.Parse()
 
-	cr, err := utils.NewConfigReader(configpath)
-	if err != nil {
-		log.Fatal(err)
-	}
+	logger := logrus.StandardLogger()
+	running := true
+	for running {
+		cr, err := utils.NewConfigReader(logger.WithField("component", "config"), configpath)
 
-	doer := freepsdo.NewTemplateMod(cr)
-
-	if mod != "" {
-		jrw := freepsdo.NewResponseCollector("freepsd command")
-		args, _ := url.ParseQuery(argstring)
-		doer.ExecuteModWithJson(mod, fn, utils.URLArgsToJSON(args), jrw)
-		_, t, b := jrw.GetFinalResponse(true)
-		if t == freepsdo.ResponseTypePlainText || t == freepsdo.ResponseTypeJSON {
-			os.Stdout.Write(b)
-			println("")
-		} else {
-			println("Binary response not printed")
-		}
 		if verbose {
-			fmt.Printf("%q", jrw.GetResponseTree())
+			logger.SetLevel(logrus.DebugLevel)
 		}
-		return
-	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	rest := freepslisten.NewRestEndpoint(cr, doer, cancel)
-	mqtt := freepslisten.NewMqttSubscriber(cr, doer)
-	telg := freepslisten.NewTelegramBot(cr, doer, cancel)
-
-	select {
-	case <-ctx.Done():
-		// Shutdown the server when the context is canceled
-		rest.Shutdown(ctx)
-		mqtt.Shutdown()
-		if telg != nil {
-			telg.Shutdown(ctx)
+		if err != nil {
+			logger.Fatal(err)
 		}
+		configureLogging(cr, logger)
+
+		logger.Debug("Loading graph engine")
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// doer := freepsdo.NewTemplateMod(cr)
+		ge := freepsgraph.NewGraphEngine(cr, cancel)
+
+		if mod != "" {
+			args, _ := url.ParseQuery(argstring)
+			output := ge.ExecuteOperatorByName(logger, mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
+			output.WriteTo(os.Stdout)
+			return
+		}
+
+		logger.Printf("Starting Listeners")
+		http := freepslisten.NewFreepsHttp(cr, ge)
+		mqtt := freepslisten.NewMqttSubscriber(logger, cr, ge)
+		telg := freepslisten.NewTelegramBot(cr, ge, cancel)
+
+		select {
+		case <-ctx.Done():
+			// Shutdown the server when the context is canceled
+			// rest.Shutdown(ctx)
+			if mqtt != nil {
+				mqtt.Shutdown()
+			}
+			if telg != nil {
+				telg.Shutdown(ctx)
+			}
+			http.Shutdown(ctx)
+		}
+		running = ge.ReloadRequested()
+		logger.Printf("Stopping Listeners")
 	}
-	log.Printf("Server stopped")
 }

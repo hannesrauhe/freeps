@@ -1,4 +1,4 @@
-package freepsdo
+package freepsgraph
 
 import (
 	"encoding/json"
@@ -19,14 +19,14 @@ type TelegramConfig struct {
 
 var DefaultTelegramConfig = TelegramConfig{Token: ""}
 
-type TelegramMod struct {
+type OpTelegram struct {
 	bot *tgbotapi.BotAPI
 	tgc *TelegramConfig
 }
 
-var _ Mod = &TelegramMod{}
+var _ FreepsOperator = &OpTelegram{}
 
-func NewTelegramBot(cr *utils.ConfigReader) *TelegramMod {
+func NewTelegramBot(cr *utils.ConfigReader) *OpTelegram {
 	tgc := DefaultTelegramConfig
 	err := cr.ReadSectionWithDefaults("telegrambot", &tgc)
 	if err != nil {
@@ -42,7 +42,7 @@ func NewTelegramBot(cr *utils.ConfigReader) *TelegramMod {
 	}
 
 	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	t := &TelegramMod{bot: bot, tgc: &tgc}
+	t := &OpTelegram{bot: bot, tgc: &tgc}
 	if err != nil {
 		log.Printf("Error on Telegram registration: %v", err)
 		return t
@@ -52,35 +52,36 @@ func NewTelegramBot(cr *utils.ConfigReader) *TelegramMod {
 	return t
 }
 
-func (m *TelegramMod) DoWithJSON(function string, jsonStr []byte, jrw *ResponseCollector) {
-	var vars map[string]string
-	json.Unmarshal(jsonStr, &vars)
-
+func (m *OpTelegram) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	chatid, err := strconv.ParseInt(vars["ChatID"], 10, 64)
 	if err != nil {
-		jrw.WriteError(http.StatusBadRequest, err.Error())
+		return MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	text := vars["Text"]
 	if text == "" {
+		jsonStr, err := json.MarshalIndent(vars, "", "  ")
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, err.Error())
+		}
 		text = string(jsonStr)
 	}
 	msg := tgbotapi.NewMessage(chatid, text)
 	res, err := m.bot.Send(msg)
 
 	if err != nil {
-		jrw.WriteError(http.StatusBadRequest, err.Error())
+		return MakeOutputError(http.StatusBadRequest, err.Error())
 	}
-	jrw.WriteSuccessMessage(res)
+	return MakeObjectOutput(res)
 }
 
-func (m *TelegramMod) GetFunctions() []string {
+func (m *OpTelegram) GetFunctions() []string {
 	return []string{"Post"}
 }
 
-func (m *TelegramMod) GetPossibleArgs(fn string) []string {
+func (m *OpTelegram) GetPossibleArgs(fn string) []string {
 	return []string{"ChatID", "Text"}
 }
 
-func (m *TelegramMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+func (m *OpTelegram) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }

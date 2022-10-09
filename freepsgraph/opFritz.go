@@ -1,35 +1,27 @@
-package freepsdo
+package freepsgraph
 
 import (
-	"encoding/json"
 	"net/http"
 	"sort"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/hannesrauhe/freeps/freepsflux"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
 
-type FritzMod struct {
+type OpFritz struct {
 	fl            *freepslib.Freeps
-	ff            *freepsflux.FreepsFlux
 	fc            *freepslib.FBconfig
-	ffc           *freepsflux.FreepsFluxConfig
 	cachedDevices map[string]string
 }
 
-var _ Mod = &FritzMod{}
+var _ FreepsOperator = &OpFritz{}
 
-func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
+// NewOpFritz creates a new operator for Freeps and Freepsflux
+func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
 	conf := freepslib.DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepslib", &conf)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ffc := freepsflux.DefaultConfig
-	err = cr.ReadSectionWithDefaults("freepsflux", &ffc)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,72 +30,76 @@ func NewFritzMod(cr *utils.ConfigReader) *FritzMod {
 		log.Print(err)
 	}
 	f, _ := freepslib.NewFreepsLib(&conf)
-	ff, _ := freepsflux.NewFreepsFlux(&ffc, f)
-	return &FritzMod{fl: f, ff: ff, fc: &conf, ffc: &ffc}
+	return &OpFritz{fl: f, fc: &conf}
 }
 
-func (m *FritzMod) DoWithJSON(fn string, jsonStr []byte, jrw *ResponseCollector) {
-	var err error
-	var vars map[string]string
-	json.Unmarshal(jsonStr, &vars)
+func (m *OpFritz) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	dev := vars["device"]
 
-	if fn == "upnp" {
-		m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
-		if err == nil {
-			jrw.WriteSuccessMessage(m)
-		} else {
-			jrw.WriteError(http.StatusInternalServerError, err.Error())
+	switch fn {
+	case "upnp":
+		{
+			m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
+			if err == nil {
+				return MakeObjectOutput(m)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "freepsflux" {
-		err = m.ff.Push()
-		if err == nil {
-			jrw.WriteSuccess()
-		} else {
-			jrw.WriteError(http.StatusInternalServerError, "Freepsflux error when pushing: %v", err.Error())
+	case "getmetrics":
+		{
+			met, err := m.fl.GetMetrics()
+			if err == nil {
+				return MakeObjectOutput(&met)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "getdevicelistinfos" {
-		devl, err := m.getDeviceList()
-		if err == nil {
-			jrw.WriteSuccessMessage(devl)
-		} else {
-			jrw.WriteError(http.StatusInternalServerError, err.Error())
+	case "getdevicelistinfos":
+		{
+			devl, err := m.getDeviceList()
+			if err == nil {
+				return MakeObjectOutput(devl)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "getdata" {
-		r, err := m.fl.GetData()
-		if err == nil {
-			jrw.WriteSuccessMessage(r)
-		} else {
-			jrw.WriteError(http.StatusInternalServerError, err.Error())
+	case "getdata":
+		{
+			r, err := m.fl.GetData()
+			if err == nil {
+				return MakeObjectOutput(r)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn == "wakeup" {
-		netdev := vars["netdevice"]
-		log.Printf("Waking Up %v", netdev)
-		err = m.fl.WakeUpDevice(netdev)
-		if err == nil {
-			jrw.WriteSuccessf("Woke up %s", netdev)
-		} else {
-			jrw.WriteError(http.StatusInternalServerError, err.Error())
+	case "wakeup":
+		{
+			netdev := vars["netdevice"]
+			log.Printf("Waking Up %v", netdev)
+			err := m.fl.WakeUpDevice(netdev)
+			if err == nil {
+				return MakePlainOutput("Woke up %s", netdev)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	} else if fn[0:3] == "set" {
-		err = m.fl.HomeAutoSwitch(fn, dev, vars)
+	}
+
+	if fn[0:3] == "set" {
+		err := m.fl.HomeAutoSwitch(fn, dev, vars)
 		if err == nil {
 			vars["fn"] = fn
-			jrw.WriteSuccessMessage(vars)
-		} else {
-			jrw.WriteError(http.StatusInternalServerError, err.Error())
+			return MakeObjectOutput(vars)
 		}
+		return MakeOutputError(http.StatusInternalServerError, err.Error())
+
+	}
+
+	r, err := m.fl.HomeAutomation(fn, dev, vars)
+	if err == nil {
+		return MakeByteOutput(r)
 	} else {
-		r, err := m.fl.HomeAutomation(fn, dev, vars)
-		if err == nil {
-			jrw.WriteSuccessMessage(r)
-		} else {
-			jrw.WriteError(http.StatusInternalServerError, err.Error())
-		}
+		return MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (m *FritzMod) GetFunctions() []string {
+func (m *OpFritz) GetFunctions() []string {
 	swc := m.fl.GetSuggestedSwitchCmds()
 	fn := make([]string, 0, len(swc)+1)
 	for k := range swc {
@@ -114,7 +110,7 @@ func (m *FritzMod) GetFunctions() []string {
 	return fn
 }
 
-func (m *FritzMod) GetPossibleArgs(fn string) []string {
+func (m *OpFritz) GetPossibleArgs(fn string) []string {
 	if fn == "upnp" {
 		return []string{"serviceName", "actionName"}
 	}
@@ -128,7 +124,7 @@ func (m *FritzMod) GetPossibleArgs(fn string) []string {
 	return make([]string, 0)
 }
 
-func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string]interface{}) map[string]string {
+func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	if fn == "upnp" {
 		ret := map[string]string{}
 		if arg == "serviceName" {
@@ -138,7 +134,7 @@ func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string
 			}
 			return ret
 		} else if arg == "actionName" {
-			serviceName, ok := otherArgs["serviceName"].(string)
+			serviceName, ok := otherArgs["serviceName"]
 			if !ok {
 				return ret
 			}
@@ -183,7 +179,7 @@ func (m *FritzMod) GetArgSuggestions(fn string, arg string, otherArgs map[string
 	return map[string]string{}
 }
 
-func (m *FritzMod) GetDevices() map[string]string {
+func (m *OpFritz) GetDevices() map[string]string {
 	if len(m.cachedDevices) == 0 {
 		m.getDeviceList()
 	}
@@ -191,7 +187,7 @@ func (m *FritzMod) GetDevices() map[string]string {
 }
 
 // getDeviceList retrieves the devicelist and caches
-func (m *FritzMod) getDeviceList() (*freepslib.AvmDeviceList, error) {
+func (m *OpFritz) getDeviceList() (*freepslib.AvmDeviceList, error) {
 	m.cachedDevices = map[string]string{}
 	devl, err := m.fl.GetDeviceList()
 	if err != nil {

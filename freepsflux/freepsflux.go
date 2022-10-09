@@ -2,9 +2,10 @@ package freepsflux
 
 import (
 	"errors"
-	"log"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freepslib"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -37,7 +38,11 @@ func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, er
 	return &FreepsFlux{f, *conf, false, []api.WriteAPI{}}, nil
 }
 
-func (ff *FreepsFlux) InitInflux() error {
+func (ff *FreepsFlux) InitInflux(reinit bool) error {
+	if len(ff.writeApis) > 0 && !reinit {
+		return nil
+	}
+
 	if len(ff.config.InfluxdbConnections) == 0 {
 		return errors.New("No InfluxDB connections configured")
 	}
@@ -52,12 +57,11 @@ func (ff *FreepsFlux) InitInflux() error {
 }
 
 func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fields map[string]interface{}) error {
-	if len(ff.writeApis) == 0 {
-		err := ff.InitInflux()
-		if err != nil {
-			return err
-		}
+	err := ff.InitInflux(false)
+	if err != nil {
+		return err
 	}
+
 	for _, writeAPI := range ff.writeApis {
 		p := influxdb2.NewPoint(measurement, tags, fields, time.Now())
 		writeAPI.WritePoint(p)
@@ -66,15 +70,102 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 	return nil
 }
 
+func (ff *FreepsFlux) PushFreepsDeviceList(devl *freepslib.AvmDeviceList) (error, string) {
+	err := ff.InitInflux(false)
+	if err != nil {
+		return err, ""
+	}
+
+	mTime := time.Now()
+
+	retString := ""
+	for i, writeAPI := range ff.writeApis {
+		builder := strings.Builder{}
+		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) {
+			writeAPI.WritePoint(point)
+			write.PointToLineProtocolBuffer(point, &builder, time.Second)
+		})
+		writeAPI.Flush()
+		if i == 0 {
+			retString = builder.String()
+		}
+		if ff.Verbose {
+			if i == 0 {
+				log.Println(retString)
+			}
+			log.Printf("Written to Connection %v", ff.config.InfluxdbConnections[i].URL)
+		}
+	}
+
+	return nil, retString
+}
+func (ff *FreepsFlux) PushFreepsNetDeviceList(devl *freepslib.AvmDataResponse) (error, string) {
+	err := ff.InitInflux(false)
+	if err != nil {
+		return err, ""
+	}
+
+	mTime := time.Now()
+
+	retString := ""
+	for i, writeAPI := range ff.writeApis {
+		builder := strings.Builder{}
+		ff.NetDeviceListToPoints(devl, mTime, func(point *write.Point) {
+			writeAPI.WritePoint(point)
+			write.PointToLineProtocolBuffer(point, &builder, time.Second)
+		})
+		writeAPI.Flush()
+		if i == 0 {
+			retString = builder.String()
+		}
+		if ff.Verbose {
+			if i == 0 {
+				log.Println(retString)
+			}
+			log.Printf("Written to Connection %v", ff.config.InfluxdbConnections[i].URL)
+		}
+	}
+
+	return nil, retString
+}
+
+func (ff *FreepsFlux) PushFreepsMetrics(met *freepslib.FritzBoxMetrics) (error, string) {
+	err := ff.InitInflux(false)
+	if err != nil {
+		return err, ""
+	}
+
+	mTime := time.Now()
+
+	retString := ""
+	for i, writeAPI := range ff.writeApis {
+		builder := strings.Builder{}
+		ff.MetricsToPoints(met, mTime, func(point *write.Point) {
+			writeAPI.WritePoint(point)
+			write.PointToLineProtocolBuffer(point, &builder, time.Second)
+		})
+		writeAPI.Flush()
+		if i == 0 {
+			retString = builder.String()
+		}
+		if ff.Verbose {
+			if i == 0 {
+				log.Println(retString)
+			}
+			log.Printf("Written to Connection %v", ff.config.InfluxdbConnections[i].URL)
+		}
+	}
+
+	return nil, retString
+}
+
 func (ff *FreepsFlux) Push() error {
 	if ff.f == nil {
 		return errors.New("Freepslib unintialized")
 	}
-	if len(ff.writeApis) == 0 {
-		err := ff.InitInflux()
-		if err != nil {
-			return err
-		}
+	err := ff.InitInflux(false)
+	if err != nil {
+		return err
 	}
 
 	mTime := time.Now()
@@ -102,7 +193,7 @@ func (ff *FreepsFlux) Push() error {
 
 	for i, writeAPI := range ff.writeApis {
 		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
-		ff.MetricsToPoints(met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
+		ff.MetricsToPoints(&met, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		ff.NetDeviceListToPoints(netd, mTime, func(point *write.Point) { writeAPI.WritePoint(point) })
 		writeAPI.Flush()
 		if ff.Verbose {
@@ -112,7 +203,7 @@ func (ff *FreepsFlux) Push() error {
 
 	if ff.Verbose {
 		builder := strings.Builder{}
-		ff.MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+		ff.MetricsToPoints(&met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 		ff.NetDeviceListToPoints(netd, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 		log.Println(builder.String())
@@ -121,7 +212,7 @@ func (ff *FreepsFlux) Push() error {
 	return nil
 }
 
-func (ff *FreepsFlux) MetricsToLineProtocol(met freepslib.FritzBoxMetrics, mTime time.Time) (string, error) {
+func (ff *FreepsFlux) MetricsToLineProtocol(met *freepslib.FritzBoxMetrics, mTime time.Time) (string, error) {
 	builder := strings.Builder{}
 	ff.MetricsToPoints(met, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 	return builder.String(), nil
@@ -139,7 +230,7 @@ func (ff *FreepsFlux) NetDeviceListToLineProtocol(resp *freepslib.AvmDataRespons
 	return builder.String(), nil
 }
 
-func (ff *FreepsFlux) MetricsToPoints(met freepslib.FritzBoxMetrics, mTime time.Time, f func(*write.Point)) {
+func (ff *FreepsFlux) MetricsToPoints(met *freepslib.FritzBoxMetrics, mTime time.Time, f func(*write.Point)) {
 	tags := map[string]string{"fb": met.DeviceModelName, "name": met.DeviceFriendlyName}
 
 	p := influxdb2.NewPoint("uptime", tags, map[string]interface{}{

@@ -1,8 +1,7 @@
 package freepslisten
 
 import (
-	"encoding/json"
-	"log"
+	log "github.com/sirupsen/logrus"
 
 	"crypto/tls"
 	"fmt"
@@ -11,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepsdo"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -53,22 +52,30 @@ type JsonArgs struct {
 }
 
 type FreepsMqtt struct {
-	client   MQTT.Client
-	Config   *FreepsMqttConfig
-	Doer     *freepsdo.TemplateMod
-	Callback func(string, map[string]string, map[string]interface{}) error
+	client     MQTT.Client
+	Config     *FreepsMqttConfig
+	ge         *freepsgraph.GraphEngine
+	Callback   func(string, map[string]string, map[string]interface{}) error
+	mqttlogger log.FieldLogger
 }
 
 func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic string) {
 	t := strings.Split(topic, "/")
-	field := t[tc.FieldIndex]
+	field := ""
+	if len(t) > tc.FieldIndex {
+		field = t[tc.FieldIndex]
+	}
+	measurement := ""
+	if len(t) > tc.MeasurementIndex {
+		measurement = t[tc.MeasurementIndex]
+	}
 	fconf, fieldExists := tc.Fields[field]
+	value := string(message)
 	if fieldExists {
 		fieldAlias := field
 		if fconf.Alias != nil {
 			fieldAlias = *fconf.Alias
 		}
-		value := string(message)
 		if fconf.TrueValue != nil {
 			if value == *fconf.TrueValue {
 				value = "true"
@@ -78,19 +85,13 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		}
 
 		fwt := FieldWithType{fconf.Datatype, value}
-		args := JsonArgs{Measurement: t[tc.MeasurementIndex], FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
+		args := JsonArgs{Measurement: measurement, FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
 
-		jsonStr, err := json.Marshal(args)
-		if err != nil {
-			panic(err)
-		}
-		jrw := freepsdo.NewResponseCollector("mqtt " + topic)
-		fm.Doer.ExecuteModWithJson("template", tc.TemplateToCall, jsonStr, jrw)
-		jrw.GetFinalResponse(false) // trigger finalization
-		// log.Printf("Template %v finished with %v", tc.TemplateToCall, status)
-		// log.Printf("%q", jrw.GetResponseTree())
+		input := freepsgraph.MakeObjectOutput(args)
+		output := fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
+		output.Log(fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}))
 	} else {
-		fmt.Printf("#Measuremnt: %s, Field: %s, Value: %s\n", t[tc.MeasurementIndex], field, message)
+		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 	}
 }
 
@@ -100,15 +101,17 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
-	jrw := freepsdo.NewResponseCollector("mqtt system message")
-	fm.Doer.ExecuteModWithJson(t[1], t[2], []byte{}, jrw)
+	input := freepsgraph.MakeObjectOutput(message.Payload())
+	output := fm.ge.ExecuteOperatorByName(fm.mqttlogger, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
+	output.WriteTo(os.Stdout)
 }
 
 func (fm *FreepsMqtt) Shutdown() {
 	fm.client.Disconnect(100)
 }
 
-func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *FreepsMqtt {
+func NewMqttSubscriber(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsMqtt {
+	mqttlogger := logger.WithField("component", "mqtt")
 	fmc := DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsmqtt", &fmc)
 	if err != nil {
@@ -125,7 +128,7 @@ func NewMqttSubscriber(cr *utils.ConfigReader, doer *freepsdo.TemplateMod) *Free
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqtt{Config: &fmc, Doer: doer}
+	fmqtt := &FreepsMqtt{Config: &fmc, ge: ge, mqttlogger: mqttlogger}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true)
 	if fmc.Username != "" {

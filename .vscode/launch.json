@@ -22,20 +22,20 @@
       "args": []
     },
     {
-      "name": "denonoff",
+      "name": "pushfritz",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "denonon"]
+      "args": ["-m", "graph", "-f", "pushfritz"]
     },
     {
-      "name": "config-test",
+      "name": "convert",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "system", "-f", "GetConfigSection", "-a", "section=TemplateMod"]
+      "args": ["-m", "template", "-f", "convert", "-a", "name=mqttaction"]
     },
     {
       "name": "fritztemplate",
