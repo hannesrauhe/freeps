@@ -367,6 +367,10 @@ func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput
 	if g.desc.OutputFrom == "" {
 		return MakeObjectOutput(g.opOutputs)
 	}
+	if g.opOutputs[g.desc.OutputFrom] == nil {
+		logger.Errorf("Output from \"%s\" not found", g.desc.OutputFrom)
+		return MakeObjectOutput(g.opOutputs)
+	}
 	return g.opOutputs[g.desc.OutputFrom]
 }
 
