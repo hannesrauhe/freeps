@@ -69,8 +69,13 @@ func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsH
 	rest := &FreepsHttp{graphengine: ge}
 	r := mux.NewRouter()
 
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/ui/", http.StatusFound)
+	})
 	r.Handle("/{mod}", rest)
+	r.Handle("/{mod}/", rest)
 	r.Handle("/{mod}/{function}", rest)
+	r.Handle("/{mod}/{function}/", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
 
 	rest.srv = &http.Server{
