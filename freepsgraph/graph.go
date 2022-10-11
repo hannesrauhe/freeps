@@ -71,14 +71,14 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	if cr != nil {
 		var err error
 		config := ge.ReadConfig()
-		for _, fName := range config.GraphsFromFile {
-			err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
+		for _, fURL := range config.GraphsFromURL {
+			err = cr.ReadObjectFromURL(&ge.externalGraphs, fURL)
 			if err != nil {
 				log.Fatal(err)
 			}
 		}
-		for _, fURL := range config.GraphsFromURL {
-			err = cr.ReadObjectFromURL(&ge.externalGraphs, fURL)
+		for _, fName := range config.GraphsFromFile {
+			err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
 			if err != nil {
 				log.Fatal(err)
 			}

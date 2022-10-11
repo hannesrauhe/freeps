@@ -94,9 +94,8 @@ func (m *OpFritz) Execute(fn string, vars map[string]string, input *OperatorIO) 
 	r, err := m.fl.HomeAutomation(fn, dev, vars)
 	if err == nil {
 		return MakeByteOutput(r)
-	} else {
-		return MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
+	return MakeOutputError(http.StatusInternalServerError, err.Error())
 }
 
 func (m *OpFritz) GetFunctions() []string {
