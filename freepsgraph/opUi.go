@@ -160,6 +160,10 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		gd, targetNum = o.buildPartialGraph(formInput)
 
 		if _, ok := formInput["SaveGraph"]; ok {
+			_, err := NewGraph(gd, o.ge)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
 			name := formInput["GraphName"]
 			if name == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
@@ -167,6 +171,10 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 			o.ge.AddExternalGraph(name, gd, "")
 		}
 		if _, ok := formInput["SaveTemp"]; ok {
+			_, err := NewGraph(gd, o.ge)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
 			name := formInput["GraphName"]
 			if name == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
