@@ -49,7 +49,7 @@ func (o *OpMQTT) Execute(fn string, args map[string]string, input *OperatorIO) *
 		}
 
 		hostname, _ := os.Hostname()
-		clientid := hostname + strconv.Itoa(time.Now().Second())
+		clientid := hostname + "publish" + strconv.Itoa(time.Now().Second())
 
 		connOpts := MQTT.NewClientOptions()
 		connOpts.AddBroker(server).SetClientID(clientid).SetCleanSession(true)
@@ -71,6 +71,7 @@ func (o *OpMQTT) Execute(fn string, args map[string]string, input *OperatorIO) *
 		if token := client.Publish(topic, byte(qos), retain, msg); token.Wait() && token.Error() != nil {
 			return MakeOutputError(http.StatusInternalServerError, token.Error().Error())
 		}
+		client.Disconnect(250)
 		return MakeEmptyOutput()
 	}
 	return MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
