@@ -45,9 +45,9 @@ func (m *OpEval) Execute(fn string, vars map[string]string, input *OperatorIO) *
 		}
 		return MakeEmptyOutput()
 	case "eval":
-		fallthrough
+		return m.Eval(vars, input)
 	case "regexp":
-		return m.EvalAndRegexp(fn, vars, input)
+		return m.Regexp(vars, input)
 	case "dedup":
 		var args DedupArgs
 		err := utils.ArgsMapToObject(vars, &args)
@@ -98,7 +98,7 @@ func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
-func (m *OpEval) EvalAndRegexp(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Eval(vars map[string]string, input *OperatorIO) *OperatorIO {
 	var args EvalArgs
 	err := utils.ArgsMapToObject(vars, &args)
 	if err != nil || args.ValueName == "" || args.ValueType == "" {
@@ -121,49 +121,39 @@ func (m *OpEval) EvalAndRegexp(fn string, vars map[string]string, input *Operato
 		return MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.ValueName)
 	}
 
-	switch fn {
-	case "eval":
-		result := false
-		switch args.ValueType {
-		case "int":
-			result, err = m.EvalInt(vInterface, args.Operation, args.Operand)
-		case "float":
-			result, err = m.EvalFloat(vInterface, args.Operation, args.Operand)
-		case "string":
-			result, err = m.EvalString(vInterface, args.Operation, args.Operand)
-		case "bool":
-			result, err = parseBoolOrReturnDirectly(vInterface)
-		default:
-			err = fmt.Errorf("No such type %s", args.ValueType)
-		}
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "%v", err)
-		}
-		if result {
-			switch args.Output {
-			case "flat":
-				fallthrough
-			case "args":
-				{
-					return MakeObjectOutput(argsmap)
-				}
-			case "input":
-				{
-					return input
-				}
-			default:
-				return MakeEmptyOutput()
-			}
-		}
-		return MakeOutputError(http.StatusExpectationFailed, "Eval %v resulted in false", vars)
-	case "regexp":
-		resultString, err := m.Regexp(vInterface, args.Operation, args.Operand)
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "%v", err)
-		}
-		return MakePlainOutput(resultString)
+	result := false
+	switch args.ValueType {
+	case "int":
+		result, err = m.EvalInt(vInterface, args.Operation, args.Operand)
+	case "float":
+		result, err = m.EvalFloat(vInterface, args.Operation, args.Operand)
+	case "string":
+		result, err = m.EvalString(vInterface, args.Operation, args.Operand)
+	case "bool":
+		result, err = parseBoolOrReturnDirectly(vInterface)
+	default:
+		err = fmt.Errorf("No such type %s", args.ValueType)
 	}
-	return MakeOutputError(http.StatusBadRequest, "Unknown function %v", fn)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "%v", err)
+	}
+	if result {
+		switch args.Output {
+		case "flat":
+			fallthrough
+		case "args":
+			{
+				return MakeObjectOutput(argsmap)
+			}
+		case "input":
+			{
+				return input
+			}
+		default:
+			return MakeEmptyOutput()
+		}
+	}
+	return MakeOutputError(http.StatusExpectationFailed, "Eval %v resulted in false", vars)
 }
 
 func (m *OpEval) EvalInt(vInterface interface{}, op string, v2Interface interface{}) (bool, error) {
@@ -224,28 +214,26 @@ func (m *OpEval) EvalString(vInterface interface{}, op string, v2Interface inter
 	return false, fmt.Errorf("No such operation \"%s\"", op)
 }
 
-func (m *OpEval) Regexp(vInterface interface{}, op string, regexpInterface interface{}) (string, error) {
-	v, err := parseStringOrReturnDirectly(vInterface)
+func (m *OpEval) Regexp(args map[string]string, input *OperatorIO) *OperatorIO {
+	re, err := regexp.Compile(args["regexp"])
 	if err != nil {
-		return "", err
+		return MakeOutputError(http.StatusBadRequest, "Invalid regexp: %v", err)
 	}
-	regexpString, err := parseStringOrReturnDirectly(regexpInterface)
-	if err != nil {
-		return "", err
-	}
-	re, err := regexp.Compile(regexpString)
-	if err != nil {
-		return "", err
-	}
-	switch op {
+	switch args["operation"] {
 	case "find":
-		loc := re.FindStringIndex(v)
+		loc := re.FindStringIndex(input.GetString())
 		if loc == nil {
-			return "", fmt.Errorf("No match")
+			return MakeOutputError(http.StatusExpectationFailed, "No match")
 		}
-		return v[loc[0]:loc[1]], nil
+		return MakePlainOutput(input.GetString()[loc[0]:loc[1]])
+	case "findstringsubmatch":
+		loc := re.FindStringSubmatchIndex(input.GetString())
+		if loc == nil {
+			return MakeOutputError(http.StatusExpectationFailed, "No match")
+		}
+		return MakePlainOutput(input.GetString()[loc[2]:loc[3]])
 	}
-	return "", fmt.Errorf("No such operation \"%s\"", op)
+	return MakeOutputError(http.StatusBadRequest, "No such op %s", args["op"])
 }
 
 func parseIntOrReturnDirectly(v interface{}) (int, error) {
