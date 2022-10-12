@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -415,4 +416,41 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 		return output
 	}
 	return MakeOutputError(404, "No operator with name \"%s\" found", opDesc.Operator)
+}
+
+func (g *Graph) ToDot(gd *GraphDesc) string {
+	var s strings.Builder
+	s.WriteString("digraph G {")
+	s.WriteString("\nArguments")
+	s.WriteString("\nInput")
+	s.WriteString("\nOutput")
+	for _, node := range gd.Operations {
+		v := utils.ClearString(node.Name)
+		argsF := "Arguments"
+		if node.ArgumentsFrom != "" {
+			if node.ArgumentsFrom == ROOT_SYMBOL {
+				argsF = "Input"
+			} else {
+				argsF = utils.ClearString(node.ArgumentsFrom)
+			}
+		}
+		s.WriteString("\n" + v)
+		s.WriteString("\n" + argsF + "->" + v)
+
+		if node.InputFrom != "" {
+			inputF := "Input"
+			if node.InputFrom != ROOT_SYMBOL {
+				inputF = utils.ClearString(node.InputFrom)
+			}
+			s.WriteString("\n" + inputF + "->" + v + " [style=dashed]")
+		}
+	}
+	OutputFrom := utils.ClearString(gd.Operations[len(gd.Operations)-1].Name)
+	if gd.OutputFrom != "" {
+		OutputFrom = utils.ClearString(gd.OutputFrom)
+	}
+	s.WriteString("\n" + OutputFrom + "->Output [style=dashed]")
+
+	s.WriteString("\n}")
+	return s.String()
 }

@@ -59,7 +59,7 @@ const templateEditGraph = `
 </p>
 
 <button type="submit" name="Execute" value="Execute">Execute</button>
-<input type="text" name="GraphName" />
+<input type="text" name="GraphName" value="{{ .GraphName }}"/>
 <button type="submit" name="SaveTemp">Save Temporarily</button>
 <button type="submit" name="SaveGraph">Save Graph</button>
 <button type="submit" name="GraphJSON" value="" />Reset</button>
@@ -79,13 +79,13 @@ const templateShowGraphs = `
 <div style="float:left">
 <ul>
 		{{ range $key, $value := .Graphs }}
-				<li>{{ $value }} <a href="#?graph={{ $value }}">Show</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> </li>
+				<li>{{ $value }} <a href="/ui/show?graph={{ $value }}">Show</a> <a href="/graph/{{ $value }}">Execute</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> </li>
 		{{ end }}
 </ul>
 </div>
 <div>
-<textarea name="dot" cols="50" rows="10">
-{{ .Dot }}
+<textarea readonly=true name="GraphJSON" cols="50" rows="10">
+{{ .GraphJSON }}
 </textarea>
 </div>
 `

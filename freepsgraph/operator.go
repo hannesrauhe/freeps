@@ -1,5 +1,7 @@
 package freepsgraph
 
+import "sort"
+
 type FreepsOperator interface {
 	// GetOutputType() OutputT
 	Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO
@@ -29,6 +31,7 @@ func (o *OpGraph) GetFunctions() []string {
 	for n := range agd {
 		graphs = append(graphs, n)
 	}
+	sort.Strings(graphs)
 	return graphs
 }
 

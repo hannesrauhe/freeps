@@ -7,8 +7,8 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -28,14 +28,15 @@ type TemplateData struct {
 	FnSuggestions        map[string]bool
 	ArgSuggestions       map[string]map[string]string
 	InputFromSuggestions map[string]bool
+	GraphName            string
 	GraphJSON            string
 	Output               string
 	Numop                int
 }
 
 type ShowGraphsData struct {
-	Graphs []string
-	Dot    string
+	Graphs    []string
+	GraphJSON string
 }
 
 type EditConfigData struct {
@@ -47,43 +48,6 @@ func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
 	h := OpUI{ge: graphEngine, cr: cr}
 
 	return &h
-}
-
-func (o *OpUI) graphToDot(gd *GraphDesc) string {
-	var s strings.Builder
-	s.WriteString("digraph G {")
-	s.WriteString("\nArguments")
-	s.WriteString("\nInput")
-	s.WriteString("\nOutput")
-	for _, node := range gd.Operations {
-		v := utils.ClearString(node.Name)
-		argsF := "Arguments"
-		if node.ArgumentsFrom != "" {
-			if node.ArgumentsFrom == ROOT_SYMBOL {
-				argsF = "Input"
-			} else {
-				argsF = utils.ClearString(node.ArgumentsFrom)
-			}
-		}
-		s.WriteString("\n" + v)
-		s.WriteString("\n" + argsF + "->" + v)
-
-		if node.InputFrom != "" {
-			inputF := "Input"
-			if node.InputFrom != ROOT_SYMBOL {
-				inputF = utils.ClearString(node.InputFrom)
-			}
-			s.WriteString("\n" + inputF + "->" + v + " [style=dashed]")
-		}
-	}
-	OutputFrom := utils.ClearString(gd.Operations[len(gd.Operations)-1].Name)
-	if gd.OutputFrom != "" {
-		OutputFrom = utils.ClearString(gd.OutputFrom)
-	}
-	s.WriteString("\n" + OutputFrom + "->Output [style=dashed]")
-
-	s.WriteString("\n}")
-	return s.String()
 }
 
 func (o *OpUI) createTemplate(templateString string, templateData interface{}) *OperatorIO {
@@ -142,10 +106,10 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 	var exists bool
 	targetNum := 0
 
-	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: map[string]bool{}}
+	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: map[string]bool{}, GraphName: vars["graph"]}
 
 	if input.IsEmpty() {
-		gd, exists = o.ge.GetGraphDesc(vars["graph"])
+		gd, exists = o.ge.GetGraphDesc(td.GraphName)
 	}
 	if !input.IsEmpty() || !exists {
 		inBytes, err := input.GetBytes()
@@ -160,18 +124,26 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		gd, targetNum = o.buildPartialGraph(formInput)
 
 		if _, ok := formInput["SaveGraph"]; ok {
-			name := formInput["GraphName"]
-			if name == "" {
+			_, err := NewGraph(gd, o.ge)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
+			td.GraphName = formInput["GraphName"]
+			if td.GraphName == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			o.ge.AddExternalGraph(name, gd, "")
+			o.ge.AddExternalGraph(td.GraphName, gd, "")
 		}
 		if _, ok := formInput["SaveTemp"]; ok {
-			name := formInput["GraphName"]
-			if name == "" {
+			_, err := NewGraph(gd, o.ge)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
+			td.GraphName = formInput["GraphName"]
+			if td.GraphName == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			o.ge.AddTemporaryGraph(name, gd)
+			o.ge.AddTemporaryGraph(td.GraphName, gd)
 		}
 
 		if _, ok := formInput["Execute"]; ok {
@@ -217,9 +189,11 @@ func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO
 	for n := range o.ge.GetAllGraphDesc() {
 		d.Graphs = append(d.Graphs, n)
 	}
+	sort.Strings(d.Graphs)
 	if g, ok := vars["graph"]; ok {
 		if gd, ok := o.ge.GetGraphDesc(g); ok {
-			d.Dot = o.graphToDot(gd)
+			b, _ := json.MarshalIndent(gd, "", "  ")
+			d.GraphJSON = string(b)
 		}
 	}
 
