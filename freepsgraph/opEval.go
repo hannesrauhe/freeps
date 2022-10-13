@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -48,6 +49,8 @@ func (m *OpEval) Execute(fn string, vars map[string]string, input *OperatorIO) *
 		return m.Eval(vars, input)
 	case "regexp":
 		return m.Regexp(vars, input)
+	case "strreplace":
+		return MakePlainOutput(strings.Replace(input.GetString(), vars["search"], vars["replace"], -1))
 	case "dedup":
 		var args DedupArgs
 		err := utils.ArgsMapToObject(vars, &args)
@@ -75,7 +78,7 @@ func (m *OpEval) Execute(fn string, vars map[string]string, input *OperatorIO) *
 }
 
 func (m *OpEval) GetFunctions() []string {
-	return []string{"eval", "regexp", "dedup"}
+	return []string{"eval", "regexp", "dedup", "echo", "strreplace"}
 }
 
 func (m *OpEval) GetPossibleArgs(fn string) []string {

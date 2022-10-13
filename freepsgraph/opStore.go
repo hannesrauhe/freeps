@@ -49,7 +49,11 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 			if !ok {
 				return MakeOutputError(http.StatusBadRequest, "Key not found")
 			}
-			return io
+			output, ok := args["output"]
+			if !ok || output == "direct" {
+				return io
+			}
+			return MakeObjectOutput(map[string]string{key: io.GetString()})
 		}
 	case "set":
 		{
@@ -118,7 +122,7 @@ func (o *OpStore) GetFunctions() []string {
 func (o *OpStore) GetPossibleArgs(fn string) []string {
 	switch fn {
 	case "get":
-		return []string{"namespace", "key"}
+		return []string{"namespace", "key", "output"}
 	case "getAll":
 		return []string{"namespace"}
 	case "set":
@@ -179,6 +183,10 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 				return map[string]string{}
 			}
 			return map[string]string{io.GetString(): io.GetString()}
+		}
+	case "output":
+		{
+			return map[string]string{"direct": "direct", "arguments": "arguments"}
 		}
 	}
 	return map[string]string{}

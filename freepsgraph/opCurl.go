@@ -28,7 +28,16 @@ func (o *OpCurl) Execute(function string, vars map[string]string, mainInput *Ope
 		}
 		resp, err = c.PostForm(vars["url"], data)
 	case "Post":
-		breader := bytes.NewReader([]byte(vars["body"]))
+		var b []byte
+		if vars["body"] != "" {
+			b = []byte(vars["body"])
+		} else {
+			b, err = mainInput.GetBytes()
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
+		}
+		breader := bytes.NewReader(b)
 		resp, err = c.Post(vars["url"], vars["content-type"], breader)
 	case "Get":
 		resp, err = c.Get(vars["url"])
