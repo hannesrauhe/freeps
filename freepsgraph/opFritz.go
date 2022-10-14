@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"net/http"
 	"sort"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -11,9 +12,10 @@ import (
 )
 
 type OpFritz struct {
-	fl            *freepslib.Freeps
-	fc            *freepslib.FBconfig
-	cachedDevices map[string]string
+	fl              *freepslib.Freeps
+	fc              *freepslib.FBconfig
+	cachedDevices   map[string]string
+	cachedTemplates map[string]string
 }
 
 var _ FreepsOperator = &OpFritz{}
@@ -33,8 +35,9 @@ func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
 	return &OpFritz{fl: f, fc: &conf}
 }
 
-func (m *OpFritz) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpFritz) Execute(mixedCaseFn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	dev := vars["device"]
+	fn := strings.ToLower(mixedCaseFn)
 
 	switch fn {
 	case "upnp":
@@ -53,11 +56,27 @@ func (m *OpFritz) Execute(fn string, vars map[string]string, input *OperatorIO) 
 			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
+	case "getdevices":
+		{
+			return MakeObjectOutput(m.GetDevices())
+		}
+	case "gettemplates":
+		{
+			return MakeObjectOutput(m.GetTemplates())
+		}
 	case "getdevicelistinfos":
 		{
 			devl, err := m.getDeviceList()
 			if err == nil {
 				return MakeObjectOutput(devl)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+	case "gettemplatelistinfos":
+		{
+			tl, err := m.fl.GetTemplateList()
+			if err == nil {
+				return MakeObjectOutput(tl)
 			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
@@ -88,7 +107,6 @@ func (m *OpFritz) Execute(fn string, vars map[string]string, input *OperatorIO) 
 			return MakeObjectOutput(vars)
 		}
 		return MakeOutputError(http.StatusInternalServerError, err.Error())
-
 	}
 
 	r, err := m.fl.HomeAutomation(fn, dev, vars)
@@ -104,7 +122,7 @@ func (m *OpFritz) GetFunctions() []string {
 	for k := range swc {
 		fn = append(fn, k)
 	}
-	fn = append(fn, "upnp", "getdata", "wakeup")
+	fn = append(fn, "upnp", "getdata", "wakeup", "getmetrics", "getdevices", "gettemplates")
 	sort.Strings(fn)
 	return fn
 }
@@ -157,6 +175,8 @@ func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		return ret
 	case "device":
 		return m.GetDevices()
+	case "template":
+		return m.GetTemplates()
 	case "onoff":
 		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
 	case "param":
@@ -178,11 +198,20 @@ func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	return map[string]string{}
 }
 
+// GetDevices returns a map of all devices
 func (m *OpFritz) GetDevices() map[string]string {
 	if len(m.cachedDevices) == 0 {
 		m.getDeviceList()
 	}
 	return m.cachedDevices
+}
+
+// GetTemplates returns a map of all templates
+func (m *OpFritz) GetTemplates() map[string]string {
+	if len(m.cachedTemplates) == 0 {
+		m.getTemplateList()
+	}
+	return m.cachedTemplates
 }
 
 // getDeviceList retrieves the devicelist and caches
@@ -197,4 +226,18 @@ func (m *OpFritz) getDeviceList() (*freepslib.AvmDeviceList, error) {
 		m.cachedDevices[dev.Name] = dev.AIN
 	}
 	return devl, nil
+}
+
+// getTemplateList retrieves the template list and caches
+func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
+	m.cachedTemplates = map[string]string{}
+	templ, err := m.fl.GetTemplateList()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	for _, t := range templ.Template {
+		m.cachedTemplates[t.Name] = t.ID
+	}
+	return templ, nil
 }
