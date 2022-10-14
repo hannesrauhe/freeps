@@ -1,5 +1,12 @@
 package freepsgraph
 
+const templateFooter = `
+<footer class="footer">
+		<a href="/ui">Home</a> <a href="/ui/edit">New Graph</a> <a href="/ui/config">Edit Config</a>
+		<a href="/system/reload">Reload Freeps</a> <a href="/system/stop">Stop Freeps</a>
+</footer>
+`
+
 const templateEditGraph = `
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <form action="#" method="POST">
@@ -101,5 +108,4 @@ const templateEditConfig = `
 
 <button type="submit" name="SaveConfig">Save Config</button>
 </form>
-<a href="/system/reload">Reload Freeps after config change</a>
 `

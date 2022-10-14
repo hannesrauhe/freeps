@@ -52,7 +52,7 @@ func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
 
 func (o *OpUI) createTemplate(templateString string, templateData interface{}) *OperatorIO {
 	t := template.New("general")
-	t, _ = t.Parse(templateString)
+	t, _ = t.Parse(templateString + templateFooter)
 	var w bytes.Buffer
 	err := t.Execute(&w, templateData)
 	if err != nil {
