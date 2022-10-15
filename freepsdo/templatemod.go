@@ -54,16 +54,6 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	}
 
 	mods := map[string]Mod{}
-	mods["curl"] = &CurlMod{}
-	mods["echo"] = &EchoMod{}
-	mods["eval"] = &EvalMod{}
-	mods["telegram"] = NewTelegramBot(cr)
-	mods["script"] = NewScriptMod(cr)
-	mods["fritz"] = NewFritzMod(cr)
-	mods["flux"] = NewFluxMod(cr)
-	mods["mutt"] = NewMuttMod(cr)
-	mods["raspistill"] = &RaspistillMod{}
-
 	if tmc.Templates == nil {
 		tmc.Templates = map[string]*Template{}
 	}
@@ -76,7 +66,6 @@ func NewTemplateMod(cr *utils.ConfigReader) *TemplateMod {
 	tm := &TemplateMod{Mods: mods, Config: tmc, ExternalTemplates: ext, cr: cr, Cache: map[string][]byte{},
 		TemporaryTemplates: map[string]*Template{"_last": &Template{Actions: []TemplateAction{{Mod: "echo", Fn: "hello"}}}}}
 	mods["template"] = tm
-	mods["system"] = NewSystemeMod(tm)
 	return tm
 }
 
