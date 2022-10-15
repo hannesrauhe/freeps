@@ -1,7 +1,6 @@
 package freepsgraph
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -52,26 +51,38 @@ func NewTelegramBot(cr *utils.ConfigReader) *OpTelegram {
 	return t
 }
 
+func (m *OpTelegram) sendIOtoChat(chatid int64, io *OperatorIO) *OperatorIO {
+	var err error
+	var res tgbotapi.Message
+	if len(io.ContentType) > 7 && io.ContentType[0:5] == "image" {
+		var byt []byte
+		byt, err = io.GetBytes()
+		if err != nil {
+			MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+		tphoto := tgbotapi.NewPhoto(chatid, tgbotapi.FileBytes{Name: "picture." + io.ContentType[6:], Bytes: byt})
+		res, err = m.bot.Send(tphoto)
+	} else {
+		msg := tgbotapi.NewMessage(chatid, io.GetString())
+		res, err = m.bot.Send(msg)
+	}
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "Error when sending telegram message: %v", err.Error())
+	}
+	return MakeObjectOutput(res)
+}
+
 func (m *OpTelegram) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	chatid, err := strconv.ParseInt(vars["ChatID"], 10, 64)
 	if err != nil {
 		return MakeOutputError(http.StatusBadRequest, err.Error())
 	}
-	text := vars["Text"]
-	if text == "" {
-		jsonStr, err := json.MarshalIndent(vars, "", "  ")
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
-		}
-		text = string(jsonStr)
+	output := input
+	text, ok := vars["Text"]
+	if ok {
+		output = MakePlainOutput(text)
 	}
-	msg := tgbotapi.NewMessage(chatid, text)
-	res, err := m.bot.Send(msg)
-
-	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
-	}
-	return MakeObjectOutput(res)
+	return m.sendIOtoChat(chatid, output)
 }
 
 func (m *OpTelegram) GetFunctions() []string {

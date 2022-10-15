@@ -286,9 +286,9 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 		if err != nil {
 			msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)
 		} else {
-			if io.ContentType == "image/png" {
+			if len(io.ContentType) > 7 && io.ContentType[0:5] == "image" {
 				msg.Text = "Here is a picture for you"
-				m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "raspistill.jpg", Bytes: byt})
+				m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "picture." + io.ContentType[6:], Bytes: byt})
 				if _, err := r.bot.Send(m); err != nil {
 					log.Println(err)
 				}
