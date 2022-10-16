@@ -2,22 +2,28 @@ package freepsgraph
 
 import (
 	"net/http"
+	"sync"
 )
 
-type StoreNamespaces struct {
-	inMemory map[string]*OperatorIO
+type StoreNamespace struct {
+	data   map[string]*OperatorIO
+	nsLock sync.Mutex
+}
+
+type InMemoryStore struct {
+	namespaces map[string]*StoreNamespace
+	globalLock sync.Mutex
 }
 
 type OpStore struct {
-	namespaces map[string]*StoreNamespaces
+	store InMemoryStore
 }
 
 var _ FreepsOperator = &OpStore{}
 
 // NewOpStore creates a new store operator
 func NewOpStore() *OpStore {
-	defaultStore := &StoreNamespaces{inMemory: map[string]*OperatorIO{}}
-	return &OpStore{namespaces: map[string]*StoreNamespaces{"default": defaultStore}}
+	return &OpStore{store: InMemoryStore{namespaces: map[string]*StoreNamespace{}}}
 }
 
 // Execute gets, sets or deletes a value from the store
@@ -26,12 +32,9 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	if !ok {
 		return MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
+	nsStore := o.store.GetNamespace(ns)
 	if fn == "getAll" {
-		nsStore, ok := o.namespaces[ns]
-		if !ok {
-			return MakeOutputError(http.StatusBadRequest, "Namespace not found")
-		}
-		return MakeObjectOutput(nsStore.inMemory)
+		return MakeObjectOutput(nsStore.GetAllValues())
 	}
 	key, ok := args["key"]
 	if !ok {
@@ -41,14 +44,7 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	switch fn {
 	case "get":
 		{
-			nsStore, ok := o.namespaces[ns]
-			if !ok {
-				return MakeOutputError(http.StatusBadRequest, "Namespace not found")
-			}
-			io, ok := nsStore.inMemory[key]
-			if !ok {
-				return MakeOutputError(http.StatusBadRequest, "Key not found")
-			}
+			io := nsStore.GetValue(key)
 			output, ok := args["output"]
 			if !ok || output == "direct" {
 				return io
@@ -57,12 +53,7 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 		}
 	case "set":
 		{
-			nsStore, ok := o.namespaces[ns]
-			if !ok {
-				nsStore = &StoreNamespaces{inMemory: map[string]*OperatorIO{}}
-				o.namespaces[ns] = nsStore
-			}
-			nsStore.inMemory[key] = input
+			nsStore.SetValue(key, input)
 			return MakeEmptyOutput()
 		}
 	case "setSimpleValue":
@@ -71,29 +62,17 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 			if !ok {
 				return MakeOutputError(http.StatusBadRequest, "No value given")
 			}
-			nsStore, ok := o.namespaces[ns]
-			if !ok {
-				nsStore = &StoreNamespaces{inMemory: map[string]*OperatorIO{}}
-				o.namespaces[ns] = nsStore
-			}
-			nsStore.inMemory[key] = MakePlainOutput(val)
+			nsStore.SetValue(key, MakePlainOutput(val))
 			return MakeEmptyOutput()
 		}
 	case "equals":
 		{
+			// TODO(HR): compare with input
 			val, ok := args["value"]
 			if !ok {
 				return MakeOutputError(http.StatusBadRequest, "No value given")
 			}
-			nsStore, ok := o.namespaces[ns]
-			if !ok {
-				nsStore = &StoreNamespaces{inMemory: map[string]*OperatorIO{}}
-				o.namespaces[ns] = nsStore
-			}
-			io, ok := nsStore.inMemory[key]
-			if !ok {
-				return MakeOutputError(http.StatusBadRequest, "Key not found")
-			}
+			io := nsStore.GetValue(key)
 			if io.GetString() == val {
 				return MakePlainOutput("true")
 			}
@@ -101,11 +80,7 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 		}
 	case "del":
 		{
-			nsStore, ok := o.namespaces[ns]
-			if !ok {
-				return MakeOutputError(http.StatusBadRequest, "Namespace not found")
-			}
-			delete(nsStore.inMemory, key)
+			nsStore.DeleteValue(key)
 			return MakeEmptyOutput()
 		}
 	}
@@ -143,45 +118,35 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	case "namespace":
 		{
 			ns := map[string]string{}
-			for n := range o.namespaces {
+			for _, n := range o.store.GetNamespaces() {
 				ns[n] = n
 			}
 			return ns
 		}
 	case "key":
 		{
-			ns, ok := otherArgs["namespace"]
-			if !ok {
+			ns := otherArgs["namespace"]
+			if ns == "" {
 				return map[string]string{}
 			}
-			nsStore, ok := o.namespaces[ns]
-			if !ok {
-				return map[string]string{}
-			}
+			nsStore := o.store.GetNamespace(ns)
 			keys := map[string]string{}
-			for k := range nsStore.inMemory {
+			for _, k := range nsStore.GetKeys() {
 				keys[k] = k
 			}
 			return keys
 		}
 	case "value":
 		{
-			ns, ok := otherArgs["namespace"]
-			if !ok {
-				return map[string]string{}
-			}
-			nsStore, ok := o.namespaces[ns]
-			if !ok {
+			ns := otherArgs["namespace"]
+			if ns == "" {
 				return map[string]string{}
 			}
 			key, ok := otherArgs["key"]
 			if !ok {
 				return map[string]string{}
 			}
-			io, ok := nsStore.inMemory[key]
-			if !ok {
-				return map[string]string{}
-			}
+			io := o.store.GetNamespace(ns).GetValue(key)
 			return map[string]string{io.GetString(): io.GetString()}
 		}
 	case "output":
@@ -190,4 +155,74 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	}
 	return map[string]string{}
+}
+
+// GetNamespace from the store, create if it does not exist
+func (s *InMemoryStore) GetNamespace(ns string) *StoreNamespace {
+	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
+	nsStore, ok := s.namespaces[ns]
+	if !ok {
+		nsStore = &StoreNamespace{data: map[string]*OperatorIO{}, nsLock: sync.Mutex{}}
+		s.namespaces[ns] = nsStore
+	}
+	return nsStore
+}
+
+// GetNamespaces returns all namespaces
+func (s *InMemoryStore) GetNamespaces() []string {
+	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
+	ns := []string{}
+	for n := range s.namespaces {
+		ns = append(ns, n)
+	}
+	return ns
+}
+
+// GetValue from the StoreNamespace
+func (s *StoreNamespace) GetValue(key string) *OperatorIO {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	io, ok := s.data[key]
+	if !ok {
+		return MakeOutputError(http.StatusNotFound, "Key not found")
+	}
+	return io
+}
+
+// SetValue in the StoreNamespace
+func (s *StoreNamespace) SetValue(key string, io *OperatorIO) {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	s.data[key] = io
+}
+
+// DeleteValue from the StoreNamespace
+func (s *StoreNamespace) DeleteValue(key string) {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	delete(s.data, key)
+}
+
+// GetKeys returns all keys in the StoreNamespace
+func (s *StoreNamespace) GetKeys() []string {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	keys := []string{}
+	for k := range s.data {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// GetAllValues from the StoreNamespace
+func (s *StoreNamespace) GetAllValues() map[string]*OperatorIO {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	copy := map[string]*OperatorIO{}
+	for k, v := range s.data {
+		copy[k] = v
+	}
+	return copy
 }
