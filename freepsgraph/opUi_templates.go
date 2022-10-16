@@ -1,7 +1,8 @@
 package freepsgraph
 
 const templateFooter = `
-<footer class="footer">
+<iframe name="outputframe" style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
+<footer style="clear: both">
 		<a href="/ui">Home</a> <a href="/ui/edit">New Graph</a> <a href="/ui/config">Edit Config</a>
 		<a href="/system/reload">Reload Freeps</a> <a href="/system/stop">Stop Freeps</a>
 </footer>
@@ -86,14 +87,11 @@ const templateShowGraphs = `
 <div style="float:left">
 <ul>
 		{{ range $key, $value := .Graphs }}
-				<li>{{ $value }} <a href="/ui/show?graph={{ $value }}">Show</a> <a href="/graph/{{ $value }}">Execute</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> </li>
+				<li> <a href="/system/getGraph?name={{ $value }}" target="outputframe">{{ $value }}</a> <a href="/graph/{{ $value }}">Execute</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> </li>
 		{{ end }}
 </ul>
 </div>
 <div>
-<textarea readonly=true name="GraphJSON" cols="50" rows="10">
-{{ .GraphJSON }}
-</textarea>
 </div>
 `
 
