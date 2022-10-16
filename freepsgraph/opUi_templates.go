@@ -4,7 +4,7 @@ const templateFooter = `
 <iframe name="outputframe" style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
 <footer style="clear: both">
 		<a href="/ui">Home</a> <a href="/ui/edit">New Graph</a> <a href="/ui/config">Edit Config</a>
-		<a href="/system/reload">Reload Freeps</a> <a href="/system/stop">Stop Freeps</a>
+		<a href="/system/reload" target="outputframe">Reload Freeps</a> <a href="/system/stop" target="outputframe">Stop Freeps</a>
 </footer>
 `
 
@@ -37,18 +37,18 @@ const templateEditGraph = `
 		{{ end }}
 </p>
 
+<p>
+	Arguments:
 {{ range $arg, $argmap := .ArgSuggestions }}
 <p>
 	{{ $arg }}
 	{{ range $key, $value := $argmap }}
 	<button name="arg.{{ $arg }}" value="{{ $value }}">{{ $key }}</button>
 	{{ end }}
+	<button name="arg.{{ $arg }}" value="">_empty_</button>
 </p>
 {{ end }}
-
-<p>
-<input type="text" name="newarg" /> <input type="text" name="newvalue" /><button name="addarg">Add Arg</button>
-<p>
+</p>
 
 <p>
 	InputFrom:
@@ -87,7 +87,7 @@ const templateShowGraphs = `
 <div style="float:left">
 <ul>
 		{{ range $key, $value := .Graphs }}
-				<li> <a href="/system/getGraph?name={{ $value }}" target="outputframe">{{ $value }}</a> <a href="/graph/{{ $value }}">Execute</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> </li>
+				<li> <a href="/system/getGraph?name={{ $value }}" target="outputframe">{{ $value }}</a> <a href="/graph/{{ $value }}" target="outputframe">Execute</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> </li>
 		{{ end }}
 </ul>
 </div>
@@ -106,4 +106,38 @@ const templateEditConfig = `
 
 <button type="submit" name="SaveConfig">Save Config</button>
 </form>
+`
+
+const templateFritzDeviceList = `
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<div>
+	{{ range $key, $value := .Device }}
+		{{ if $value.Temperature }}
+		<div style="float: left; width: 130px; height: 150px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; ">
+			<div style="height: 50px; margin: auto"> {{ $value.Name }} - {{ $value.Temperature.Celsius }} </div>
+				{{ if $value.HKR }}
+				<div style="margin: auto">
+
+				<form action="/fritz/sethkrtsoll" method="GET" target="outputframe" style="display: flex; justify-content: center">
+				<input style="width:50px;" type="number" name="param" min="16" max="56" value="{{ $value.HKR.Tsoll }}" />
+				<button name="ain" value="{{ $value.AIN }}">Set</button>
+				</form>
+
+				<form action="/fritz/sethkrtsoll" method="GET" target="outputframe">
+				<input type="hidden" name="ain" value="{{ $value.AIN }}">
+				<div style="display: flex; justify-content: center">
+				<button name="param" value="32">16°C</button>
+				<button name="param" value="38">19°C</button>
+				</div>
+				<div style="display: flex; justify-content: center">
+				<button name="param" value="44">22°C</button>
+				<button name="param" value="50">25°C</button>
+				</div>
+				</form>
+				</div>
+				{{ end}}
+		</div>
+		{{ end}}
+	{{ end }}
+</div>
 `
