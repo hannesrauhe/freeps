@@ -28,9 +28,17 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 	case "shutdown":
 		o.ge.reloadRequested = false
 		o.cancel()
+		return MakeEmptyOutput()
 	case "reload":
 		o.ge.reloadRequested = true
 		o.cancel()
+		return MakeEmptyOutput()
+	case "getGraph":
+		gd, ok := o.ge.GetGraphDesc(args["name"])
+		if !ok {
+			return MakeOutputError(http.StatusBadRequest, "Unknown graph %v", args["name"])
+		}
+		return MakeObjectOutput(gd)
 	case "stats":
 		var s interface{}
 		var err error
@@ -55,11 +63,11 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 		}
 		return MakeObjectOutput(s)
 	}
-	return MakeEmptyOutput()
+	return MakeOutputError(http.StatusBadRequest, "Unknown function: "+fn)
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {

@@ -35,6 +35,7 @@ type GraphOperationDesc struct {
 
 // GraphDesc contains a number of operations and defines which output to use
 type GraphDesc struct {
+	Tags       []string
 	OutputFrom string
 	Operations []GraphOperationDesc
 }
@@ -72,17 +73,32 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	if cr != nil {
 		var err error
 		config := ge.ReadConfig()
-		for _, fURL := range config.GraphsFromURL {
-			err = cr.ReadObjectFromURL(&ge.externalGraphs, fURL)
-			if err != nil {
-				log.Fatal(err)
+
+		addExternalGraphsWithTag := func(src map[string]GraphDesc, tag string) {
+			for k, v := range src {
+				if v.Tags == nil {
+					v.Tags = []string{}
+				}
+				v.Tags = append(v.Tags, tag)
+				ge.externalGraphs[k] = v
 			}
 		}
-		for _, fName := range config.GraphsFromFile {
-			err = cr.ReadObjectFromFile(&ge.externalGraphs, fName)
+
+		for _, fURL := range config.GraphsFromURL {
+			newGraphs := make(map[string]GraphDesc)
+			err = cr.ReadObjectFromURL(&newGraphs, fURL)
 			if err != nil {
 				log.Fatal(err)
 			}
+			addExternalGraphsWithTag(newGraphs, "url: "+fURL)
+		}
+		for _, fName := range config.GraphsFromFile {
+			newGraphs := make(map[string]GraphDesc)
+			err = cr.ReadObjectFromFile(&newGraphs, fName)
+			if err != nil {
+				log.Fatal(err)
+			}
+			addExternalGraphsWithTag(newGraphs, "file: "+fName)
 		}
 		tOp := NewTemplateOperator(ge, cr)
 
@@ -213,6 +229,7 @@ func (ge *GraphEngine) GetOperator(opName string) FreepsOperator {
 func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
+	gd.Tags = append(gd.Tags, "temporary")
 	ge.temporaryGraphs[graphName] = *gd
 }
 
