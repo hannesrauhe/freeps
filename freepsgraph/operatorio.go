@@ -19,6 +19,8 @@ const (
 	Object    OutputT = "object"
 )
 
+// OperatorIO is the input and output of an operator, once created it should not be modified
+// Note: the Store Operator depends on this struct being immutable
 type OperatorIO struct {
 	OutputType  OutputT
 	HTTPCode    uint32
