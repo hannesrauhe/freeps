@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/hannesrauhe/freepslib"
 )
 
 type OpUI struct {
@@ -224,12 +225,25 @@ func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO
 	return o.createTemplate(templateEditConfig, &d)
 }
 
+func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO) *OperatorIO {
+	var devicelist freepslib.AvmDeviceList
+	err := input.ParseJSON(&devicelist)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "Error when parsing Devicelist: %v", err)
+	}
+	return o.createTemplate(templateFritzDeviceList, &devicelist)
+}
+
 func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "edit":
 		return o.editGraph(vars, input)
 	case "config":
 		return o.editConfig(vars, input)
+	case "show":
+		return o.showGraphs(vars, input)
+	case "fritzdevicelist":
+		return o.fritzDeviceList(vars, input)
 	}
 	return o.showGraphs(vars, input)
 }

@@ -25,6 +25,8 @@ func NewSytemOp(ge *GraphEngine, cancel context.CancelFunc) *OpSystem {
 
 func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
+	case "stop":
+		fallthrough
 	case "shutdown":
 		o.ge.reloadRequested = false
 		o.cancel()
