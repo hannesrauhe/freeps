@@ -62,9 +62,11 @@ func (m *OpRaspistill) GetPossibleArgs(fn string) []string {
 }
 
 func (m *OpRaspistill) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
-	ret := map[string]string{
-		"-rot": "0,90,180,270",
-		"-ss":  "10,100,1000,10000",
+	switch arg {
+	case "-rot":
+		return map[string]string{"0": "0", "90": "90", "180": "180", "270": "270"}
+	case "-ss":
+		return map[string]string{"1000": "1s", "2000": "2s", "3000": "3s", "4000": "4s", "5000": "5s"}
 	}
-	return ret
+	return map[string]string{}
 }
