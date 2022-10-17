@@ -66,7 +66,7 @@ func (m *OpRaspistill) GetArgSuggestions(fn string, arg string, otherArgs map[st
 	case "-rot":
 		return map[string]string{"0": "0", "90": "90", "180": "180", "270": "270"}
 	case "-ss":
-		return map[string]string{"1000": "1s", "2000": "2s", "3000": "3s", "4000": "4s", "5000": "5s"}
+		return map[string]string{"1s": "1000", "2s": "2000", "3s": "3000", "4s": "4000", "5s": "5000"}
 	}
 	return map[string]string{}
 }

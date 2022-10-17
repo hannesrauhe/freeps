@@ -38,10 +38,12 @@ type TemplateData struct {
 type ShowGraphsData struct {
 	Graphs    []string
 	GraphJSON string
+	Output    string
 }
 
 type EditConfigData struct {
 	ConfigText string
+	Output     string
 }
 
 // NewHTMLUI creates a UI interface based on the inline template above
@@ -149,8 +151,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 
 		if _, ok := formInput["Execute"]; ok {
 			o.ge.AddTemporaryGraph("UIgraph", gd)
-			output := o.ge.ExecuteGraph("UIgraph", map[string]string{}, MakeEmptyOutput())
-			td.Output = output.GetString()
+			td.Output = "/graph/UIgraph"
 		}
 	}
 	b, _ := json.MarshalIndent(gd, "", "  ")
