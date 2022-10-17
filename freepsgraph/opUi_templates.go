@@ -1,7 +1,7 @@
 package freepsgraph
 
 const templateFooter = `
-<iframe name="outputframe" style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
+<iframe name="outputframe" style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe" src="{{ .Output }}"></iframe>
 <footer style="clear: both">
 		<a href="/ui">Home</a> <a href="/ui/edit">New Graph</a> <a href="/ui/config">Edit Config</a>
 		<a href="/system/reload" target="outputframe">Reload Freeps</a> <a href="/system/stop" target="outputframe">Stop Freeps</a>
@@ -72,14 +72,6 @@ const templateEditGraph = `
 <button type="submit" name="SaveGraph">Save Graph</button>
 <button type="submit" name="GraphJSON" value="" />Reset</button>
 </form>
-
-{{ if .Output }}
-<div style="background-color: lightgoldenrodyellow;">
-<pre><code>
-{{ .Output }}
-</code></pre>
-</div>
-{{ end }}
 `
 
 const templateShowGraphs = `
