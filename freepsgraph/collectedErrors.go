@@ -7,6 +7,7 @@ import (
 
 // CollectedError store an error, the timestamp and the name of the graph and operation
 type CollectedError struct {
+	Input     *OperatorIO
 	Error     string
 	Time      time.Time
 	GraphName string
@@ -26,10 +27,10 @@ func NewCollectedErrors(maxLen int) *CollectedErrors {
 }
 
 // AddError adds an error to the CollectedErrors
-func (ce *CollectedErrors) AddError(err *OperatorIO, graphName string, od *GraphOperationDesc) {
+func (ce *CollectedErrors) AddError(input *OperatorIO, err *OperatorIO, graphName string, od *GraphOperationDesc) {
 	ce.mutex.Lock()
 	defer ce.mutex.Unlock()
-	ce.errors = append(ce.errors, &CollectedError{Error: err.GetString(), Time: time.Now(), GraphName: graphName, Operation: od})
+	ce.errors = append(ce.errors, &CollectedError{Input: input, Error: err.GetString(), Time: time.Now(), GraphName: graphName, Operation: od})
 	if len(ce.errors) > ce.maxLen {
 		ce.errors = ce.errors[1:]
 	}

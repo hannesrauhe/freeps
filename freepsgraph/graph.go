@@ -108,7 +108,6 @@ func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput
 		g.opOutputs[operation.Name] = output
 		if output.IsError() {
 			failed = append(failed, operation.Name)
-			g.engine.executionErrors.AddError(output, g.name, &operation)
 		}
 	}
 	if len(failed) > 0 {
@@ -122,6 +121,12 @@ func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput
 		return MakeObjectOutput(g.opOutputs)
 	}
 	return g.opOutputs[g.desc.OutputFrom]
+}
+
+func (g *Graph) collectAndReturnOperationError(input *OperatorIO, opDesc *GraphOperationDesc, code uint32, msg string, a ...interface{}) *OperatorIO {
+	error := MakeOutputError(code, msg, a...)
+	g.engine.executionErrors.AddError(input, error, g.name, opDesc)
+	return error
 }
 
 func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
@@ -149,7 +154,7 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 	if opDesc.ArgumentsFrom != "" {
 		outputToBeArgs, exists := g.opOutputs[opDesc.ArgumentsFrom]
 		if !exists {
-			return MakeOutputError(404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
+			return g.collectAndReturnOperationError(input, opDesc, 404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
 		}
 		if outputToBeArgs.IsError() {
 			// reduce logging of eval-related "errors"
@@ -160,7 +165,7 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 		}
 		collectedArgs, err := outputToBeArgs.GetArgsMap()
 		if err != nil {
-			return MakeOutputError(500, "Output of \"%s\" cannot be used as arguments: %v", opDesc.ArgumentsFrom, err)
+			return g.collectAndReturnOperationError(input, opDesc, 500, "Output of \"%s\" cannot be used as arguments: %v", opDesc.ArgumentsFrom, err)
 		}
 		for k, v := range collectedArgs {
 			combinedArgs[k] = v
@@ -171,9 +176,12 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 	if exists {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", opDesc.Operator, opDesc.Function, combinedArgs)
 		output := op.Execute(opDesc.Function, combinedArgs, input)
+		if output.IsError() {
+			g.engine.executionErrors.AddError(input, output, g.name, opDesc)
+		}
 		return output
 	}
-	return MakeOutputError(404, "No operator with name \"%s\" found", opDesc.Operator)
+	return g.collectAndReturnOperationError(input, opDesc, 404, "No operator with name \"%s\" found", opDesc.Operator)
 }
 
 func (g *Graph) ToDot(gd *GraphDesc) string {
