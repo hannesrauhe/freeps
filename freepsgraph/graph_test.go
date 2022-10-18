@@ -111,7 +111,7 @@ func TestCheckGraph(t *testing.T) {
 	gd, _ := ge.GetGraphDesc("test_valid")
 	assert.Equal(t, gd.Operations[0].Name, "", "original graph should not be modified")
 
-	g, err := NewGraph(gd, ge)
+	g, err := NewGraph("", gd, ge)
 	assert.NilError(t, err)
 	assert.Equal(t, g.desc.Operations[0].Name, "#0")
 }
