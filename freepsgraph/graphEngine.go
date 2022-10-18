@@ -100,11 +100,12 @@ func (ge *GraphEngine) ReloadRequested() bool {
 
 // ExecuteOperatorByName executes an operator directly
 func (ge *GraphEngine) ExecuteOperatorByName(logger log.FieldLogger, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	g, err := NewGraph("direct", &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
+	name := fmt.Sprintf("%v/%v", opName, fn)
+	g, err := NewGraph(name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
-	dlogger := logger.WithFields(log.Fields{"graph": "direct", "operator": opName, "function": fn})
+	dlogger := logger.WithFields(log.Fields{"graph": name})
 	return g.execute(dlogger, mainArgs, mainInput)
 }
 

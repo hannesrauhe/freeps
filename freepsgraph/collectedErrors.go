@@ -7,7 +7,7 @@ import (
 
 // CollectedError store an error, the timestamp and the name of the graph and operation
 type CollectedError struct {
-	Error     *OperatorIO
+	Error     string
 	Time      time.Time
 	GraphName string
 	Operation *GraphOperationDesc
@@ -29,26 +29,26 @@ func NewCollectedErrors(maxLen int) *CollectedErrors {
 func (ce *CollectedErrors) AddError(err *OperatorIO, graphName string, od *GraphOperationDesc) {
 	ce.mutex.Lock()
 	defer ce.mutex.Unlock()
-	ce.errors = append(ce.errors, &CollectedError{Error: err, Time: time.Now(), GraphName: graphName, Operation: od})
+	ce.errors = append(ce.errors, &CollectedError{Error: err.GetString(), Time: time.Now(), GraphName: graphName, Operation: od})
 	if len(ce.errors) > ce.maxLen {
 		ce.errors = ce.errors[1:]
 	}
 }
 
-// GetErrors returns the error that are newer than the given timestamp
-func (ce *CollectedErrors) GetErrors(since time.Time) []*CollectedError {
+// GetErrorsSince returns the error that occured in the given duration
+func (ce *CollectedErrors) GetErrorsSince(d time.Duration) []*CollectedError {
 	ce.mutex.Lock()
 	defer ce.mutex.Unlock()
-	var res []*CollectedError
+	var ret []*CollectedError
 	for _, e := range ce.errors {
-		if e.Time.After(since) {
-			res = append(res, e)
+		if time.Since(e.Time) < d {
+			ret = append(ret, e)
 		}
 	}
-	return res
+	return ret
 }
 
-// GetErrorsForGraph returns the error that are newer than the given timestamp for a gien graph
+// GetErrorsForGraph returns the error that occured in the given duration for a gien graph
 func (ce *CollectedErrors) GetErrorsForGraph(since time.Time, graphName string) []*CollectedError {
 	ce.mutex.Lock()
 	defer ce.mutex.Unlock()
