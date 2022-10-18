@@ -127,30 +127,31 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		gd, targetNum = o.buildPartialGraph(formInput)
 
 		if _, ok := formInput["SaveGraph"]; ok {
-			_, err := NewGraph(gd, o.ge)
-			if err != nil {
-				return MakeOutputError(http.StatusBadRequest, err.Error())
-			}
 			td.GraphName = formInput["GraphName"]
 			if td.GraphName == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			o.ge.AddExternalGraph(td.GraphName, gd, "")
+			err := o.ge.AddExternalGraph(td.GraphName, gd, "")
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
 		}
 		if _, ok := formInput["SaveTemp"]; ok {
-			_, err := NewGraph(gd, o.ge)
-			if err != nil {
-				return MakeOutputError(http.StatusBadRequest, err.Error())
-			}
 			td.GraphName = formInput["GraphName"]
 			if td.GraphName == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			o.ge.AddTemporaryGraph(td.GraphName, gd)
+			err := o.ge.AddTemporaryGraph(td.GraphName, gd)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			o.ge.AddTemporaryGraph("UIgraph", gd)
+			err := o.ge.AddTemporaryGraph("UIgraph", gd)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, err.Error())
+			}
 			td.Output = "/graph/UIgraph"
 		}
 	}

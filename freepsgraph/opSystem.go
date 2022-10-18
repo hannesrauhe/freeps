@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/mackerelio/go-osstat/disk"
@@ -36,11 +37,25 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 		o.cancel()
 		return MakeEmptyOutput()
 	case "getGraph":
+		fallthrough
+	case "getGraphDesc":
 		gd, ok := o.ge.GetGraphDesc(args["name"])
 		if !ok {
 			return MakeOutputError(http.StatusBadRequest, "Unknown graph %v", args["name"])
 		}
 		return MakeObjectOutput(gd)
+	case "getCollectedErrors":
+		var err error
+		duration := time.Hour
+		if d, ok := args["duration"]; ok {
+			duration, err = time.ParseDuration(d)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, "Invalid duration %v", d)
+			}
+		}
+
+		return MakeObjectOutput(o.ge.executionErrors.GetErrorsSince(duration))
+
 	case "stats":
 		var s interface{}
 		var err error
@@ -69,11 +84,19 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getCollectedErrors"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
-	return []string{"statType"}
+	switch fn {
+	case "stats":
+		return []string{"statType"}
+	case "getGraphDesc":
+		return []string{"name"}
+	case "getCollectedErrors":
+		return []string{"duration"}
+	}
+	return []string{}
 }
 
 func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
@@ -88,6 +111,25 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 				"memory":  "memory",
 				"network": "network",
 				"uptime":  "uptime",
+			}
+		}
+	case "getGraphDesc":
+		switch arg {
+		case "name":
+			agd := o.ge.GetAllGraphDesc()
+			graphs := make(map[string]string)
+			for n := range agd {
+				graphs[n] = n
+			}
+			return graphs
+		}
+	case "getCollectedErrors":
+		switch arg {
+		case "duration":
+			return map[string]string{
+				"5m":  "5m",
+				"10m": "10m",
+				"1h":  "1h",
 			}
 		}
 	}

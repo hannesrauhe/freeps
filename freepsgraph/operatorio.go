@@ -120,6 +120,15 @@ func (io *OperatorIO) GetString() string {
 	}
 }
 
+func (io *OperatorIO) GetError() error {
+	switch io.OutputType {
+	case Error:
+		return io.Output.(error)
+	default:
+		return nil
+	}
+}
+
 func (io *OperatorIO) IsError() bool {
 	return io.OutputType == Error
 }
