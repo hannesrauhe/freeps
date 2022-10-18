@@ -102,7 +102,8 @@ func NewGraph(name string, graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error
 func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	var failed []string
-	for _, operation := range g.desc.Operations {
+	for i := 0; i < len(g.desc.Operations); i++ {
+		operation := g.desc.Operations[i]
 		output := g.executeOperation(logger, &operation, mainArgs)
 		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 		g.opOutputs[operation.Name] = output
