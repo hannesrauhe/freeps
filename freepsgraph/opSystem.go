@@ -36,6 +36,8 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 		o.ge.reloadRequested = true
 		o.cancel()
 		return MakeEmptyOutput()
+	case "getGraph":
+		fallthrough
 	case "getGraphDesc":
 		gd, ok := o.ge.GetGraphDesc(args["name"])
 		if !ok {
