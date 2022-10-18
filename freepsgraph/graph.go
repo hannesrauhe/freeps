@@ -23,12 +23,13 @@ var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{}, Gra
 
 // GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
-	Name          string `json:",omitempty"`
-	Operator      string
-	Function      string
-	Arguments     map[string]string `json:",omitempty"`
-	InputFrom     string            `json:",omitempty"`
-	ArgumentsFrom string            `json:",omitempty"`
+	Name           string `json:",omitempty"`
+	Operator       string
+	Function       string
+	Arguments      map[string]string `json:",omitempty"`
+	InputFrom      string            `json:",omitempty"`
+	ArgumentsFrom  string            `json:",omitempty"`
+	IgnoreMainArgs bool              `json:",omitempty"`
 }
 
 // GraphDesc contains a number of operations and defines which output to use
@@ -144,20 +145,23 @@ func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperati
 	}
 	// create a copy of the arguments for collecting possible errors
 	finalOpDesc := &GraphOperationDesc{
-		Name:          originalOpDesc.Name,
-		Operator:      originalOpDesc.Operator,
-		Function:      originalOpDesc.Function,
-		Arguments:     make(map[string]string),
-		InputFrom:     originalOpDesc.InputFrom,
-		ArgumentsFrom: originalOpDesc.ArgumentsFrom,
+		Name:           originalOpDesc.Name,
+		Operator:       originalOpDesc.Operator,
+		Function:       originalOpDesc.Function,
+		Arguments:      make(map[string]string),
+		InputFrom:      originalOpDesc.InputFrom,
+		ArgumentsFrom:  originalOpDesc.ArgumentsFrom,
+		IgnoreMainArgs: originalOpDesc.IgnoreMainArgs,
 	}
 	if originalOpDesc.Arguments != nil {
 		for k, v := range originalOpDesc.Arguments {
 			finalOpDesc.Arguments[k] = v
 		}
 	}
-	for k, v := range mainArgs {
-		finalOpDesc.Arguments[k] = v
+	if finalOpDesc.IgnoreMainArgs == false {
+		for k, v := range mainArgs {
+			finalOpDesc.Arguments[k] = v
+		}
 	}
 
 	if finalOpDesc.ArgumentsFrom != "" {
