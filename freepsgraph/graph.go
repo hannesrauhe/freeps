@@ -137,7 +137,7 @@ func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperati
 		if input.IsError() {
 			// reduce logging of eval-related "errors"
 			if input.HTTPCode != http.StatusExpectationFailed {
-				logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", opDesc.Name, opDesc.InputFrom)
+				logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", originalOpDesc.Name, originalOpDesc.InputFrom)
 			}
 			return input
 		}
@@ -163,7 +163,7 @@ func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperati
 	if finalOpDesc.ArgumentsFrom != "" {
 		outputToBeArgs, exists := g.opOutputs[finalOpDesc.ArgumentsFrom]
 		if !exists {
-			return g.collectAndReturnOperationError(input, finalOpDesc, 404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
+			return g.collectAndReturnOperationError(input, finalOpDesc, 404, "Output of \"%s\" cannot be used as arguments, because there is no such output", finalOpDesc.ArgumentsFrom)
 		}
 		if outputToBeArgs.IsError() {
 			// reduce logging of eval-related "errors"
