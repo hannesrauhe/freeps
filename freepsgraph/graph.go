@@ -130,10 +130,10 @@ func (g *Graph) collectAndReturnOperationError(input *OperatorIO, opDesc *GraphO
 	return error
 }
 
-func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
+func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
 	input := MakeEmptyOutput()
-	if opDesc.InputFrom != "" {
-		input = g.opOutputs[opDesc.InputFrom]
+	if originalOpDesc.InputFrom != "" {
+		input = g.opOutputs[originalOpDesc.InputFrom]
 		if input.IsError() {
 			// reduce logging of eval-related "errors"
 			if input.HTTPCode != http.StatusExpectationFailed {
@@ -142,47 +142,55 @@ func (g *Graph) executeOperation(logger *log.Entry, opDesc *GraphOperationDesc, 
 			return input
 		}
 	}
-	combinedArgs := make(map[string]string)
-	if opDesc.Arguments != nil {
-		for k, v := range opDesc.Arguments {
-			combinedArgs[k] = v
+	// create a copy of the arguments for collecting possible errors
+	finalOpDesc := &GraphOperationDesc{
+		Name:          originalOpDesc.Name,
+		Operator:      originalOpDesc.Operator,
+		Function:      originalOpDesc.Function,
+		Arguments:     make(map[string]string),
+		InputFrom:     originalOpDesc.InputFrom,
+		ArgumentsFrom: originalOpDesc.ArgumentsFrom,
+	}
+	if originalOpDesc.Arguments != nil {
+		for k, v := range originalOpDesc.Arguments {
+			finalOpDesc.Arguments[k] = v
 		}
 	}
 	for k, v := range mainArgs {
-		combinedArgs[k] = v
+		finalOpDesc.Arguments[k] = v
 	}
 
-	if opDesc.ArgumentsFrom != "" {
-		outputToBeArgs, exists := g.opOutputs[opDesc.ArgumentsFrom]
+	if finalOpDesc.ArgumentsFrom != "" {
+		outputToBeArgs, exists := g.opOutputs[finalOpDesc.ArgumentsFrom]
 		if !exists {
-			return g.collectAndReturnOperationError(input, opDesc, 404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
+			return g.collectAndReturnOperationError(input, finalOpDesc, 404, "Output of \"%s\" cannot be used as arguments, because there is no such output", opDesc.ArgumentsFrom)
 		}
 		if outputToBeArgs.IsError() {
 			// reduce logging of eval-related "errors"
 			if outputToBeArgs.HTTPCode != http.StatusExpectationFailed {
-				logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", opDesc.Name, opDesc.InputFrom)
+				logger.Debugf("Not executing executing operation \"%v\", because \"%v\" returned an error", finalOpDesc.Name, finalOpDesc.InputFrom)
 			}
 			return input
 		}
 		collectedArgs, err := outputToBeArgs.GetArgsMap()
 		if err != nil {
-			return g.collectAndReturnOperationError(input, opDesc, 500, "Output of \"%s\" cannot be used as arguments: %v", opDesc.ArgumentsFrom, err)
+			return g.collectAndReturnOperationError(input, finalOpDesc, 500, "Output of \"%s\" cannot be used as arguments: %v", finalOpDesc.ArgumentsFrom, err)
 		}
 		for k, v := range collectedArgs {
-			combinedArgs[k] = v
+			finalOpDesc.Arguments[k] = v
 		}
 	}
 
-	op, exists := g.engine.operators[opDesc.Operator]
+	op, exists := g.engine.operators[finalOpDesc.Operator]
 	if exists {
-		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", opDesc.Operator, opDesc.Function, combinedArgs)
-		output := op.Execute(opDesc.Function, combinedArgs, input)
+		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
+		output := op.Execute(finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
-			g.engine.executionErrors.AddError(input, output, g.name, opDesc)
+			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
 		return output
 	}
-	return g.collectAndReturnOperationError(input, opDesc, 404, "No operator with name \"%s\" found", opDesc.Operator)
+	return g.collectAndReturnOperationError(input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
 }
 
 func (g *Graph) ToDot(gd *GraphDesc) string {
