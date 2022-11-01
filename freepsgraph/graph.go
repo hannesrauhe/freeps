@@ -35,6 +35,7 @@ type GraphOperationDesc struct {
 // GraphDesc contains a number of operations and defines which output to use
 type GraphDesc struct {
 	Tags       []string
+	Source     string
 	OutputFrom string
 	Operations []GraphOperationDesc
 }

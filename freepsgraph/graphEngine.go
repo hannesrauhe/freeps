@@ -38,12 +38,12 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		var err error
 		config := ge.ReadConfig()
 
-		addExternalGraphsWithTag := func(src map[string]GraphDesc, tag string) {
+		addExternalGraphsWithSource := func(src map[string]GraphDesc, tag string) {
 			for k, v := range src {
 				if v.Tags == nil {
 					v.Tags = []string{}
 				}
-				v.Tags = append(v.Tags, tag)
+				v.Source = tag
 				ge.externalGraphs[k] = v
 			}
 		}
@@ -54,7 +54,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			if err != nil {
 				log.Fatal(err)
 			}
-			addExternalGraphsWithTag(newGraphs, "url: "+fURL)
+			addExternalGraphsWithSource(newGraphs, "url: "+fURL)
 		}
 		for _, fName := range config.GraphsFromFile {
 			newGraphs := make(map[string]GraphDesc)
@@ -62,7 +62,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			if err != nil {
 				log.Fatal(err)
 			}
-			addExternalGraphsWithTag(newGraphs, "file: "+fName)
+			addExternalGraphsWithSource(newGraphs, "file: "+fName)
 		}
 		tOp := NewTemplateOperator(ge, cr)
 
