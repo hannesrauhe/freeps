@@ -38,23 +38,13 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		var err error
 		config := ge.ReadConfig()
 
-		addExternalGraphsWithSource := func(src map[string]GraphDesc, tag string) {
-			for k, v := range src {
-				if v.Tags == nil {
-					v.Tags = []string{}
-				}
-				v.Source = tag
-				ge.externalGraphs[k] = v
-			}
-		}
-
 		for _, fURL := range config.GraphsFromURL {
 			newGraphs := make(map[string]GraphDesc)
 			err = cr.ReadObjectFromURL(&newGraphs, fURL)
 			if err != nil {
 				log.Fatal(err)
 			}
-			addExternalGraphsWithSource(newGraphs, "url: "+fURL)
+			ge.addExternalGraphsWithSource(newGraphs, "url: "+fURL)
 		}
 		for _, fName := range config.GraphsFromFile {
 			newGraphs := make(map[string]GraphDesc)
@@ -62,7 +52,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			if err != nil {
 				log.Fatal(err)
 			}
-			addExternalGraphsWithSource(newGraphs, "file: "+fName)
+			ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 		}
 		tOp := NewTemplateOperator(ge, cr)
 
@@ -75,6 +65,16 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	}
 
 	return ge
+}
+
+func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, srcName string) {
+	for k, v := range src {
+		if v.Tags == nil {
+			v.Tags = []string{}
+		}
+		v.Source = srcName
+		ge.externalGraphs[k] = v
+	}
 }
 
 // ReadConfig reads the config from the config reader
@@ -199,7 +199,7 @@ func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) error 
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	gd.Tags = append(gd.Tags, "temporary")
+	gd.Source = "temporary"
 	ge.temporaryGraphs[graphName] = *gd
 	return nil
 }
@@ -269,10 +269,7 @@ func (ge *GraphEngine) AddExternalGraphs(graphs map[string]GraphDesc, fileName s
 		}
 	}
 
-	err = ge.cr.ReadObjectFromFile(&ge.externalGraphs, fileName)
-	if err != nil {
-		return fmt.Errorf("Error re-reading graphs from file %s: %s", fileName, err.Error())
-	}
+	ge.addExternalGraphsWithSource(graphs, fileName)
 
 	// make sure graphs are not in the temporary graph list
 	for n := range graphs {
