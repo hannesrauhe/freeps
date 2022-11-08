@@ -297,6 +297,16 @@ func parseStringOrReturnDirectly(v interface{}) (string, error) {
 	switch v.(type) {
 	case string:
 		return v.(string), nil
+	case bool:
+		return strconv.FormatBool(v.(bool)), nil
+	case int:
+		return strconv.Itoa(v.(int)), nil
+	case int64:
+		return strconv.FormatInt(v.(int64), 10), nil
+	case int32:
+		return strconv.FormatInt(int64(v.(int32)), 10), nil
+	case float64:
+		return strconv.FormatFloat(v.(float64), 'f', -1, 64), nil
 	}
 	return "", fmt.Errorf("Cannot parse \"%v\" of type \"%T\"  as String", v, v)
 }
