@@ -1,6 +1,7 @@
 package freepsgraph
 
 import (
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -69,6 +70,14 @@ func (m *OpFritz) Execute(mixedCaseFn string, vars map[string]string, input *Ope
 			devl, err := m.getDeviceList()
 			if err == nil {
 				return MakeObjectOutput(devl)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+	case "getdeviceinfos":
+		{
+			devObject, err := m.GetDeviceByAIN(dev)
+			if err == nil {
+				return MakeObjectOutput(devObject)
 			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
@@ -212,6 +221,21 @@ func (m *OpFritz) GetTemplates() map[string]string {
 		m.getTemplateList()
 	}
 	return m.cachedTemplates
+}
+
+// GetDeviceByAIN returns the device object for the device with the given AIN
+func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
+	//TODO(HR): better use getDevice API method?
+	devl, err := m.getDeviceList()
+	if devl == nil || err != nil {
+		return nil, err
+	}
+	for _, dev := range devl.Device {
+		if dev.AIN == AIN {
+			return &dev, nil
+		}
+	}
+	return nil, fmt.Errorf("Device with AIN \"%v\" not found", AIN)
 }
 
 // getDeviceList retrieves the devicelist and caches

@@ -45,6 +45,8 @@ func (m *OpEval) Execute(fn string, vars map[string]string, input *OperatorIO) *
 			return MakePlainOutput(m)
 		}
 		return MakeEmptyOutput()
+	case "flatten":
+		return m.Flatten(vars, input)
 	case "eval":
 		return m.Eval(vars, input)
 	case "regexp":
@@ -78,7 +80,7 @@ func (m *OpEval) Execute(fn string, vars map[string]string, input *OperatorIO) *
 }
 
 func (m *OpEval) GetFunctions() []string {
-	return []string{"eval", "regexp", "dedup", "echo", "strreplace"}
+	return []string{"eval", "regexp", "dedup", "echo", "flatten", "strreplace"}
 }
 
 func (m *OpEval) GetPossibleArgs(fn string) []string {
@@ -94,11 +96,25 @@ func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	case "valueType":
 		return map[string]string{"int": "int"}
 	case "operation":
-		return map[string]string{"eq": "eq", "gt": "gt", "lt": "lt"}
+		return map[string]string{"eq": "eq", "gt": "gt", "lt": "lt", "id": "id"}
 	case "retention":
 		return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
 	}
 	return map[string]string{}
+}
+
+func (m *OpEval) Flatten(vars map[string]string, input *OperatorIO) *OperatorIO {
+	nestedArgsMap := map[string]interface{}{}
+	err := input.ParseJSON(&nestedArgsMap)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
+	}
+
+	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
+	}
+	return MakeObjectOutput(argsmap)
 }
 
 func (m *OpEval) Eval(vars map[string]string, input *OperatorIO) *OperatorIO {
@@ -111,17 +127,21 @@ func (m *OpEval) Eval(vars map[string]string, input *OperatorIO) *OperatorIO {
 	nestedArgsMap := map[string]interface{}{}
 	err = input.ParseJSON(&nestedArgsMap)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "request cannot be parsed into a map")
+		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
 	}
 
 	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "request cannot be parsed into a flat map: %v", err)
+		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
 	}
 
 	vInterface, ok := argsmap[args.ValueName]
 	if !ok {
 		return MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.ValueName)
+	}
+
+	if args.Operation == "id" {
+		return MakeObjectOutput(vInterface)
 	}
 
 	result := false
@@ -308,5 +328,5 @@ func parseStringOrReturnDirectly(v interface{}) (string, error) {
 	case float64:
 		return strconv.FormatFloat(v.(float64), 'f', -1, 64), nil
 	}
-	return "", fmt.Errorf("Cannot parse \"%v\" of type \"%T\"  as String", v, v)
+	return "", fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as String", v, v)
 }
