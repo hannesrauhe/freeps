@@ -2,6 +2,7 @@ package freepsgraph
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -46,6 +47,9 @@ type EditConfigData struct {
 	Output     string
 }
 
+//go:embed templates/*
+var templates embed.FS
+
 // NewHTMLUI creates a UI interface based on the inline template above
 func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
 	h := OpUI{ge: graphEngine, cr: cr}
@@ -53,11 +57,24 @@ func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
 	return &h
 }
 
-func (o *OpUI) createTemplate(templateString string, templateData interface{}) *OperatorIO {
-	t := template.New("general")
-	t, _ = t.Parse(templateString + templateFooter)
+func (o *OpUI) createTemplate(templateFilePath string, templateData interface{}) *OperatorIO {
+	t, err := template.ParseFS(templates, "templates/"+templateFilePath)
+	if err != nil {
+		log.Println(err)
+		return MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	tFooter, err := template.ParseFS(templates, "templates/footer.html")
+	if err != nil {
+		log.Println(err)
+		return MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
 	var w bytes.Buffer
-	err := t.Execute(&w, templateData)
+	err = t.Execute(&w, templateData)
+	if err != nil {
+		log.Println(err)
+		return MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	err = tFooter.Execute(&w, nil)
 	if err != nil {
 		log.Println(err)
 		return MakeOutputError(http.StatusInternalServerError, err.Error())
@@ -183,7 +200,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		td.InputFromSuggestions[name] = (name == gopd.InputFrom)
 	}
 
-	return o.createTemplate(templateEditGraph, td)
+	return o.createTemplate(`editgraph.html`, td)
 }
 
 func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO {
@@ -200,7 +217,7 @@ func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO
 		}
 	}
 
-	return o.createTemplate(templateShowGraphs, &d)
+	return o.createTemplate(`showgraphs.html`, &d)
 }
 
 func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO {
@@ -224,7 +241,7 @@ func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO
 	}
 	d.ConfigText = o.cr.GetConfigFileContent()
 
-	return o.createTemplate(templateEditConfig, &d)
+	return o.createTemplate(`editconfig.html`, &d)
 }
 
 func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO) *OperatorIO {
@@ -233,7 +250,7 @@ func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO) *Opera
 	if err != nil {
 		return MakeOutputError(http.StatusBadRequest, "Error when parsing Devicelist: %v", err)
 	}
-	return o.createTemplate(templateFritzDeviceList, &devicelist)
+	return o.createTemplate(`fritzdevicelist.html`, &devicelist)
 }
 
 func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
@@ -251,7 +268,7 @@ func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *Op
 }
 
 func (o *OpUI) GetFunctions() []string {
-	return []string{"edit", "show", "config"}
+	return []string{"edit", "show", "config", "fritzdevicelist"}
 }
 
 func (o *OpUI) GetPossibleArgs(fn string) []string {
