@@ -2,8 +2,11 @@ package freepslisten
 
 import (
 	"context"
+	"embed"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,6 +17,9 @@ import (
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
+
+//go:embed static_server_content/*
+var staticContent embed.FS
 
 type FreepsHttp struct {
 	graphengine *freepsgraph.GraphEngine
@@ -65,14 +71,28 @@ func (r *FreepsHttp) Shutdown(ctx context.Context) {
 	r.srv.Shutdown(ctx)
 }
 
+func (r *FreepsHttp) handleStaticContent(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+
+	fc, err := staticContent.ReadFile("static_server_content/" + vars["file"])
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			http.Redirect(w, req, "/ui/", http.StatusFound)
+			return
+		}
+		log.Errorf("Error when reading from embedded file: %v", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Write(fc)
+}
+
 func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsHttp {
 	rest := &FreepsHttp{graphengine: ge}
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/ui/", http.StatusFound)
-	})
-	r.Handle("/{mod}", rest)
+	r.HandleFunc("/", rest.handleStaticContent)
+	r.HandleFunc("/{file}", rest.handleStaticContent)
 	r.Handle("/{mod}/", rest)
 	r.Handle("/{mod}/{function}", rest)
 	r.Handle("/{mod}/{function}/", rest)
@@ -86,7 +106,7 @@ func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsH
 	}
 
 	go func() {
-		log.Println("Starting Server")
+		log.Println("Starting HTTP Server")
 		if err := rest.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
