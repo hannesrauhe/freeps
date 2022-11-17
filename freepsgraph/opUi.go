@@ -60,8 +60,8 @@ func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
 func (o *OpUI) createTemplate(templateFilePath string, templateData interface{}) *OperatorIO {
 	t, err := template.ParseFS(templates, "templates/"+templateFilePath)
 	if err != nil {
-		log.Println(err)
-		return MakeOutputError(http.StatusInternalServerError, err.Error())
+		// could in theory be any other error as well, but I don't want to parse strings
+		return MakeOutputError(http.StatusNotFound, "No such template \"%v\"", templateFilePath)
 	}
 	tFooter, err := template.ParseFS(templates, "templates/footer.html")
 	if err != nil {
@@ -255,6 +255,10 @@ func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO) *Opera
 
 func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
+	case "":
+		fallthrough
+	case "showGraphs":
+		return o.showGraphs(vars, input)
 	case "edit":
 		return o.editGraph(vars, input)
 	case "config":
@@ -263,8 +267,14 @@ func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *Op
 		return o.showGraphs(vars, input)
 	case "fritzdevicelist":
 		return o.fritzDeviceList(vars, input)
+	default:
+		tdata := make(map[string]interface{})
+		err := input.ParseJSON(&tdata)
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+		}
+		return o.createTemplate(fn, &tdata)
 	}
-	return o.showGraphs(vars, input)
 }
 
 func (o *OpUI) GetFunctions() []string {
