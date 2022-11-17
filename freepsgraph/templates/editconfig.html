@@ -1,0 +1,11 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<form action="#" method="POST">
+<p>
+<textarea name="ConfigText" cols="200" rows="50">
+{{ .ConfigText }}
+</textarea>
+</p>
+
+<button type="submit" name="SaveConfig">Save Config</button>
+</form>
+<iframe name="outputframe" style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe" src="{{ .Output }}"></iframe>
