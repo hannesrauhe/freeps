@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 
 	"github.com/sirupsen/logrus"
 )
@@ -87,6 +88,17 @@ func (io *OperatorIO) ParseJSON(obj interface{}) error {
 	}
 
 	return fmt.Errorf("Output is of type \"%v\" and cannot be parsed to JSON", io.OutputType)
+}
+
+// ParseFormData returns the data as posted by a HTML form
+func (io *OperatorIO) ParseFormData() (url.Values, error) {
+	inBytes, err := io.GetBytes()
+	if err != nil {
+		return nil, err
+	}
+	return url.ParseQuery(string(inBytes))
+
+	// return fmt.Errorf("Output is of type \"%v\" and does not look like form data", io.OutputType)
 }
 
 func (io *OperatorIO) GetBytes() ([]byte, error) {

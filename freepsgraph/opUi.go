@@ -7,14 +7,15 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/url"
+	"os"
+	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
+	log "github.com/sirupsen/logrus"
 )
 
 type OpUI struct {
@@ -48,7 +49,7 @@ type EditConfigData struct {
 }
 
 //go:embed templates/*
-var templates embed.FS
+var embeddedFiles embed.FS
 
 // NewHTMLUI creates a UI interface based on the inline template above
 func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
@@ -57,27 +58,103 @@ func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
 	return &h
 }
 
-func (o *OpUI) createTemplate(templateFilePath string, templateData interface{}) *OperatorIO {
-	t, err := template.ParseFS(templates, "templates/"+templateFilePath)
+func (o *OpUI) getTemplateNames() []string {
+	tlist := make([]string, 0)
+	ftlist, _ := embeddedFiles.ReadDir("templates")
+	for _, e := range ftlist {
+		if e.IsDir() {
+			continue
+		}
+		tlist = append(tlist, e.Name())
+	}
+	ftlist, _ = os.ReadDir(path.Join(o.cr.GetConfigDir(), "templates"))
+	for _, e := range ftlist {
+		if e.IsDir() {
+			continue
+		}
+		tlist = append(tlist, e.Name())
+	}
+	return tlist
+}
+
+func (o *OpUI) isCustomTemplate(templateBaseName string) (bool, string) {
+	pathInFS := "templates/" + templateBaseName
+	configPath := path.Join(o.cr.GetConfigDir(), pathInFS)
+	info, err := os.Stat(configPath)
+	if err == nil && !info.IsDir() {
+		return true, configPath
+	}
+	return false, pathInFS
+}
+
+func (o *OpUI) openWritableTemplateFile(templateBaseName string) (*os.File, error) {
+	if templateBaseName == "" {
+		return nil, fmt.Errorf("empty Template Name not allowd")
+	}
+	pathInFS := "templates/" + templateBaseName
+	configPath := path.Join(o.cr.GetConfigDir(), pathInFS)
+	err := os.MkdirAll(path.Dir(configPath), 0755)
+	if err != nil {
+		return nil, err
+	}
+	return os.OpenFile(configPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+}
+
+func (o *OpUI) deleteTemplateFile(templateBaseName string) error {
+	if templateBaseName == "" {
+		return nil, fmt.Errorf("empty Template Name not allowd")
+	}
+	pathInFS := "templates/" + templateBaseName
+	configPath := path.Join(o.cr.GetConfigDir(), pathInFS)
+	return os.Remove(configPath)
+}
+
+func (o *OpUI) getTemplateBytes(templateBaseName string, logger *log.Entry) ([]byte, error) {
+	if templateBaseName == "" {
+		return nil, fmt.Errorf("empty Template Name not allowd")
+	}
+	isCustom, path := o.isCustomTemplate(templateBaseName)
+	if isCustom {
+		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
+		return os.ReadFile(path)
+	}
+	return embeddedFiles.ReadFile(path)
+}
+
+func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*template.Template, error) {
+	isCustom, path := o.isCustomTemplate(templateBaseName)
+	if isCustom {
+		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
+		return template.ParseFiles(path)
+	}
+	return template.ParseFS(embeddedFiles, path)
+}
+
+func (o *OpUI) createTemplate(templateBaseName string, templateData interface{}, logger *log.Entry) *OperatorIO {
+	t, err := o.parseTemplate(templateBaseName, logger)
 	if err != nil {
 		// could in theory be any other error as well, but I don't want to parse strings
-		return MakeOutputError(http.StatusNotFound, "No such template \"%v\"", templateFilePath)
-	}
-	tFooter, err := template.ParseFS(templates, "templates/footer.html")
-	if err != nil {
-		log.Println(err)
-		return MakeOutputError(http.StatusInternalServerError, err.Error())
+		return MakeOutputError(http.StatusNotFound, "No such template \"%v\"", templateBaseName)
 	}
 	var w bytes.Buffer
 	err = t.Execute(&w, templateData)
 	if err != nil {
-		log.Println(err)
+		logger.Error(err)
 		return MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
-	err = tFooter.Execute(&w, nil)
-	if err != nil {
-		log.Println(err)
-		return MakeOutputError(http.StatusInternalServerError, err.Error())
+
+	/* parse footer if requested template is html-file */
+	if filepath.Ext(templateBaseName) == ".html" {
+		tFooter, err := o.parseTemplate("footer.html", logger)
+		if err != nil {
+			logger.Errorf("Problem when opening template footer: %v", err)
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+		err = tFooter.Execute(&w, nil)
+		if err != nil {
+			logger.Println(err)
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
 	}
 	return MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")
 }
@@ -121,7 +198,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) 
 	return gd, targetNum
 }
 
-func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
 	var gd *GraphDesc
 	var exists bool
 	targetNum := 0
@@ -132,11 +209,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		gd, exists = o.ge.GetGraphDesc(td.GraphName)
 	}
 	if !input.IsEmpty() || !exists {
-		inBytes, err := input.GetBytes()
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
-		}
-		formInputQueryFormat, err := url.ParseQuery(string(inBytes))
+		formInputQueryFormat, err := input.ParseFormData()
 		if err != nil {
 			return MakeOutputError(http.StatusBadRequest, err.Error())
 		}
@@ -200,10 +273,10 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO) *OperatorIO 
 		td.InputFromSuggestions[name] = (name == gopd.InputFrom)
 	}
 
-	return o.createTemplate(`editgraph.html`, td)
+	return o.createTemplate(`editgraph.html`, td, logger)
 }
 
-func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
 	var d ShowGraphsData
 	d.Graphs = make([]string, 0)
 	for n := range o.ge.GetAllGraphDesc() {
@@ -217,17 +290,13 @@ func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO) *OperatorIO
 		}
 	}
 
-	return o.createTemplate(`showgraphs.html`, &d)
+	return o.createTemplate(`showgraphs.html`, &d, logger)
 }
 
-func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
 	var d EditConfigData
 	if !input.IsEmpty() {
-		inBytes, err := input.GetBytes()
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
-		}
-		formInputQueryFormat, err := url.ParseQuery(string(inBytes))
+		formInputQueryFormat, err := input.ParseFormData()
 		if err != nil {
 			return MakeOutputError(http.StatusBadRequest, err.Error())
 		}
@@ -241,50 +310,103 @@ func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO) *OperatorIO
 	}
 	d.ConfigText = o.cr.GetConfigFileContent()
 
-	return o.createTemplate(`editconfig.html`, &d)
+	return o.createTemplate(`editconfig.html`, &d, logger)
 }
 
-func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
 	var devicelist freepslib.AvmDeviceList
 	err := input.ParseJSON(&devicelist)
 	if err != nil {
 		return MakeOutputError(http.StatusBadRequest, "Error when parsing Devicelist: %v", err)
 	}
-	return o.createTemplate(`fritzdevicelist.html`, &devicelist)
+	return o.createTemplate(`fritzdevicelist.html`, &devicelist, logger)
+}
+
+func (o *OpUI) editTemplate(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
+	tname := vars["templateName"]
+
+	if !input.IsEmpty() {
+		f, err := input.ParseFormData()
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+		}
+		tname = f.Get("templateName")
+		if tname == "" {
+			return MakeOutputError(http.StatusBadRequest, "Posted empty templateName")
+		}
+
+		if f.Get("templateCode") == "" {
+			return MakeOutputError(http.StatusBadRequest, "Posted empty templateCode")
+		}
+		tf, err := o.openWritableTemplateFile(tname)
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "Error when trying to open template: %v", err)
+		}
+		defer tf.Close()
+		_, err = tf.WriteString(f.Get("templateCode"))
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "Error when trying to write template: %v", err)
+		}
+	}
+
+	b, _ := o.getTemplateBytes(tname, logger)
+	tdata := make(map[string]interface{})
+	tdata["templateName"] = tname
+	tdata["templateCode"] = template.HTML(b)
+	return o.createTemplate(`edittemplate.html`, tdata, logger)
 }
 
 func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+	stdlogger := log.StandardLogger()
+	logger := stdlogger.WithField("component", "UI")
+
 	switch fn {
 	case "":
 		fallthrough
 	case "showGraphs":
-		return o.showGraphs(vars, input)
+		return o.showGraphs(vars, input, logger)
 	case "edit":
-		return o.editGraph(vars, input)
+		return o.editGraph(vars, input, logger)
 	case "config":
-		return o.editConfig(vars, input)
+		return o.editConfig(vars, input, logger)
 	case "show":
-		return o.showGraphs(vars, input)
+		return o.showGraphs(vars, input, logger)
+	case "editTemplate":
+		return o.editTemplate(vars, input, logger)
+	case "deleteTemplate":
+		if vars["reset"] == "1" {
+			err := o.deleteTemplateFile(vars["templateName"])
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, "Error when deleting template: %v", err)
+			}
+		}
+		return MakeEmptyOutput()
 	case "fritzdevicelist":
-		return o.fritzDeviceList(vars, input)
+		return o.fritzDeviceList(vars, input, logger)
 	default:
 		tdata := make(map[string]interface{})
 		err := input.ParseJSON(&tdata)
 		if err != nil {
 			return MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 		}
-		return o.createTemplate(fn, &tdata)
+		return o.createTemplate(fn, &tdata, logger)
 	}
 }
 
 func (o *OpUI) GetFunctions() []string {
-	return []string{"edit", "show", "config", "fritzdevicelist"}
+	return []string{"edit", "show", "config", "editTemplate", "deleteTemplate", "fritzdevicelist"}
 }
 
 func (o *OpUI) GetPossibleArgs(fn string) []string {
-	return []string{"graph"}
+	return []string{"graph", "templateName"}
 }
 
 func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
-	return map[string]string{}
+	r := map[string]string{}
+	if arg == "templateName" {
+		for _, tn := range o.getTemplateNames() {
+			r[tn] = tn
+		}
+	}
+	return r
 }
