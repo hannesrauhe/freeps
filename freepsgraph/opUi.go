@@ -35,6 +35,7 @@ type TemplateData struct {
 	GraphJSON            string
 	Output               string
 	Numop                int
+	Quicklink            string
 }
 
 type ShowGraphsData struct {
@@ -102,7 +103,7 @@ func (o *OpUI) openWritableTemplateFile(templateBaseName string) (*os.File, erro
 
 func (o *OpUI) deleteTemplateFile(templateBaseName string) error {
 	if templateBaseName == "" {
-		return nil, fmt.Errorf("empty Template Name not allowd")
+		return fmt.Errorf("empty Template Name not allowd")
 	}
 	pathInFS := "templates/" + templateBaseName
 	configPath := path.Join(o.cr.GetConfigDir(), pathInFS)
@@ -272,7 +273,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 		}
 		td.InputFromSuggestions[name] = (name == gopd.InputFrom)
 	}
-
+	td.Quicklink = gopd.ToQuicklink()
 	return o.createTemplate(`editgraph.html`, td, logger)
 }
 
@@ -374,11 +375,9 @@ func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *Op
 	case "editTemplate":
 		return o.editTemplate(vars, input, logger)
 	case "deleteTemplate":
-		if vars["reset"] == "1" {
-			err := o.deleteTemplateFile(vars["templateName"])
-			if err != nil {
-				return MakeOutputError(http.StatusBadRequest, "Error when deleting template: %v", err)
-			}
+		err := o.deleteTemplateFile(vars["templateName"])
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "Error when deleting template: %v", err)
 		}
 		return MakeEmptyOutput()
 	case "fritzdevicelist":
