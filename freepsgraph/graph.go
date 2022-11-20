@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -232,5 +233,21 @@ func (g *Graph) ToDot(gd *GraphDesc) string {
 	s.WriteString("\n" + OutputFrom + "->Output [style=dashed]")
 
 	s.WriteString("\n}")
+	return s.String()
+}
+
+// ToQuicklink returns the URL to call a standalone-operation outside of a Graph
+func (gop *GraphOperationDesc) ToQuicklink() string {
+	var s strings.Builder
+	s.WriteString("/" + gop.Operator)
+	if gop.Function != "" {
+		s.WriteString("/" + gop.Function)
+	}
+	if len(gop.Arguments) > 0 {
+		s.WriteString("?")
+	}
+	for k, v := range gop.Arguments {
+		s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
+	}
 	return s.String()
 }

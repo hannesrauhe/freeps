@@ -1,0 +1,11 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<form action="/ui/editTemplate" method="POST">
+<label for="templateName">Name of Template:</label>
+<input name="templateName" type="text" value="{{ .templateName }}" />
+<p>
+<textarea name="templateCode" cols="200" rows="50">{{ .templateCode }}</textarea>
+</p>
+
+<button type="submit" name="SaveConfig">Save Template</button>
+<a href="/ui/deleteTemplate?templateName={{ .templateName }}&reset=1">Delete/Reset Template {{ .templateName }}</a>
+</form>
