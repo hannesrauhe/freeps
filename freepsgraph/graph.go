@@ -24,13 +24,14 @@ var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{}, Gra
 
 // GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
-	Name           string `json:",omitempty"`
-	Operator       string
-	Function       string
-	Arguments      map[string]string `json:",omitempty"`
-	InputFrom      string            `json:",omitempty"`
-	ArgumentsFrom  string            `json:",omitempty"`
-	IgnoreMainArgs bool              `json:",omitempty"`
+	Name            string `json:",omitempty"`
+	Operator        string
+	Function        string
+	Arguments       map[string]string `json:",omitempty"`
+	InputFrom       string            `json:",omitempty"`
+	ExecuteOnFailOf string            `json:",omitempty"`
+	ArgumentsFrom   string            `json:",omitempty"`
+	IgnoreMainArgs  bool              `json:",omitempty"`
 }
 
 // GraphDesc contains a number of operations and defines which output to use
@@ -86,6 +87,14 @@ func NewGraph(name string, graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error
 		}
 		if op.InputFrom != "" && outputNames[op.InputFrom] != true {
 			return nil, fmt.Errorf("Operation \"%v\" references unknown inputFrom \"%v\"", op.Name, op.InputFrom)
+		}
+		if op.ExecuteOnFailOf != "" {
+			if outputNames[op.ExecuteOnFailOf] != true {
+				return nil, fmt.Errorf("Operation \"%v\" references unknown ExecuteOnFailOf \"%v\"", op.Name, op.ExecuteOnFailOf)
+			}
+			if op.ExecuteOnFailOf == op.InputFrom {
+				return nil, fmt.Errorf("Operation \"%v\" references the same InputFrom and ExecuteOnFailOf \"%v\"", op.Name, op.ExecuteOnFailOf)
+			}
 		}
 		outputNames[op.Name] = true
 		gd.Operations[i] = op
@@ -145,15 +154,21 @@ func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperati
 			return input
 		}
 	}
+
+	if originalOpDesc.ExecuteOnFailOf != "" && !g.opOutputs[originalOpDesc.ExecuteOnFailOf].IsError() {
+		return MakeOutputError(http.StatusExpectationFailed, "Operation not executed because \"%v\" did not fail", originalOpDesc.ExecuteOnFailOf)
+	}
+
 	// create a copy of the arguments for collecting possible errors
 	finalOpDesc := &GraphOperationDesc{
-		Name:           originalOpDesc.Name,
-		Operator:       originalOpDesc.Operator,
-		Function:       originalOpDesc.Function,
-		Arguments:      make(map[string]string),
-		InputFrom:      originalOpDesc.InputFrom,
-		ArgumentsFrom:  originalOpDesc.ArgumentsFrom,
-		IgnoreMainArgs: originalOpDesc.IgnoreMainArgs,
+		Name:            originalOpDesc.Name,
+		Operator:        originalOpDesc.Operator,
+		Function:        originalOpDesc.Function,
+		Arguments:       make(map[string]string),
+		InputFrom:       originalOpDesc.InputFrom,
+		ExecuteOnFailOf: originalOpDesc.ExecuteOnFailOf,
+		ArgumentsFrom:   originalOpDesc.ArgumentsFrom,
+		IgnoreMainArgs:  originalOpDesc.IgnoreMainArgs,
 	}
 	if originalOpDesc.Arguments != nil {
 		for k, v := range originalOpDesc.Arguments {

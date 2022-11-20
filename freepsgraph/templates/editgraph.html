@@ -41,13 +41,23 @@
 
 <p>
 	InputFrom:
-		{{ range $key, $value := .InputFromSuggestions }}
-			{{ if $value}}
-				<button name="inputFrom" value="{{ $key }}" disabled="true" >{{ $key }}</button>
-			{{ else}}
-				<button name="inputFrom" value="{{ $key }}">{{ $key }}</button>
-			{{ end }}
-		{{ end }}
+	{{ range $key, $value := .InputFromSuggestions }}
+	{{ if $value}}
+	<button name="inputFrom" value="{{ $key }}" disabled="true">{{ $key }}</button>
+	{{ else}}
+	<button name="inputFrom" value="{{ $key }}">{{ $key }}</button>
+	{{ end }}
+	{{ end }}
+</p>
+<p>
+	ExecuteOnFailOf:
+	{{ range $key, $value := .InputFromSuggestions }}
+	{{ if $value}}
+	<button name="executeOnFailOf" value="{{ $key }}" disabled="true">{{ $key }}</button>
+	{{ else}}
+	<button name="executeOnFailOf" value="{{ $key }}">{{ $key }}</button>
+	{{ end }}
+	{{ end }}
 </p>
 <p>
 	Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>

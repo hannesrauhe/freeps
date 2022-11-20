@@ -135,7 +135,7 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 	t, err := o.parseTemplate(templateBaseName, logger)
 	if err != nil {
 		// could in theory be any other error as well, but I don't want to parse strings
-		return MakeOutputError(http.StatusNotFound, "No such template \"%v\"", templateBaseName)
+		return MakeOutputError(http.StatusNotFound, "Error with template \"%v\": \"%v\"", templateBaseName, err.Error())
 	}
 	var w bytes.Buffer
 	err = t.Execute(&w, templateData)
@@ -193,6 +193,9 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) 
 		}
 		if k == "inputFrom" {
 			gopd.InputFrom = v
+		}
+		if k == "executeOnFailOf" {
+			gopd.ExecuteOnFailOf = v
 		}
 	}
 
