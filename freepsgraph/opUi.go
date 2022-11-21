@@ -133,20 +133,20 @@ func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*templ
 }
 
 func (o *OpUI) createTemplate(templateBaseName string, templateData interface{}, logger *log.Entry) *OperatorIO {
-	t, err := o.parseTemplate(templateBaseName, logger)
-	if err != nil {
-		// could in theory be any other error as well, but I don't want to parse strings
-		return MakeOutputError(http.StatusNotFound, "Error with template \"%v\": \"%v\"", templateBaseName, err.Error())
-	}
-	var w bytes.Buffer
-	err = t.Execute(&w, templateData)
-	if err != nil {
-		logger.Error(err)
-		return MakeOutputError(http.StatusInternalServerError, err.Error())
-	}
-
 	/* parse footer if requested template is html-file */
 	if filepath.Ext(templateBaseName) == ".html" {
+		t, err := o.parseTemplate(templateBaseName, logger)
+		if err != nil {
+			// could be any other error code, but I don't want to parse error strings
+			return MakeOutputError(http.StatusBadRequest, "Error with template \"%v\": \"%v\"", templateBaseName, err.Error())
+		}
+		var w bytes.Buffer
+		err = t.Execute(&w, templateData)
+		if err != nil {
+			logger.Error(err)
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+
 		tFooter, err := o.parseTemplate("footer.html", logger)
 		if err != nil {
 			logger.Errorf("Problem when opening template footer: %v", err)
@@ -157,8 +157,16 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 			logger.Println(err)
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
+		return MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")
 	}
-	return MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")
+
+	// return file directly if not html:
+	b, err := o.getTemplateBytes(templateBaseName, logger)
+	if err != nil {
+		// could be an internal error, but I don't want to parse error strings
+		return MakeOutputError(http.StatusNotFound, "Error when reading plain file \"%v\": \"%v\"", templateBaseName, err.Error())
+	}
+	return MakeByteOutput(b)
 }
 
 func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) {
@@ -250,7 +258,15 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 			td.Output = "/graph/UIgraph"
 		}
 	}
-	td.GraphDesc = gd
+
+	// try to parse the GraphDesc and use normalized version for GraphDesc if available
+	g, _ := NewGraph("temp", gd, o.ge)
+	if g != nil {
+		td.GraphDesc = g.desc
+	} else {
+		td.GraphDesc = gd
+	}
+
 	b, _ := json.MarshalIndent(gd, "", "  ")
 	td.GraphJSON = string(b)
 	gopd := &gd.Operations[targetNum]
