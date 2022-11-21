@@ -32,6 +32,7 @@ type TemplateData struct {
 	ArgSuggestions       map[string]map[string]string
 	InputFromSuggestions map[string]bool
 	GraphName            string
+	GraphDesc            *GraphDesc
 	GraphJSON            string
 	Output               string
 	Numop                int
@@ -249,6 +250,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 			td.Output = "/graph/UIgraph"
 		}
 	}
+	td.GraphDesc = gd
 	b, _ := json.MarshalIndent(gd, "", "  ")
 	td.GraphJSON = string(b)
 	gopd := &gd.Operations[targetNum]
