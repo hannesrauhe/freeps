@@ -169,13 +169,13 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 	return MakeByteOutput(b)
 }
 
-func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) {
+func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 	gd := &GraphDesc{}
 	v, ok := formInput["GraphJSON"]
 	if ok {
 		json.Unmarshal([]byte(v), gd)
 	}
-	opNum, _ := formInput["numop"]
+	opNum, _ := formInput["selectednumop"]
 	targetNum, _ := strconv.Atoi(opNum)
 	if targetNum < 0 {
 		targetNum = 0
@@ -183,16 +183,19 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) 
 	if gd.Operations == nil || len(gd.Operations) == 0 {
 		gd.Operations = make([]GraphOperationDesc, targetNum+1)
 	}
-	for len(gd.Operations) <= targetNum {
-		gd.Operations = append(gd.Operations, GraphOperationDesc{Operator: "echo", Function: "hello", Arguments: map[string]string{}})
+	if _, ok := formInput["newOp"]; ok || len(gd.Operations) <= targetNum {
+		gd.Operations = append(gd.Operations, GraphOperationDesc{Operator: "eval", Function: "echo", Arguments: map[string]string{}})
 	}
 	gopd := &gd.Operations[targetNum]
+	if gopd.Arguments == nil {
+		gopd.Arguments = make(map[string]string)
+	}
 	for k, v := range formInput {
 		if len(k) > 4 && k[0:4] == "arg." {
-			if gopd.Arguments == nil {
-				gopd.Arguments = make(map[string]string)
-			}
 			gopd.Arguments[k[4:]] = v
+		}
+		if k == "newArg" && v != "" {
+			gopd.Arguments[v] = ""
 		}
 		if k == "op" {
 			gopd.Operator = v
@@ -208,7 +211,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) 
 		}
 	}
 
-	return gd, targetNum
+	return gd
 }
 
 func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -227,7 +230,12 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 			return MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
-		gd, targetNum = o.buildPartialGraph(formInput)
+		gd = o.buildPartialGraph(formInput)
+		opNum, _ := formInput["numop"]
+		targetNum, _ = strconv.Atoi(opNum)
+		if targetNum < 0 {
+			targetNum = 0
+		}
 
 		if _, ok := formInput["SaveGraph"]; ok {
 			td.GraphName = formInput["GraphName"]

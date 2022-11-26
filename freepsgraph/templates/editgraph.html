@@ -1,76 +1,144 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <form action="#" method="POST">
-<p>
-<label for="numop">Number of operation:</label>
-<input type="number" id="numop" name="numop" min="0" max="50" value="{{ .Numop }}" />
-<button name="goop">GO</button>
-</p>
-<p>
-	Mod:
+	<input type="hidden" name="selectednumop" value="{{ .Numop }}" />
+	<div>
+		{{ range $key, $value := .GraphDesc.Operations }}
+		<div
+		style="float: left; width: 300px; height: 190px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; ">
+		   {{ if eq $key $.Numop }}
+		   <label>Name
+			   <input type="text" name="opName" value="{{ $value.Name }}" />
+		   </label><br />
+		   <label>Operator
+	 		   <select name="op" onChange="this.form.submit()">
+				{{ range $opName, $opSelected := $.OpSuggestions }}
+				<option {{ if $opSelected }} selected="true" {{ end }}>{{ $opName }}</option>
+				{{ end }}
+			   </select>
+		   </label><br />
+		   <label>Function
+			   <input type="search" name="fn" value="{{ $value.Function }}" list="FnSuggestions" onChange="this.form.submit()" />
+			   <datalist id="FnSuggestions">
+				{{ range $fnName, $fnSelected := $.FnSuggestions }}
+				<option >{{ $fnName }}</option>
+				{{ end }}
+			  </datalist>
+		   </label><br />
+			<hr />
+			   {{ range $argName, $argVal := $value.Arguments }}
+			   <label>{{ $argName }}:
+				<input type="search" name="arg.{{ $argName }}"  value="{{ $argVal }}" list="{{ $argName }}.ArgValSuggestions" onChange="this.form.submit()"/>
+				<datalist id="{{ $argName }}.ArgValSuggestions">
+				{{ range $argopt, $argmap := $.ArgSuggestions }}
+					{{if eq $argopt $argName}}
+						{{ range $argShowValue, $argRealValue := $argmap }}<option>{{ $argRealValue }}</option>{{ end }}
+					{{ end }}
+				{{ end }}
+				</datalist>
+			   </label><br />
+			   {{ end }}
+			<label>New Argument:
+			<input type="search" name="newArg" list="ArgSuggestions">
+			<datalist id="ArgSuggestions">
+			 {{ range $argName, $argSelected := $.ArgSuggestions }}
+			 <option >{{ $argName }}</option>
+			 {{ end }}
+		   	</datalist>
+			</label>
+			<button type="submit">+</button>
+		   {{ else }}
+			<div style="height: 50px; margin: auto"> {{ $value.Name }} {{ $value.Operator }} - {{ $value.Function }}
+			</div>
+			{{ range $argName, $argVal := $value.Arguments }}
+			<table>
+				<tr>
+					<td>{{ $argName }}</td>
+					<td> {{ $argVal }} </td>
+				</tr>
+			</table>
+			{{ end }}
+			<button type="submit" name="numop" value="{{ $key }}">Edit</button>
+			{{ end }}
+			</div>
+		{{ end }}
+		<div>
+			<button name="newOp" type="submit">+</button>
+		</div>
+	</div>
+	<hr style="clear:both"></hr>
+	<p>
+		<label for="numop">Number of operation:</label>
+		<input type="number" id="numop" name="numop" min="0" max="50" value="{{ .Numop }}" />
+		<button name="goop">GO</button>
+	</p>
+	<p>
+		Mod:
 		{{ range $key, $value := .OpSuggestions }}
-			{{ if $value}}
-				<button name="op" value="{{ $key }}" disabled="true" >{{ $key }}</button>
-			{{ else}}
-				<button name="op" value="{{ $key }}">{{ $key }}</button>
-			{{ end }}
+		{{ if $value}}
+		<button name="op" value="{{ $key }}" disabled="true">{{ $key }}</button>
+		{{ else}}
+		<button name="op" value="{{ $key }}">{{ $key }}</button>
 		{{ end }}
-</p>
-<p>
-	Function:
+		{{ end }}
+	</p>
+	<p>
+		Function:
 		{{ range $key, $value := .FnSuggestions }}
-			{{ if $value}}
-				<button name="fn" value="{{ $key }}" disabled="true" >{{ $key }}</button>
-			{{ else}}
-				<button name="fn" value="{{ $key }}">{{ $key }}</button>
-			{{ end }}
+		{{ if $value}}
+		<button name="fn" value="{{ $key }}" disabled="true">{{ $key }}</button>
+		{{ else}}
+		<button name="fn" value="{{ $key }}">{{ $key }}</button>
 		{{ end }}
-</p>
+		{{ end }}
+	</p>
 
-<p>
-	Arguments:
-{{ range $arg, $argmap := .ArgSuggestions }}
-<p>
-	{{ $arg }}
-	{{ range $key, $value := $argmap }}
-	<button name="arg.{{ $arg }}" value="{{ $value }}">{{ $key }}</button>
-	{{ end }}
-	<button name="arg.{{ $arg }}" value="">_empty_</button>
-</p>
-{{ end }}
-</p>
+	<p>
+		Arguments:
+		{{ range $arg, $argmap := .ArgSuggestions }}
+		<p>
+			{{ $arg }}
+			{{ range $key, $value := $argmap }}
+			<button name="arg.{{ $arg }}" value="{{ $value }}">{{ $key }}</button>
+			{{ end }}
+			<button name="arg.{{ $arg }}" value="">_empty_</button>
+		</p>
+		{{ end }}
+	</p>
 
-<p>
-	InputFrom:
-	{{ range $key, $value := .InputFromSuggestions }}
-	{{ if $value}}
-	<button name="inputFrom" value="{{ $key }}" disabled="true">{{ $key }}</button>
-	{{ else}}
-	<button name="inputFrom" value="{{ $key }}">{{ $key }}</button>
-	{{ end }}
-	{{ end }}
-</p>
-<p>
-	ExecuteOnFailOf:
-	{{ range $key, $value := .InputFromSuggestions }}
-	{{ if $value}}
-	<button name="executeOnFailOf" value="{{ $key }}" disabled="true">{{ $key }}</button>
-	{{ else}}
-	<button name="executeOnFailOf" value="{{ $key }}">{{ $key }}</button>
-	{{ end }}
-	{{ end }}
-</p>
-<p>
-	Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
-</p>
-<textarea name="GraphJSON" cols="200" rows="50">
+	<p>
+		InputFrom:
+		{{ range $key, $value := .InputFromSuggestions }}
+		{{ if $value}}
+		<button name="inputFrom" value="{{ $key }}" disabled="true">{{ $key }}</button>
+		{{ else}}
+		<button name="inputFrom" value="{{ $key }}">{{ $key }}</button>
+		{{ end }}
+		{{ end }}
+	</p>
+	<p>
+		ExecuteOnFailOf:
+		{{ range $key, $value := .InputFromSuggestions }}
+		{{ if $value}}
+		<button name="executeOnFailOf" value="{{ $key }}" disabled="true">{{ $key }}</button>
+		{{ else}}
+		<button name="executeOnFailOf" value="{{ $key }}">{{ $key }}</button>
+		{{ end }}
+		{{ end }}
+	</p>
+	<p>
+		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
+	</p>
+	<textarea name="GraphJSON" cols="200" rows="50">
 {{ .GraphJSON }}
 </textarea>
-</p>
+	</p>
 
-<button type="submit" name="Execute" value="Execute">Execute</button>
-<input type="text" name="GraphName" value="{{ .GraphName }}"/>
-<button type="submit" name="SaveTemp">Save Temporarily</button>
-<button type="submit" name="SaveGraph">Save Graph</button>
-<button type="submit" name="GraphJSON" value="" />Reset</button>
+	<button type="submit" name="Execute" value="Execute">Execute</button>
+	<input type="text" name="GraphName" value="{{ .GraphName }}" />
+	<button type="submit" name="SaveTemp">Save Temporarily</button>
+	<button type="submit" name="SaveGraph">Save Graph</button>
+	<button type="submit" name="GraphJSON" value="" />Reset</button>
 </form>
-<iframe name="outputframe" style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe" src="{{ .Output }}"></iframe>
+<iframe name="outputframe"
+	style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden"
+	id="outputframe" src="{{ .Output }}"></iframe>
