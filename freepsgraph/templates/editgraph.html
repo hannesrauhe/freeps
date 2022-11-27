@@ -3,127 +3,87 @@
 	<input type="hidden" name="selectednumop" value="{{ .Numop }}" />
 	<div>
 		{{ range $key, $value := .GraphDesc.Operations }}
+		<div style="float: left"><button name="newOp" type="submit" value="{{ $key }}">+</button></div>
 		<div
 		style="float: left; width: 300px; height: 190px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; ">
-		   {{ if eq $key $.Numop }}
-		   <label>Name
-			   <input type="text" name="opName" value="{{ $value.Name }}" />
-		   </label><br />
-		   <label>Operator
-	 		   <select name="op" onChange="this.form.submit()">
-				{{ range $opName, $opSelected := $.OpSuggestions }}
-				<option {{ if $opSelected }} selected="true" {{ end }}>{{ $opName }}</option>
-				{{ end }}
-			   </select>
-		   </label><br />
-		   <label>Function
-			   <input type="search" name="fn" value="{{ $value.Function }}" list="FnSuggestions" onChange="this.form.submit()" />
-			   <datalist id="FnSuggestions">
-				{{ range $fnName, $fnSelected := $.FnSuggestions }}
-				<option >{{ $fnName }}</option>
-				{{ end }}
-			  </datalist>
-		   </label><br />
-			<hr />
-			   {{ range $argName, $argVal := $value.Arguments }}
-			   <label>{{ $argName }}:
-				<input type="search" name="arg.{{ $argName }}"  value="{{ $argVal }}" list="{{ $argName }}.ArgValSuggestions" onChange="this.form.submit()"/>
-				<datalist id="{{ $argName }}.ArgValSuggestions">
-				{{ range $argopt, $argmap := $.ArgSuggestions }}
-					{{if eq $argopt $argName}}
-						{{ range $argShowValue, $argRealValue := $argmap }}<option>{{ $argRealValue }}</option>{{ end }}
-					{{ end }}
-				{{ end }}
-				</datalist>
-			   </label><br />
-			   {{ end }}
-			<label>New Argument:
-			<input type="search" name="newArg" list="ArgSuggestions">
-			<datalist id="ArgSuggestions">
-			 {{ range $argName, $argSelected := $.ArgSuggestions }}
-			 <option >{{ $argName }}</option>
-			 {{ end }}
-		   	</datalist>
-			</label>
-			<button type="submit">+</button>
-		   {{ else }}
-			<div style="height: 50px; margin: auto"> {{ $value.Name }} {{ $value.Operator }} - {{ $value.Function }}
-			</div>
-			{{ range $argName, $argVal := $value.Arguments }}
-			<table>
-				<tr>
-					<td>{{ $argName }}</td>
-					<td> {{ $argVal }} </td>
-				</tr>
-			</table>
-			{{ end }}
+		   <div style="height: 50px; margin: auto"> <b>{{ $value.Name }}</b>
+			{{ if not (eq $key $.Numop) }}
 			<button type="submit" name="numop" value="{{ $key }}">Edit</button>
 			{{ end }}
+			<button type="submit" name="graphOutput" value="{{ $value.Name }}">Set Output</button>
+			<button type="submit" name="deleteOp" value="{{ $key }}">-</button>
 			</div>
-		{{ end }}
-		<div>
-			<button name="newOp" type="submit">+</button>
+			<table>
+				<tr><td>Operator</td><td> {{ $value.Operator }} </td></tr>
+				<tr><td>Function</td><td> {{ $value.Function }} </td></tr>
+				<tr><td>InputFrom</td><td> {{ $value.InputFrom }} </td></tr>
+				<tr><td>ExecuteOnFailOf</td><td> {{ $value.ExecuteOnFailOf }}</td></tr>
+				{{ range $argName, $argVal := $value.Arguments }}
+				<tr><td>{{ $argName }}</td><td> {{ $argVal }} </td></tr>
+				{{ end }}
+			</table>
 		</div>
+		{{ end }}
+		<div style="float: left;"><button name="newOp" type="submit" value="{{ len .GraphDesc.Operations }}">+</button></div>
 	</div>
+	{{ if not (eq .Error "") }}
+	<div style="clear:both; color: red;border: 1px solid red;">{{ .Error }}</div>
+	{{ end }}
 	<hr style="clear:both"></hr>
+	{{ $op := (index .GraphDesc.Operations $.Numop) }}
 	<p>
-		<label for="numop">Number of operation:</label>
-		<input type="number" id="numop" name="numop" min="0" max="50" value="{{ .Numop }}" />
-		<button name="goop">GO</button>
+		<label ><h4>Name (values starting with # will be ignored):</h4>
+		<input type="text" name="opName" value="{{ $op.Name }}" onChange="this.form.submit()" />
+		</label>
 	</p>
 	<p>
-		Mod:
+		<h4>Operator:</h4>
 		{{ range $key, $value := .OpSuggestions }}
-		{{ if $value}}
-		<button name="op" value="{{ $key }}" disabled="true">{{ $key }}</button>
-		{{ else}}
-		<button name="op" value="{{ $key }}">{{ $key }}</button>
-		{{ end }}
+		<button name="op" value="{{ $key }}" {{ if $value}} disabled="true" {{ end }} >{{ $key }}</button>
 		{{ end }}
 	</p>
 	<p>
-		Function:
+		<h4>Function:</h4>
 		{{ range $key, $value := .FnSuggestions }}
-		{{ if $value}}
-		<button name="fn" value="{{ $key }}" disabled="true">{{ $key }}</button>
-		{{ else}}
-		<button name="fn" value="{{ $key }}">{{ $key }}</button>
+		<button name="fn" value="{{ $key }}" {{ if $value}} disabled="true" {{ end }}>{{ $key }}</button>
 		{{ end }}
-		{{ end }}
+		<input type="text" name="fn" value="{{ $op.Function }}" onChange="this.form.submit()" />
 	</p>
 
 	<p>
-		Arguments:
-		{{ range $arg, $argmap := .ArgSuggestions }}
-		<p>
-			{{ $arg }}
-			{{ range $key, $value := $argmap }}
-			<button name="arg.{{ $arg }}" value="{{ $value }}">{{ $key }}</button>
+		<h4>Arguments:</h4>
+		{{ range $argName, $argVal := $op.Arguments }}
+		<p>{{ $argName }}:
+			{{ range $argopt, $argmap := $.ArgSuggestions }}
+				{{if eq $argopt $argName}}
+					{{ range $argShowValue, $argRealValue := $argmap }}<button name="arg.{{ $argName }}" value="{{ $argRealValue }}">{{ $argShowValue }}</button>{{ end }}
+				{{ end }}
 			{{ end }}
-			<button name="arg.{{ $arg }}" value="">_empty_</button>
+			<input type="text" name="arg.{{ $argName }}" value="{{ $argVal }}"  onChange="this.form.submit()" />
+			<button name="delArg" value="{{ $argName }}">-</button>
 		</p>
 		{{ end }}
+		New Argument:
+		 {{ range $argName, $argSelected := $.ArgSuggestions }}
+		 <button type="submit" name="newArg" value="{{ $argName }}">{{ $argName }}</button>
+		 {{ end }}
+		<input type="text" name="newArg" />
+		<button type="submit">+</button>
 	</p>
 
 	<p>
-		InputFrom:
+		<h4>InputFrom:</h4>
 		{{ range $key, $value := .InputFromSuggestions }}
-		{{ if $value}}
-		<button name="inputFrom" value="{{ $key }}" disabled="true">{{ $key }}</button>
-		{{ else}}
-		<button name="inputFrom" value="{{ $key }}">{{ $key }}</button>
+		<button name="inputFrom" value="{{ $value }}">{{ $value }}</button>
 		{{ end }}
-		{{ end }}
+		<button name="inputFrom" value="">_empty_</button>
 	</p>
 	<p>
-		ExecuteOnFailOf:
-		{{ range $key, $value := .InputFromSuggestions }}
-		{{ if $value}}
-		<button name="executeOnFailOf" value="{{ $key }}" disabled="true">{{ $key }}</button>
-		{{ else}}
-		<button name="executeOnFailOf" value="{{ $key }}">{{ $key }}</button>
+		<h4>ExecuteOnFailOf:</h4>
+		{{ range $index, $value := .InputFromSuggestions }}
+		<button name="executeOnFailOf" value="{{ $value }}">{{ $value }}</button>
 		{{ end }}
-		{{ end }}
+		<button name="executeOnFailOf" value="">_empty_</button>
 	</p>
 	<p>
 		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
