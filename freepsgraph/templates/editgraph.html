@@ -9,15 +9,20 @@
 		   <div style="height: 50px; margin: auto"> <b>{{ $value.Name }}</b>
 			{{ if not (eq $key $.Numop) }}
 			<button type="submit" name="numop" value="{{ $key }}">Edit</button>
+			{{ else }}
+			<a href="#ModifyOp">Edit below</a>
 			{{ end }}
 			<button type="submit" name="graphOutput" value="{{ $value.Name }}">Set Output</button>
 			<button type="submit" name="deleteOp" value="{{ $key }}">-</button>
 			</div>
 			<table>
-				<tr><td>Operator</td><td> {{ $value.Operator }} </td></tr>
-				<tr><td>Function</td><td> {{ $value.Function }} </td></tr>
+				<tr><td>Operator / Function</td><td> {{ $value.Operator }} / {{ $value.Function }}</td></tr>
+				{{ if not (eq $value.InputFrom "") }}
 				<tr><td>InputFrom</td><td> {{ $value.InputFrom }} </td></tr>
+				{{ end }}
+				{{ if not (eq $value.ExecuteOnFailOf "") }}
 				<tr><td>ExecuteOnFailOf</td><td> {{ $value.ExecuteOnFailOf }}</td></tr>
+				{{ end }}
 				{{ range $argName, $argVal := $value.Arguments }}
 				<tr><td>{{ $argName }}</td><td> {{ $argVal }} </td></tr>
 				{{ end }}
@@ -32,7 +37,7 @@
 	<hr style="clear:both"></hr>
 	{{ $op := (index .GraphDesc.Operations $.Numop) }}
 	<p>
-		<label ><h4>Name (values starting with # will be ignored):</h4>
+		<label><h4 id="ModifyOp">Name (values starting with # will be ignored):</h4>
 		<input type="text" name="opName" value="{{ $op.Name }}" onChange="this.form.submit()" />
 		</label>
 	</p>
