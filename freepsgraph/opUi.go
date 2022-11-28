@@ -30,13 +30,14 @@ type TemplateData struct {
 	OpSuggestions        map[string]bool
 	FnSuggestions        map[string]bool
 	ArgSuggestions       map[string]map[string]string
-	InputFromSuggestions map[string]bool
+	InputFromSuggestions []string
 	GraphName            string
 	GraphDesc            *GraphDesc
 	GraphJSON            string
 	Output               string
 	Numop                int
 	Quicklink            string
+	Error                string
 }
 
 type ShowGraphsData struct {
@@ -169,46 +170,80 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 	return MakeByteOutput(b)
 }
 
-func (o *OpUI) buildPartialGraph(formInput map[string]string) (*GraphDesc, int) {
+func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
+	standardOP := []GraphOperationDesc{{Operator: "eval", Function: "echo", Arguments: map[string]string{}}}
+
 	gd := &GraphDesc{}
 	v, ok := formInput["GraphJSON"]
 	if ok {
 		json.Unmarshal([]byte(v), gd)
 	}
-	opNum, _ := formInput["numop"]
+	opNum, _ := formInput["selectednumop"]
 	targetNum, _ := strconv.Atoi(opNum)
 	if targetNum < 0 {
 		targetNum = 0
 	}
 	if gd.Operations == nil || len(gd.Operations) == 0 {
-		gd.Operations = make([]GraphOperationDesc, targetNum+1)
+		gd.Operations = standardOP[:]
 	}
-	for len(gd.Operations) <= targetNum {
-		gd.Operations = append(gd.Operations, GraphOperationDesc{Operator: "echo", Function: "hello", Arguments: map[string]string{}})
+	if len(gd.Operations) <= targetNum {
+		gd.Operations = append(gd.Operations, standardOP...)
 	}
 	gopd := &gd.Operations[targetNum]
+	if gopd.Arguments == nil {
+		gopd.Arguments = make(map[string]string)
+	}
 	for k, v := range formInput {
 		if len(k) > 4 && k[0:4] == "arg." {
-			if gopd.Arguments == nil {
-				gopd.Arguments = make(map[string]string)
-			}
 			gopd.Arguments[k[4:]] = v
-		}
-		if k == "op" {
+		} else if k == "newArg" && v != "" {
+			gopd.Arguments[v] = ""
+		} else if k == "delArg" {
+			delete(gopd.Arguments, v)
+		} else if k == "op" {
 			gopd.Operator = v
-		}
-		if k == "fn" {
+		} else if k == "fn" {
 			gopd.Function = v
-		}
-		if k == "inputFrom" {
+		} else if k == "inputFrom" {
 			gopd.InputFrom = v
-		}
-		if k == "executeOnFailOf" {
+		} else if k == "executeOnFailOf" {
 			gopd.ExecuteOnFailOf = v
+		} else if k == "opName" && len(v) > 0 && v[0:1] != "#" {
+			gopd.Name = v
+		} else if k == "graphOutput" {
+			gd.OutputFrom = v
 		}
 	}
 
-	return gd, targetNum
+	/* modify operation list: adding and deleting */
+
+	if newOp, ok := formInput["newOp"]; ok {
+		newNum, err := strconv.Atoi(newOp)
+		if err == nil && newNum <= len(gd.Operations) && newNum >= 0 {
+			if newNum == 0 {
+				gd.Operations = append(standardOP, gd.Operations...)
+			} else if newNum == len(gd.Operations) {
+				gd.Operations = append(gd.Operations, standardOP...)
+			} else {
+				gd.Operations = append(gd.Operations[:newNum+1], gd.Operations[newNum:]...)
+				gd.Operations[newNum] = standardOP[0]
+			}
+		}
+	}
+	if delOp, ok := formInput["deleteOp"]; ok {
+		delNum, err := strconv.Atoi(delOp)
+		if err == nil && delNum < len(gd.Operations) && delNum >= 0 {
+			if delNum == len(gd.Operations)-1 {
+				gd.Operations = gd.Operations[:delNum]
+			} else if delNum == 0 {
+				gd.Operations = gd.Operations[1:]
+			} else {
+				gd.Operations = append(gd.Operations[:delNum], gd.Operations[delNum+1:]...)
+			}
+		}
+	}
+
+	return gd
 }
 
 func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -216,7 +251,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 	var exists bool
 	targetNum := 0
 
-	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: map[string]bool{}, GraphName: vars["graph"]}
+	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: []string{}, GraphName: vars["graph"]}
 
 	if input.IsEmpty() {
 		gd, exists = o.ge.GetGraphDesc(td.GraphName)
@@ -227,7 +262,15 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 			return MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
-		gd, targetNum = o.buildPartialGraph(formInput)
+		gd = o.buildPartialGraph(formInput)
+		opNum, ok := formInput["numop"]
+		if !ok {
+			opNum, _ = formInput["selectednumop"]
+		}
+		targetNum, _ = strconv.Atoi(opNum)
+		if targetNum < 0 {
+			targetNum = 0
+		}
 
 		if _, ok := formInput["SaveGraph"]; ok {
 			td.GraphName = formInput["GraphName"]
@@ -260,10 +303,11 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 	}
 
 	// try to parse the GraphDesc and use normalized version for GraphDesc if available
-	g, _ := NewGraph("temp", gd, o.ge)
+	g, err := NewGraph("temp", gd, o.ge)
 	if g != nil {
 		td.GraphDesc = g.desc
 	} else {
+		td.Error = err.Error()
 		td.GraphDesc = gd
 	}
 
@@ -286,13 +330,16 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 		}
 	}
 
-	td.InputFromSuggestions[ROOT_SYMBOL] = (ROOT_SYMBOL == gopd.InputFrom)
+	td.InputFromSuggestions = []string{ROOT_SYMBOL}
 	for i, op := range gd.Operations {
+		if i >= td.Numop {
+			continue
+		}
 		name := op.Name
 		if name == "" {
 			name = fmt.Sprintf("#%d", i)
 		}
-		td.InputFromSuggestions[name] = (name == gopd.InputFrom)
+		td.InputFromSuggestions = append(td.InputFromSuggestions, name)
 	}
 	td.Quicklink = gopd.ToQuicklink()
 	return o.createTemplate(`editgraph.html`, td, logger)
