@@ -29,7 +29,7 @@
 			</table>
 		</div>
 		{{ end }}
-		<div style="float: left;"><button name="newOp" type="submit" value="{{ len .GraphDesc.Operations }}">+</button></div>
+		<div style="float: left;"><button name="newOp" type="submit" value="{{ len .GraphDesc.Operations }}">+</button><button name="graphOutput" value="">Output all</button></div>
 	</div>
 	{{ if not (eq .Error "") }}
 	<div style="clear:both; color: red;border: 1px solid red;">{{ .Error }}</div>

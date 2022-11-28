@@ -196,27 +196,22 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 	for k, v := range formInput {
 		if len(k) > 4 && k[0:4] == "arg." {
 			gopd.Arguments[k[4:]] = v
-		}
-		if k == "newArg" && v != "" {
+		} else if k == "newArg" && v != "" {
 			gopd.Arguments[v] = ""
-		}
-		if k == "delArg" {
+		} else if k == "delArg" {
 			delete(gopd.Arguments, v)
-		}
-		if k == "op" {
+		} else if k == "op" {
 			gopd.Operator = v
-		}
-		if k == "fn" {
+		} else if k == "fn" {
 			gopd.Function = v
-		}
-		if k == "inputFrom" {
+		} else if k == "inputFrom" {
 			gopd.InputFrom = v
-		}
-		if k == "executeOnFailOf" {
+		} else if k == "executeOnFailOf" {
 			gopd.ExecuteOnFailOf = v
-		}
-		if k == "opName" && len(v) > 0 && v[0:1] != "#" {
+		} else if k == "opName" && len(v) > 0 && v[0:1] != "#" {
 			gopd.Name = v
+		} else if k == "graphOutput" {
+			gd.OutputFrom = v
 		}
 	}
 
