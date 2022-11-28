@@ -50,23 +50,42 @@ func (o *OpTime) sunrise(vars map[string]string) (*SunriseOutput, error) {
 	return &s, nil
 }
 
+func (o *OpTime) sunriseFunctions(function string, vars map[string]string) *OperatorIO {
+	res, err := o.sunrise(vars)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+	switch function {
+	case "isDay":
+		if res.Phase != "day" {
+			return MakeOutputError(http.StatusExpectationFailed, "It's dark!")
+		}
+	case "isNight":
+		if res.Phase != "night" {
+			return MakeOutputError(http.StatusExpectationFailed, "It's day!")
+		}
+	}
+
+	return MakeObjectOutput(*res)
+}
+
 func (o *OpTime) Execute(function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	switch function {
 	case "sunrise":
-		res, err := o.sunrise(vars)
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
-		}
-		return MakeObjectOutput(*res)
+		fallthrough
+	case "isDay":
+		fallthrough
+	case "isNight":
+		return o.sunriseFunctions(function, vars)
 	case "now":
-		return MakePlainOutput(time.Now().GoString())
+		return MakePlainOutput("%v", time.Now())
 	default:
 		return MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 }
 
 func (o *OpTime) GetFunctions() []string {
-	return []string{"sunrise", "now"}
+	return []string{"sunrise", "isDay", "isNight", "now"}
 }
 
 func (o *OpTime) GetPossibleArgs(fn string) []string {
