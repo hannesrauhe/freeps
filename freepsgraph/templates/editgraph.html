@@ -12,7 +12,7 @@
 			{{ else }}
 			<a href="#ModifyOp">Edit below</a>
 			{{ end }}
-			<button type="submit" name="graphOutput" value="{{ $value.Name }}">Set Output</button>
+			<button type="submit" name="graphOutput" value="{{ $value.Name }}" {{ if (eq $value.Name $.GraphDesc.OutputFrom) }} disabled="true" {{ end }}>Set Output</button>
 			<button type="submit" name="deleteOp" value="{{ $key }}">-</button>
 			</div>
 			<table>
