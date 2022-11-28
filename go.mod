@@ -9,6 +9,7 @@ require (
 	github.com/hannesrauhe/freepslib v1.0.2
 	github.com/influxdata/influxdb-client-go/v2 v2.12.0
 	github.com/jeremywohl/flatten v1.0.1
+	github.com/keep94/sunrise v1.0.1
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/sirupsen/logrus v1.9.0
 	gotest.tools/v3 v3.4.0
@@ -16,7 +17,7 @@ require (
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/deepmap/oapi-codegen v1.12.2 // indirect
+	github.com/deepmap/oapi-codegen v1.12.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
