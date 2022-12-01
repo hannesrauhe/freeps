@@ -52,7 +52,10 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 		}
 		return MakeObjectOutput(gi)
 	case "getGraphInfoByTag":
-		tags := strings.Split(args["tags"], ",")
+		tags := []string{}
+		if _, ok := args["tags"]; ok {
+			tags = strings.Split(args["tags"], ",")
+		}
 		if args["tag"] != "" {
 			tags = append(tags, args["tag"])
 		}
