@@ -266,3 +266,23 @@ func (gop *GraphOperationDesc) ToQuicklink() string {
 	}
 	return s.String()
 }
+
+// HasTags return true if the GraphDesc contains all given tags
+func (gd *GraphDesc) HasTags(expectedTags []string) bool {
+	if expectedTags == nil && len(expectedTags) == 0 {
+		return true
+	}
+
+	for _, exexpectedTag := range expectedTags {
+		found := false
+		for _, tag := range gd.Tags {
+			if tag == exexpectedTag {
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}

@@ -5,16 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 )
 
+// GraphInfo holds the GraphDesc and some runtime info about the graph execution
+type GraphInfo struct {
+	Desc              GraphDesc
+	LastExecutionTime time.Time
+	ExecutionCounter  int64
+}
+
 // GraphEngine holds all available graphs and operators
 type GraphEngine struct {
 	cr              *utils.ConfigReader
-	externalGraphs  map[string]GraphDesc
-	temporaryGraphs map[string]GraphDesc
+	externalGraphs  map[string]*GraphInfo
+	temporaryGraphs map[string]*GraphInfo
 	operators       map[string]FreepsOperator
 	executionErrors *CollectedErrors
 	reloadRequested bool
@@ -23,7 +31,7 @@ type GraphEngine struct {
 
 // NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
-	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]GraphDesc), temporaryGraphs: make(map[string]GraphDesc), executionErrors: NewCollectedErrors(100), reloadRequested: false}
+	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]*GraphInfo), temporaryGraphs: make(map[string]*GraphInfo), executionErrors: NewCollectedErrors(100), reloadRequested: false}
 
 	ge.operators = make(map[string]FreepsOperator)
 	ge.operators["graph"] = &OpGraph{ge: ge}
@@ -74,7 +82,7 @@ func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, src
 			v.Tags = []string{}
 		}
 		v.Source = srcName
-		ge.externalGraphs[k] = v
+		ge.externalGraphs[k] = &GraphInfo{Desc: v}
 	}
 }
 
@@ -113,43 +121,83 @@ func (ge *GraphEngine) ExecuteOperatorByName(logger log.FieldLogger, opName stri
 // ExecuteGraph executes a graph stored in the engine
 func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	logger := log.WithFields(log.Fields{"graph": graphName})
-	gd, exists := ge.GetGraphDesc(graphName)
-	if exists {
-		g, err := NewGraph(graphName, gd, ge)
-		if err != nil {
-			return MakeOutputError(500, "Graph preparation failed: "+err.Error())
-		}
-		return g.execute(logger, mainArgs, mainInput)
+	g, o := ge.prepareGraphExecution(graphName, true)
+	if g == nil {
+		return o
 	}
-	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
+	return g.execute(logger, mainArgs, mainInput)
+}
+
+func (ge *GraphEngine) getGraphInfoUnlocked(graphName string) (*GraphInfo, bool) {
+	gi, exists := ge.externalGraphs[graphName]
+	if exists {
+		return gi, exists
+	}
+	gi, exists = ge.temporaryGraphs[graphName]
+	if exists {
+		return gi, exists
+	}
+	return nil, false
+}
+
+func (ge *GraphEngine) prepareGraphExecution(graphName string, countExecution bool) (*Graph, *OperatorIO) {
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+	gi, exists := ge.getGraphInfoUnlocked(graphName)
+	if !exists {
+		return nil, MakeOutputError(404, "No graph with name \"%s\" found", graphName)
+	}
+	g, err := NewGraph(graphName, &gi.Desc, ge)
+	if err != nil {
+		return nil, MakeOutputError(500, "Graph preparation failed: "+err.Error())
+	}
+	if countExecution {
+		gi.LastExecutionTime = time.Now()
+		gi.ExecutionCounter++
+	}
+	return g, MakeEmptyOutput()
 }
 
 // CheckGraph checks if the graph is valid
 func (ge *GraphEngine) CheckGraph(graphName string) *OperatorIO {
-	gd, exists := ge.GetGraphDesc(graphName)
-	if exists {
-		_, err := NewGraph(graphName, gd, ge)
-		if err != nil {
-			return MakeOutputError(500, "Graph preparation failed: "+err.Error())
-		}
-		return MakeEmptyOutput()
-	}
-	return MakeOutputError(404, "No graph with name \"%s\" found", graphName)
+	_, o := ge.prepareGraphExecution(graphName, false)
+	return o
 }
 
 // GetGraphDesc returns the graph description stored under graphName
 func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	gd, exists := ge.externalGraphs[graphName]
+	gi, exists := ge.getGraphInfoUnlocked(graphName)
 	if exists {
-		return &gd, exists
+		return &gi.Desc, exists
 	}
-	gd, exists = ge.temporaryGraphs[graphName]
+	return nil, exists
+}
+
+// GetTags returns a map of all used tags
+func (ge *GraphEngine) GetTags() map[string]string {
+	r := map[string]string{}
+	for _, d := range ge.GetAllGraphDesc() {
+		if d.Tags == nil {
+			continue
+		}
+		for _, t := range d.Tags {
+			r[t] = t
+		}
+	}
+	return r
+}
+
+// GetGraphInfo returns the runtime information for the graph with the given Name
+func (ge *GraphEngine) GetGraphInfo(graphName string) (GraphInfo, bool) {
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+	gi, exists := ge.getGraphInfoUnlocked(graphName)
 	if exists {
-		return &gd, exists
+		return *gi, exists
 	}
-	return nil, false
+	return GraphInfo{}, exists
 }
 
 // GetAllGraphDesc returns all graphs by name
@@ -159,10 +207,29 @@ func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 	defer ge.graphLock.Unlock()
 
 	for n, g := range ge.externalGraphs {
-		r[n] = &g
+		r[n] = &g.Desc
 	}
 	for n, g := range ge.temporaryGraphs {
-		r[n] = &g
+		r[n] = &g.Desc
+	}
+	return r
+}
+
+// GetGraphInfoByTag returns the GraphInfo for all Graphs with the given tags (logical AND)
+func (ge *GraphEngine) GetGraphInfoByTag(tags []string) map[string]GraphInfo {
+	r := make(map[string]GraphInfo)
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+
+	for n, g := range ge.externalGraphs {
+		if g.Desc.HasTags(tags) {
+			r[n] = *g
+		}
+	}
+	for n, g := range ge.temporaryGraphs {
+		if g.Desc.HasTags(tags) {
+			r[n] = *g
+		}
 	}
 	return r
 }
@@ -201,7 +268,7 @@ func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) error 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	gd.Source = "temporary"
-	ge.temporaryGraphs[graphName] = *gd
+	ge.temporaryGraphs[graphName] = &GraphInfo{Desc: *gd}
 	return nil
 }
 
