@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mackerelio/go-osstat/cpu"
@@ -41,9 +42,28 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 	case "getGraphDesc":
 		gd, ok := o.ge.GetGraphDesc(args["name"])
 		if !ok {
-			return MakeOutputError(http.StatusBadRequest, "Unknown graph %v", args["name"])
+			return MakeOutputError(http.StatusNotFound, "Unknown graph %v", args["name"])
 		}
 		return MakeObjectOutput(gd)
+	case "getGraphInfo":
+		gi, ok := o.ge.GetGraphInfo(args["name"])
+		if !ok {
+			return MakeOutputError(http.StatusNotFound, "Unknown graph %v", args["name"])
+		}
+		return MakeObjectOutput(gi)
+	case "getGraphInfoByTag":
+		tags := []string{}
+		if _, ok := args["tags"]; ok {
+			tags = strings.Split(args["tags"], ",")
+		}
+		if args["tag"] != "" {
+			tags = append(tags, args["tag"])
+		}
+		gim := o.ge.GetGraphInfoByTag(tags)
+		if gim == nil || len(gim) == 0 {
+			return MakeOutputError(http.StatusNotFound, "No graphs with tags %v", strings.Join(tags, ","))
+		}
+		return MakeObjectOutput(gim)
 	case "getCollectedErrors":
 		var err error
 		duration := time.Hour
@@ -84,7 +104,7 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getCollectedErrors"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
@@ -93,6 +113,10 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 		return []string{"statType"}
 	case "getGraphDesc":
 		return []string{"name"}
+	case "getGraphInfo":
+		return []string{"name"}
+	case "getGraphInfoByTag":
+		return []string{"tags", "tag"}
 	case "getCollectedErrors":
 		return []string{"duration"}
 	}
@@ -114,6 +138,8 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 			}
 		}
 	case "getGraphDesc":
+		fallthrough
+	case "getGraphInfo":
 		switch arg {
 		case "name":
 			agd := o.ge.GetAllGraphDesc()
@@ -122,6 +148,12 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 				graphs[n] = n
 			}
 			return graphs
+		}
+	case "getGraphInfoByTag":
+		switch arg {
+		case "tag":
+			tags := o.ge.GetTags()
+			return tags
 		}
 	case "getCollectedErrors":
 		switch arg {
