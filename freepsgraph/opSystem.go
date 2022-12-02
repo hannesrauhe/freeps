@@ -73,8 +73,8 @@ func (o *OpSystem) Execute(fn string, args map[string]string, input *OperatorIO)
 				return MakeOutputError(http.StatusBadRequest, "Invalid duration %v", d)
 			}
 		}
-
-		return MakeObjectOutput(o.ge.executionErrors.GetErrorsSince(duration))
+		r := map[string]interface{}{"errors": o.ge.executionErrors.GetErrorsSince(duration)}
+		return MakeObjectOutput(r)
 
 	case "stats":
 		var s interface{}
