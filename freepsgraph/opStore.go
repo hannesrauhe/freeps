@@ -52,6 +52,9 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	case "get":
 		{
 			io := nsStore.GetValue(key)
+			if io.IsError() {
+				return io
+			}
 			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "set":
@@ -76,6 +79,9 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 				val = input.GetString()
 			}
 			io := nsStore.GetValue(key)
+			if io.IsError() {
+				return io
+			}
 			if io.GetString() != val {
 				return MakeOutputError(http.StatusExpectationFailed, "Values do not match")				
 			}
