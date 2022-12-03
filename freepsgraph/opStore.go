@@ -100,8 +100,10 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	case "arguments":
 		{
 			flatresult := map[string]string{}
-			for k,v := range result[key] {
-				flatresult[k] = v.GetString()
+			for k,v := range result[ns] {
+				if key=="" || key==k {
+					flatresult[k] = v.GetString()
+				}
 			}
 			return MakeObjectOutput(flatresult)
 		}
