@@ -99,6 +99,10 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 			}
 			return MakeObjectOutput(flatresult)
 		}
+	case "direct":
+		{
+			return result[ns][key]
+		}
 	case "bool":
 		{
 			return MakePlainOutput("true")
