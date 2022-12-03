@@ -26,7 +26,7 @@ type OperatorIO struct {
 	OutputType  OutputT
 	HTTPCode    uint32
 	Output      interface{}
-	ContentType string
+	ContentType string `json:",omitempty"`
 }
 
 func MakeOutputError(code uint32, msg string, a ...interface{}) *OperatorIO {
