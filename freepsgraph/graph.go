@@ -136,7 +136,7 @@ func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput
 	return g.opOutputs[g.desc.OutputFrom]
 }
 
-func (g *Graph) collectAndReturnOperationError(input *OperatorIO, opDesc *GraphOperationDesc, code uint32, msg string, a ...interface{}) *OperatorIO {
+func (g *Graph) collectAndReturnOperationError(input *OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *OperatorIO {
 	error := MakeOutputError(code, msg, a...)
 	g.engine.executionErrors.AddError(input, error, g.name, opDesc)
 	return error

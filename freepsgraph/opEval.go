@@ -84,6 +84,9 @@ func (m *OpEval) GetFunctions() []string {
 }
 
 func (m *OpEval) GetPossibleArgs(fn string) []string {
+	if fn == "echo" {
+		return []string{"output"}
+	}
 	if fn == "dedup" {
 		return []string{"retention"}
 	}

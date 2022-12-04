@@ -3,11 +3,13 @@ package freepsgraph
 import (
 	"net/http"
 	"sync"
+	"time"
 )
 
 type StoreNamespace struct {
-	data   map[string]*OperatorIO
-	nsLock sync.Mutex
+	data       map[string]*OperatorIO
+	timestamps map[string]time.Time
+	nsLock     sync.Mutex
 }
 
 type InMemoryStore struct {
@@ -38,6 +40,15 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	if fn != "getAll" && !ok {
 		return MakeOutputError(http.StatusBadRequest, "No key given")
 	}
+	// overwrite input and function to treat setSimpleValue like set
+	if fn == "setSimpleValue" {
+		val, ok := args["value"]
+		if !ok {
+			return MakeOutputError(http.StatusBadRequest, "No value given")
+		}
+		fn = "set"
+		input = MakePlainOutput(val)
+	}
 	output, ok := args["output"]
 	if !ok {
 		// default is the complete tree
@@ -51,7 +62,17 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 		}
 	case "get":
 		{
-			io := nsStore.GetValue(key)
+			var io *OperatorIO
+			maxAgeStr, maxAgeRequest := args["maxAge"]
+			if maxAgeRequest {
+				maxAge, err := time.ParseDuration(maxAgeStr)
+				if err != nil {
+					return MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
+				}
+				io = nsStore.GetValueBeforeExpiration(key, maxAge)
+			} else {
+				io = nsStore.GetValue(key)
+			}
 			if io.IsError() {
 				return io
 			}
@@ -59,18 +80,31 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 		}
 	case "set":
 		{
+			maxAgeStr, maxAgeRequest := args["maxAge"]
+			if maxAgeRequest {
+				maxAge, err := time.ParseDuration(maxAgeStr)
+				if err != nil {
+					return MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
+				}
+				io := nsStore.OverwriteValueIfOlder(key, input, maxAge)
+				if io.IsError() {
+					return io
+				}
+			}
 			nsStore.SetValue(key, input)
 			result[ns] = map[string]*OperatorIO{key: input}
 		}
-	case "setSimpleValue":
+	case "compareAndSwap":
 		{
 			val, ok := args["value"]
 			if !ok {
-				return MakeOutputError(http.StatusBadRequest, "No value given")
+				return MakeOutputError(http.StatusBadRequest, "No expected value given")
 			}
-			io := MakePlainOutput(val)
-			nsStore.SetValue(key, io)
-			result[ns] = map[string]*OperatorIO{key: io}
+			io := nsStore.CompareAndSwap(key, val, input)
+			if io.IsError() {
+				return io
+			}
+			result[ns] = map[string]*OperatorIO{key: input}
 		}
 	case "equals":
 		{
@@ -136,15 +170,15 @@ func (o *OpStore) GetFunctions() []string {
 func (o *OpStore) GetPossibleArgs(fn string) []string {
 	switch fn {
 	case "get":
-		return []string{"namespace", "key", "output"}
+		return []string{"namespace", "key", "output", "maxAge"}
 	case "getAll":
 		return []string{"namespace"}
 	case "set":
-		return []string{"namespace", "key", "output"}
+		return []string{"namespace", "key", "output", "maxAge"}
 	case "del":
 		return []string{"namespace", "key"}
 	case "setSimpleValue":
-		return []string{"namespace", "key", "value", "output"}
+		return []string{"namespace", "key", "value", "output", "maxAge"}
 	case "equals":
 		return []string{"namespace", "key", "value", "output"}
 	}
@@ -192,6 +226,10 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		{
 			return map[string]string{"direct": "direct", "arguments/simple dict": "arguments", "hierarchy/complete tree": "hierarchy", "empty": "empty", "boolean value": "bool"}
 		}
+	case "maxAge":
+		{
+			return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+		}
 	}
 	return map[string]string{}
 }
@@ -202,7 +240,7 @@ func (s *InMemoryStore) GetNamespace(ns string) *StoreNamespace {
 	defer s.globalLock.Unlock()
 	nsStore, ok := s.namespaces[ns]
 	if !ok {
-		nsStore = &StoreNamespace{data: map[string]*OperatorIO{}, nsLock: sync.Mutex{}}
+		nsStore = &StoreNamespace{data: map[string]*OperatorIO{}, timestamps: map[string]time.Time{}, nsLock: sync.Mutex{}}
 		s.namespaces[ns] = nsStore
 	}
 	return nsStore
@@ -230,11 +268,61 @@ func (s *StoreNamespace) GetValue(key string) *OperatorIO {
 	return io
 }
 
+// GetValueBeforeExpiration gets the value from the StoreNamespace, but returns error if older than maxAge
+func (s *StoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *OperatorIO {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	io, ok := s.data[key]
+	if !ok {
+		return MakeOutputError(http.StatusNotFound, "Key not found")
+	}
+	ts, ok := s.timestamps[key]
+	if !ok {
+		return MakeOutputError(http.StatusInternalServerError, "no timestamp for key")
+	}
+	if ts.Add(maxAge).Before(time.Now()) {
+		return MakeOutputError(http.StatusGone, "key is older than %v", maxAge)
+	}
+	return io
+}
+
+func (s *StoreNamespace) setValueUnlocked(key string, newValue *OperatorIO) *OperatorIO {
+	s.data[key] = newValue
+	s.timestamps[key] = time.Now()
+	return MakeEmptyOutput()
+}
+
 // SetValue in the StoreNamespace
 func (s *StoreNamespace) SetValue(key string, io *OperatorIO) {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
-	s.data[key] = io
+	s.setValueUnlocked(key, io)
+}
+
+// CompareAndSwap sets the value if the string representation of the already stored value is as expected
+func (s *StoreNamespace) CompareAndSwap(key string, expected string, newValue *OperatorIO) *OperatorIO {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	oldV, exists := s.data[key]
+	if !exists {
+		return MakeOutputError(http.StatusNotFound, "key does not exist yet")
+	}
+	if oldV == nil || oldV.GetString() != expected {
+		return MakeOutputError(http.StatusConflict, "old value is different from expectation")
+	}
+	return s.setValueUnlocked(key, newValue)
+}
+
+// OverwriteValueIfOlder sets the value only if the key does not exist or has been written before maxAge
+func (s *StoreNamespace) OverwriteValueIfOlder(key string, io *OperatorIO, maxAge time.Duration) *OperatorIO {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	n := time.Now()
+	ts, keyExists := s.timestamps[key]
+	if keyExists && ts.Add(maxAge).After(n) {
+		return MakeOutputError(http.StatusConflict, "%v already exists and is only %v old", key, n.Sub(ts))
+	}
+	return s.setValueUnlocked(key, io)
 }
 
 // DeleteValue from the StoreNamespace
@@ -242,6 +330,7 @@ func (s *StoreNamespace) DeleteValue(key string) {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	delete(s.data, key)
+	delete(s.timestamps, key)
 }
 
 // GetKeys returns all keys in the StoreNamespace
