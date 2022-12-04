@@ -83,25 +83,25 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 				return io
 			}
 			if io.GetString() != val {
-				return MakeOutputError(http.StatusExpectationFailed, "Values do not match")				
+				return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
 			}
 			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "del":
 		{
 			nsStore.DeleteValue(key)
+			return MakeEmptyOutput()
 		}
 	default:
 		return MakeOutputError(http.StatusBadRequest, "Unknown function")
 	}
 
-
-	switch(output) {
+	switch output {
 	case "arguments":
 		{
 			flatresult := map[string]string{}
-			for k,v := range result[ns] {
-				if key=="" || key==k {
+			for k, v := range result[ns] {
+				if key == "" || key == k {
 					flatresult[k] = v.GetString()
 				}
 			}
@@ -190,7 +190,7 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	case "output":
 		{
-			return map[string]string{"direct": "direct", "arguments/simple dict": "arguments", "hierarchy/complete tree": "hierarchy", "empty":"empty", "boolean value": "bool"}
+			return map[string]string{"direct": "direct", "arguments/simple dict": "arguments", "hierarchy/complete tree": "hierarchy", "empty": "empty", "boolean value": "bool"}
 		}
 	}
 	return map[string]string{}
