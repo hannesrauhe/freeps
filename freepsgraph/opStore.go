@@ -28,33 +28,39 @@ func NewOpStore() *OpStore {
 
 // Execute gets, sets or deletes a value from the store
 func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+	result := map[string]map[string]*OperatorIO{}
 	ns, ok := args["namespace"]
 	if !ok {
 		return MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
 	nsStore := o.store.GetNamespace(ns)
-	if fn == "getAll" {
-		return MakeObjectOutput(nsStore.GetAllValues())
-	}
 	key, ok := args["key"]
-	if !ok {
+	if fn != "getAll" && !ok {
 		return MakeOutputError(http.StatusBadRequest, "No key given")
+	}
+	output, ok := args["output"]
+	if !ok {
+		// default is the complete tree
+		output = "hierarchy"
 	}
 
 	switch fn {
+	case "getAll":
+		{
+			result[ns] = nsStore.GetAllValues()
+		}
 	case "get":
 		{
 			io := nsStore.GetValue(key)
-			output, ok := args["output"]
-			if !ok || output == "direct" {
+			if io.IsError() {
 				return io
 			}
-			return MakeObjectOutput(map[string]string{key: io.GetString()})
+			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "set":
 		{
 			nsStore.SetValue(key, input)
-			return MakeEmptyOutput()
+			result[ns] = map[string]*OperatorIO{key: input}
 		}
 	case "setSimpleValue":
 		{
@@ -62,30 +68,63 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 			if !ok {
 				return MakeOutputError(http.StatusBadRequest, "No value given")
 			}
-			nsStore.SetValue(key, MakePlainOutput(val))
-			return MakeEmptyOutput()
+			io := MakePlainOutput(val)
+			nsStore.SetValue(key, io)
+			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "equals":
 		{
-			// TODO(HR): compare with input
 			val, ok := args["value"]
 			if !ok {
-				return MakeOutputError(http.StatusBadRequest, "No value given")
+				val = input.GetString()
 			}
 			io := nsStore.GetValue(key)
-			if io.GetString() == val {
-				return MakePlainOutput("true")
+			if io.IsError() {
+				return io
 			}
-			return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
+			if io.GetString() != val {
+				return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
+			}
+			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "del":
 		{
 			nsStore.DeleteValue(key)
 			return MakeEmptyOutput()
 		}
+	default:
+		return MakeOutputError(http.StatusBadRequest, "Unknown function")
 	}
 
-	return MakeOutputError(http.StatusBadRequest, "Unknown function")
+	switch output {
+	case "arguments":
+		{
+			flatresult := map[string]string{}
+			for k, v := range result[ns] {
+				if key == "" || key == k {
+					flatresult[k] = v.GetString()
+				}
+			}
+			return MakeObjectOutput(flatresult)
+		}
+	case "direct":
+		{
+			return result[ns][key]
+		}
+	case "bool":
+		{
+			return MakePlainOutput("true")
+		}
+	case "empty":
+		{
+			return MakeEmptyOutput()
+		}
+	case "hierarchy":
+		{
+			return MakeObjectOutput(result)
+		}
+	}
+	return MakeOutputError(http.StatusBadRequest, "Unknown output type '%v'", output)
 }
 
 // GetFunctions returns the functions of this operator
@@ -101,13 +140,13 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	case "getAll":
 		return []string{"namespace"}
 	case "set":
-		return []string{"namespace", "key"}
+		return []string{"namespace", "key", "output"}
 	case "del":
 		return []string{"namespace", "key"}
 	case "setSimpleValue":
-		return []string{"namespace", "key", "value"}
+		return []string{"namespace", "key", "value", "output"}
 	case "equals":
-		return []string{"namespace", "key", "value"}
+		return []string{"namespace", "key", "value", "output"}
 	}
 	return []string{}
 }
@@ -151,7 +190,7 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	case "output":
 		{
-			return map[string]string{"direct": "direct", "arguments": "arguments"}
+			return map[string]string{"direct": "direct", "arguments/simple dict": "arguments", "hierarchy/complete tree": "hierarchy", "empty": "empty", "boolean value": "bool"}
 		}
 	}
 	return map[string]string{}
