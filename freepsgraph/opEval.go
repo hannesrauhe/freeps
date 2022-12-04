@@ -92,6 +92,9 @@ func (m *OpEval) GetPossibleArgs(fn string) []string {
 }
 
 func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	if fn == "echo" {
+		return map[string]string{"output": "output"}
+	}
 	switch arg {
 	case "valueType":
 		return map[string]string{"int": "int"}
