@@ -24,12 +24,12 @@ const (
 // Note: the Store Operator depends on this struct being immutable
 type OperatorIO struct {
 	OutputType  OutputT
-	HTTPCode    uint32
+	HTTPCode    int
 	Output      interface{}
 	ContentType string `json:",omitempty"`
 }
 
-func MakeOutputError(code uint32, msg string, a ...interface{}) *OperatorIO {
+func MakeOutputError(code int, msg string, a ...interface{}) *OperatorIO {
 	err := fmt.Errorf(msg, a...)
 	return &OperatorIO{OutputType: Error, HTTPCode: code, Output: err}
 }
@@ -139,6 +139,10 @@ func (io *OperatorIO) GetError() error {
 	default:
 		return nil
 	}
+}
+
+func (io *OperatorIO) GetStatusCode() int {
+	return io.HTTPCode
 }
 
 func (io *OperatorIO) IsError() bool {

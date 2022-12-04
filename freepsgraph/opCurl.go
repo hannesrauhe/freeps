@@ -50,7 +50,7 @@ func (o *OpCurl) Execute(function string, vars map[string]string, mainInput *Ope
 	}
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
-	return &OperatorIO{HTTPCode: uint32(resp.StatusCode), Output: b, OutputType: Byte, ContentType: resp.Header.Get("Content-Type")}
+	return &OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: Byte, ContentType: resp.Header.Get("Content-Type")}
 }
 
 func (o *OpCurl) GetFunctions() []string {
