@@ -87,6 +87,7 @@ func main() {
 			http.Shutdown(ctx)
 		}
 		running = ge.ReloadRequested()
+		ge.Shutdown()
 		logger.Printf("Stopping Listeners")
 	}
 }

@@ -24,6 +24,7 @@ type GraphEngine struct {
 	externalGraphs  map[string]*GraphInfo
 	temporaryGraphs map[string]*GraphInfo
 	operators       map[string]FreepsOperator
+	hooks           map[string]FreepsHook
 	executionErrors *CollectedErrors
 	reloadRequested bool
 	graphLock       sync.Mutex
@@ -42,6 +43,9 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["mutt"] = &OpMutt{}
 	ge.operators["store"] = NewOpStore()
 	ge.operators["raspistill"] = &OpRaspistill{}
+	ge.operators["postgres"] = NewPostgresOp()
+
+	ge.hooks = make(map[string]FreepsHook)
 
 	if cr != nil {
 		var err error
@@ -71,6 +75,11 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		ge.operators["telegram"] = NewTelegramBot(cr)
 		ge.operators["ui"] = NewHTMLUI(cr, ge)
 		ge.operators["mqtt"] = NewMQTTOp(cr)
+
+		ge.hooks["postgres"], err = NewPostgressHook(cr)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	return ge
@@ -109,7 +118,7 @@ func (ge *GraphEngine) ReloadRequested() bool {
 
 // ExecuteOperatorByName executes an operator directly
 func (ge *GraphEngine) ExecuteOperatorByName(logger log.FieldLogger, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	name := fmt.Sprintf("%v/%v", opName, fn)
+	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
 	g, err := NewGraph(name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
@@ -124,6 +133,11 @@ func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string
 	g, o := ge.prepareGraphExecution(graphName, true)
 	if g == nil {
 		return o
+	}
+	for _, h := range ge.hooks {
+		if h != nil {
+			h.OnExecute(graphName, mainArgs, mainInput)
+		}
 	}
 	return g.execute(logger, mainArgs, mainInput)
 }
@@ -344,4 +358,13 @@ func (ge *GraphEngine) AddExternalGraphs(graphs map[string]GraphDesc, fileName s
 		delete(ge.temporaryGraphs, n)
 	}
 	return nil
+}
+
+// Shutdown should be called for graceful shutdown
+func (ge *GraphEngine) Shutdown() {
+	for _, h := range ge.hooks {
+		if h != nil {
+			h.Shutdown()
+		}
+	}
 }
