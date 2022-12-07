@@ -36,13 +36,21 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 		return MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
 	nsStore := o.store.GetNamespace(ns)
-	key, ok := args["key"]
-	if fn != "getAll" && !ok {
+	keyArgName := args["keyArgName"]
+	if keyArgName == "" {
+		keyArgName = "key"
+	}
+	key, ok := args[keyArgName]
+	if fn != "getAll" && fn != "setAll" && !ok {
 		return MakeOutputError(http.StatusBadRequest, "No key given")
 	}
 	// overwrite input and function to treat setSimpleValue like set
 	if fn == "setSimpleValue" {
-		val, ok := args["value"]
+		valueArgName := args["valueArgName"]
+		if valueArgName == "" {
+			valueArgName = "value"
+		}
+		val, ok := args[valueArgName]
 		if !ok {
 			return MakeOutputError(http.StatusBadRequest, "No value given")
 		}
@@ -58,7 +66,22 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	switch fn {
 	case "getAll":
 		{
+			key = ""
+			output = "hierarchy"
 			result[ns] = nsStore.GetAllValues()
+		}
+	case "setAll":
+		{
+			key = ""
+			output = "empty"
+			m := map[string]interface{}{}
+			err := input.ParseJSON(&m)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
+			}
+			for inputKey, inputValue := range m {
+				nsStore.SetValue(inputKey, MakeObjectOutput(inputValue))
+			}
 		}
 	case "get":
 		{
@@ -163,24 +186,28 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 
 // GetFunctions returns the functions of this operator
 func (o *OpStore) GetFunctions() []string {
-	return []string{"get", "set", "del", "setSimpleValue", "equals", "getAll"}
+	return []string{"get", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap"}
 }
 
 // GetPossibleArgs returns the possible arguments for a function
 func (o *OpStore) GetPossibleArgs(fn string) []string {
 	switch fn {
 	case "get":
-		return []string{"namespace", "key", "output", "maxAge"}
+		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}
 	case "getAll":
 		return []string{"namespace"}
+	case "setAll":
+		return []string{"namespace"}
 	case "set":
-		return []string{"namespace", "key", "output", "maxAge"}
+		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}
+	case "compareAndSwap":
+		return []string{"namespace", "keyArgName", "key", "value", "output", "maxAge"}
 	case "del":
-		return []string{"namespace", "key"}
+		return []string{"namespace", "keyArgName", "key"}
 	case "setSimpleValue":
-		return []string{"namespace", "key", "value", "output", "maxAge"}
+		return []string{"namespace", "keyArgName", "key", "value", "output", "maxAge", "valueArgName"}
 	case "equals":
-		return []string{"namespace", "key", "value", "output"}
+		return []string{"namespace", "keyArgName", "key", "value", "output"}
 	}
 	return []string{}
 }
@@ -229,6 +256,14 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	case "maxAge":
 		{
 			return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+		}
+	case "keyArgName":
+		{
+			return map[string]string{"key (default)": "key", "topic": "topic"}
+		}
+	case "valueArgName":
+		{
+			return map[string]string{"value (default)": "value"}
 		}
 	}
 	return map[string]string{}

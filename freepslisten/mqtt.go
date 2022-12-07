@@ -26,10 +26,11 @@ type TopicConfig struct {
 	Topic string // Topic to subscribe to
 	Qos   int    // The QoS to subscribe to messages at
 	// the topic string is split by slash; the values of the resulting array can be used as measurement and field - the index can be specified here
-	MeasurementIndex int // index that points to the measurement in the topic-array
-	FieldIndex       int // index that points to the field in the topic-array
-	Fields           map[string]FieldConfig
-	TemplateToCall   string
+	MeasurementIndex int                    // index that points to the measurement in the topic-array
+	FieldIndex       int                    // index that points to the field in the topic-array
+	Fields           map[string]FieldConfig `json:",omitempty"`
+	TemplateToCall   string                 `json:",omitempty"`
+	GraphToCall      string
 }
 
 type FreepsMqttConfig struct {
@@ -60,39 +61,49 @@ type FreepsMqtt struct {
 }
 
 func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic string) {
-	t := strings.Split(topic, "/")
-	field := ""
-	if len(t) > tc.FieldIndex {
-		field = t[tc.FieldIndex]
+	input := freepsgraph.MakeByteOutput(message)
+	graphName := tc.GraphToCall
+	if graphName == "" {
+		graphName = tc.TemplateToCall
 	}
-	measurement := ""
-	if len(t) > tc.MeasurementIndex {
-		measurement = t[tc.MeasurementIndex]
-	}
-	fconf, fieldExists := tc.Fields[field]
-	value := string(message)
-	if fieldExists {
-		fieldAlias := field
-		if fconf.Alias != nil {
-			fieldAlias = *fconf.Alias
+
+	// rather complicated logic that was introduced to push to Influx
+	if len(tc.Fields) > 0 {
+		value := string(message)
+		t := strings.Split(topic, "/")
+		field := ""
+		if len(t) > tc.FieldIndex {
+			field = t[tc.FieldIndex]
 		}
-		if fconf.TrueValue != nil {
-			if value == *fconf.TrueValue {
-				value = "true"
-			} else {
-				value = "false"
+		measurement := ""
+		if len(t) > tc.MeasurementIndex {
+			measurement = t[tc.MeasurementIndex]
+		}
+		fconf, fieldExists := tc.Fields[field]
+		if fieldExists {
+			fieldAlias := field
+			if fconf.Alias != nil {
+				fieldAlias = *fconf.Alias
 			}
+			if fconf.TrueValue != nil {
+				if value == *fconf.TrueValue {
+					value = "true"
+				} else {
+					value = "false"
+				}
+			}
+
+			fwt := FieldWithType{fconf.Datatype, value}
+			args := JsonArgs{Measurement: measurement, FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
+
+			input = freepsgraph.MakeObjectOutput(args)
+		} else {
+			fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 		}
-
-		fwt := FieldWithType{fconf.Datatype, value}
-		args := JsonArgs{Measurement: measurement, FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
-
-		input := freepsgraph.MakeObjectOutput(args)
-		output := fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
-		output.Log(fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}))
-	} else {
-		fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 	}
+
+	fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
+	//TODO(HR): publish the output?
 }
 
 func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
