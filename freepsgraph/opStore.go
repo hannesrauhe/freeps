@@ -73,9 +73,9 @@ func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) 
 	case "setAll":
 		{
 			key = ""
-			output = "hierarchy"
+			output = "empty"
 			m := map[string]interface{}{}
-			err := input.ParseJSON(m)
+			err := input.ParseJSON(&m)
 			if err != nil {
 				return MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
 			}

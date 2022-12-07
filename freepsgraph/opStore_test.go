@@ -51,7 +51,7 @@ func testOutput(t *testing.T, fn string, output string) {
 }
 
 func TestStoreOpOutput(t *testing.T) {
-	for _, fn := range []string{"get", "getAll", "equals", "setSimpleValue", "set", "del"} {
+	for _, fn := range []string{"get", "equals", "setSimpleValue", "set", "del"} {
 		for _, output := range []string{"direct", "hierarchy", "arguments", "bool", "empty", "INVALID"} {
 			t.Run(fn+"-"+output, func(t *testing.T) {
 				testOutput(t, fn, output)
@@ -135,4 +135,19 @@ func TestStoreCompareAndSwap(t *testing.T) {
 	out = s.Execute("compareAndSwap", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusConflict)
+}
+
+func TestStoreSetGetAll(t *testing.T) {
+	vars := map[string]string{"namespace": "testing"}
+	input := MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
+
+	s := NewOpStore()
+	outSet := s.Execute("setAll", vars, input)
+	assert.Assert(t, !outSet.IsError(), outSet.Output)
+
+	expected := map[string]map[string]*OperatorIO{"testing": {}}
+	expected["testing"]["v1"] = MakeObjectOutput("a_new_value")
+	expected["testing"]["v2"] = MakeObjectOutput("second")
+	outGet := s.Execute("getAll", vars, input)
+	assert.DeepEqual(t, outGet, MakeObjectOutput(expected))
 }
