@@ -19,7 +19,7 @@ func testOutput(t *testing.T, fn string, output string) {
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
 	vars["output"] = output
-	out = s.Execute(fn, vars, input)
+	out = s.Execute(ctx*Context, fn, vars, input)
 	assert.Assert(t, out != nil)
 
 	if fn == "del" {

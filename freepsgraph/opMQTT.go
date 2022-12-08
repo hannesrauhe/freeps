@@ -21,7 +21,7 @@ func NewMQTTOp(cr *utils.ConfigReader) *OpMQTT {
 	return fmqtt
 }
 
-func (o *OpMQTT) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpMQTT) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "publish":
 		server, ok := args["server"]
