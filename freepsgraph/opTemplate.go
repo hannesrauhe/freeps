@@ -20,7 +20,7 @@ func NewTemplateOperator(ge *GraphEngine, cr *utils.ConfigReader) *OpTemplate {
 	return &OpTemplate{ge: ge, tmc: freepsdo.NewTemplateMod(cr), cr: cr}
 }
 
-func (o *OpTemplate) Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpTemplate) Execute(ctx *utils.Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	switch fn {
 	case "convertAll":
 		r := make(map[string]GraphDesc)

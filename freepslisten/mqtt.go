@@ -102,7 +102,7 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 		}
 	}
 
-	fm.ge.ExecuteGraph(tc.TemplateToCall, map[string]string{"topic": topic}, input)
+	fm.ge.ExecuteGraph(utils.NewContext(fm.mqttlogger), tc.TemplateToCall, map[string]string{"topic": topic}, input)
 	//TODO(HR): publish the output?
 }
 
@@ -113,7 +113,7 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 		return
 	}
 	input := freepsgraph.MakeObjectOutput(message.Payload())
-	output := fm.ge.ExecuteOperatorByName(fm.mqttlogger, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
+	output := fm.ge.ExecuteOperatorByName(utils.NewContext(fm.mqttlogger), t[1], t[2], map[string]string{"topic": message.Topic()}, input)
 	output.WriteTo(os.Stdout)
 }
 

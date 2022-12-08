@@ -50,7 +50,7 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		mainArgs["device"] = device
 	}
 
-	opio := r.graphengine.ExecuteOperatorByName(httplogger, vars["mod"], vars["function"], mainArgs, &mainInput)
+	opio := r.graphengine.ExecuteOperatorByName(utils.NewContext(httplogger), vars["mod"], vars["function"], mainArgs, &mainInput)
 	opio.Log(httplogger)
 
 	bytes, err := opio.GetBytes()

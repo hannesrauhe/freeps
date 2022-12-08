@@ -72,7 +72,7 @@ func (m *OpTelegram) sendIOtoChat(chatid int64, io *OperatorIO) *OperatorIO {
 	return MakeObjectOutput(res)
 }
 
-func (m *OpTelegram) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpTelegram) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	chatid, err := strconv.ParseInt(vars["ChatID"], 10, 64)
 	if err != nil {
 		return MakeOutputError(http.StatusBadRequest, err.Error())

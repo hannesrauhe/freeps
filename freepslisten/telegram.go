@@ -189,6 +189,7 @@ func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, inputText string) {
+	telelogger := log.WithField("telegram", chat.ID)
 	msg := tgbotapi.NewMessage(chat.ID, "Hello "+chat.FirstName+".")
 	allowed := false
 	for _, v := range r.tgc.AllowedUsers {
@@ -281,7 +282,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	}
 
 	if tcr.F {
-		io := r.ge.ExecuteGraph(tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
+		io := r.ge.ExecuteGraph(utils.NewContext(telelogger), tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
 		byt, err := io.GetBytes()
 		if err != nil {
 			msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)
@@ -290,7 +291,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 				msg.Text = "Here is a picture for you"
 				m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "picture." + io.ContentType[6:], Bytes: byt})
 				if _, err := r.bot.Send(m); err != nil {
-					log.Println(err)
+					telelogger.Error(err)
 				}
 			} else {
 				msg.Text = fmt.Sprintf("%v: %q", io.HTTPCode, byt)

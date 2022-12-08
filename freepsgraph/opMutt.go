@@ -1,10 +1,12 @@
 package freepsgraph
 
+import "github.com/hannesrauhe/freeps/utils"
+
 type OpMutt struct{}
 
 var _ FreepsOperator = &OpMutt{}
 
-func (o *OpMutt) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpMutt) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	return MakeEmptyOutput()
 }
 

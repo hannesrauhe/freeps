@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hannesrauhe/freeps/utils"
 	"github.com/keep94/sunrise"
 )
 
@@ -69,7 +70,7 @@ func (o *OpTime) sunriseFunctions(function string, vars map[string]string) *Oper
 	return MakeObjectOutput(*res)
 }
 
-func (o *OpTime) Execute(function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpTime) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	switch function {
 	case "sunrise":
 		fallthrough
