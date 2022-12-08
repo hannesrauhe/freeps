@@ -14,12 +14,12 @@ func testOutput(t *testing.T, fn string, output string) {
 
 	s := NewOpStore()
 	vars["output"] = "empty"
-	out := s.Execute("setSimpleValue", vars, input)
+	out := s.Execute(nil, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
 	vars["output"] = output
-	out = s.Execute(ctx*Context, fn, vars, input)
+	out = s.Execute(nil, fn, vars, input)
 	assert.Assert(t, out != nil)
 
 	if fn == "del" {
@@ -65,50 +65,50 @@ func TestStoreExpiration(t *testing.T) {
 	input := MakePlainOutput("test_value")
 
 	s := NewOpStore()
-	out := s.Execute("setSimpleValue", vars, input)
+	out := s.Execute(nil, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
 	vars["maxAge"] = "älter als Papa"
-	out = s.Execute("get", vars, input)
+	out = s.Execute(nil, "get", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusBadRequest)
 
 	time.Sleep(time.Millisecond * 5)
 	vars["maxAge"] = "2ms"
-	out = s.Execute("get", vars, input)
+	out = s.Execute(nil, "get", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusGone)
 
 	vars["maxAge"] = "2h"
-	out = s.Execute("get", vars, input)
+	out = s.Execute(nil, "get", vars, input)
 	assert.Assert(t, !out.IsError())
 	assert.Equal(t, out.GetString(), "test_value")
 
-	out = s.Execute("setSimpleValue", vars, input)
+	out = s.Execute(nil, "setSimpleValue", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusConflict)
 
 	delete(vars, "maxAge")
-	out = s.Execute("get", vars, input)
+	out = s.Execute(nil, "get", vars, input)
 	assert.Assert(t, !out.IsError())
 
 	vars["maxAge"] = "2ms"
-	out = s.Execute("setSimpleValue", vars, input)
+	out = s.Execute(nil, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when overwriting value: %v", out)
 
-	out = s.Execute("del", vars, input)
+	out = s.Execute(nil, "del", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when deleting value: %v", out)
 
 	vars["maxAge"] = "2h"
-	out = s.Execute("get", vars, input)
+	out = s.Execute(nil, "get", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusNotFound)
 
 	// make sure timestamp is also gone
-	out = s.Execute("setSimpleValue", vars, input)
+	out = s.Execute(nil, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError())
 }
@@ -118,21 +118,21 @@ func TestStoreCompareAndSwap(t *testing.T) {
 	input := MakePlainOutput("a_new_value")
 
 	s := NewOpStore()
-	out := s.Execute("compareAndSwap", vars, input)
+	out := s.Execute(nil, "compareAndSwap", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusNotFound)
 
-	out = s.Execute("setSimpleValue", vars, input)
+	out = s.Execute(nil, "setSimpleValue", vars, input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
-	out = s.Execute("compareAndSwap", vars, input)
+	out = s.Execute(nil, "compareAndSwap", vars, input)
 	assert.Assert(t, !out.IsError())
 	assert.Equal(t, out.GetString(), "a_new_value")
 
-	out = s.Execute("get", vars, input)
+	out = s.Execute(nil, "get", vars, input)
 	assert.Equal(t, out.GetString(), "a_new_value")
 
-	out = s.Execute("compareAndSwap", vars, input)
+	out = s.Execute(nil, "compareAndSwap", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusConflict)
 }
@@ -142,12 +142,12 @@ func TestStoreSetGetAll(t *testing.T) {
 	input := MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
 
 	s := NewOpStore()
-	outSet := s.Execute("setAll", vars, input)
+	outSet := s.Execute(nil, "setAll", vars, input)
 	assert.Assert(t, !outSet.IsError(), outSet.Output)
 
 	expected := map[string]map[string]*OperatorIO{"testing": {}}
 	expected["testing"]["v1"] = MakeObjectOutput("a_new_value")
 	expected["testing"]["v2"] = MakeObjectOutput("second")
-	outGet := s.Execute("getAll", vars, input)
+	outGet := s.Execute(nil, "getAll", vars, input)
 	assert.DeepEqual(t, outGet, MakeObjectOutput(expected))
 }

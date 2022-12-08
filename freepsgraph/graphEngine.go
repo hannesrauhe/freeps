@@ -108,24 +108,22 @@ func (ge *GraphEngine) ReloadRequested() bool {
 }
 
 // ExecuteOperatorByName executes an operator directly
-func (ge *GraphEngine) ExecuteOperatorByName(logger log.FieldLogger, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	name := fmt.Sprintf("%v/%v", opName, fn)
-	g, err := NewGraph(name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
+	g, err := NewGraph(ctx, name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
-	dlogger := logger.WithFields(log.Fields{"graph": name})
-	return g.execute(dlogger, mainArgs, mainInput)
+	return g.execute(ctx, mainArgs, mainInput)
 }
 
 // ExecuteGraph executes a graph stored in the engine
-func (ge *GraphEngine) ExecuteGraph(graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	logger := log.WithFields(log.Fields{"graph": graphName})
-	g, o := ge.prepareGraphExecution(graphName, true)
+func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	g, o := ge.prepareGraphExecution(ctx, graphName, true)
 	if g == nil {
 		return o
 	}
-	return g.execute(logger, mainArgs, mainInput)
+	return g.execute(ctx, mainArgs, mainInput)
 }
 
 func (ge *GraphEngine) getGraphInfoUnlocked(graphName string) (*GraphInfo, bool) {
@@ -140,14 +138,14 @@ func (ge *GraphEngine) getGraphInfoUnlocked(graphName string) (*GraphInfo, bool)
 	return nil, false
 }
 
-func (ge *GraphEngine) prepareGraphExecution(graphName string, countExecution bool) (*Graph, *OperatorIO) {
+func (ge *GraphEngine) prepareGraphExecution(ctx *utils.Context, graphName string, countExecution bool) (*Graph, *OperatorIO) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	gi, exists := ge.getGraphInfoUnlocked(graphName)
 	if !exists {
 		return nil, MakeOutputError(404, "No graph with name \"%s\" found", graphName)
 	}
-	g, err := NewGraph(graphName, &gi.Desc, ge)
+	g, err := NewGraph(ctx, graphName, &gi.Desc, ge)
 	if err != nil {
 		return nil, MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
@@ -160,7 +158,7 @@ func (ge *GraphEngine) prepareGraphExecution(graphName string, countExecution bo
 
 // CheckGraph checks if the graph is valid
 func (ge *GraphEngine) CheckGraph(graphName string) *OperatorIO {
-	_, o := ge.prepareGraphExecution(graphName, false)
+	_, o := ge.prepareGraphExecution(nil, graphName, false)
 	return o
 }
 
@@ -260,7 +258,7 @@ func (ge *GraphEngine) GetOperator(opName string) FreepsOperator {
 
 // AddTemporaryGraph adds a graph to the temporary graph list
 func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) error {
-	_, err := NewGraph(graphName, gd, ge)
+	_, err := NewGraph(nil, graphName, gd, ge)
 	if err != nil {
 		return err
 	}
@@ -284,7 +282,7 @@ func (ge *GraphEngine) AddExternalGraph(graphName string, gd *GraphDesc, fileNam
 	if fileName == "" {
 		fileName = "externalGraph_" + graphName + ".json"
 	}
-	_, err := NewGraph(graphName, gd, ge)
+	_, err := NewGraph(nil, graphName, gd, ge)
 	if err != nil {
 		return err
 	}

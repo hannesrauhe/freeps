@@ -303,7 +303,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 	}
 
 	// try to parse the GraphDesc and use normalized version for GraphDesc if available
-	g, err := NewGraph("temp", gd, o.ge)
+	g, err := NewGraph(nil, "temp", gd, o.ge)
 	if g != nil {
 		td.GraphDesc = g.desc
 	} else {

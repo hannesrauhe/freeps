@@ -64,25 +64,27 @@ const testGraph = `
 `
 
 func TestOperatorErrorChain(t *testing.T) {
+	ctx := utils.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
 	ge.temporaryGraphs["test"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
 	}, OutputFrom: "echook"}}
-	oError := ge.ExecuteGraph("test", make(map[string]string), MakeEmptyOutput())
+	oError := ge.ExecuteGraph(ctx, "test", make(map[string]string), MakeEmptyOutput())
 	assert.Assert(t, oError.IsError(), "unexpected output: %v", oError)
 
 	testInput := MakeByteOutput([]byte(`{"FieldsWithType": {"open" : {"FieldValue": "true", "FieldType": "bool"} }}`))
-	oTrue := ge.ExecuteGraph("test", make(map[string]string), testInput)
+	oTrue := ge.ExecuteGraph(ctx, "test", make(map[string]string), testInput)
 	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
 
 	// test that output of single operation is directly returned and not merged
-	oDirect := ge.ExecuteOperatorByName(log.StandardLogger(), "eval", "echo", map[string]string{"output": "true"}, MakeEmptyOutput())
+	oDirect := ge.ExecuteOperatorByName(ctx, "eval", "echo", map[string]string{"output": "true"}, MakeEmptyOutput())
 	assert.Assert(t, oDirect.IsPlain(), "unexpected output: %v", oDirect)
 }
 
 func TestCheckGraph(t *testing.T) {
+	ctx := utils.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
 	ge.temporaryGraphs["test_noinput"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
@@ -112,7 +114,7 @@ func TestCheckGraph(t *testing.T) {
 	gd, _ := ge.GetGraphDesc("test_valid")
 	assert.Equal(t, gd.Operations[0].Name, "", "original graph should not be modified")
 
-	g, err := NewGraph("", gd, ge)
+	g, err := NewGraph(ctx, "", gd, ge)
 	assert.NilError(t, err)
 	assert.Equal(t, g.desc.Operations[0].Name, "#0")
 }

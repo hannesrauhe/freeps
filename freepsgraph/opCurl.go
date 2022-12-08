@@ -14,7 +14,7 @@ type OpCurl struct {
 
 var _ FreepsOperator = &OpCurl{}
 
-func (o *OpCurl) Execute(ctx *utils.Context, fn string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpCurl) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	c := http.Client{}
 
 	var resp *http.Response

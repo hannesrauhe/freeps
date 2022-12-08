@@ -25,7 +25,7 @@ func (o *OpGraph) Execute(ctx *utils.Context, fn string, args map[string]string,
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
-	return o.ge.ExecuteGraph(fn, args, input)
+	return o.ge.ExecuteGraph(ctx, fn, args, input)
 }
 
 // GetFunctions returns a list of graphs stored in the engine
