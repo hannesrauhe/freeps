@@ -303,7 +303,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 	}
 
 	// try to parse the GraphDesc and use normalized version for GraphDesc if available
-	g, err := NewGraph("temp", gd, o.ge)
+	g, err := NewGraph(nil, "temp", gd, o.ge)
 	if g != nil {
 		td.GraphDesc = g.desc
 	} else {
@@ -425,7 +425,7 @@ func (o *OpUI) editTemplate(vars map[string]string, input *OperatorIO, logger *l
 	return o.createTemplate(`edittemplate.html`, tdata, logger)
 }
 
-func (o *OpUI) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	stdlogger := log.StandardLogger()
 	logger := stdlogger.WithField("component", "UI")
 

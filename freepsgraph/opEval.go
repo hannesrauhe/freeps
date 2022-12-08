@@ -38,7 +38,7 @@ type DedupArgs struct {
 	Retention string
 }
 
-func (m *OpEval) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "echo":
 		if m, ok := vars["output"]; ok {

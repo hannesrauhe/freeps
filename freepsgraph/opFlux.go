@@ -43,7 +43,7 @@ type JsonArgs struct {
 	FieldsWithType map[string]FieldWithType
 }
 
-func (o *OpFlux) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	var err error
 	switch fn {
 	case "pushfields":

@@ -64,7 +64,7 @@ func main() {
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
-			output := ge.ExecuteOperatorByName(logger, mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
+			output := ge.ExecuteOperatorByName(utils.NewContext(logger), mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
 			output.WriteTo(os.Stdout)
 			return
 		}

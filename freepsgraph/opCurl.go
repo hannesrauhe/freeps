@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpCurl struct {
@@ -12,7 +14,7 @@ type OpCurl struct {
 
 var _ FreepsOperator = &OpCurl{}
 
-func (o *OpCurl) Execute(function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpCurl) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	c := http.Client{}
 
 	var resp *http.Response

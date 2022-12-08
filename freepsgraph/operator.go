@@ -1,10 +1,14 @@
 package freepsgraph
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/hannesrauhe/freeps/utils"
+)
 
 type FreepsOperator interface {
 	// GetOutputType() OutputT
-	Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO
+	Execute(ctx *utils.Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO
 
 	GetFunctions() []string // returns a list of functions that this operator can execute
 	GetPossibleArgs(fn string) []string
@@ -17,11 +21,11 @@ type OpGraph struct {
 
 var _ FreepsOperator = &OpGraph{}
 
-func (o *OpGraph) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpGraph) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
-	return o.ge.ExecuteGraph(fn, args, input)
+	return o.ge.ExecuteGraph(ctx, fn, args, input)
 }
 
 // GetFunctions returns a list of graphs stored in the engine

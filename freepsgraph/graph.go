@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hannesrauhe/freeps/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 const ROOT_SYMBOL = "_"
@@ -45,13 +44,14 @@ type GraphDesc struct {
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
 	name      string
+	context   *utils.Context
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*OperatorIO
 }
 
 // NewGraph creates a new graph from a graph description
-func NewGraph(name string, graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
+func NewGraph(ctx *utils.Context, name string, graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 	if ge == nil {
 		return nil, errors.New("GraphEngine not set")
 	}
@@ -108,15 +108,16 @@ func NewGraph(name string, graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error
 	} else if outputNames[graphDesc.OutputFrom] != true {
 		return nil, fmt.Errorf("Graph references unknown outputFrom \"%v\"", graphDesc.OutputFrom)
 	}
-	return &Graph{name: name, desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
+	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
 }
 
-func (g *Graph) execute(logger *log.Entry, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (g *Graph) execute(ctx *utils.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
+	logger := ctx.GetLogger()
 	var failed []string
 	for i := 0; i < len(g.desc.Operations); i++ {
 		operation := g.desc.Operations[i]
-		output := g.executeOperation(logger, &operation, mainArgs)
+		output := g.executeOperation(ctx, &operation, mainArgs)
 		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 		g.opOutputs[operation.Name] = output
 		if output.IsError() {
@@ -142,7 +143,8 @@ func (g *Graph) collectAndReturnOperationError(input *OperatorIO, opDesc *GraphO
 	return error
 }
 
-func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
+func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
+	logger := ctx.GetLogger()
 	input := MakeEmptyOutput()
 	if originalOpDesc.InputFrom != "" {
 		input = g.opOutputs[originalOpDesc.InputFrom]
@@ -205,7 +207,7 @@ func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperati
 	op, exists := g.engine.operators[finalOpDesc.Operator]
 	if exists {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
-		output := op.Execute(finalOpDesc.Function, finalOpDesc.Arguments, input)
+		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
 			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
