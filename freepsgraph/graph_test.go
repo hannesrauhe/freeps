@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"testing"
 
+	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
@@ -13,7 +14,7 @@ type MockOperator struct {
 	LastJSON     []byte
 }
 
-func (*MockOperator) Execute(fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (*MockOperator) Execute(ctx *utils.Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	return mainInput
 }
 

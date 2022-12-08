@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os/exec"
 
+	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,7 +42,7 @@ func CaptureRaspiStill(cameraParams map[string]string) (bytes []byte, err error)
 	return byt, nil
 }
 
-func (m *OpRaspistill) Execute(fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpRaspistill) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	b, err := CaptureRaspiStill(vars)
 
 	if err != nil {

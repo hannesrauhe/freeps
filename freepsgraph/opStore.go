@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type StoreNamespace struct {
@@ -29,7 +31,7 @@ func NewOpStore() *OpStore {
 }
 
 // Execute gets, sets or deletes a value from the store
-func (o *OpStore) Execute(fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	result := map[string]map[string]*OperatorIO{}
 	ns, ok := args["namespace"]
 	if !ok {

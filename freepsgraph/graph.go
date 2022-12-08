@@ -205,7 +205,7 @@ func (g *Graph) executeOperation(logger *log.Entry, originalOpDesc *GraphOperati
 	op, exists := g.engine.operators[finalOpDesc.Operator]
 	if exists {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
-		output := op.Execute(finalOpDesc.Function, finalOpDesc.Arguments, input)
+		output := op.Execute(ctx*Context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
 			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
