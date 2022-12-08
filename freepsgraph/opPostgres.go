@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/hannesrauhe/freeps/utils"
 	_ "github.com/lib/pq"
 )
 
@@ -20,7 +21,7 @@ func NewPostgresOp() *OpPostgres {
 }
 
 // Execute sends a query to the db specified by vars
-func (o *OpPostgres) Execute(function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpPostgres) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	psqlconn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require", vars["host"], vars["port"], vars["user"], vars["password"], vars["dbname"])
 	db, err := sql.Open("postgres", psqlconn)
 	if err != nil {

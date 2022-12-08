@@ -1,6 +1,8 @@
 package freepsgraph
 
+import "github.com/hannesrauhe/freeps/utils"
+
 type FreepsHook interface {
-	OnExecute(graphName string, mainArgs map[string]string, mainInput *OperatorIO) error
+	OnExecute(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) error
 	Shutdown() error
 }

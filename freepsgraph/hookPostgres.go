@@ -33,12 +33,12 @@ func NewPostgressHook(cr *utils.ConfigReader) (*HookPostgres, error) {
 }
 
 // OnExecute gets called when freepsgraph starts executing a Graph
-func (h *HookPostgres) OnExecute(graphName string, mainArgs map[string]string, mainInput *OperatorIO) error {
-	stmt, err := h.db.Prepare(`INSERT INTO "system".graph_execution_log	(graph_name) VALUES($1);`)
+func (h *HookPostgres) OnExecute(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) error {
+	stmt, err := h.db.Prepare(`INSERT INTO "system".graph_execution_log	(graph_name, uuid) VALUES($1, $2);`)
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(graphName)
+	_, err = stmt.Exec(graphName, ctx.GetID())
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,8 @@ package freepsgraph
 import (
 	"testing"
 
+	"github.com/hannesrauhe/freeps/utils"
+	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
 
@@ -12,7 +14,7 @@ func TestConn(t *testing.T) {
 	input := MakePlainOutput("test_value")
 
 	s := NewPostgresOp()
-	out := s.Execute("query", vars, input)
+	out := s.Execute(utils.NewContext(logrus.StandardLogger()), "query", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when trying to connect to postgres", out)
 }
