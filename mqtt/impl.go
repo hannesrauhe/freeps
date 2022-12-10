@@ -1,4 +1,4 @@
-package freepslisten
+package mqtt
 
 import (
 	log "github.com/sirupsen/logrus"
@@ -15,6 +15,13 @@ import (
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
+
+type FreepsMqttImpl struct {
+	client     MQTT.Client
+	Config     *FreepsMqttConfig
+	ge         *freepsgraph.GraphEngine
+	mqttlogger log.FieldLogger
+}
 
 type FieldConfig struct {
 	Datatype  string
@@ -52,15 +59,7 @@ type JsonArgs struct {
 	FieldsWithType map[string]FieldWithType
 }
 
-type FreepsMqtt struct {
-	client     MQTT.Client
-	Config     *FreepsMqttConfig
-	ge         *freepsgraph.GraphEngine
-	Callback   func(string, map[string]string, map[string]interface{}) error
-	mqttlogger log.FieldLogger
-}
-
-func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic string) {
+func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic string) {
 	input := freepsgraph.MakeByteOutput(message)
 	graphName := tc.GraphToCall
 	if graphName == "" {
@@ -101,12 +100,27 @@ func (fm *FreepsMqtt) processMessage(tc TopicConfig, message []byte, topic strin
 			fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 		}
 	}
-
-	fm.ge.ExecuteGraph(utils.NewContext(fm.mqttlogger), tc.TemplateToCall, map[string]string{"topic": topic}, input)
-	//TODO(HR): publish the output?
+	ctx := utils.NewContext(fm.mqttlogger)
+	out := fm.ge.ExecuteGraph(ctx, graphName, map[string]string{"topic": topic}, input)
+	err := fm.publish("freepsresult/"+ctx.GetID()+"/topic", topic, 0, false)
+	if err != nil {
+		fm.mqttlogger.Errorf("Publishing freepsresult/topic failed: %v", err.Error())
+	}
+	err = fm.publish("freepsresult/"+ctx.GetID()+"/graphName", graphName, 0, false)
+	if err != nil {
+		fm.mqttlogger.Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
+	}
+	err = fm.publish("freepsresult/"+ctx.GetID()+"/type", string(out.OutputType), 0, false)
+	if err != nil {
+		fm.mqttlogger.Errorf("Publishing freepsresult/type failed: %v", err.Error())
+	}
+	err = fm.publish("freepsresult/"+ctx.GetID()+"/content", out.GetString(), 0, false)
+	if err != nil {
+		fm.mqttlogger.Errorf("Publishing freepsresult/content failed: %v", err.Error())
+	}
 }
 
-func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
+func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
 	t := strings.Split(message.Topic(), "/")
 	if len(t) <= 2 {
 		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
@@ -117,16 +131,12 @@ func (fm *FreepsMqtt) systemMessageReceived(client MQTT.Client, message MQTT.Mes
 	output.WriteTo(os.Stdout)
 }
 
-func (fm *FreepsMqtt) Shutdown() {
-	fm.client.Disconnect(100)
-}
-
-func NewMqttSubscriber(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsMqtt {
+func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
 	mqttlogger := logger.WithField("component", "mqtt")
 	fmc := DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsmqtt", &fmc)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Reading the config failed: %v", err.Error())
 	}
 	cr.WriteBackConfigIfChanged()
 	if err != nil {
@@ -134,14 +144,14 @@ func NewMqttSubscriber(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 	}
 
 	if fmc.Server == "" {
-		return nil
+		return nil, fmt.Errorf("no server given in the config file")
 	}
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqtt{Config: &fmc, ge: ge, mqttlogger: mqttlogger}
+	fmqtt := &FreepsMqttImpl{Config: &fmc, ge: ge, mqttlogger: mqttlogger}
 
-	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true)
+	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true).SetOrderMatters(false)
 	if fmc.Username != "" {
 		connOpts.SetUsername(fmc.Username)
 		if fmc.Password != "" {
@@ -175,5 +185,24 @@ func NewMqttSubscriber(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 		}
 	}()
 	fmqtt.client = client
-	return fmqtt
+	return fmqtt, nil
+}
+
+func (fm *FreepsMqttImpl) publish(topic string, msg interface{}, qos int, retain bool) error {
+	if fm.client == nil {
+		return fmt.Errorf("MQTT client is uninitialized")
+	}
+
+	token := fm.client.Publish(topic, byte(qos), retain, msg)
+	token.Wait()
+	return token.Error()
+}
+
+// Shutdown MQTT and cancel all subscriptions
+func (fm *FreepsMqttImpl) Shutdown() {
+	if fm.client == nil {
+		return
+	}
+	fm.client.Disconnect(100)
+	fm.client = nil
 }

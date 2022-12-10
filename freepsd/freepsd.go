@@ -10,6 +10,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
+	"github.com/hannesrauhe/freeps/mqtt"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -59,8 +60,10 @@ func main() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		// doer := freepsdo.NewTemplateMod(cr)
-		ge := freepsgraph.NewGraphEngine(cr, cancel)
+		//TODO(HR): load operators from config?
+		// (some) operators need to be created here to avoid cyclic dependencies
+		operators := map[string]freepsgraph.FreepsOperator{"mqtt": mqtt.NewMQTTOp(cr)}
+		ge := freepsgraph.NewGraphEngine(cr, cancel, operators)
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
@@ -71,16 +74,16 @@ func main() {
 
 		logger.Printf("Starting Listeners")
 		http := freepslisten.NewFreepsHttp(cr, ge)
-		mqtt := freepslisten.NewMqttSubscriber(logger, cr, ge)
+		mqtt := mqtt.GetInstance()
+		if err := mqtt.Init(logger, cr, ge); err != nil {
+			logger.Errorf("MQTT not started: %v", err)
+		}
 		telg := freepslisten.NewTelegramBot(cr, ge, cancel)
 
 		select {
 		case <-ctx.Done():
 			// Shutdown the server when the context is canceled
-			// rest.Shutdown(ctx)
-			if mqtt != nil {
-				mqtt.Shutdown()
-			}
+			mqtt.Shutdown()
 			if telg != nil {
 				telg.Shutdown(ctx)
 			}

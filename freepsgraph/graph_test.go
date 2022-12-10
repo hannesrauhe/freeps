@@ -65,7 +65,7 @@ const testGraph = `
 
 func TestOperatorErrorChain(t *testing.T) {
 	ctx := utils.NewContext(log.StandardLogger())
-	ge := NewGraphEngine(nil, func() {})
+	ge := NewGraphEngine(nil, func() {}, map[string]FreepsOperator{})
 	ge.temporaryGraphs["test"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}},
@@ -85,7 +85,7 @@ func TestOperatorErrorChain(t *testing.T) {
 
 func TestCheckGraph(t *testing.T) {
 	ctx := utils.NewContext(log.StandardLogger())
-	ge := NewGraphEngine(nil, func() {})
+	ge := NewGraphEngine(nil, func() {}, map[string]FreepsOperator{})
 	ge.temporaryGraphs["test_noinput"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
 	}}}
