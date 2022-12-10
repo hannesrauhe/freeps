@@ -162,16 +162,9 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 	}
 
 	// create a copy of the arguments for collecting possible errors
-	finalOpDesc := &GraphOperationDesc{
-		Name:            originalOpDesc.Name,
-		Operator:        originalOpDesc.Operator,
-		Function:        originalOpDesc.Function,
-		Arguments:       make(map[string]string),
-		InputFrom:       originalOpDesc.InputFrom,
-		ExecuteOnFailOf: originalOpDesc.ExecuteOnFailOf,
-		ArgumentsFrom:   originalOpDesc.ArgumentsFrom,
-		IgnoreMainArgs:  originalOpDesc.IgnoreMainArgs,
-	}
+	finalOpDesc := &GraphOperationDesc{}
+	*finalOpDesc = *originalOpDesc
+	finalOpDesc.Arguments = make(map[string]string)
 	if originalOpDesc.Arguments != nil {
 		for k, v := range originalOpDesc.Arguments {
 			finalOpDesc.Arguments[k] = v
@@ -179,6 +172,9 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 	}
 	if finalOpDesc.IgnoreMainArgs == false {
 		for k, v := range mainArgs {
+			if _, ok := finalOpDesc.Arguments[k]; ok {
+				logger.Warnf("Argument %s overwritten by main arg", k)
+			}
 			finalOpDesc.Arguments[k] = v
 		}
 	}
