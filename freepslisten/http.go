@@ -49,8 +49,8 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if exists {
 		mainArgs["device"] = device
 	}
-
-	opio := r.graphengine.ExecuteOperatorByName(utils.NewContext(httplogger), vars["mod"], vars["function"], mainArgs, &mainInput)
+	ctx := utils.NewContext(httplogger)
+	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, &mainInput)
 	opio.Log(httplogger)
 
 	bytes, err := opio.GetBytes()
@@ -58,6 +58,7 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error creating response: %v", err)
 	}
+	w.Header().Set("X-Freeps-ID", ctx.GetID())
 	w.Header().Set("Content-Type", opio.ContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 	w.WriteHeader(int(opio.HTTPCode))

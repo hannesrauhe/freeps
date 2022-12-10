@@ -26,6 +26,9 @@
 				{{ range $argName, $argVal := $value.Arguments }}
 				<tr><td>{{ $argName }}</td><td> {{ $argVal }} </td></tr>
 				{{ end }}
+				{{ if $value.IgnoreMainArgs }}
+				<tr><td>IgnoreMainArgs</td><td> </td></tr>
+				{{ end }}
 			</table>
 		</div>
 		{{ end }}
@@ -89,6 +92,13 @@
 		<button name="executeOnFailOf" value="{{ $value }}">{{ $value }}</button>
 		{{ end }}
 		<button name="executeOnFailOf" value="">_empty_</button>
+	</p>
+	<p>
+		<h4>IgnoreMainArgs:</h4>
+		<button name="ignoreMainArgs" value="1"
+		{{if $op.IgnoreMainArgs }} disabled="true" {{end}}>Ignore</button>
+		<button name="ignoreMainArgs" value="0"
+		{{if not $op.IgnoreMainArgs }} disabled="true" {{end}}>Do not ignore</button>
 	</p>
 	<p>
 		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
