@@ -30,6 +30,11 @@ func NewOpStore() *OpStore {
 	return &OpStore{store: InMemoryStore{namespaces: map[string]*StoreNamespace{}}}
 }
 
+// GetName returns the name of the operator
+func (o *OpStore) GetName() string {
+	return "store"
+}
+
 // Execute gets, sets or deletes a value from the store
 func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	result := map[string]map[string]*OperatorIO{}

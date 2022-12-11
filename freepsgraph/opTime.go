@@ -25,6 +25,11 @@ type SunriseOutput struct {
 
 var _ FreepsOperator = &OpTime{}
 
+// GetName returns the name of the operator
+func (o *OpTime) GetName() string {
+	return "time"
+}
+
 func (o *OpTime) sunrise(vars map[string]string) (*SunriseOutput, error) {
 	lats, ok := vars["latitude"]
 	if !ok {

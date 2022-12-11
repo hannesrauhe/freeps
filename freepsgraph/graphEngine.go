@@ -28,6 +28,7 @@ type GraphEngine struct {
 	executionErrors *CollectedErrors
 	reloadRequested bool
 	graphLock       sync.Mutex
+	operatorLock    sync.Mutex
 }
 
 // NewGraphEngine creates the graph engine from the config
@@ -40,7 +41,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc, additiona
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
-	ge.operators["mutt"] = &OpMutt{}
 	ge.operators["store"] = NewOpStore()
 	ge.operators["raspistill"] = &OpRaspistill{}
 	ge.operators["postgres"] = NewPostgresOp()
@@ -70,9 +70,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc, additiona
 			}
 			ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 		}
-		tOp := NewTemplateOperator(ge, cr)
 
-		ge.operators["template"] = tOp
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["flux"] = NewFluxMod(cr)
 		ge.operators["telegram"] = NewTelegramBot(cr)
@@ -248,14 +246,25 @@ func (ge *GraphEngine) GetGraphInfoByTag(tags []string) map[string]GraphInfo {
 	return r
 }
 
+// AddOperator adds an operator to the graph engine
+func (ge *GraphEngine) AddOperator(op FreepsOperator) {
+	ge.operatorLock.Lock()
+	defer ge.operatorLock.Unlock()
+	ge.operators[op.GetName()] = op
+}
+
 // HasOperator returns true if this operator is available in the engine
 func (ge *GraphEngine) HasOperator(opName string) bool {
+	ge.operatorLock.Lock()
+	defer ge.operatorLock.Unlock()
 	_, exists := ge.operators[opName]
 	return exists
 }
 
 // GetOperators returns the list of available operators
 func (ge *GraphEngine) GetOperators() []string {
+	ge.operatorLock.Lock()
+	defer ge.operatorLock.Unlock()
 	r := make([]string, 0, len(ge.operators))
 	for n := range ge.operators {
 		r = append(r, n)
@@ -265,6 +274,8 @@ func (ge *GraphEngine) GetOperators() []string {
 
 // GetOperator returns the operator with the given name
 func (ge *GraphEngine) GetOperator(opName string) FreepsOperator {
+	ge.operatorLock.Lock()
+	defer ge.operatorLock.Unlock()
 	op, exists := ge.operators[opName]
 	if !exists {
 		return nil

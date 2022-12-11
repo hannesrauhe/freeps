@@ -43,6 +43,11 @@ type JsonArgs struct {
 	FieldsWithType map[string]FieldWithType
 }
 
+// GetName returns the name of the operator
+func (o *OpFlux) GetName() string {
+	return "flux"
+}
+
 func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	var err error
 	switch fn {

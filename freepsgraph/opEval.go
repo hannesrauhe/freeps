@@ -38,6 +38,11 @@ type DedupArgs struct {
 	Retention string
 }
 
+// GetName returns the name of the operator
+func (o *OpEval) GetName() string {
+	return "eval"
+}
+
 func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "echo":

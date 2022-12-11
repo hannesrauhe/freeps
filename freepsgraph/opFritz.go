@@ -36,6 +36,11 @@ func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
 	return &OpFritz{fl: f, fc: &conf}
 }
 
+// GetName returns the name of the operator
+func (o *OpFritz) GetName() string {
+	return "fritz"
+}
+
 func (m *OpFritz) Execute(ctx *utils.Context, mixedCaseFn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	dev := vars["device"]
 	fn := strings.ToLower(mixedCaseFn)

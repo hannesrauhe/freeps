@@ -13,6 +13,7 @@ type FreepsOperator interface {
 	GetFunctions() []string // returns a list of functions that this operator can execute
 	GetPossibleArgs(fn string) []string
 	GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
+	GetName() string
 }
 
 type OpGraph struct {
@@ -28,6 +29,11 @@ func (o *OpGraph) Execute(ctx *utils.Context, fn string, args map[string]string,
 	return o.ge.ExecuteGraph(ctx, fn, args, input)
 }
 
+// GetName returns the name of the operator
+func (o *OpGraph) GetName() string {
+	return "graph"
+}
+
 // GetFunctions returns a list of graphs stored in the engine
 func (o *OpGraph) GetFunctions() []string {
 	agd := o.ge.GetAllGraphDesc()
@@ -39,10 +45,12 @@ func (o *OpGraph) GetFunctions() []string {
 	return graphs
 }
 
+// GetPossibleArgs returns an empty slice, because possible arguments are unknown
 func (o *OpGraph) GetPossibleArgs(fn string) []string {
 	return []string{}
 }
 
+// GetArgSuggestions returns an empty map, because possible arguments are unknown
 func (o *OpGraph) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }
