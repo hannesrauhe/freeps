@@ -1,4 +1,4 @@
-package freepsgraph
+package telegram
 
 import (
 	"net/http"
@@ -7,63 +7,41 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
-
-type TelegramConfig struct {
-	Token         string
-	AllowedUsers  []string
-	DebugMessages bool
-}
-
-var DefaultTelegramConfig = TelegramConfig{Token: ""}
 
 type OpTelegram struct {
 	bot *tgbotapi.BotAPI
 	tgc *TelegramConfig
 }
 
-var _ FreepsOperator = &OpTelegram{}
+var _ freepsgraph.FreepsOperator = &OpTelegram{}
 
 // GetName returns the name of the operator
 func (o *OpTelegram) GetName() string {
 	return "telegram"
 }
 
-func NewTelegramBot(cr *utils.ConfigReader) *OpTelegram {
-	tgc := DefaultTelegramConfig
-	err := cr.ReadSectionWithDefaults("telegrambot", &tgc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
-	}
-
-	if tgc.Token == "" {
-		return nil
-	}
-
-	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	t := &OpTelegram{bot: bot, tgc: &tgc}
+func NewTelegramOp(cr *utils.ConfigReader) *OpTelegram {
+	bot, tgc, err := newTgbotFromConfig(cr)
+	t := &OpTelegram{bot: bot, tgc: tgc}
 	if err != nil {
 		log.Printf("Error on Telegram registration: %v", err)
 		return t
 	}
-	bot.Debug = tgc.DebugMessages
 
 	return t
 }
 
-func (m *OpTelegram) sendIOtoChat(chatid int64, io *OperatorIO) *OperatorIO {
+func (m *OpTelegram) sendIOtoChat(chatid int64, io *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
 	var res tgbotapi.Message
 	if len(io.ContentType) > 7 && io.ContentType[0:5] == "image" {
 		var byt []byte
 		byt, err = io.GetBytes()
 		if err != nil {
-			MakeOutputError(http.StatusInternalServerError, err.Error())
+			freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		tphoto := tgbotapi.NewPhoto(chatid, tgbotapi.FileBytes{Name: "picture." + io.ContentType[6:], Bytes: byt})
 		res, err = m.bot.Send(tphoto)
@@ -72,20 +50,20 @@ func (m *OpTelegram) sendIOtoChat(chatid int64, io *OperatorIO) *OperatorIO {
 		res, err = m.bot.Send(msg)
 	}
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "Error when sending telegram message: %v", err.Error())
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when sending telegram message: %v", err.Error())
 	}
-	return MakeObjectOutput(res)
+	return freepsgraph.MakeObjectOutput(res)
 }
 
-func (m *OpTelegram) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpTelegram) Execute(ctx *utils.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	chatid, err := strconv.ParseInt(vars["ChatID"], 10, 64)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	output := input
 	text, ok := vars["Text"]
 	if ok {
-		output = MakePlainOutput(text)
+		output = freepsgraph.MakePlainOutput(text)
 	}
 	return m.sendIOtoChat(chatid, output)
 }

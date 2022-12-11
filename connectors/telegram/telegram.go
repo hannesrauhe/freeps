@@ -1,4 +1,4 @@
-package freepslisten
+package telegram
 
 import (
 	"context"
@@ -12,10 +12,18 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
+type TelegramConfig struct {
+	Token         string
+	AllowedUsers  []string
+	DebugMessages bool
+}
+
+var DefaultTelegramConfig = TelegramConfig{Token: ""}
+
 type Telegraminator struct {
 	ge          *freepsgraph.GraphEngine
 	bot         *tgbotapi.BotAPI
-	tgc         *freepsgraph.TelegramConfig
+	tgc         *TelegramConfig
 	lastMessage int
 	chatState   map[int64]TelegramCallbackResponse
 	closeChan   chan int
@@ -30,9 +38,11 @@ type TelegramCallbackResponse struct {
 }
 
 func (r *Telegraminator) Shutdown(ctx context.Context) {
-	r.bot.StopReceivingUpdates()
-	<-r.closeChan
-	r.bot = nil
+	if r.bot != nil {
+		r.bot.StopReceivingUpdates()
+		<-r.closeChan
+		r.bot = nil
+	}
 }
 
 type ButtonWrapper struct {
@@ -323,8 +333,8 @@ func (r *Telegraminator) MainLoop() {
 	r.closeChan <- 1
 }
 
-func NewTelegramBot(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine, cancel context.CancelFunc) *Telegraminator {
-	tgc := freepsgraph.DefaultTelegramConfig
+func newTgbotFromConfig(cr *utils.ConfigReader) (*tgbotapi.BotAPI, *TelegramConfig, error) {
+	tgc := DefaultTelegramConfig
 	err := cr.ReadSectionWithDefaults("telegrambot", &tgc)
 	if err != nil {
 		log.Fatal(err)
@@ -335,16 +345,24 @@ func NewTelegramBot(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine, cancel 
 	}
 
 	if tgc.Token == "" {
-		return nil
+		return nil, &tgc, fmt.Errorf("No token")
 	}
 
 	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	t := &Telegraminator{ge: ge, bot: bot, tgc: &tgc, chatState: make(map[int64]TelegramCallbackResponse), closeChan: make(chan int)}
+	if err != nil {
+		return nil, &tgc, err
+	}
+	bot.Debug = tgc.DebugMessages
+	return bot, &tgc, nil
+}
+
+func NewTelegramBot(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine, cancel context.CancelFunc) *Telegraminator {
+	bot, tgc, err := newTgbotFromConfig(cr)
+	t := &Telegraminator{ge: ge, bot: bot, tgc: tgc, chatState: make(map[int64]TelegramCallbackResponse), closeChan: make(chan int)}
 	if err != nil {
 		log.Printf("Error on Telegram registration: %v", err)
 		return t
 	}
-	bot.Debug = tgc.DebugMessages
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 

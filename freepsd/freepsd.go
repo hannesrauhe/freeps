@@ -9,6 +9,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
+	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
 	"github.com/hannesrauhe/freeps/utils"
@@ -63,6 +64,7 @@ func main() {
 		ge := freepsgraph.NewGraphEngine(cr, cancel)
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
+		ge.AddOperator(telegram.NewTelegramOp(cr))
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
@@ -77,15 +79,13 @@ func main() {
 		if err := mqtt.Init(logger, cr, ge); err != nil {
 			logger.Errorf("MQTT not started: %v", err)
 		}
-		telg := freepslisten.NewTelegramBot(cr, ge, cancel)
+		telg := telegram.NewTelegramBot(cr, ge, cancel)
 
 		select {
 		case <-ctx.Done():
 			// Shutdown the server when the context is canceled
 			mqtt.Shutdown()
-			if telg != nil {
-				telg.Shutdown(ctx)
-			}
+			telg.Shutdown(ctx)
 			http.Shutdown(ctx)
 		}
 		running = ge.ReloadRequested()
