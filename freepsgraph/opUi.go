@@ -208,6 +208,8 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 			gopd.InputFrom = v
 		} else if k == "executeOnFailOf" {
 			gopd.ExecuteOnFailOf = v
+		} else if k == "ignoreMainArgs" {
+			gopd.IgnoreMainArgs = utils.ParseBool(v)
 		} else if k == "opName" && len(v) > 0 && v[0:1] != "#" {
 			gopd.Name = v
 		} else if k == "graphOutput" {

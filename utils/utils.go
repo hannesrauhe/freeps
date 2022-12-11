@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -61,4 +63,19 @@ func ArgsMapToObject(args map[string]string, obj interface{}) error {
 func ClearString(str string) string {
 	var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
 	return nonAlphanumericRegex.ReplaceAllString(str, "")
+}
+
+// ParseBool returns the bool value represented by string
+func ParseBool(str string) bool {
+	v, err := strconv.ParseBool(str)
+	if err != nil {
+		str = strings.ToLower(str)
+		switch str {
+		case "on", "yes":
+			return true
+		default:
+			return false
+		}
+	}
+	return v
 }
