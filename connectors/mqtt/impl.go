@@ -41,10 +41,11 @@ type TopicConfig struct {
 }
 
 type FreepsMqttConfig struct {
-	Server   string // The full url of the MQTT server to connect to ex: tcp://127.0.0.1:1883
-	Username string // A username to authenticate to the MQTT server
-	Password string // Password to match username
-	Topics   []TopicConfig
+	Server      string // The full url of the MQTT server to connect to ex: tcp://127.0.0.1:1883
+	Username    string // A username to authenticate to the MQTT server
+	Password    string // Password to match username
+	Topics      []TopicConfig
+	ResultTopic string // Topic to publish results to; empty (default) means no publishing of results
 }
 
 var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "mqttaction"}
@@ -102,19 +103,24 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 	}
 	ctx := utils.NewContext(fm.mqttlogger)
 	out := fm.ge.ExecuteGraph(ctx, graphName, map[string]string{"topic": topic}, input)
-	err := fm.publish("freepsresult/"+ctx.GetID()+"/topic", topic, 0, false)
+
+	if fm.Config.ResultTopic == "" {
+		return
+	}
+	rt := fm.Config.ResultTopic + "/" + ctx.GetID() + "/"
+	err := fm.publish(rt+"topic", topic, 0, false)
 	if err != nil {
 		fm.mqttlogger.Errorf("Publishing freepsresult/topic failed: %v", err.Error())
 	}
-	err = fm.publish("freepsresult/"+ctx.GetID()+"/graphName", graphName, 0, false)
+	err = fm.publish(rt+"graphName", graphName, 0, false)
 	if err != nil {
 		fm.mqttlogger.Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
 	}
-	err = fm.publish("freepsresult/"+ctx.GetID()+"/type", string(out.OutputType), 0, false)
+	err = fm.publish(rt+"type", string(out.OutputType), 0, false)
 	if err != nil {
 		fm.mqttlogger.Errorf("Publishing freepsresult/type failed: %v", err.Error())
 	}
-	err = fm.publish("freepsresult/"+ctx.GetID()+"/content", out.GetString(), 0, false)
+	err = fm.publish(rt+"content", out.GetString(), 0, false)
 	if err != nil {
 		fm.mqttlogger.Errorf("Publishing freepsresult/content failed: %v", err.Error())
 	}
