@@ -8,9 +8,9 @@ import (
 
 	logrus "github.com/sirupsen/logrus"
 
+	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
-	"github.com/hannesrauhe/freeps/mqtt"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -60,10 +60,9 @@ func main() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		ge := freepsgraph.NewGraphEngine(cr, cancel)
 		//TODO(HR): load operators from config?
-		// (some) operators need to be created here to avoid cyclic dependencies
-		operators := map[string]freepsgraph.FreepsOperator{"mqtt": mqtt.NewMQTTOp(cr)}
-		ge := freepsgraph.NewGraphEngine(cr, cancel, operators)
+		ge.AddOperator(mqtt.NewMQTTOp(cr))
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)

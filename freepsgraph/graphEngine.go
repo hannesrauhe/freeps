@@ -32,7 +32,7 @@ type GraphEngine struct {
 }
 
 // NewGraphEngine creates the graph engine from the config
-func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc, additionalOperators map[string]FreepsOperator) *GraphEngine {
+func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
 	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]*GraphInfo), temporaryGraphs: make(map[string]*GraphInfo), executionErrors: NewCollectedErrors(100), reloadRequested: false}
 
 	ge.operators = make(map[string]FreepsOperator)
@@ -44,9 +44,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc, additiona
 	ge.operators["store"] = NewOpStore()
 	ge.operators["raspistill"] = &OpRaspistill{}
 	ge.operators["postgres"] = NewPostgresOp()
-	for k, v := range additionalOperators {
-		ge.operators[k] = v
-	}
 
 	ge.hooks = make(map[string]FreepsHook)
 
