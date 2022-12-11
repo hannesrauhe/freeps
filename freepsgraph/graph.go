@@ -125,7 +125,7 @@ func (g *Graph) execute(ctx *utils.Context, mainArgs map[string]string, mainInpu
 		}
 	}
 	if len(failed) > 0 {
-		logger.Errorf("The following operations failed: %v", failed)
+		logger.Errorf("The following operations failed: %v.%v", g.name, failed)
 	}
 	if g.desc.OutputFrom == "" {
 		return MakeObjectOutput(g.opOutputs)
