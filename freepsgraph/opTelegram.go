@@ -25,6 +25,11 @@ type OpTelegram struct {
 
 var _ FreepsOperator = &OpTelegram{}
 
+// GetName returns the name of the operator
+func (o *OpTelegram) GetName() string {
+	return "telegram"
+}
+
 func NewTelegramBot(cr *utils.ConfigReader) *OpTelegram {
 	tgc := DefaultTelegramConfig
 	err := cr.ReadSectionWithDefaults("telegrambot", &tgc)

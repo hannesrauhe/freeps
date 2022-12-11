@@ -13,6 +13,11 @@ type OpRaspistill struct {
 
 var _ FreepsOperator = &OpRaspistill{}
 
+// GetName returns the name of the operator
+func (o *OpRaspistill) GetName() string {
+	return "raspistill"
+}
+
 func CaptureRaspiStill(cameraParams map[string]string) (bytes []byte, err error) {
 	defaultArgs := map[string]string{
 		"-w":           "1600",

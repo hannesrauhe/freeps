@@ -61,6 +61,11 @@ func NewHTMLUI(cr *utils.ConfigReader, graphEngine *GraphEngine) *OpUI {
 	return &h
 }
 
+// GetName returns the name of the operator
+func (o *OpUI) GetName() string {
+	return "ui"
+}
+
 func (o *OpUI) getTemplateNames() []string {
 	tlist := make([]string, 0)
 	ftlist, _ := embeddedFiles.ReadDir("templates")

@@ -200,8 +200,8 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 		}
 	}
 
-	op, exists := g.engine.operators[finalOpDesc.Operator]
-	if exists {
+	op := g.engine.GetOperator(finalOpDesc.Operator)
+	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
