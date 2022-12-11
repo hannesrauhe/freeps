@@ -158,7 +158,8 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 			logger.Errorf("Problem when opening template footer: %v", err)
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-		err = tFooter.Execute(&w, nil)
+
+		err = tFooter.Execute(&w, o.ge.GetGraphInfoByTag([]string{"ui", "footer"}))
 		if err != nil {
 			logger.Println(err)
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
@@ -437,11 +438,9 @@ func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, in
 	logger := stdlogger.WithField("component", "UI")
 
 	switch fn {
-	case "":
-		fallthrough
-	case "showGraphs":
+	case "", "showGraphs":
 		return o.showGraphs(vars, input, logger)
-	case "edit":
+	case "edit", "editGraph":
 		return o.editGraph(vars, input, logger)
 	case "config":
 		return o.editConfig(vars, input, logger)

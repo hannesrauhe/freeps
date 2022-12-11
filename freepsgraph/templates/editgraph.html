@@ -16,7 +16,16 @@
 			<button type="submit" name="deleteOp" value="{{ $key }}">-</button>
 			</div>
 			<table>
-				<tr><td>Operator / Function</td><td> {{ $value.Operator }} / {{ $value.Function }}</td></tr>
+				<tr><td>Operator / Function</td>
+				<td>
+					{{ if eq $value.Operator "graph"}}
+					<a href="/ui/editGraph?graph={{ $value.Function }}" target="_blank">{{ $value.Operator }} / {{ $value.Function }}</a>
+					{{ else if eq $value.Operator "ui" }}
+					<a href="/ui/editTemplate?templateName={{ $value.Function }}" target="_blank">{{ $value.Operator }} / {{ $value.Function }}</a>
+					{{ else }}
+					{{ $value.Operator }} / {{ $value.Function }}
+				{{ end }}
+				</td></tr>
 				{{ if not (eq $value.InputFrom "") }}
 				<tr><td>InputFrom</td><td> {{ $value.InputFrom }} </td></tr>
 				{{ end }}
