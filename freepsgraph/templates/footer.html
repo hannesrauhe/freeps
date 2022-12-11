@@ -1,4 +1,7 @@
 <footer style="clear: both">
   <a href="/ui">Home</a> <a href="/ui/edit">New Graph</a> <a href="/ui/config">Edit Config</a>
+  {{ range $name, $info := . }}
+  <a href="/graph/{{ $name }}">{{ $name }}</a>
+  {{ end }}
   <a href="/system/reload" target="outputframe">Reload Freeps</a> <a href="/system/stop" target="outputframe">Stop Freeps</a>
 </footer>
