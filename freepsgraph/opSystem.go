@@ -26,6 +26,11 @@ func NewSytemOp(ge *GraphEngine, cancel context.CancelFunc) *OpSystem {
 	return &OpSystem{ge: ge, cancel: cancel}
 }
 
+// GetName returns the name of the operator
+func (o *OpSystem) GetName() string {
+	return "system"
+}
+
 func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "stop":

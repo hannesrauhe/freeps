@@ -21,6 +21,11 @@ func NewMQTTOp(cr *utils.ConfigReader) *OpMQTT {
 	return fmqtt
 }
 
+// GetName returns the name of the operator
+func (o *OpMQTT) GetName() string {
+	return "mqtt"
+}
+
 func (o *OpMQTT) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "publish":

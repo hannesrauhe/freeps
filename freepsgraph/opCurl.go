@@ -14,6 +14,11 @@ type OpCurl struct {
 
 var _ FreepsOperator = &OpCurl{}
 
+// GetName returns the name of the operator
+func (o *OpCurl) GetName() string {
+	return "curl"
+}
+
 func (o *OpCurl) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	c := http.Client{}
 

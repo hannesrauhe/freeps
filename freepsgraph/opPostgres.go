@@ -15,6 +15,11 @@ type OpPostgres struct {
 
 var _ FreepsOperator = &OpPostgres{}
 
+// GetName returns the name of the operator
+func (o *OpPostgres) GetName() string {
+	return "postgres"
+}
+
 // NewPostgresOp creates a new Postgres Operator
 func NewPostgresOp() *OpPostgres {
 	return &OpPostgres{}

@@ -14,6 +14,11 @@ type MockOperator struct {
 	LastJSON     []byte
 }
 
+// GetName returns the name of the operator
+func (*MockOperator) GetName() string {
+	return "mock"
+}
+
 func (*MockOperator) Execute(ctx *utils.Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	return mainInput
 }
