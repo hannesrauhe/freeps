@@ -67,9 +67,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			}
 			ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 		}
-		tOp := NewTemplateOperator(ge, cr)
 
-		ge.operators["template"] = tOp
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["flux"] = NewFluxMod(cr)
 		ge.operators["telegram"] = NewTelegramBot(cr)
