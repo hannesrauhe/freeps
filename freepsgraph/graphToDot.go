@@ -23,11 +23,11 @@ func (g *Graph) toDot(ctx *utils.Context, G *graphviz.Graph, nameIDMap map[strin
 			if v.InputFrom == "_" {
 				G.AddEdge(mainInputID, nameIDMap[nodename], "input")
 			} else {
-				G.AddEdge(nameIDMap[v.InputFrom], nameIDMap[nodename], "input")
+				G.AddEdge(nameIDMap[strings.Join([]string{g.name, v.InputFrom}, ".")], nameIDMap[nodename], "input")
 			}
 		}
 		if v.ExecuteOnFailOf != "" {
-			G.AddEdge(nameIDMap[v.ExecuteOnFailOf], nameIDMap[nodename], "fail")
+			G.AddEdge(nameIDMap[strings.Join([]string{g.name, v.ExecuteOnFailOf}, ".")], nameIDMap[nodename], "fail")
 		}
 		if v.ArgumentsFrom != "" {
 			if v.ArgumentsFrom == "_" {
