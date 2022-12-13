@@ -42,7 +42,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
 	ge.operators["store"] = NewOpStore()
-	ge.operators["raspistill"] = &OpRaspistill{}
 	ge.operators["postgres"] = NewPostgresOp()
 
 	ge.hooks = make(map[string]FreepsHook)

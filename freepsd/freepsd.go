@@ -8,6 +8,7 @@ import (
 
 	logrus "github.com/sirupsen/logrus"
 
+	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -65,6 +66,7 @@ func main() {
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
+		freepsexec.AddExecOperators(cr, ge)
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
