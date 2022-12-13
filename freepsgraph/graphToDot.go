@@ -11,6 +11,9 @@ import (
 func (g *Graph) toDot(ctx *utils.Context, G *graphviz.Graph, nameIDMap map[string]int, mainInputID int) {
 	for _, v := range g.desc.Operations {
 		nodename := strings.Join([]string{g.name, v.Name}, ".")
+		for _, ok := nameIDMap[nodename]; ok; _, ok = nameIDMap[nodename] {
+			nodename = nodename + "."
+		}
 		nameIDMap[nodename] = G.AddNode(nodename)
 		if v.InputFrom != "" {
 			if v.InputFrom == "_" {
