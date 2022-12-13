@@ -19,6 +19,8 @@ require (
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
+	github.com/capossele/GoGraphviz v1.0.0 // indirect
+	github.com/capossele/GoGraphviz/graphviz v0.0.0-20190313095341-7802999d6878 // indirect
 	github.com/deepmap/oapi-codegen v1.12.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect

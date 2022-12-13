@@ -57,6 +57,12 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 			return MakeOutputError(http.StatusNotFound, "Unknown graph %v", args["name"])
 		}
 		return MakeObjectOutput(gi)
+	case "toDot":
+		g, out := o.ge.prepareGraphExecution(ctx, args["name"], false)
+		if out.IsError() {
+			return out
+		}
+		return MakeByteOutput(g.ToDot(ctx))
 	case "getGraphInfoByTag":
 		tags := []string{}
 		if _, ok := args["tags"]; ok {
@@ -110,7 +116,7 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
@@ -126,10 +132,18 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 	case "getCollectedErrors":
 		return []string{"duration"}
 	}
-	return []string{}
+	return []string{"name"}
 }
 
 func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	if arg == "name" {
+		agd := o.ge.GetAllGraphDesc()
+		graphs := map[string]string{}
+		for n := range agd {
+			graphs[n] = n
+		}
+		return graphs
+	}
 	switch fn {
 	case "stats":
 		switch arg {
