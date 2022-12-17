@@ -366,6 +366,51 @@ func (ge *GraphEngine) AddExternalGraphs(graphs map[string]GraphDesc, fileName s
 	return nil
 }
 
+// DeleteGraph removes a graph from the engine and from the storage
+func (ge *GraphEngine) DeleteGraph(graphName string) error {
+	if graphName == "" {
+		return errors.New("No name given")
+	}
+
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+	/* remove the graph from memory*/
+	if _, exists := ge.externalGraphs[graphName]; !exists {
+		return nil
+	}
+	delete(ge.externalGraphs, graphName)
+
+	/* remove graph from file and corresponding file if empty */
+	config := ge.ReadConfig()
+	checkedFiles := make([]string, 0)
+
+	for _, fName := range config.GraphsFromFile {
+		existingGraphs := make(map[string]GraphDesc)
+		err := ge.cr.ReadObjectFromFile(&existingGraphs, fName)
+		if err != nil {
+			log.Errorf("Error reading graphs from file %s: %s", fName, err.Error())
+		}
+		if _, exists := existingGraphs[graphName]; !exists {
+			checkedFiles = append(checkedFiles, fName)
+			continue
+		}
+		delete(existingGraphs, graphName)
+		if len(existingGraphs) == 0 {
+			err = ge.cr.RemoveFile(fName)
+			if err != nil {
+				log.Errorf("Error deleting file %s: %s", fName, err.Error())
+			}
+		} else {
+			err = ge.cr.WriteObjectToFile(existingGraphs, fName)
+			if err != nil {
+				log.Errorf("Error writing to file %s: %s", fName, err.Error())
+			}
+			checkedFiles = append(checkedFiles, fName)
+		}
+	}
+	return nil
+}
+
 // Shutdown should be called for graceful shutdown
 func (ge *GraphEngine) Shutdown(ctx *utils.Context) {
 	for _, h := range ge.hooks {

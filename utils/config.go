@@ -150,7 +150,7 @@ type ConfigReader struct {
 func NewConfigReader(logger logrus.FieldLogger, configFilePath string) (*ConfigReader, error) {
 	_, err := os.Stat(configFilePath)
 	if os.IsNotExist(err) {
-		return &ConfigReader{configFilePath: configFilePath, configChanged: true}, nil
+		return &ConfigReader{logger: logger, configFilePath: configFilePath, configChanged: true}, nil
 	}
 
 	byteValue, err := ioutil.ReadFile(configFilePath)
@@ -294,6 +294,11 @@ func (c *ConfigReader) ReadObjectFromFile(obj interface{}, filename string) erro
 	d := json.NewDecoder(f)
 	err = d.Decode(obj)
 	return err
+}
+
+func (c *ConfigReader) RemoveFile(filename string) error {
+	fullPath := c.GetConfigDir() + "/" + filename
+	return os.Remove(fullPath)
 }
 
 func (c *ConfigReader) ReadObjectFromURL(obj interface{}, url string) error {

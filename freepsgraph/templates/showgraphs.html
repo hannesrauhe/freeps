@@ -2,7 +2,7 @@
 <div style="float:left">
 <ul>
 		{{ range $key, $value := .Graphs }}
-				<li> <a href="/system/getGraph?name={{ $value }}" target="outputframe">{{ $value }}</a> <a href="/graph/{{ $value }}" target="outputframe">Execute</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> </li>
+				<li> <a href="/system/getGraph?name={{ $value }}" target="outputframe">{{ $value }}</a> <a href="/graph/{{ $value }}" target="outputframe">Execute</a> <a href="/ui/edit?graph={{ $value }}">Edit</a> <a href="/system/deleteGraph?name={{ $value }}">Delete</a> </li>
 		{{ end }}
 </ul>
 </div>
