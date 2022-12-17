@@ -210,9 +210,9 @@ func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
-// Shutdown (noOp) - TODO(HR): stop processes on shutdown
+// Shutdown (noOp)
 func (o *OpExec) Shutdown(ctx *utils.Context) {
-	o.stopBackground(nil)
+	o.stopBackground(ctx)
 }
 
 // AddExecOperators adds executables to the config
