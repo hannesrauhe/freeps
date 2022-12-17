@@ -367,10 +367,16 @@ func (ge *GraphEngine) AddExternalGraphs(graphs map[string]GraphDesc, fileName s
 }
 
 // Shutdown should be called for graceful shutdown
-func (ge *GraphEngine) Shutdown() {
+func (ge *GraphEngine) Shutdown(ctx *utils.Context) {
 	for _, h := range ge.hooks {
 		if h != nil {
 			h.Shutdown()
+		}
+	}
+
+	for _, op := range ge.operators {
+		if op != nil {
+			op.Shutdown(ctx)
 		}
 	}
 }

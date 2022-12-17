@@ -483,3 +483,7 @@ func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]str
 	}
 	return r
 }
+
+// Shutdown (noOp)
+func (o *OpUI) Shutdown(ctx *utils.Context) {
+}

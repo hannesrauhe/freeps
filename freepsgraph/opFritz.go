@@ -270,3 +270,7 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 	}
 	return templ, nil
 }
+
+// Shutdown (noOp)
+func (o *OpFritz) Shutdown(ctx *utils.Context) {
+}

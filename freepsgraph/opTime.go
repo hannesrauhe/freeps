@@ -101,3 +101,7 @@ func (o *OpTime) GetPossibleArgs(fn string) []string {
 func (o *OpTime) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }
+
+// Shutdown (noOp)
+func (o *OpTime) Shutdown(ctx *utils.Context) {
+}

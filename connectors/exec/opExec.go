@@ -1,9 +1,12 @@
 package freepsexec
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"os/exec"
+	"sync"
+	"syscall"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -45,7 +48,11 @@ var DefaultConfig = OpExecConfig{
 // OpExec defines an Operator that executes a given binary
 type OpExec struct {
 	ExecutableConfig
-	name string
+	name        string
+	bgChan      chan error
+	cmd         *exec.Cmd
+	processLock sync.Mutex
+	bgOutput    bytes.Buffer
 }
 
 var _ freepsgraph.FreepsOperator = &OpExec{}
@@ -55,7 +62,7 @@ func (o *OpExec) GetName() string {
 	return o.name
 }
 
-func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func makeArgs(argsmap map[string]string) []string {
 	args := []string{}
 	for k, v := range argsmap {
 		args = append(args, k)
@@ -63,6 +70,11 @@ func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *f
 			args = append(args, v)
 		}
 	}
+	return args
+}
+
+func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+	args := makeArgs(argsmap)
 
 	e := exec.Command(o.Path, args...)
 	if !input.IsEmpty() {
@@ -88,23 +100,82 @@ func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *f
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v", o.name, err.Error())
 	}
 
-	return freepsgraph.MakeByteOutputWithContentType(byt, "image/jpeg")
+	return freepsgraph.MakeByteOutputWithContentType(byt, o.OutputContentType)
+}
+
+func (o *OpExec) runInBackground(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+	o.processLock.Lock()
+	defer o.processLock.Unlock()
+
+	if o.cmd != nil {
+		return freepsgraph.MakeOutputError(http.StatusConflict, "Error executing %v in background, it's already running", o.name)
+	}
+
+	args := makeArgs(argsmap)
+
+	o.bgOutput.Reset()
+	o.cmd = exec.Command(o.Path, args...)
+	// This sets up a process group which we kill later.
+	o.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	o.cmd.Stdout = &o.bgOutput
+
+	if err := o.cmd.Start(); err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v", o.name, err.Error())
+	}
+	o.bgChan = make(chan error, 1)
+
+	go func() {
+		o.bgChan <- o.cmd.Wait()
+		ctx.GetLogger().Debugf("%v", string(o.bgOutput.Bytes()))
+		o.processLock.Lock()
+		defer o.processLock.Unlock()
+		close(o.bgChan)
+		o.cmd = nil
+	}()
+	return freepsgraph.MakeEmptyOutput()
+}
+
+func (o *OpExec) stopBackground(ctx *utils.Context) *freepsgraph.OperatorIO {
+	o.processLock.Lock()
+	defer o.processLock.Unlock()
+
+	if o.cmd == nil {
+		return freepsgraph.MakeOutputError(http.StatusGone, "No process running")
+	}
+
+	pgid, err := syscall.Getpgid(o.cmd.Process.Pid)
+	if err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Could not kill process group: %v", err)
+	}
+
+	if err := syscall.Kill(-pgid, 15); err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Could not kill process group: %v", err)
+	}
+
+	return freepsgraph.MakeByteOutput(o.bgOutput.Bytes())
 }
 
 // Execute executes the binary
 func (o *OpExec) Execute(ctx *utils.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+
+	argsmap := map[string]string{}
+	for k, v := range o.DefaultArguments {
+		argsmap[k] = v
+	}
+	for k, v := range vars {
+		argsmap[k] = v
+	}
+
 	switch fn {
-	case "do":
-		argsmap := map[string]string{}
-		for k, v := range o.DefaultArguments {
-			argsmap[k] = v
-		}
-		for k, v := range vars {
-			argsmap[k] = v
-		}
+	case "do", "run":
 		return o.execBin(ctx, argsmap, input)
-	case "doNoDefaultArgs":
+	case "doNoDefaultArgs", "runWithoutDefaultArgs":
 		return o.execBin(ctx, vars, input)
+	case "runInBackground":
+		return o.runInBackground(ctx, argsmap, input)
+	case "stopBackgroundProcess":
+		return o.stopBackground(ctx)
 	}
 
 	return freepsgraph.MakeOutputError(http.StatusNotFound, "Function %v not found", fn)
@@ -112,17 +183,17 @@ func (o *OpExec) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 
 // GetFunctions returns functions representing how to execute bin
 func (o *OpExec) GetFunctions() []string {
-	ret := []string{"do", "doNoDefaultArgs"}
+	ret := []string{"run", "runWithoutDefaultArgs", "runInBackground", "stopBackgroundProcess"}
 	return ret
 }
 
 // GetPossibleArgs returns possible command line arguments
 func (o *OpExec) GetPossibleArgs(fn string) []string {
 	ret := []string{}
-	for k, _ := range o.AvailableArguments {
+	for k := range o.AvailableArguments {
 		ret = append(ret, k)
 	}
-	for k, _ := range o.DefaultArguments {
+	for k := range o.DefaultArguments {
 		ret = append(ret, k)
 	}
 	return ret
@@ -137,6 +208,11 @@ func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 		return map[string]string{r + " (default)": r}
 	}
 	return map[string]string{}
+}
+
+// Shutdown (noOp)
+func (o *OpExec) Shutdown(ctx *utils.Context) {
+	o.stopBackground(ctx)
 }
 
 // AddExecOperators adds executables to the config
@@ -155,7 +231,7 @@ func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngi
 			log.Errorf("Cannot add executable Operator %v, an operator with that name already exists", name)
 			continue
 		}
-		o := &OpExec{config, name}
+		o := &OpExec{config, name, make(chan error), nil, sync.Mutex{}, bytes.Buffer{}}
 		graphEngine.AddOperator(o)
 	}
 	return nil

@@ -14,6 +14,7 @@ type FreepsOperator interface {
 	GetPossibleArgs(fn string) []string
 	GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
 	GetName() string
+	Shutdown(*utils.Context)
 }
 
 type OpGraph struct {
@@ -53,4 +54,8 @@ func (o *OpGraph) GetPossibleArgs(fn string) []string {
 // GetArgSuggestions returns an empty map, because possible arguments are unknown
 func (o *OpGraph) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
+}
+
+// Shutdown (noOp)
+func (o *OpGraph) Shutdown(*utils.Context) {
 }
