@@ -33,9 +33,7 @@ func (o *OpSystem) GetName() string {
 
 func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
-	case "stop":
-		fallthrough
-	case "shutdown":
+	case "stop", "shutdown":
 		o.ge.reloadRequested = false
 		o.cancel()
 		return MakeEmptyOutput()
@@ -43,14 +41,18 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 		o.ge.reloadRequested = true
 		o.cancel()
 		return MakeEmptyOutput()
-	case "getGraph":
-		fallthrough
-	case "getGraphDesc":
+	case "getGraph", "getGraphDesc":
 		gd, ok := o.ge.GetGraphDesc(args["name"])
 		if !ok {
 			return MakeOutputError(http.StatusNotFound, "Unknown graph %v", args["name"])
 		}
 		return MakeObjectOutput(gd)
+	case "deleteGraph":
+		err := o.ge.DeleteGraph(args["name"])
+		if err != nil {
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+		return MakeEmptyOutput()
 	case "getGraphInfo":
 		gi, ok := o.ge.GetGraphInfo(args["name"])
 		if !ok {

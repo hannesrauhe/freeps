@@ -1,6 +1,8 @@
 package freepsgraph
 
 import (
+	"os"
+	"path"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -41,36 +43,7 @@ func (*MockOperator) Shutdown(ctx *utils.Context) {
 
 var _ FreepsOperator = &MockOperator{}
 
-const testGraph = `
-"mqttaction": {
-	"Actions": [
-		{
-			"Fn": "pushfields",
-			"Mod": "flux"
-		},
-		{
-			"Args": {
-				"valueName": "FieldsWithType.open.FieldValue",
-				"valueType": "bool"
-			},
-			"Fn": "eval",
-			"FwdTemplateName": "dooropen",
-			"Mod": "eval"
-		},
-		{
-			"Args": {
-				"operand": "20",
-				"operation": "lt",
-				"valueName": "FieldsWithType.battery.FieldValue",
-				"valueType": "int"
-			},
-			"Fn": "eval",
-			"FwdTemplateName": "phonebatterylow",
-			"Mod": "eval"
-		}
-	]
-}
-`
+var validGraph = GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval"}}}
 
 func TestOperatorErrorChain(t *testing.T) {
 	ctx := utils.NewContext(log.StandardLogger())
@@ -114,9 +87,7 @@ func TestCheckGraph(t *testing.T) {
 	opIO = ge.CheckGraph("test_noargs")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.temporaryGraphs["test_valid"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
-		{Operator: "eval"},
-	}}}
+	ge.temporaryGraphs["test_valid"] = &GraphInfo{Desc: validGraph}
 	opIO = ge.CheckGraph("test_valid")
 	assert.Assert(t, !opIO.IsError(), "unexpected output: %v", opIO)
 
@@ -126,4 +97,39 @@ func TestCheckGraph(t *testing.T) {
 	g, err := NewGraph(ctx, "", gd, ge)
 	assert.NilError(t, err)
 	assert.Equal(t, g.desc.Operations[0].Name, "#0")
+}
+
+func TestGraphStorage(t *testing.T) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+	ge := NewGraphEngine(cr, func() {})
+	ge.AddExternalGraph("test1", &validGraph, "")
+	_, err = os.Stat(path.Join(tdir, "externalGraph_test1.json"))
+	assert.NilError(t, err)
+	ge.AddExternalGraph("test2", &validGraph, "")
+	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
+	assert.NilError(t, err)
+	ge.AddExternalGraph("test3", &validGraph, "foo.json")
+	_, err = os.Stat(path.Join(tdir, "foo.json"))
+	assert.NilError(t, err)
+	ge.AddExternalGraph("test4", &validGraph, "foo.json")
+	_, err = os.Stat(path.Join(tdir, "foo.json"))
+	assert.NilError(t, err)
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
+
+	ge.DeleteGraph("test4")
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
+	_, err = os.Stat(path.Join(tdir, "foo.json"))
+	assert.NilError(t, err)
+
+	ge.DeleteGraph("test2")
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 2)
+	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
+	assert.Assert(t, err != nil)
+
+	ge.DeleteGraph("test3")
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 1)
+	_, err = os.Stat(path.Join(tdir, "foo.json"))
+	assert.Assert(t, err != nil)
 }
