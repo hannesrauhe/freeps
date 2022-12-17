@@ -81,6 +81,10 @@ func (o *OpMQTT) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
+// Shutdown (noOp)
+func (o *OpMQTT) Shutdown(ctx *utils.Context) {
+}
+
 // publish on a new connection to a defined server
 func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg interface{}, qos int, retain bool) *freepsgraph.OperatorIO {
 	server := args["server"]

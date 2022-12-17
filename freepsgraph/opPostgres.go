@@ -60,3 +60,7 @@ func (o *OpPostgres) GetPossibleArgs(fn string) []string {
 func (o *OpPostgres) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }
+
+// Shutdown (noOp)
+func (o *OpPostgres) Shutdown(ctx *utils.Context) {
+}

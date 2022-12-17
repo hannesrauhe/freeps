@@ -270,6 +270,10 @@ func (m *OpEval) Regexp(args map[string]string, input *OperatorIO) *OperatorIO {
 	return MakeOutputError(http.StatusBadRequest, "No such op %s", args["op"])
 }
 
+// Shutdown (noOp)
+func (o *OpEval) Shutdown(ctx *utils.Context) {
+}
+
 func parseIntOrReturnDirectly(v interface{}) (int, error) {
 	switch v.(type) {
 	case int:

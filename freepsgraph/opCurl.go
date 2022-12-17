@@ -71,3 +71,7 @@ func (o *OpCurl) GetPossibleArgs(fn string) []string {
 func (o *OpCurl) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }
+
+// Shutdown (noOp)
+func (o *OpCurl) Shutdown(ctx *utils.Context) {
+}

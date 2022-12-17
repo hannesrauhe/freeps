@@ -100,10 +100,10 @@ func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *f
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v", o.name, err.Error())
 	}
 
-	return freepsgraph.MakeByteOutputWithContentType(byt, "image/jpeg")
+	return freepsgraph.MakeByteOutputWithContentType(byt, o.OutputContentType)
 }
 
-func (o *OpExec) doInBackground(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpExec) runInBackground(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	o.processLock.Lock()
 	defer o.processLock.Unlock()
 
@@ -168,13 +168,13 @@ func (o *OpExec) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 	}
 
 	switch fn {
-	case "do":
+	case "do", "run":
 		return o.execBin(ctx, argsmap, input)
-	case "doNoDefaultArgs":
+	case "doNoDefaultArgs", "runWithoutDefaultArgs":
 		return o.execBin(ctx, vars, input)
-	case "doInBackground":
-		return o.doInBackground(ctx, argsmap, input)
-	case "stopBackground":
+	case "runInBackground":
+		return o.runInBackground(ctx, argsmap, input)
+	case "stopBackgroundProcess":
 		return o.stopBackground(ctx)
 	}
 
@@ -183,7 +183,7 @@ func (o *OpExec) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 
 // GetFunctions returns functions representing how to execute bin
 func (o *OpExec) GetFunctions() []string {
-	ret := []string{"do", "doNoDefaultArgs", "doInBackground", "stopBackground"}
+	ret := []string{"run", "runWithoutDefaultArgs", "runInBackground", "stopBackgroundProcess"}
 	return ret
 }
 
@@ -210,6 +210,11 @@ func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
+// Shutdown (noOp) - TODO(HR): stop processes on shutdown
+func (o *OpExec) Shutdown(ctx *utils.Context) {
+	o.stopBackground(nil)
+}
+
 // AddExecOperators adds executables to the config
 func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngine) error {
 	execConfig := DefaultConfig
@@ -231,5 +236,3 @@ func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngi
 	}
 	return nil
 }
-
-// TODO(HR): stop processes on shutdown

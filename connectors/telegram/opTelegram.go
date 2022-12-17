@@ -79,3 +79,7 @@ func (m *OpTelegram) GetPossibleArgs(fn string) []string {
 func (m *OpTelegram) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }
+
+// Shutdown (noOp)
+func (o *OpTelegram) Shutdown(ctx *utils.Context) {
+}

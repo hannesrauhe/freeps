@@ -187,3 +187,7 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 	}
 	return map[string]string{}
 }
+
+// Shutdown (noOp)
+func (o *OpSystem) Shutdown(ctx *utils.Context) {
+}

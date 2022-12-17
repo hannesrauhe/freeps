@@ -396,3 +396,7 @@ func (s *StoreNamespace) GetAllValues() map[string]*OperatorIO {
 	}
 	return copy
 }
+
+// Shutdown (noOp)
+func (o *OpStore) Shutdown(ctx *utils.Context) {
+}
