@@ -22,12 +22,28 @@
       "args": []
     },
     {
-      "name": "wled",
+      "name": "wled SetPixel",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
       "args": ["-m", "wled", "-f", "setPixel"]
+    },
+    {
+      "name": "wled",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "wled", "-f", "writeString"]
+    },
+    {
+      "name": "wled",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "wled", "-f", "setImage", "-i", ""]
     },
     {
       "name": "convert",

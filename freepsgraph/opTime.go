@@ -84,6 +84,9 @@ func (o *OpTime) Execute(ctx *utils.Context, function string, vars map[string]st
 	case "isNight":
 		return o.sunriseFunctions(function, vars)
 	case "now":
+		if vars["format"] != "" {
+			return MakePlainOutput("%v", time.Now().Format(vars["format"]))
+		}
 		return MakePlainOutput("%v", time.Now())
 	default:
 		return MakeOutputError(http.StatusNotFound, "function %v unknown", function)
@@ -95,7 +98,7 @@ func (o *OpTime) GetFunctions() []string {
 }
 
 func (o *OpTime) GetPossibleArgs(fn string) []string {
-	return []string{"latitude", "longitude"}
+	return []string{"latitude", "longitude", "format"}
 }
 
 func (o *OpTime) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
