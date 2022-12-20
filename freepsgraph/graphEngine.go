@@ -39,6 +39,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["graph"] = &OpGraph{ge: ge}
 	ge.operators["time"] = &OpTime{}
 	ge.operators["curl"] = &OpCurl{}
+	ge.operators["wled"] = &OpWLED{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
 	ge.operators["store"] = NewOpStore()
@@ -54,7 +55,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			newGraphs := make(map[string]GraphDesc)
 			err = cr.ReadObjectFromURL(&newGraphs, fURL)
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("Skipping %v, because: %v", fURL, err)
 			}
 			ge.addExternalGraphsWithSource(newGraphs, "url: "+fURL)
 		}
@@ -62,7 +63,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			newGraphs := make(map[string]GraphDesc)
 			err = cr.ReadObjectFromFile(&newGraphs, fName)
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("Skipping %v, because: %v", fName, err)
 			}
 			ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 		}

@@ -22,12 +22,12 @@
       "args": []
     },
     {
-      "name": "pushfritz",
+      "name": "wled",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "graph", "-f", "pushfritz"]
+      "args": ["-m", "wled", "-f", "setPixel"]
     },
     {
       "name": "convert",
