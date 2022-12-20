@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"io"
 	"log"
@@ -65,6 +66,8 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 		ctx.GetLogger().Debugf("Decoding image of type: %v", mainInput.ContentType)
 		if mainInput.ContentType == "image/png" {
 			img, err = png.Decode(bytes.NewReader(binput))
+		} else if mainInput.ContentType == "image/jpeg" {
+			img, err = jpeg.Decode(bytes.NewReader(binput))
 		} else {
 			img, _, err = image.Decode(bytes.NewReader(binput))
 		}
