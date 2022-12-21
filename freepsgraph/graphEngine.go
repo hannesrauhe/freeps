@@ -384,7 +384,8 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	config := ge.ReadConfig()
 	checkedFiles := make([]string, 0)
 
-	for _, fName := range config.GraphsFromFile {
+	deleteIndex := -1
+	for i, fName := range config.GraphsFromFile {
 		existingGraphs := make(map[string]GraphDesc)
 		err := ge.cr.ReadObjectFromFile(&existingGraphs, fName)
 		if err != nil {
@@ -400,6 +401,7 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 			if err != nil {
 				log.Errorf("Error deleting file %s: %s", fName, err.Error())
 			}
+			deleteIndex = i
 		} else {
 			err = ge.cr.WriteObjectToFile(existingGraphs, fName)
 			if err != nil {
@@ -408,7 +410,9 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 			checkedFiles = append(checkedFiles, fName)
 		}
 	}
-	return nil
+	config.GraphsFromFile = append(config.GraphsFromFile[:deleteIndex], config.GraphsFromFile[deleteIndex+1:]...)
+	err := ge.cr.WriteSection("graphs", config, true)
+	return err
 }
 
 // Shutdown should be called for graceful shutdown
