@@ -90,7 +90,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 				nsStore.SetValue(inputKey, MakeObjectOutput(inputValue))
 			}
 		}
-	case "get":
+	case "get", "equals":
 		{
 			var io *OperatorIO
 			maxAgeStr, maxAgeRequest := args["maxAge"]
@@ -106,6 +106,17 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 			if io.IsError() {
 				return io
 			}
+
+			if fn == "equals" {
+				val, ok := args["value"]
+				if !ok {
+					val = input.GetString()
+				}
+				if io.GetString() != val {
+					return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
+				}
+			}
+
 			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "set":
@@ -135,21 +146,6 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 				return io
 			}
 			result[ns] = map[string]*OperatorIO{key: input}
-		}
-	case "equals":
-		{
-			val, ok := args["value"]
-			if !ok {
-				val = input.GetString()
-			}
-			io := nsStore.GetValue(key)
-			if io.IsError() {
-				return io
-			}
-			if io.GetString() != val {
-				return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
-			}
-			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "del":
 		{
@@ -214,7 +210,7 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	case "setSimpleValue":
 		return []string{"namespace", "keyArgName", "key", "value", "output", "maxAge", "valueArgName"}
 	case "equals":
-		return []string{"namespace", "keyArgName", "key", "value", "output"}
+		return []string{"namespace", "keyArgName", "key", "value", "output", "maxAge"}
 	}
 	return []string{}
 }
