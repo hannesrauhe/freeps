@@ -142,9 +142,16 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 			if !ok {
 				val = input.GetString()
 			}
-			io := nsStore.GetValue(key)
-			if io.IsError() {
-				return io
+			var io *OperatorIO
+			maxAgeStr, maxAgeRequest := args["maxAge"]
+			if maxAgeRequest {
+				maxAge, err := time.ParseDuration(maxAgeStr)
+				if err != nil {
+					return MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
+				}
+				io = nsStore.GetValueBeforeExpiration(key, maxAge)
+			} else {
+				io = nsStore.GetValue(key)
 			}
 			if io.GetString() != val {
 				return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
@@ -214,7 +221,7 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	case "setSimpleValue":
 		return []string{"namespace", "keyArgName", "key", "value", "output", "maxAge", "valueArgName"}
 	case "equals":
-		return []string{"namespace", "keyArgName", "key", "value", "output"}
+		return []string{"namespace", "keyArgName", "key", "value", "output", "maxAge"}
 	}
 	return []string{}
 }
