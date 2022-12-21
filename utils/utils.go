@@ -79,3 +79,15 @@ func ParseBool(str string) bool {
 	}
 	return v
 }
+
+
+// DeleteElemFromSlice swaps i-th and last Element and deletes the last
+func DeleteElemFromSlice(s []string, i int) []string {
+	if i>=len(s) || i<0 {
+		return s
+	}
+	if i<len(s)-1 {
+		s[i]=s[len(s)-1]
+	}
+	return s[:len(s)-1]
+}

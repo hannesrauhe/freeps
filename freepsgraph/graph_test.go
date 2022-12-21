@@ -99,6 +99,20 @@ func TestCheckGraph(t *testing.T) {
 	assert.Equal(t, g.desc.Operations[0].Name, "#0")
 }
 
+func fileIsInList(cr *utils.ConfigReader, graphFile string) bool {
+	type T struct {
+		GraphsFromFile []string
+	}
+	ct := T{}
+	cr.ReadSectionWithDefaults("graphs", &ct)
+	for _,f := range ct.GraphsFromFile {
+		if f == graphFile {
+			return true
+		}
+	}
+	return false
+}
+
 func TestGraphStorage(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
@@ -107,29 +121,39 @@ func TestGraphStorage(t *testing.T) {
 	ge.AddExternalGraph("test1", &validGraph, "")
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test1.json"))
 	assert.NilError(t, err)
+	assert.Assert(t, fileIsInList(cr, "externalGraph_test1.json"))
+
 	ge.AddExternalGraph("test2", &validGraph, "")
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
 	assert.NilError(t, err)
+	assert.Assert(t, fileIsInList(cr, "externalGraph_test2.json"))
+
 	ge.AddExternalGraph("test3", &validGraph, "foo.json")
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
+	assert.Assert(t, fileIsInList(cr, "foo.json"))
+
 	ge.AddExternalGraph("test4", &validGraph, "foo.json")
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
+	assert.Assert(t, fileIsInList(cr, "foo.json"))
 
 	ge.DeleteGraph("test4")
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
+	assert.Assert(t, fileIsInList(cr, "foo.json"))
 
 	ge.DeleteGraph("test2")
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 2)
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
 	assert.Assert(t, err != nil)
+	assert.Assert(t, false == fileIsInList(cr, "externalGraph_test2.json"))
 
 	ge.DeleteGraph("test3")
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 1)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.Assert(t, err != nil)
+	assert.Assert(t, false == fileIsInList(cr, "foo.json"))
 }
