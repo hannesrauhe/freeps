@@ -1,7 +1,8 @@
-package freepsgraph
+package wled
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -13,10 +14,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
@@ -24,84 +25,110 @@ import (
 type OpWLED struct {
 }
 
-var _ FreepsOperator = &OpWLED{}
+//go:embed font/*
+var staticContent embed.FS
+
+var _ freepsgraph.FreepsOperator = &OpWLED{}
 
 // GetName returns the name of the operator
 func (o *OpWLED) GetName() string {
 	return "wled"
 }
 
-func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	c := http.Client{}
 
 	var resp *http.Response
 	var err error
+	// var bgcolor color.Color
 
 	x, err := strconv.Atoi(vars["x"])
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "x not a valid integer")
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "x not a valid integer")
 	}
 	y, err := strconv.Atoi(vars["y"])
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "y not a valid integer")
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
 	}
+
+	// if colstr, ok := vars["bgcolor"]; ok {
+	// 	bgcolor, err = utils.ParseHexColor(colstr)
+	// 	if err != nil {
+	// 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+	// 	}
+	// }
 	w := NewWLEDConverter(x, y)
 
 	segid, err := strconv.Atoi(vars["segid"])
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "segid not a valid integer")
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "segid not a valid integer")
 	}
 
 	switch function {
 	case "setImage":
-		if mainInput.IsEmpty() {
-			return MakeOutputError(http.StatusBadRequest, "need image as Input")
-		}
-		binput, err := mainInput.GetBytes()
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
-		}
+		var binput []byte
+		var contentType string
 		var img image.Image
 
-		ctx.GetLogger().Debugf("Decoding image of type: %v", mainInput.ContentType)
-		if mainInput.ContentType == "image/png" {
+		if vars["icon"] != "" {
+			binput, err = staticContent.ReadFile("font/" + vars["icon"] + ".png")
+			contentType = "image/png"
+		} else if !mainInput.IsEmpty() {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "need image as Input")
+		} else {
+			binput, err = mainInput.GetBytes()
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+			}
+			contentType = mainInput.ContentType
+		}
+
+		ctx.GetLogger().Debugf("Decoding image of type: %v", contentType)
+		if contentType == "image/png" {
 			img, err = png.Decode(bytes.NewReader(binput))
-		} else if mainInput.ContentType == "image/jpeg" {
+		} else if contentType == "image/jpeg" {
 			img, err = jpeg.Decode(bytes.NewReader(binput))
 		} else {
 			img, _, err = image.Decode(bytes.NewReader(binput))
 		}
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		w.ScaleImage(img)
 	case "setString":
+		c := image.White.C
 		str, ok := vars["string"]
 		if !ok {
 			str = mainInput.GetString()
 		}
-		err = w.WriteString(str)
+		if colstr, ok := vars["color"]; ok {
+			c, err = utils.ParseHexColor(colstr)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+			}
+		}
+		err = w.WriteString(str, c)
 	default:
-		return MakeOutputError(http.StatusNotFound, "function %v unknown", function)
+		return freepsgraph.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
 	b, err := w.GetJSON(segid)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	breader := bytes.NewReader(b)
 	resp, err = c.Post(vars["address"]+"/json", "encoding/json", breader)
 
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	defer resp.Body.Close()
 	bout, err := io.ReadAll(resp.Body)
-	return &OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: Byte, ContentType: resp.Header.Get("Content-Type")}
+	return &freepsgraph.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: freepsgraph.Byte, ContentType: resp.Header.Get("Content-Type")}
 }
 
 func (o *OpWLED) GetFunctions() []string {
@@ -109,7 +136,7 @@ func (o *OpWLED) GetFunctions() []string {
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid"}
+	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor"}
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
@@ -159,7 +186,7 @@ func (w *WLEDConverter) SetPixel(x, y int, r, g, b uint8) error {
 	return nil
 }
 
-func (w *WLEDConverter) WriteString(s string) error {
+func (w *WLEDConverter) WriteString(s string, c color.Color) error {
 	const (
 		width        = 16
 		height       = 8
@@ -167,7 +194,11 @@ func (w *WLEDConverter) WriteString(s string) error {
 		startingDotY = 7
 	)
 
-	f, err := opentype.Parse(gomono.TTF)
+	fontBytes, err := staticContent.ReadFile("font/Grand9K Pixel.ttf")
+	if err != nil {
+		log.Fatalf("Reading file from embed fs: %v", err)
+	}
+	f, err := opentype.Parse(fontBytes)
 	if err != nil {
 		log.Fatalf("Parse: %v", err)
 	}
@@ -179,9 +210,10 @@ func (w *WLEDConverter) WriteString(s string) error {
 	if err != nil {
 		log.Fatalf("NewFace: %v", err)
 	}
+
 	d := font.Drawer{
 		Dst:  w.dst,
-		Src:  image.White,
+		Src:  image.NewUniform(c),
 		Face: face,
 		Dot:  fixed.P(startingDotX, startingDotY),
 	}
