@@ -10,7 +10,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"bufio"
 	"log"
 	"net/http"
 	"strconv"
@@ -41,7 +40,7 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 
 	var resp *http.Response
 	var err error
-	// var bgcolor color.Color
+	var bgcolor color.Color
 
 	x, err := strconv.Atoi(vars["x"])
 	if err != nil {
@@ -52,13 +51,13 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
 	}
 
-	// if colstr, ok := vars["bgcolor"]; ok {
-	// 	bgcolor, err = utils.ParseHexColor(colstr)
-	// 	if err != nil {
-	// 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
-	// 	}
-	// }
-	w := NewWLEDConverter(x, y)
+	if colstr, ok := vars["bgcolor"]; ok {
+		bgcolor, err = utils.ParseHexColor(colstr)
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+		}
+	}
+	w := NewWLEDConverter(x, y, bgcolor)
 
 	segid, err := strconv.Atoi(vars["segid"])
 	if err != nil {
@@ -158,14 +157,15 @@ type WLEDRoot struct {
 }
 
 type WLEDConverter struct {
-	r   WLEDRoot
-	x   int
-	y   int
-	dst *image.RGBA
+	r       WLEDRoot
+	x       int
+	y       int
+	bgcolor color.Color
+	dst     *image.RGBA
 }
 
-func NewWLEDConverter(x int, y int) *WLEDConverter {
-	w := WLEDConverter{x: x, y: y, dst: image.NewRGBA(image.Rect(0, 0, x, y))}
+func NewWLEDConverter(x int, y int, bgcolor color.Color) *WLEDConverter {
+	w := WLEDConverter{x: x, y: y, dst: image.NewRGBA(image.Rect(0, 0, x, y)), bgcolor: bgcolor}
 	return &w
 }
 
@@ -249,7 +249,7 @@ func (w *WLEDConverter) GetImage() *freepsgraph.OperatorIO {
 	var bout []byte
 	contentType := "image/png"
 	writer := bytes.NewBuffer(bout)
-	if err := png.Encode(writer,w.dst); err != nil {
+	if err := png.Encode(writer, w.dst); err != nil {
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
 	}
 	return freepsgraph.MakeByteOutputWithContentType(bout, contentType)
