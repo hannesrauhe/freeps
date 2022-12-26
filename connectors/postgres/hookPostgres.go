@@ -1,8 +1,9 @@
-package freepsgraph
+package postgres
 
 import (
 	"database/sql"
 
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
 	_ "github.com/lib/pq"
@@ -18,7 +19,7 @@ type HookPostgres struct {
 
 var defaultConfig = FreepsPostgressConfig{ConnStr: "host=host port=5432 user=user password=pass dbname=db sslmode=require"}
 
-var _ FreepsHook = &HookPostgres{}
+var _ freepsgraph.FreepsHook = &HookPostgres{}
 
 // NewPostgressHook creates a new Postgress Hook
 func NewPostgressHook(cr *utils.ConfigReader) (*HookPostgres, error) {
@@ -32,8 +33,12 @@ func NewPostgressHook(cr *utils.ConfigReader) (*HookPostgres, error) {
 	return &HookPostgres{db: db}, nil
 }
 
+func (h *HookPostgres) GetName() string {
+	return "postgres"
+}
+
 // OnExecute gets called when freepsgraph starts executing a Graph
-func (h *HookPostgres) OnExecute(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) error {
+func (h *HookPostgres) OnExecute(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
 	stmt, err := h.db.Prepare(`INSERT INTO "system".graph_execution_log	(graph_name, uuid) VALUES($1, $2);`)
 	if err != nil {
 		return err

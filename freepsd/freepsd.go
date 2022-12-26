@@ -11,6 +11,7 @@ import (
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
+	"github.com/hannesrauhe/freeps/connectors/postgres"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
@@ -68,7 +69,14 @@ func main() {
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
 		ge.AddOperator(freepsflux.NewFluxMod(cr))
+		ge.AddOperator(postgres.NewPostgresOp())
 		freepsexec.AddExecOperators(cr, ge)
+
+		ph, err := postgres.NewPostgressHook(cr)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		ge.AddHook(ph)
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
