@@ -10,6 +10,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"bufio"
 	"log"
 	"net/http"
 	"strconv"
@@ -242,4 +243,14 @@ func (w *WLEDConverter) GetJSON(segid int) ([]byte, error) {
 		}
 	}
 	return json.Marshal(w.r)
+}
+
+func (w *WLEDConverter) GetImage() *freepsgraph.OperatorIO {
+	var bout []byte
+	contentType := "image/png"
+	writer := bytes.NewBuffer(bout)
+	if err := png.Encode(writer,w.dst); err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
+	}
+	return freepsgraph.MakeByteOutputWithContentType(bout, contentType)
 }
