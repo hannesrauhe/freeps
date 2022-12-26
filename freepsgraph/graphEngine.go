@@ -68,7 +68,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		}
 
 		ge.operators["fritz"] = NewOpFritz(cr)
-		ge.operators["flux"] = NewFluxMod(cr)
 		ge.operators["ui"] = NewHTMLUI(cr, ge)
 
 		ge.hooks["postgres"], err = NewPostgressHook(cr)
