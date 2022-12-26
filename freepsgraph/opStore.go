@@ -90,7 +90,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 				nsStore.SetValue(inputKey, MakeObjectOutput(inputValue))
 			}
 		}
-	case "get":
+	case "get", "equals":
 		{
 			var io *OperatorIO
 			maxAgeStr, maxAgeRequest := args["maxAge"]
@@ -106,6 +106,17 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 			if io.IsError() {
 				return io
 			}
+
+			if fn == "equals" {
+				val, ok := args["value"]
+				if !ok {
+					val = input.GetString()
+				}
+				if io.GetString() != val {
+					return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
+				}
+			}
+
 			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "set":
@@ -135,28 +146,6 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 				return io
 			}
 			result[ns] = map[string]*OperatorIO{key: input}
-		}
-	case "equals":
-		{
-			val, ok := args["value"]
-			if !ok {
-				val = input.GetString()
-			}
-			var io *OperatorIO
-			maxAgeStr, maxAgeRequest := args["maxAge"]
-			if maxAgeRequest {
-				maxAge, err := time.ParseDuration(maxAgeStr)
-				if err != nil {
-					return MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
-				}
-				io = nsStore.GetValueBeforeExpiration(key, maxAge)
-			} else {
-				io = nsStore.GetValue(key)
-			}
-			if io.GetString() != val {
-				return MakeOutputError(http.StatusExpectationFailed, "Values do not match")
-			}
-			result[ns] = map[string]*OperatorIO{key: io}
 		}
 	case "del":
 		{

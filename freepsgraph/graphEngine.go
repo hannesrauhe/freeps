@@ -410,7 +410,7 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 			checkedFiles = append(checkedFiles, fName)
 		}
 	}
-	config.GraphsFromFile = append(config.GraphsFromFile[:deleteIndex], config.GraphsFromFile[deleteIndex+1:]...)
+	config.GraphsFromFile = utils.DeleteElemFromSlice(config.GraphsFromFile, deleteIndex)
 	err := ge.cr.WriteSection("graphs", config, true)
 	return err
 }
