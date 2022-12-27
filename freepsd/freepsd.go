@@ -83,7 +83,10 @@ func main() {
 			logger.Errorf("MQTT not started: %v", err)
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
-		muteme := usb.NewMuteMe()
+		muteme, err := usb.NewMuteMe(cr, ge)
+		if err != nil {
+			logger.Errorf("MuteMe not started: %v", err)
+		}
 
 		select {
 		case <-ctx.Done():
