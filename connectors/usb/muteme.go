@@ -16,18 +16,25 @@ type MuteMe struct {
 	done         chan bool
 }
 
+var colors = map[string]byte{
+	"red":     0x01,
+	"green":   0x02,
+	"blue":    0x04,
+	"yellow":  0x03,
+	"cyan":    0x06,
+	"purple":  0x05,
+	"white":   0x07,
+	"nocolor": 0x00,
+	"off":     0x00,
+}
+
 func (m *MuteMe) setColor(color string) error {
 	b := make([]byte, 2)
 	b[0] = 0x0
 
-	switch color {
-	case "red":
-		b[1] = 0x01
-	case "blue":
-		b[1] = 0x04
-	case "off":
-		b[1] = 0x00
-	default:
+	ok := false
+	b[1], ok = colors[color]
+	if !ok {
 		b[1] = 0x07
 		color = "white"
 	}
