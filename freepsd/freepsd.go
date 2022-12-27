@@ -11,6 +11,7 @@ import (
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
+	"github.com/hannesrauhe/freeps/connectors/usb"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
 	"github.com/hannesrauhe/freeps/utils"
@@ -82,13 +83,15 @@ func main() {
 			logger.Errorf("MQTT not started: %v", err)
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
+		muteme := usb.NewMuteMe()
 
 		select {
 		case <-ctx.Done():
 			// Shutdown the server when the context is canceled
 			mqtt.Shutdown()
-			telg.Shutdown(ctx)
-			http.Shutdown(ctx)
+			telg.Shutdown(context.TODO())
+			http.Shutdown(context.TODO())
+			muteme.Shutdown()
 		}
 		running = ge.ReloadRequested()
 		ge.Shutdown(utils.NewContext(logger))
