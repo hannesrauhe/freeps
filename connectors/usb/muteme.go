@@ -1,6 +1,7 @@
 package usb
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -40,9 +41,12 @@ func (m *MuteMe) setColor(color string) error {
 	}
 
 	_, err := m.dev.Write(b)
-	if err == nil {
+	if err == nil && color != m.currentColor {
 		m.lastColor = m.currentColor
 		m.currentColor = color
+	}
+	if err != nil {
+		logrus.Errorf("Error setting color: %v", err)
 	}
 	return err
 }
@@ -51,7 +55,9 @@ func (m *MuteMe) mainloop() {
 	bin := make([]byte, 8)
 	tpress1 := time.Now()
 	tpress2 := time.Now()
+	ignoreUntil := time.Now()
 	lastPressed := time.Microsecond
+	doublePressTime := time.Second
 	running := true
 	for running {
 		select {
@@ -59,14 +65,32 @@ func (m *MuteMe) mainloop() {
 			running = false
 		default:
 		}
-		_, err := m.dev.Read(bin)
-		if err != nil {
-			if lastPressed > time.Microsecond {
-				fmt.Printf("Pressed: %v\n", lastPressed)
-				lastPressed = time.Microsecond
+		_, err := m.dev.ReadWithTimeout(bin, doublePressTime)
+		if time.Now().Before(ignoreUntil) {
+			if bin[3] == 4 {
+				fmt.Println("Ignored")
+				ignoreUntil = time.Now().Add(time.Second)
 			}
-			time.Sleep(time.Millisecond * 500)
 			continue
+		}
+		if err != nil {
+			if !errors.Is(err, hid.ErrTimeout) {
+				// usually interrupted system call. Nothing to do but ignore
+				logrus.Errorf("Error getting state: %v", err)
+				continue
+			}
+			if lastPressed <= time.Microsecond {
+				continue
+			}
+
+			if tpress2.Sub(tpress1) < doublePressTime {
+				fmt.Println("Doublepress")
+			} else {
+				fmt.Printf("Pressed: %v\n", lastPressed)
+			}
+			ignoreUntil = time.Now().Add(time.Second)
+			lastPressed = time.Microsecond
+			m.setColor(m.lastColor)
 		}
 		if bin[3] == 4 { // press
 			tpress1 = tpress2
@@ -75,18 +99,12 @@ func (m *MuteMe) mainloop() {
 		}
 		if bin[3] == 2 { // release
 			lastPressed = time.Now().Sub(tpress2)
-			time.Sleep(time.Millisecond * 200)
-			m.setColor(m.lastColor)
 		}
 
-		if bin[3] == 0 { // no touch
-			if tpress2.Sub(tpress1) < time.Millisecond*1000 {
-				fmt.Println("Doublepress")
-				lastPressed = time.Microsecond
-			} else {
-				// fmt.Printf("Pressed: %v\n", lastPressed)
-			}
-		}
+		if bin[3] == 1 {
+		} // pressed down
+		if bin[3] == 0 {
+		} // no touch
 	}
 
 	if err := m.dev.Close(); err != nil {
@@ -128,7 +146,7 @@ func NewMuteMe() *MuteMe {
 	// }
 	// fmt.Printf("Product String: %s\n", s)
 
-	d.SetNonblock(true)
+	// d.SetNonblock(true)
 
 	// Toggle LED (cmd 0x80). The first byte is the report number (0x0).
 	// b[0] = 0x0
