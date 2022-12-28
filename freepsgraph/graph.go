@@ -78,7 +78,7 @@ func NewGraph(ctx *utils.Context, name string, origGraphDesc *GraphDesc, ge *Gra
 			op.Name = fmt.Sprintf("#%d", i)
 		}
 		if !ge.HasOperator(op.Operator) {
-			return nil, fmt.Errorf("Operation \"%v\" references unknown operator \"%v\"", op.Operator, op.Name)
+			return nil, fmt.Errorf("Operation \"%v\" references unknown operator \"%v\"", op.Name, op.Operator)
 		}
 		if op.ArgumentsFrom != "" && outputNames[op.ArgumentsFrom] != true {
 			return nil, fmt.Errorf("Operation \"%v\" references unknown argumentsFrom \"%v\"", op.Name, op.ArgumentsFrom)
