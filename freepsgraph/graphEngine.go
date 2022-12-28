@@ -54,7 +54,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			newGraphs := make(map[string]GraphDesc)
 			err = cr.ReadObjectFromURL(&newGraphs, fURL)
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("Skipping %v, because: %v", fURL, err)
 			}
 			ge.addExternalGraphsWithSource(newGraphs, "url: "+fURL)
 		}
@@ -62,7 +62,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			newGraphs := make(map[string]GraphDesc)
 			err = cr.ReadObjectFromFile(&newGraphs, fName)
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("Skipping %v, because: %v", fName, err)
 			}
 			ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 		}
@@ -384,7 +384,8 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	config := ge.ReadConfig()
 	checkedFiles := make([]string, 0)
 
-	for _, fName := range config.GraphsFromFile {
+	deleteIndex := -1
+	for i, fName := range config.GraphsFromFile {
 		existingGraphs := make(map[string]GraphDesc)
 		err := ge.cr.ReadObjectFromFile(&existingGraphs, fName)
 		if err != nil {
@@ -400,6 +401,7 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 			if err != nil {
 				log.Errorf("Error deleting file %s: %s", fName, err.Error())
 			}
+			deleteIndex = i
 		} else {
 			err = ge.cr.WriteObjectToFile(existingGraphs, fName)
 			if err != nil {
@@ -408,7 +410,9 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 			checkedFiles = append(checkedFiles, fName)
 		}
 	}
-	return nil
+	config.GraphsFromFile = utils.DeleteElemFromSlice(config.GraphsFromFile, deleteIndex)
+	err := ge.cr.WriteSection("graphs", config, true)
+	return err
 }
 
 // Shutdown should be called for graceful shutdown
