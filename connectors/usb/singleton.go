@@ -53,7 +53,7 @@ func (mm *MuteMe) SetColor(color string) *freepsgraph.OperatorIO {
 	if err := mm.impl.SetColor(color); err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Failed to set color: %v", err)
 	}
-	return freepsgraph.MakeEmptyOutput()
+	return freepsgraph.MakePlainOutput(mm.impl.GetColor())
 }
 
 func (mm *MuteMe) GetColor() string {

@@ -36,8 +36,11 @@ func (o *OpMuteMe) Execute(ctx *utils.Context, fn string, args map[string]string
 		}
 	case "getColor":
 		return freepsgraph.MakePlainOutput(GetInstance().GetColor())
+	default:
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 	}
-	return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
+
+	return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Unexpected error")
 }
 
 func (o *OpMuteMe) GetFunctions() []string {

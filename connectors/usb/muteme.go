@@ -3,6 +3,7 @@ package usb
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -14,7 +15,7 @@ import (
 type MuteMeImpl struct {
 	dev          *hid.Device
 	ge           *freepsgraph.GraphEngine
-	currentColor string
+	currentColor atomic.Value
 	lastColor    string
 	cmd          chan string
 	config       *MuteMeConfig
@@ -61,9 +62,10 @@ func (m *MuteMeImpl) setColor(color string) error {
 	}
 
 	_, err := m.dev.Write(b)
-	if err == nil && color != m.currentColor {
-		m.lastColor = m.currentColor
-		m.currentColor = color
+	lColor := m.currentColor.Load().(string)
+	if err == nil && color != lColor {
+		m.lastColor = lColor
+		m.currentColor.Store(color)
 	}
 	if err != nil {
 		m.logger.Errorf("Error setting color: %v", err)
@@ -123,7 +125,7 @@ func (m *MuteMeImpl) mainloop() {
 		if bin[3] == 4 { // press
 			tpress1 = tpress2
 			tpress2 = time.Now()
-			if m.currentColor != "red" {
+			if m.GetColor() != "red" {
 				m.setColor("red")
 			} else {
 				m.setColor("off")
@@ -169,8 +171,7 @@ func (m *MuteMeImpl) SetColor(color string) error {
 }
 
 func (m *MuteMeImpl) GetColor() string {
-	//TODO lock
-	return m.currentColor
+	return m.currentColor.Load().(string)
 }
 
 func newMuteMe(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*MuteMeImpl, error) {
@@ -195,8 +196,8 @@ func newMuteMe(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgrap
 		return nil, err
 	}
 
-	m := &MuteMeImpl{dev: d, currentColor: "off", cmd: make(chan string, 3), config: &mmc, logger: logrus.StandardLogger(), ge: ge}
-	m.setColor("blue")
+	m := &MuteMeImpl{dev: d, cmd: make(chan string, 3), config: &mmc, logger: logrus.StandardLogger(), ge: ge}
+	m.currentColor.Store("off")
 	go m.mainloop()
 
 	return m, nil
