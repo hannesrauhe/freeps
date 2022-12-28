@@ -43,7 +43,7 @@ func (*MockOperator) Shutdown(ctx *utils.Context) {
 
 var _ FreepsOperator = &MockOperator{}
 
-var validGraph = GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval"}}}
+var validGraph = GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval", Function: "echo"}}}
 
 func TestOperatorErrorChain(t *testing.T) {
 	ctx := utils.NewContext(log.StandardLogger())
@@ -105,7 +105,7 @@ func fileIsInList(cr *utils.ConfigReader, graphFile string) bool {
 	}
 	ct := T{}
 	cr.ReadSectionWithDefaults("graphs", &ct)
-	for _,f := range ct.GraphsFromFile {
+	for _, f := range ct.GraphsFromFile {
 		if f == graphFile {
 			return true
 		}
@@ -156,4 +156,68 @@ func TestGraphStorage(t *testing.T) {
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.Assert(t, err != nil)
 	assert.Assert(t, false == fileIsInList(cr, "foo.json"))
+}
+
+func expectOutput(t *testing.T, op *OperatorIO, expectedCode int, expectedOutputMapKeys []string) {
+	assert.Equal(t, op.GetStatusCode(), expectedCode)
+	if expectedOutputMapKeys != nil {
+		if len(expectedOutputMapKeys) == 0 {
+			assert.Equal(t, op.OutputType, Empty)
+		} else {
+			m, err := op.GetArgsMap()
+			assert.NilError(t, err)
+			assert.Equal(t, len(expectedOutputMapKeys)+1, len(m)) // add the "_" output
+			for _, k := range expectedOutputMapKeys {
+				_, ok := m[k]
+				assert.Assert(t, ok)
+			}
+		}
+	}
+}
+
+func TestGraphExecution(t *testing.T) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+	ge := NewGraphEngine(cr, func() {})
+
+	expectOutput(t,
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"not"}),
+		404, nil)
+	expectOutput(t,
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{}),
+		400, nil)
+
+	g1 := validGraph
+	g1.Tags = []string{"t1"}
+	ge.AddExternalGraph("test1", &g1, "")
+	expectOutput(t,
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}),
+		200, []string{})
+
+	g2 := validGraph
+	g2.Tags = []string{"t1"}
+	ge.AddExternalGraph("test2", &g2, "")
+	expectOutput(t,
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}),
+		200, []string{"test1", "test2"})
+
+	g3 := validGraph
+	g3.Tags = []string{"t1", "t2"}
+	ge.AddExternalGraph("test3", &g3, "foo.json")
+	expectOutput(t,
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}),
+		200, []string{"test1", "test2", "test3"})
+	expectOutput(t,
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1", "t2"}),
+		200, []string{})
+
+	g4 := validGraph
+	g4.Tags = []string{"t4"}
+	ge.AddExternalGraph("test4", &g4, "foo.json")
+
+	// test the operator once
+	expectOutput(t,
+		ge.ExecuteOperatorByName(utils.NewContext(log.StandardLogger()), "graphbytag", "t4", map[string]string{}, MakeEmptyOutput()),
+		200, []string{})
 }
