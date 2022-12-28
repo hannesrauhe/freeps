@@ -67,6 +67,14 @@ func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
 		}
 		return strmap, nil
 	}
+	opmap, ok := io.Output.(map[string]*OperatorIO)
+	if ok {
+		strmap := make(map[string]string)
+		for k, v := range opmap {
+			strmap[k] = fmt.Sprintf("%v", v)
+		}
+		return strmap, nil
+	}
 	if io.IsEmpty() {
 		return map[string]string{}, nil
 	}
