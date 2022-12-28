@@ -67,6 +67,7 @@ func main() {
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
+		ge.AddOperator(usb.NewMuteMeOp(cr))
 		freepsexec.AddExecOperators(cr, ge)
 
 		if mod != "" {
@@ -83,8 +84,9 @@ func main() {
 			logger.Errorf("MQTT not started: %v", err)
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
-		muteme, err := usb.NewMuteMe(cr, ge)
-		if err != nil {
+		muteme := usb.GetInstance()
+
+		if err := muteme.Init(logger, cr, ge); err != nil {
 			logger.Errorf("MuteMe not started: %v", err)
 		}
 

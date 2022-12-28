@@ -11,7 +11,7 @@ import (
 	"github.com/sstallion/go-hid"
 )
 
-type MuteMe struct {
+type MuteMeImpl struct {
 	dev          *hid.Device
 	ge           *freepsgraph.GraphEngine
 	currentColor string
@@ -49,7 +49,7 @@ var DefaultConfig = MuteMeConfig{
 	DoublePressGraph: "muteMeDoublePress",
 }
 
-func (m *MuteMe) setColor(color string) error {
+func (m *MuteMeImpl) setColor(color string) error {
 	b := make([]byte, 2)
 	b[0] = 0x0
 
@@ -71,7 +71,7 @@ func (m *MuteMe) setColor(color string) error {
 	return err
 }
 
-func (m *MuteMe) mainloop() {
+func (m *MuteMeImpl) mainloop() {
 	bin := make([]byte, 8)
 	tpress1 := time.Now()
 	tpress2 := time.Now()
@@ -123,7 +123,11 @@ func (m *MuteMe) mainloop() {
 		if bin[3] == 4 { // press
 			tpress1 = tpress2
 			tpress2 = time.Now()
-			m.setColor("red")
+			if m.currentColor != "red" {
+				m.setColor("red")
+			} else {
+				m.setColor("off")
+			}
 		}
 		if bin[3] == 2 { // release
 			lastPressed = time.Now().Sub(tpress2)
@@ -144,11 +148,11 @@ func (m *MuteMe) mainloop() {
 	}
 }
 
-func (m *MuteMe) Shutdown() {
+func (m *MuteMeImpl) Shutdown() {
 	close(m.cmd)
 }
 
-func (m *MuteMe) SetColor(color string) error {
+func (m *MuteMeImpl) SetColor(color string) error {
 	if len(m.cmd) >= cap(m.cmd) {
 		return fmt.Errorf("Channel is over capacity")
 	}
@@ -164,7 +168,12 @@ func (m *MuteMe) SetColor(color string) error {
 	}
 }
 
-func NewMuteMe(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*MuteMe, error) {
+func (m *MuteMeImpl) GetColor() string {
+	//TODO lock
+	return m.currentColor
+}
+
+func newMuteMe(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*MuteMeImpl, error) {
 	mmc := DefaultConfig
 	err := cr.ReadSectionWithDefaults("muteme", &mmc)
 	if err != nil {
@@ -186,7 +195,7 @@ func NewMuteMe(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*MuteMe, er
 		return nil, err
 	}
 
-	m := &MuteMe{dev: d, currentColor: "off", cmd: make(chan string, 3), config: &mmc, logger: logrus.StandardLogger(), ge: ge}
+	m := &MuteMeImpl{dev: d, currentColor: "off", cmd: make(chan string, 3), config: &mmc, logger: logrus.StandardLogger(), ge: ge}
 	m.setColor("blue")
 	go m.mainloop()
 
