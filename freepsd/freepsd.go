@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
+	"io/ioutil"
+	"log"
 	"net/url"
 	"os"
 
@@ -11,6 +14,7 @@ import (
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
+	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/freepslisten"
 	"github.com/hannesrauhe/freeps/utils"
@@ -35,12 +39,13 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 }
 
 func main() {
-	var configpath, fn, mod, argstring string
+	var configpath, fn, mod, argstring, input string
 	flag.StringVar(&configpath, "c", utils.GetDefaultPath("freeps"), "Specify config file to use")
 	flag.StringVar(&mod, "m", "", "Specify mod to execute directly without starting rest server")
 	flag.StringVar(&fn, "f", "", "Specify function to execute in mod")
 	flag.StringVar(&argstring, "a", "", "Specify arguments to function as urlencoded string")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
+	flag.StringVar(&input, "i", "", "input file, use \"-\" to read from stdin")
 
 	flag.Parse()
 
@@ -66,11 +71,28 @@ func main() {
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
+		ge.AddOperator(&wled.OpWLED{})
 		freepsexec.AddExecOperators(cr, ge)
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
-			output := ge.ExecuteOperatorByName(utils.NewContext(logger), mod, fn, utils.URLArgsToMap(args), freepsgraph.MakeEmptyOutput())
+			oio := freepsgraph.MakeEmptyOutput()
+
+			if input == "-" {
+				scanner := bufio.NewScanner(os.Stdin)
+				b := []byte{}
+				for scanner.Scan() {
+					b = append(b, scanner.Bytes()...)
+				}
+				oio = freepsgraph.MakeByteOutput(b)
+			} else if input != "" {
+				content, err := ioutil.ReadFile(input)
+				if err != nil {
+					log.Fatal(err)
+				}
+				oio = freepsgraph.MakeByteOutput(content)
+			}
+			output := ge.ExecuteOperatorByName(utils.NewContext(logger), mod, fn, utils.URLArgsToMap(args), oio)
 			output.WriteTo(os.Stdout)
 			return
 		}
