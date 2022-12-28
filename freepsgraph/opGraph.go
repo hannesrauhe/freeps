@@ -1,7 +1,6 @@
 package freepsgraph
 
 import (
-	"net/http"
 	"sort"
 	"strings"
 
@@ -71,18 +70,7 @@ func (o *OpGraphByTag) Execute(ctx *utils.Context, fn string, args map[string]st
 		tags = append(tags, strings.Split(addTstr, ",")...)
 	}
 
-	if len(tags) == 0 {
-		return MakeOutputError(http.StatusBadRequest, "No tags given")
-	}
-
-	tg := o.ge.GetGraphInfoByTag(tags)
-	if len(tg) <= 1 {
-		for n := range tg {
-			return o.ge.ExecuteGraph(ctx, n, args, input)
-		}
-		return MakeOutputError(404, "No graph with tags \"%s\" found", strings.Join(tags, ","))
-	}
-	// need to build a temporary graph containing all graphs
+	return o.ge.ExecuteGraphByTags(ctx, tags)
 }
 
 // GetName returns the name of the operator

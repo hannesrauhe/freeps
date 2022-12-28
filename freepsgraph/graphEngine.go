@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,6 +39,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 
 	ge.operators = make(map[string]FreepsOperator)
 	ge.operators["graph"] = &OpGraph{ge: ge}
+	ge.operators["graphbytag"] = &OpGraphByTag{ge: ge}
 	ge.operators["time"] = &OpTime{}
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
@@ -111,16 +114,6 @@ func (ge *GraphEngine) ReloadRequested() bool {
 	return ge.reloadRequested
 }
 
-// ExecuteOperatorByName executes an operator directly
-func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
-	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
-	g, err := NewGraph(ctx, name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
-	if err != nil {
-		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
-	}
-	return g.execute(ctx, mainArgs, mainInput)
-}
-
 // ExecuteGraph executes a graph stored in the engine
 func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g, o := ge.prepareGraphExecution(ctx, graphName, true)
@@ -133,6 +126,48 @@ func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainAr
 		}
 	}
 	return g.execute(ctx, mainArgs, mainInput)
+}
+
+// ExecuteOperatorByName executes an operator directly
+func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
+	g, err := NewGraph(ctx, name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
+	if err != nil {
+		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
+	}
+	return g.execute(ctx, mainArgs, mainInput)
+}
+
+// ExecuteGraphByTags executes graphs with given tags
+func (ge *GraphEngine) ExecuteGraphByTags(ctx *utils.Context, tags []string) *OperatorIO {
+	if tags == nil || len(tags) == 0 {
+		return MakeOutputError(http.StatusBadRequest, "No tags given")
+	}
+
+	args := map[string]string{}
+	input := MakeEmptyOutput()
+
+	tg := ge.GetGraphInfoByTag(tags)
+	if len(tg) <= 1 {
+		for n := range tg {
+			return ge.ExecuteGraph(ctx, n, args, input)
+		}
+		return MakeOutputError(404, "No graph with tags \"%s\" found", strings.Join(tags, ","))
+	}
+
+	// need to build a temporary graph containing all graphs with matching tags
+	op := []GraphOperationDesc{}
+	for n := range tg {
+		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n})
+	}
+	gd := GraphDesc{Operations: op, Tags: []string{"internal"}}
+	name := "ByTag/" + strings.Join(tags, ",")
+
+	g, err := NewGraph(ctx, name, &gd, ge)
+	if err != nil {
+		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
+	}
+	return g.execute(ctx, args, input)
 }
 
 func (ge *GraphEngine) getGraphInfoUnlocked(graphName string) (*GraphInfo, bool) {

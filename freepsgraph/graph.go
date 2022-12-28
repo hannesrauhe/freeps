@@ -51,22 +51,23 @@ type Graph struct {
 }
 
 // NewGraph creates a new graph from a graph description
-func NewGraph(ctx *utils.Context, name string, graphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
+func NewGraph(ctx *utils.Context, name string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 	if ge == nil {
 		return nil, errors.New("GraphEngine not set")
 	}
-	if graphDesc == nil {
+	if origGraphDesc == nil {
 		return nil, errors.New("GraphDesc not set")
 	}
-	if len(graphDesc.Operations) == 0 {
+	if len(origGraphDesc.Operations) == 0 {
 		return nil, errors.New("No operations defined")
 	}
-	gd := GraphDesc{OutputFrom: graphDesc.OutputFrom, Operations: make([]GraphOperationDesc, len(graphDesc.Operations))}
+	gd := *origGraphDesc
+	gd.Operations = make([]GraphOperationDesc, len(origGraphDesc.Operations))
 
 	outputNames := make(map[string]bool)
 	outputNames[ROOT_SYMBOL] = true
 	// create a copy of each operation and add it to the graph
-	for i, op := range graphDesc.Operations {
+	for i, op := range origGraphDesc.Operations {
 		if op.Name == ROOT_SYMBOL {
 			return nil, errors.New("Operation name cannot be " + ROOT_SYMBOL)
 		}
@@ -101,12 +102,12 @@ func NewGraph(ctx *utils.Context, name string, graphDesc *GraphDesc, ge *GraphEn
 
 		// op.args are not copied, because they aren't modified during execution
 	}
-	if graphDesc.OutputFrom == "" {
-		if len(graphDesc.Operations) == 1 {
+	if origGraphDesc.OutputFrom == "" {
+		if len(origGraphDesc.Operations) == 1 {
 			gd.OutputFrom = gd.Operations[0].Name
 		}
-	} else if outputNames[graphDesc.OutputFrom] != true {
-		return nil, fmt.Errorf("Graph references unknown outputFrom \"%v\"", graphDesc.OutputFrom)
+	} else if outputNames[origGraphDesc.OutputFrom] != true {
+		return nil, fmt.Errorf("Graph references unknown outputFrom \"%v\"", origGraphDesc.OutputFrom)
 	}
 	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
 }
