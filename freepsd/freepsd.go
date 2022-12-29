@@ -106,9 +106,9 @@ func main() {
 			logger.Errorf("MQTT not started: %v", err)
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
-		muteme := usb.GetInstance()
+		mm := muteme.GetInstance()
 
-		if err := muteme.Init(logger, cr, ge); err != nil {
+		if err := mm.Init(logger, cr, ge); err != nil {
 			logger.Errorf("MuteMe not started: %v", err)
 		}
 
@@ -118,7 +118,7 @@ func main() {
 			mqtt.Shutdown()
 			telg.Shutdown(context.TODO())
 			http.Shutdown(context.TODO())
-			muteme.Shutdown()
+			mm.Shutdown()
 		}
 		running = ge.ReloadRequested()
 		ge.Shutdown(utils.NewContext(logger))
