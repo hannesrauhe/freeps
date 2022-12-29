@@ -1,8 +1,8 @@
 build:
-	go build -o freepsd/freepsd freepsd/freepsd.go
+	go build -tags muteme -o freepsd/freepsd freepsd/freepsd.go
 
-full-build:
-	go build -o freepsd/freepsd -tags muteme freepsd/freepsd.go
+light-build:
+	go build -o freepsd/freepsd-light freepsd/freepsd.go
 
 install: freepsd/freepsd
 	mv freepsd/freepsd /usr/bin/freepsd

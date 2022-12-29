@@ -8,12 +8,13 @@ import (
 )
 
 type OpMuteMe struct {
+	mm *MuteMe
 }
 
 var _ freepsgraph.FreepsOperator = &OpMuteMe{}
 
-func NewMuteMeOp(cr *utils.ConfigReader) *OpMuteMe {
-	fmqtt := &OpMuteMe{}
+func NewMuteMeOp(mm *MuteMe) *OpMuteMe {
+	fmqtt := &OpMuteMe{mm: mm}
 	return fmqtt
 }
 
@@ -25,17 +26,17 @@ func (o *OpMuteMe) GetName() string {
 func (o *OpMuteMe) Execute(ctx *utils.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	switch fn {
 	case "setColor":
-		return GetInstance().SetColor(args["color"])
+		return o.mm.SetColor(args["color"])
 	case "turnOff":
-		return GetInstance().SetColor("off")
+		return o.mm.SetColor("off")
 	case "cycle":
 		for c, b := range colors {
-			if b != 0x00 && c != GetInstance().GetColor() {
-				return GetInstance().SetColor(c)
+			if b != 0x00 && c != o.mm.GetColor() {
+				return o.mm.SetColor(c)
 			}
 		}
 	case "getColor":
-		return freepsgraph.MakePlainOutput(GetInstance().GetColor())
+		return freepsgraph.MakePlainOutput(o.mm.GetColor())
 	default:
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 	}

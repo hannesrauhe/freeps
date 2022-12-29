@@ -21,6 +21,12 @@ func (m *MuteMeImpl) GetColor() string {
 	return "off"
 }
 
+func (m *MuteMeImpl) Shutdown() {
+}
+
+func (m *MuteMeImpl) mainloop() {
+}
+
 func newMuteMe(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*MuteMeImpl, error) {
 	return nil, fmt.Errorf("Not compiled")
 }

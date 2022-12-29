@@ -69,10 +69,16 @@ func main() {
 		defer cancel()
 
 		ge := freepsgraph.NewGraphEngine(cr, cancel)
+
+		mm, err := muteme.NewMuteMe(logger, cr, ge)
+		if err != nil {
+			logger.Errorf("MuteMe not started: %v", err)
+			ge.AddOperator(muteme.NewMuteMeOp(mm))
+		}
+
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
-		ge.AddOperator(muteme.NewMuteMeOp(cr))
 		ge.AddOperator(&wled.OpWLED{})
 		freepsexec.AddExecOperators(cr, ge)
 
@@ -106,11 +112,7 @@ func main() {
 			logger.Errorf("MQTT not started: %v", err)
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
-		mm := muteme.GetInstance()
-
-		if err := mm.Init(logger, cr, ge); err != nil {
-			logger.Errorf("MuteMe not started: %v", err)
-		}
+		mm.StartListening()
 
 		select {
 		case <-ctx.Done():
