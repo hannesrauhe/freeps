@@ -1,6 +1,9 @@
 build:
 	go build -o freepsd/freepsd freepsd/freepsd.go
 
+full-build:
+	go build -o freepsd/freepsd -tags muteme freepsd/freepsd.go
+
 install: freepsd/freepsd
 	mv freepsd/freepsd /usr/bin/freepsd
 	adduser freeps --no-create-home --system --ingroup video
