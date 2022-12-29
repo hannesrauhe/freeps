@@ -1,4 +1,4 @@
-package usb
+package muteme
 
 import (
 	"net/http"

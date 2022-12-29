@@ -1,4 +1,4 @@
-package usb
+package muteme
 
 var colors = map[string]byte{
 	"red":     0x01,

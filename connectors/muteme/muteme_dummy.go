@@ -1,7 +1,7 @@
 //go:build !muteme
 // +build !muteme
 
-package usb
+package muteme
 
 import (
 	"fmt"
