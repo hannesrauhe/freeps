@@ -15,6 +15,7 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/sirupsen/logrus v1.9.0
+	github.com/sstallion/go-hid v0.12.4
 	golang.org/x/image v0.2.0
 	gotest.tools/v3 v3.4.0
 )
@@ -27,7 +28,6 @@ require (
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/mzohreva/GoGraphviz v0.0.0-20180226085351-533f4a37d9c6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sstallion/go-hid v0.12.4 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.2.0 // indirect

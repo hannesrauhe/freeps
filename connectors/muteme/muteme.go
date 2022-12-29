@@ -9,7 +9,7 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-// MuteMe provides the functions for MQTT handling
+// MuteMe provides the interface to the muteme button and its LEDs
 type MuteMe struct {
 	impl *MuteMeImpl
 }
@@ -22,7 +22,7 @@ func NewMuteMe(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.G
 	return mm, err
 }
 
-// Shutdown MQTT and cancel all subscriptions
+// Shutdown the muteme listener
 func (mm *MuteMe) Shutdown() {
 	if mm.impl == nil {
 		return
