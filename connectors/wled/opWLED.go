@@ -160,7 +160,7 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 }
 
 func (o *OpWLED) GetFunctions() []string {
-	return []string{"setString", "setImage", "setPixel"}
+	return []string{"setString", "setImage", "setPixel", "getPixelMatrix"}
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {

@@ -1,12 +1,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<div style="background-color: black;">
 {{ range $y, $row := .PixelMatrix }}
 {{ range $x, $color := $row }}
-    <div style="float:left; background-color: {{ $color }};width: 8px;height: 8px;border: solid black">
+    <div style="float:left; background-color: {{ $color }};width: 20px;height: 20px;border: solid black">
             <a href="/graph/UIgraph?x={{$x}}&y={{$y}}" class="display: block; height: 100%; width: 100%; text-decoration: none;">_</a>
     </div>
 {{ end}}
-<br />
+<br /><br />
 {{ end }}
+</div>
 <br clear="both" />
 <br />
