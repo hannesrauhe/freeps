@@ -14,11 +14,8 @@ import (
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
-<<<<<<< HEAD
 	"github.com/hannesrauhe/freeps/connectors/muteme"
-=======
 	"github.com/hannesrauhe/freeps/connectors/postgres"
->>>>>>> origin/main
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
