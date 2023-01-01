@@ -99,13 +99,21 @@ func ParseHexColor(s string) (c color.RGBA, err error) {
 	return
 }
 
+func GetHexColor(c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	r = r >> 8
+	g = g >> 8
+	b = b >> 8
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
+}
+
 // DeleteElemFromSlice swaps i-th and last Element and deletes the last
 func DeleteElemFromSlice(s []string, i int) []string {
-	if i>=len(s) || i<0 {
+	if i >= len(s) || i < 0 {
 		return s
 	}
-	if i<len(s)-1 {
-		s[i]=s[len(s)-1]
+	if i < len(s)-1 {
+		s[i] = s[len(s)-1]
 	}
 	return s[:len(s)-1]
 }

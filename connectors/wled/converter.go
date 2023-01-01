@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/utils"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
@@ -27,11 +28,14 @@ type WLEDRoot struct {
 }
 
 type WLEDConverter struct {
-	r       WLEDRoot
 	x       int
 	y       int
 	bgcolor color.Color
 	dst     *image.RGBA
+}
+
+type PixelMatrix struct {
+	PixelMatrix [][]string
 }
 
 func NewWLEDConverter(x int, y int, bgcolor color.Color) *WLEDConverter {
@@ -39,21 +43,14 @@ func NewWLEDConverter(x int, y int, bgcolor color.Color) *WLEDConverter {
 	return &w
 }
 
-func (w *WLEDConverter) AppendIndividualPixel(r uint32, g uint32, b uint32) {
-	if w.r.Seg.I == nil {
-		w.r.Seg.I = make([][3]uint32, 0)
-	}
-	w.r.Seg.I = append(w.r.Seg.I, [3]uint32{r, g, b})
-}
-
-func (w *WLEDConverter) SetPixel(x, y int, r, g, b uint8) error {
+func (w *WLEDConverter) SetPixel(x, y int, c color.Color) error {
 	if x >= w.x {
 		return fmt.Errorf("x dimension out of bounds")
 	}
 	if y >= w.y {
 		return fmt.Errorf("y dimension out of bounds")
 	}
-	w.dst.SetRGBA(x, y, color.RGBA{R: r, G: g, B: b})
+	w.dst.Set(x, y, c)
 	return nil
 }
 
@@ -104,10 +101,9 @@ func (w *WLEDConverter) ScaleImage(src image.Image) {
 }
 
 func (w *WLEDConverter) GetJSON(segid int) ([]byte, error) {
-	if w.r.Seg.I == nil {
-		w.r.Seg.ID = segid
-		w.r.Seg.I = make([][3]uint32, 0)
-	}
+	root := WLEDRoot{}
+	root.Seg.ID = segid
+	root.Seg.I = make([][3]uint32, 0)
 	for x := 0; x < w.x; x++ {
 		for y := 0; y < w.y; y++ {
 			j := y
@@ -116,10 +112,22 @@ func (w *WLEDConverter) GetJSON(segid int) ([]byte, error) {
 			}
 			r, g, b, _ := w.dst.At(x, j).RGBA()
 			p := [3]uint32{r >> 8, g >> 8, b >> 8}
-			w.r.Seg.I = append(w.r.Seg.I, p)
+			root.Seg.I = append(root.Seg.I, p)
 		}
 	}
-	return json.Marshal(w.r)
+	return json.Marshal(root)
+}
+
+func (w *WLEDConverter) GetPixelMatrix() PixelMatrix {
+	root := PixelMatrix{PixelMatrix: make([][]string, 0)}
+	for y := 0; y < w.y; y++ {
+		root.PixelMatrix = append(root.PixelMatrix, make([]string, w.x))
+		for x := 0; x < w.x; x++ {
+			c := w.dst.At(x, y)
+			root.PixelMatrix[y][x] = utils.GetHexColor(c)
+		}
+	}
+	return root
 }
 
 func (w *WLEDConverter) GetImage() *freepsgraph.OperatorIO {
