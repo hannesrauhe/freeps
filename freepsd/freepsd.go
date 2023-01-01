@@ -12,8 +12,13 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
+	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
+<<<<<<< HEAD
 	"github.com/hannesrauhe/freeps/connectors/muteme"
+=======
+	"github.com/hannesrauhe/freeps/connectors/postgres"
+>>>>>>> origin/main
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -62,6 +67,10 @@ func main() {
 			logger.SetLevel(logrus.DebugLevel)
 		}
 
+		if verbose {
+			logger.SetLevel(logrus.DebugLevel)
+		}
+
 		logger.Debug("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -78,8 +87,17 @@ func main() {
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
-		ge.AddOperator(&wled.OpWLED{})
+		ge.AddOperator(freepsflux.NewFluxMod(cr))
+		ge.AddOperator(postgres.NewPostgresOp())
+		ge.AddOperator(wled.NewWLEDOp(cr))
 		freepsexec.AddExecOperators(cr, ge)
+
+		ph, err := postgres.NewPostgressHook(cr)
+		if err != nil {
+			logger.Errorf("Postgres hook not available: %v", err.Error())
+		} else {
+			ge.AddHook(ph)
+		}
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)

@@ -9,13 +9,15 @@ import (
 	"image/png"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type OpWLED struct {
+	cr     *utils.ConfigReader
+	config *OpConfig
 }
 
 //go:embed font/*
@@ -33,32 +35,19 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 
 	var resp *http.Response
 	var err error
-	var bgcolor color.Color
+	var bgcolor color.Color //TODO: unused
 
-	x, err := strconv.Atoi(vars["x"])
+	// TODO: pick a config
+	conf := o.config.Connections[o.config.DefaultConnection]
+	err = utils.ArgsMapToObject(vars, &conf)
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "x not a valid integer")
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse parameters: %v", err.Error())
 	}
-	y, err := strconv.Atoi(vars["y"])
+	err = conf.Validate()
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
 	}
-
-	if colstr, ok := vars["bgcolor"]; ok {
-		bgcolor, err = utils.ParseHexColor(colstr)
-		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
-		}
-	}
-	w := NewWLEDConverter(x, y, bgcolor)
-
-	segid := 0
-	if _, ok := vars["segid"]; ok {
-		segid, err = strconv.Atoi(vars["segid"])
-		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "segid not a valid integer")
-		}
-	}
+	w := NewWLEDConverter(conf.X, conf.Y, bgcolor)
 
 	switch function {
 	case "setImage":
@@ -112,12 +101,12 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	b, err := w.GetJSON(segid)
+	b, err := w.GetJSON(conf.SegID)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	breader := bytes.NewReader(b)
-	resp, err = c.Post(vars["address"]+"/json", "encoding/json", breader)
+	resp, err = c.Post(conf.Address+"/json", "encoding/json", breader)
 
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
@@ -141,6 +130,20 @@ func (o *OpWLED) GetPossibleArgs(fn string) []string {
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
+}
+
+func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
+	conf := DefaultConfig
+	err := cr.ReadSectionWithDefaults("wled", &conf)
+	if err != nil {
+		logrus.Errorf("Reading wled config failed: %v", err)
+	} else {
+		err = cr.WriteBackConfigIfChanged()
+		if err != nil {
+			logrus.Error(err)
+		}
+	}
+	return &OpWLED{cr: cr, config: &conf}
 }
 
 // Shutdown (noOp)
