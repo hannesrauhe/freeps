@@ -54,15 +54,13 @@ func main() {
 	running := true
 	for running {
 		cr, err := utils.NewConfigReader(logger.WithField("component", "config"), configpath)
-
-		if verbose {
-			logger.SetLevel(logrus.DebugLevel)
-		}
-
 		if err != nil {
 			logger.Fatal(err)
 		}
 		configureLogging(cr, logger)
+		if verbose {
+			logger.SetLevel(logrus.DebugLevel)
+		}
 
 		logger.Debug("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
@@ -73,6 +71,7 @@ func main() {
 		mm, err := muteme.NewMuteMe(logger, cr, ge)
 		if err != nil {
 			logger.Errorf("MuteMe not started: %v", err)
+		} else {
 			ge.AddOperator(muteme.NewMuteMeOp(mm))
 		}
 

@@ -19,7 +19,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": []
+      "args": ["-v"]
     },
     {
       "name": "wled SetPixel",
@@ -27,7 +27,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "wled", "-f", "setPixel"]
+      "args": ["-m", "graph", "-f", "testmuteme", "-v"]
     },
     {
       "name": "wled",

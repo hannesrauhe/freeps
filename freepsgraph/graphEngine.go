@@ -120,9 +120,12 @@ func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainAr
 	if g == nil {
 		return o
 	}
-	for _, h := range ge.hooks {
+	for name, h := range ge.hooks {
 		if h != nil {
-			h.OnExecute(ctx, graphName, mainArgs, mainInput)
+			err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
+			if err != nil {
+				ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
+			}
 		}
 	}
 	return g.execute(ctx, mainArgs, mainInput)

@@ -1,5 +1,5 @@
-//go:build !muteme
-// +build !muteme
+//go:build nomuteme
+// +build nomuteme
 
 package muteme
 
