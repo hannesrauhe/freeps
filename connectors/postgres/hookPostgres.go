@@ -30,6 +30,12 @@ func NewPostgressHook(cr *utils.ConfigReader) (*HookPostgres, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
 	return &HookPostgres{db: db}, nil
 }
 

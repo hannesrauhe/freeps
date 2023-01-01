@@ -55,15 +55,14 @@ func main() {
 	running := true
 	for running {
 		cr, err := utils.NewConfigReader(logger.WithField("component", "config"), configpath)
-
-		if verbose {
-			logger.SetLevel(logrus.DebugLevel)
-		}
-
 		if err != nil {
 			logger.Fatal(err)
 		}
 		configureLogging(cr, logger)
+
+		if verbose {
+			logger.SetLevel(logrus.DebugLevel)
+		}
 
 		logger.Debug("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
@@ -80,7 +79,7 @@ func main() {
 
 		ph, err := postgres.NewPostgressHook(cr)
 		if err != nil {
-			logger.Fatal(err)
+			logger.Errorf("Postgres hook not available: %v", err.Error())
 		}
 		ge.AddHook(ph)
 
