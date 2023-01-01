@@ -320,12 +320,13 @@ func (ge *GraphEngine) TriggerExecuteHooks(ctx *utils.Context, graphName string,
 	defer ge.hookLock.Unlock()
 
 	for name, h := range ge.hooks {
-		if h != nil {
-			h.OnExecute(ctx, graphName, mainArgs, mainInput)
-			err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
-			if err != nil {
-				ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
-			}
+		if h == nil {
+			continue
+		}
+		h.OnExecute(ctx, graphName, mainArgs, mainInput)
+		err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
+		if err != nil {
+			ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }
