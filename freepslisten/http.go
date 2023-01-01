@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -26,31 +27,62 @@ type FreepsHttp struct {
 	srv         *http.Server
 }
 
+func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *freepsgraph.OperatorIO, err error) {
+	mainInput = freepsgraph.MakeEmptyOutput()
+	query := req.URL.Query()
+	mainArgs = utils.URLArgsToMap(query)
+	var byteinput []byte
+
+	if req.Method == "POST" {
+		if strings.Split(req.Header.Get("Content-Type"), ";")[0] == "multipart/form-data" {
+			err = req.ParseMultipartForm(1024 * 1024 * 2)
+			if err != nil {
+				return
+			}
+			if len(req.MultipartForm.File) > 1 {
+				err = fmt.Errorf("Can only process one file per form, not %v", len(req.MultipartForm.File))
+				return
+			}
+			for n, _ := range req.MultipartForm.File {
+				f, _, serr := req.FormFile(n)
+				if serr != nil {
+					err = serr
+					return
+				}
+				byteinput, err = io.ReadAll(f)
+			}
+		} else {
+			defer req.Body.Close()
+			byteinput, err = io.ReadAll(req.Body)
+		}
+		if err != nil {
+			return
+		}
+		ct := http.DetectContentType(byteinput)
+		mainInput = freepsgraph.MakeByteOutputWithContentType(byteinput, ct)
+	}
+	return
+}
+
 func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	httplogger := log.WithField("restAPI", req.RemoteAddr)
-	var mainArgs map[string]string
-	var mainInput freepsgraph.OperatorIO
 
-	if req.Method == "POST" {
-		defer req.Body.Close()
-		byteargs, err := io.ReadAll(req.Body)
-		mainInput = *freepsgraph.MakeByteOutput(byteargs)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Error reading request body: %v", err)
-			return
-		}
+	mainArgs, mainInput, err := r.ParseRequest(req)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Error reading request body: %v", err)
+		return
 	}
 
-	query := req.URL.Query()
-	mainArgs = utils.URLArgsToMap(query)
+	// backward compatibility to a very early version
 	device, exists := vars["device"]
 	if exists {
 		mainArgs["device"] = device
 	}
+
 	ctx := utils.NewContext(httplogger)
-	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, &mainInput)
+	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	opio.Log(httplogger)
 
 	bytes, err := opio.GetBytes()
