@@ -23,7 +23,7 @@ func NewFluxMod(cr *utils.ConfigReader) *OpFlux {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cr.WriteBackConfigIfChanged()
+	err = cr.WriteBackConfigIfChanged()
 	if err != nil {
 		log.Print(err)
 	}

@@ -74,14 +74,15 @@ func main() {
 		ge.AddOperator(telegram.NewTelegramOp(cr))
 		ge.AddOperator(freepsflux.NewFluxMod(cr))
 		ge.AddOperator(postgres.NewPostgresOp())
-		ge.AddOperator(&wled.OpWLED{})
+		ge.AddOperator(wled.NewWLEDOp(cr))
 		freepsexec.AddExecOperators(cr, ge)
 
 		ph, err := postgres.NewPostgressHook(cr)
 		if err != nil {
 			logger.Errorf("Postgres hook not available: %v", err.Error())
+		} else {
+			ge.AddHook(ph)
 		}
-		ge.AddHook(ph)
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
