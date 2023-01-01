@@ -1,25 +1,24 @@
-package freepsgraph
+package freepsflux
 
 import (
 	"net/http"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/hannesrauhe/freeps/freepsflux"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
+	log "github.com/sirupsen/logrus"
 )
 
 type OpFlux struct {
-	ff  *freepsflux.FreepsFlux
-	ffc *freepsflux.FreepsFluxConfig
+	ff  *FreepsFlux
+	ffc *FreepsFluxConfig
 }
 
-var _ FreepsOperator = &OpFlux{}
+var _ freepsgraph.FreepsOperator = &OpFlux{}
 
 func NewFluxMod(cr *utils.ConfigReader) *OpFlux {
-	ffc := &freepsflux.DefaultConfig
+	ffc := &DefaultConfig
 	err := cr.ReadSectionWithDefaults("freepsflux", &ffc)
 	if err != nil {
 		log.Fatal(err)
@@ -28,7 +27,7 @@ func NewFluxMod(cr *utils.ConfigReader) *OpFlux {
 	if err != nil {
 		log.Print(err)
 	}
-	ff, _ := freepsflux.NewFreepsFlux(ffc, nil)
+	ff, _ := NewFreepsFlux(ffc, nil)
 	return &OpFlux{ffc: ffc, ff: ff}
 }
 
@@ -48,7 +47,7 @@ func (o *OpFlux) GetName() string {
 	return "flux"
 }
 
-func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
 	switch fn {
 	case "pushfields":
@@ -58,7 +57,7 @@ func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 			var args JsonArgs
 			input.ParseJSON(&args)
 			if len(args.Measurement) == 0 {
-				return MakeOutputError(http.StatusBadRequest, "Name of measurement is empty")
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Name of measurement is empty")
 			}
 			for k, v := range args.Fields {
 				fields[k] = v
@@ -76,16 +75,16 @@ func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 					value = fwt.FieldValue
 				}
 				if err != nil {
-					return MakeOutputError(http.StatusBadRequest, "Error when converting: \"%v\" does not seem to be of type \"%v\": %v", fwt.FieldValue, fwt.FieldType, err)
+					return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when converting: \"%v\" does not seem to be of type \"%v\": %v", fwt.FieldValue, fwt.FieldType, err)
 				}
 				fields[k] = value
 			}
 
 			err = o.ff.PushFields(args.Measurement, args.Tags, fields)
 			if err == nil {
-				return MakePlainOutput("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
+				return freepsgraph.MakePlainOutput("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
 			} else {
-				return MakeOutputError(http.StatusInternalServerError, "%v", err)
+				return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err)
 			}
 		}
 	case "pushfreepsdevicelist":
@@ -101,46 +100,46 @@ func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 			return o.pushFreepsData(input)
 		}
 	}
-	return MakeOutputError(http.StatusBadRequest, "Unknown function: %v", fn)
+	return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function: %v", fn)
 }
 
-func (o *OpFlux) pushFreepsDeviceList(input *OperatorIO) *OperatorIO {
+func (o *OpFlux) pushFreepsDeviceList(input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var devicelist freepslib.AvmDeviceList
 	err := input.ParseJSON(&devicelist)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
 	err, lp := o.ff.PushFreepsDeviceList(&devicelist)
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}
-	return MakePlainOutput("%v", lp)
+	return freepsgraph.MakePlainOutput("%v", lp)
 }
 
-func (o *OpFlux) pushFreepsData(input *OperatorIO) *OperatorIO {
+func (o *OpFlux) pushFreepsData(input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var devicelist freepslib.AvmDataResponse
 	err := input.ParseJSON(&devicelist)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
 	err, lp := o.ff.PushFreepsNetDeviceList(&devicelist)
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "Error when pushing netdevice list: %v", err)
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error when pushing netdevice list: %v", err)
 	}
-	return MakePlainOutput("%v", lp)
+	return freepsgraph.MakePlainOutput("%v", lp)
 }
 
-func (o *OpFlux) pushFreepsMetrics(input *OperatorIO) *OperatorIO {
+func (o *OpFlux) pushFreepsMetrics(input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var metrics freepslib.FritzBoxMetrics
 	err := input.ParseJSON(&metrics)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
 	err, lp := o.ff.PushFreepsMetrics(&metrics)
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}
-	return MakePlainOutput("%v", lp)
+	return freepsgraph.MakePlainOutput("%v", lp)
 }
 
 func (o *OpFlux) GetFunctions() []string {

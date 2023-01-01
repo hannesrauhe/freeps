@@ -12,7 +12,9 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
+	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
+	"github.com/hannesrauhe/freeps/connectors/postgres"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -71,8 +73,16 @@ func main() {
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
+		ge.AddOperator(freepsflux.NewFluxMod(cr))
+		ge.AddOperator(postgres.NewPostgresOp())
 		ge.AddOperator(&wled.OpWLED{})
 		freepsexec.AddExecOperators(cr, ge)
+
+		ph, err := postgres.NewPostgressHook(cr)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		ge.AddHook(ph)
 
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)

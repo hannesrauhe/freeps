@@ -1,8 +1,9 @@
-package freepsgraph
+package postgres
 
 import (
 	"testing"
 
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -11,7 +12,7 @@ import (
 func TestConn(t *testing.T) {
 	t.Skip("Needs local db")
 	vars := map[string]string{"host": "localhost", "port": "5432", "user": "postgres", "password": "test", "dbname": "freeps"}
-	input := MakePlainOutput("test_value")
+	input := freepsgraph.MakePlainOutput("test_value")
 
 	s := NewPostgresOp()
 	out := s.Execute(utils.NewContext(logrus.StandardLogger()), "query", vars, input)

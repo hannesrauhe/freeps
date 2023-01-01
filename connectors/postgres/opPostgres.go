@@ -1,10 +1,11 @@
-package freepsgraph
+package postgres
 
 import (
 	"database/sql"
 	"fmt"
 	"net/http"
 
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	_ "github.com/lib/pq"
 )
@@ -13,7 +14,7 @@ import (
 type OpPostgres struct {
 }
 
-var _ FreepsOperator = &OpPostgres{}
+var _ freepsgraph.FreepsOperator = &OpPostgres{}
 
 // GetName returns the name of the operator
 func (o *OpPostgres) GetName() string {
@@ -26,24 +27,24 @@ func NewPostgresOp() *OpPostgres {
 }
 
 // Execute sends a query to the db specified by vars
-func (o *OpPostgres) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpPostgres) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	psqlconn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require", vars["host"], vars["port"], vars["user"], vars["password"], vars["dbname"])
 	db, err := sql.Open("postgres", psqlconn)
 	if err != nil {
-		MakeOutputError(http.StatusBadRequest, err.Error())
+		freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
 	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
-	return MakeEmptyOutput()
+	return freepsgraph.MakeEmptyOutput()
 }
 
 // GetFunctions returns all availabble functions

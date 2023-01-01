@@ -31,6 +31,7 @@ type GraphEngine struct {
 	reloadRequested bool
 	graphLock       sync.Mutex
 	operatorLock    sync.Mutex
+	hookLock        sync.Mutex
 }
 
 // NewGraphEngine creates the graph engine from the config
@@ -45,7 +46,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
 	ge.operators["store"] = NewOpStore()
-	ge.operators["postgres"] = NewPostgresOp()
 
 	ge.hooks = make(map[string]FreepsHook)
 
@@ -71,10 +71,8 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		}
 
 		ge.operators["fritz"] = NewOpFritz(cr)
-		ge.operators["flux"] = NewFluxMod(cr)
 		ge.operators["ui"] = NewHTMLUI(cr, ge)
 
-		ge.hooks["postgres"], err = NewPostgressHook(cr)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -120,11 +118,7 @@ func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainAr
 	if g == nil {
 		return o
 	}
-	for _, h := range ge.hooks {
-		if h != nil {
-			h.OnExecute(ctx, graphName, mainArgs, mainInput)
-		}
-	}
+	ge.TriggerExecuteHooks(ctx, graphName, mainArgs, mainInput)
 	return g.execute(ctx, mainArgs, mainInput)
 }
 
@@ -311,6 +305,29 @@ func (ge *GraphEngine) GetOperator(opName string) FreepsOperator {
 		return nil
 	}
 	return op
+}
+
+// AddHook adds a hook to the graph engine
+func (ge *GraphEngine) AddHook(h FreepsHook) {
+	ge.hookLock.Lock()
+	defer ge.hookLock.Unlock()
+	ge.hooks[h.GetName()] = h
+}
+
+// TriggerExecuteHooks adds a hook to the graph engine
+func (ge *GraphEngine) TriggerExecuteHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+	ge.hookLock.Lock()
+	defer ge.hookLock.Unlock()
+
+	for name, h := range ge.hooks {
+		if h != nil {
+			h.OnExecute(ctx, graphName, mainArgs, mainInput)
+			err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
+			if err != nil {
+				ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
+			}
+		}
+	}
 }
 
 // AddTemporaryGraph adds a graph to the temporary graph list
