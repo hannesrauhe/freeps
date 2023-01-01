@@ -8,5 +8,6 @@ install: freepsd/freepsd
 	mv freepsd/freepsd /usr/bin/freepsd
 	adduser freeps --no-create-home --system --ingroup video
 	cp systemd/freepsd.service /etc/systemd/system/freepsd.service
+	mkdir /etc/freepsd && chown freeps /etc/freepsd
 	systemctl daemon-reload
 	systemctl restart freepsd
