@@ -84,6 +84,9 @@ func main() {
 			ge.AddHook(ph)
 		}
 
+		if err := ge.LoadEmbeddedGraphs(); err != nil {
+			logger.Fatal(err)
+		}
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
 			oio := freepsgraph.MakeEmptyOutput()

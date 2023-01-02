@@ -120,20 +120,24 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 		}
 		err = w.SetPixel(x, y, c)
 	case "getPixelMatrix":
-		str, ok := vars["pixelMatrix"]
-		if ok {
-			wt, ok := o.saved[str]
-			if ok {
-				w = wt
-			}
+		pmName, ok := vars["pixelMatrix"]
+		if !ok || pmName == "" {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "pixelMatrix paramter should contain the name but is missing")
 		}
-		return freepsgraph.MakeObjectOutput(w.GetPixelMatrix())
+		wt, ok := o.saved[pmName]
+		if ok {
+			w = wt
+		}
+		pm := w.GetPixelMatrix()
+		pm.Name = pmName
+		pm.NextColor = vars["color"]
+		return freepsgraph.MakeObjectOutput(pm)
 	default:
 		return freepsgraph.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 
-	if imgName, ok := vars["pixelMatrix"]; ok {
-		o.saved[imgName] = w
+	if pmName, ok := vars["pixelMatrix"]; ok {
+		o.saved[pmName] = w
 	}
 
 	if err != nil {

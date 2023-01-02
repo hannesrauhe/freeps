@@ -36,6 +36,8 @@ type WLEDConverter struct {
 
 type PixelMatrix struct {
 	PixelMatrix [][]string
+	Name        string
+	NextColor   string
 }
 
 func NewWLEDConverter(x int, y int, bgcolor color.Color) *WLEDConverter {
