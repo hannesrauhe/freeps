@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -18,6 +19,7 @@ import (
 type OpWLED struct {
 	cr     *utils.ConfigReader
 	config *OpConfig
+	saved  map[string]*WLEDConverter
 }
 
 //go:embed font/*
@@ -47,7 +49,7 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
 	}
-	w := NewWLEDConverter(conf.X, conf.Y, bgcolor)
+	w := NewWLEDConverter(conf.Width, conf.Height, bgcolor)
 
 	switch function {
 	case "setImage":
@@ -93,8 +95,49 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 			}
 		}
 		err = w.WriteString(str, c, utils.ParseBool(vars["alignRight"]))
+	case "setPixel":
+		c := image.White.C
+		str, ok := vars["pixelMatrix"]
+		if ok {
+			wt, ok := o.saved[str]
+			if ok {
+				w = wt
+			}
+		}
+		if colstr, ok := vars["color"]; ok {
+			c, err = utils.ParseHexColor(colstr)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+			}
+		}
+		x, err := strconv.Atoi(vars["x"])
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "x not a valid integer")
+		}
+		y, err := strconv.Atoi(vars["y"])
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
+		}
+		err = w.SetPixel(x, y, c)
+	case "getPixelMatrix":
+		pmName, ok := vars["pixelMatrix"]
+		if !ok || pmName == "" {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "pixelMatrix paramter should contain the name but is missing")
+		}
+		wt, ok := o.saved[pmName]
+		if ok {
+			w = wt
+		}
+		pm := w.GetPixelMatrix()
+		pm.Name = pmName
+		pm.NextColor = vars["color"]
+		return freepsgraph.MakeObjectOutput(pm)
 	default:
 		return freepsgraph.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
+	}
+
+	if pmName, ok := vars["pixelMatrix"]; ok {
+		o.saved[pmName] = w
 	}
 
 	if err != nil {
@@ -121,11 +164,11 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 }
 
 func (o *OpWLED) GetFunctions() []string {
-	return []string{"setString", "setImage"}
+	return []string{"setString", "setImage", "setPixel", "getPixelMatrix"}
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage"}
+	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width"}
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
@@ -143,7 +186,7 @@ func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
 			logrus.Error(err)
 		}
 	}
-	return &OpWLED{cr: cr, config: &conf}
+	return &OpWLED{cr: cr, config: &conf, saved: make(map[string]*WLEDConverter)}
 }
 
 // Shutdown (noOp)
