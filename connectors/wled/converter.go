@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"log"
 	"net/http"
 
@@ -28,28 +29,20 @@ type WLEDRoot struct {
 }
 
 type WLEDConverter struct {
-	x       int
-	y       int
-	bgcolor color.Color
-	dst     *image.RGBA
+	conf WLEDConfig
+	dst  *image.RGBA
 }
 
-type PixelMatrix struct {
-	PixelMatrix [][]string
-	Name        string
-	NextColor   string
-}
-
-func NewWLEDConverter(x int, y int, bgcolor color.Color) *WLEDConverter {
-	w := WLEDConverter{x: x, y: y, dst: image.NewRGBA(image.Rect(0, 0, x, y)), bgcolor: bgcolor}
+func NewWLEDConverter(conf WLEDConfig) *WLEDConverter {
+	w := WLEDConverter{conf: conf, dst: image.NewRGBA(image.Rect(0, 0, conf.Width, conf.Height))}
 	return &w
 }
 
 func (w *WLEDConverter) SetPixel(x, y int, c color.Color) error {
-	if x >= w.x {
+	if x >= w.conf.Width {
 		return fmt.Errorf("x dimension out of bounds")
 	}
-	if y >= w.y {
+	if y >= w.conf.Height {
 		return fmt.Errorf("y dimension out of bounds")
 	}
 	w.dst.Set(x, y, c)
@@ -102,15 +95,15 @@ func (w *WLEDConverter) ScaleImage(src image.Image) {
 	draw.NearestNeighbor.Scale(w.dst, w.dst.Rect, src, src.Bounds(), draw.Over, nil)
 }
 
-func (w *WLEDConverter) GetJSON(segid int) ([]byte, error) {
+func (w *WLEDConverter) GetJSON() ([]byte, error) {
 	root := WLEDRoot{}
-	root.Seg.ID = segid
+	root.Seg.ID = w.conf.SegID
 	root.Seg.I = make([][3]uint32, 0)
-	for x := 0; x < w.x; x++ {
-		for y := 0; y < w.y; y++ {
+	for x := 0; x < w.conf.Width; x++ {
+		for y := 0; y < w.conf.Height; y++ {
 			j := y
 			if x&1 != 0 {
-				j = w.y - y - 1
+				j = w.conf.Height - y - 1
 			}
 			r, g, b, _ := w.dst.At(x, j).RGBA()
 			p := [3]uint32{r >> 8, g >> 8, b >> 8}
@@ -121,18 +114,32 @@ func (w *WLEDConverter) GetJSON(segid int) ([]byte, error) {
 }
 
 func (w *WLEDConverter) GetPixelMatrix() PixelMatrix {
-	root := PixelMatrix{PixelMatrix: make([][]string, 0)}
-	for y := 0; y < w.y; y++ {
-		root.PixelMatrix = append(root.PixelMatrix, make([]string, w.x))
-		for x := 0; x < w.x; x++ {
+	pm := make([][]string, 0)
+	for y := 0; y < w.conf.Height; y++ {
+		pm = append(pm, make([]string, w.conf.Width))
+		for x := 0; x < w.conf.Width; x++ {
 			c := w.dst.At(x, y)
-			root.PixelMatrix[y][x] = utils.GetHexColor(c)
+			pm[y][x] = utils.GetHexColor(c)
 		}
 	}
-	return root
+	return pm
 }
 
-func (w *WLEDConverter) GetImage() *freepsgraph.OperatorIO {
+func (w *WLEDConverter) SetPixelMatrix(pm PixelMatrix) error {
+	for y := 0; y < w.conf.Height; y++ {
+		pm = append(pm, make([]string, w.conf.Width))
+		for x := 0; x < w.conf.Width; x++ {
+			p, err := utils.ParseHexColor(pm[y][x])
+			if err != nil {
+				return fmt.Errorf("Pixel %v,%v: %v", x, y, err.Error())
+			}
+			w.dst.Set(x, y, p)
+		}
+	}
+	return nil
+}
+
+func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
 	var bout []byte
 	contentType := "image/png"
 	writer := bytes.NewBuffer(bout)
@@ -140,4 +147,26 @@ func (w *WLEDConverter) GetImage() *freepsgraph.OperatorIO {
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
 	}
 	return freepsgraph.MakeByteOutputWithContentType(writer.Bytes(), contentType)
+}
+
+func (w *WLEDConverter) SendToWLED(returnPNG bool) *freepsgraph.OperatorIO {
+	c := http.Client{}
+
+	b, err := w.GetJSON()
+	if err != nil {
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+	breader := bytes.NewReader(b)
+	resp, err := c.Post(w.conf.Address+"/json", "encoding/json", breader)
+
+	if err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+	}
+
+	if returnPNG {
+		return w.GetPNG()
+	}
+	defer resp.Body.Close()
+	bout, err := io.ReadAll(resp.Body)
+	return &freepsgraph.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: freepsgraph.Byte, ContentType: resp.Header.Get("Content-Type")}
 }
