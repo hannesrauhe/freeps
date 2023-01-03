@@ -3,11 +3,13 @@ package wled
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -141,6 +143,8 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 
 	if pmName, ok := vars["pixelMatrix"]; ok {
 		o.saved[pmName] = w.GetPixelMatrix()
+	} else {
+		o.saved["last"] = w.GetPixelMatrix()
 	}
 
 	if err != nil {
@@ -159,16 +163,57 @@ func (o *OpWLED) GetPossibleArgs(fn string) []string {
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	switch fn {
+	case "animate":
+		return map[string]string{"move": "move", "shift": "shift", "squence": "sequence"}
+	case "showImage", "alignRight":
+		return map[string]string{"true": "true", "false": "false"}
+	case "pixelMatrix":
+		m := map[string]string{}
+		for k, _ := range o.saved {
+			m[k] = k
+		}
+		return m
+	}
 	return map[string]string{}
 }
 
 func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate string) *freepsgraph.OperatorIO {
-	wt, ok := o.saved[pmName]
+	pm, ok := o.saved[pmName]
 	if !ok {
-		return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
+		if pmName == "diagonal" {
+			pm = MakeDiagonalPixelMatrix(w.conf.Width, w.conf.Height, "#FF0000", "#000000")
+		} else {
+			return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
+		}
 	}
-	w.SetPixelMatrix(wt)
-	return w.SendToWLED(false)
+	switch animate {
+	case "move":
+		for i := -1 * len(pm); i < len(pm); i++ {
+			wt := pm.MoveRight("#000000", i)
+			w.SetPixelMatrix(wt)
+			w.SendToWLED(false)
+			time.Sleep(time.Second)
+		}
+	case "shift":
+		for i := 0; i < len(pm[0]); i++ {
+			wt := pm.Shift(i)
+			w.SetPixelMatrix(wt)
+			w.SendToWLED(false)
+			time.Sleep(time.Second)
+		}
+	case "sequence":
+		for i := 1; ok; i++ {
+			w.SetPixelMatrix(pm)
+			w.SendToWLED(false)
+			time.Sleep(time.Second)
+			pm, ok = o.saved[fmt.Sprintf("%v.%d", pmName, i)]
+		}
+	default:
+		w.SetPixelMatrix(pm)
+		w.SendToWLED(false)
+	}
+	return freepsgraph.MakeEmptyOutput()
 }
 
 func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {

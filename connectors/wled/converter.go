@@ -33,8 +33,6 @@ type WLEDConverter struct {
 	dst  *image.RGBA
 }
 
-type PixelMatrix [][]string
-
 func NewWLEDConverter(conf WLEDConfig) *WLEDConverter {
 	w := WLEDConverter{conf: conf, dst: image.NewRGBA(image.Rect(0, 0, conf.Width, conf.Height))}
 	return &w
