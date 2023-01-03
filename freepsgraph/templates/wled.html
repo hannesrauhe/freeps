@@ -5,7 +5,10 @@
         Color: <input style="clear: both" type="color" value="{{$.NextColor}}" name="color" onChange="this.form.submit()">
     </label>
     <label>
-        Name: <input type="text" value="{{$.Name}}" name="pixelmatrix" label="Pixel Matrix Name">
+        Name: <input type="text" value="{{$.Name}}" name="pixelMatrix" label="Pixel Matrix Name">
+    </label>
+    <label>
+        Segment: <input type="text" value="{{$.Segment}}" name="SegID" label="Pixel Matrix Name">
     </label>
     <button>Submit</button>
 </form>
@@ -14,7 +17,7 @@
 {{ range $y, $row := .PixelMatrix }}
 {{ range $x, $color := $row }}
     <div style="float:left; background-color: {{ $color }};width: 20px;height: 20px;border: solid black">
-            <a href="/graph/wledPixelMatrix?x={{$x}}&y={{$y}}&color={{$.NextColor}}&pixelMatrix={{$.Name}}" class="display: block; height: 100%; width: 100%; text-decoration: none;">_</a>
+            <a href="/graph/wledPixelMatrix?x={{$x}}&y={{$y}}&color={{$.NextColor}}&pixelMatrix={{$.Name}}&SegID={{$.Segment}}" class="display: block; height: 100%; width: 100%; text-decoration: none;">_</a>
     </div>
 {{ end}}
 <br /><br />
