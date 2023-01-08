@@ -60,6 +60,11 @@ func (h *HookPostgres) OnExecute(ctx *utils.Context, graphName string, mainArgs 
 	return nil
 }
 
+// OnExecutionFinished gets called when freepsgraph starts executing a Graph
+func (h *HookPostgres) OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+	return nil
+}
+
 // Shutdown gets called on graceful shutdown
 func (h *HookPostgres) Shutdown() error {
 	return h.db.Close()

@@ -1,16 +1,17 @@
-package freepsgraph
+package freepsstore
 
 import (
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"gotest.tools/v3/assert"
 )
 
 func testOutput(t *testing.T, fn string, output string) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value"}
-	input := MakePlainOutput("test_value")
+	input := freepsgraph.MakePlainOutput("test_value")
 
 	s := NewOpStore()
 	vars["output"] = "empty"
@@ -37,7 +38,7 @@ func testOutput(t *testing.T, fn string, output string) {
 		assert.NilError(t, err)
 		assert.Equal(t, rmap[vars["key"]], vars["value"])
 	case "hierarchy":
-		rmap := map[string]map[string]*OperatorIO{}
+		rmap := map[string]map[string]*freepsgraph.OperatorIO{}
 		assert.NilError(t, out.ParseJSON(&rmap))
 		assert.Equal(t, rmap[vars["namespace"]][vars["key"]].GetString(), vars["value"])
 	case "empty":
@@ -62,7 +63,7 @@ func TestStoreOpOutput(t *testing.T) {
 
 func TestStoreExpiration(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
-	input := MakePlainOutput("test_value")
+	input := freepsgraph.MakePlainOutput("test_value")
 
 	s := NewOpStore()
 	out := s.Execute(nil, "setSimpleValue", vars, input)
@@ -115,7 +116,7 @@ func TestStoreExpiration(t *testing.T) {
 
 func TestStoreCompareAndSwap(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
-	input := MakePlainOutput("a_new_value")
+	input := freepsgraph.MakePlainOutput("a_new_value")
 
 	s := NewOpStore()
 	out := s.Execute(nil, "compareAndSwap", vars, input)
@@ -139,15 +140,15 @@ func TestStoreCompareAndSwap(t *testing.T) {
 
 func TestStoreSetGetAll(t *testing.T) {
 	vars := map[string]string{"namespace": "testing"}
-	input := MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
+	input := freepsgraph.MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
 
 	s := NewOpStore()
 	outSet := s.Execute(nil, "setAll", vars, input)
 	assert.Assert(t, !outSet.IsError(), outSet.Output)
 
-	expected := map[string]map[string]*OperatorIO{"testing": {}}
-	expected["testing"]["v1"] = MakeObjectOutput("a_new_value")
-	expected["testing"]["v2"] = MakeObjectOutput("second")
+	expected := map[string]map[string]*freepsgraph.OperatorIO{"testing": {}}
+	expected["testing"]["v1"] = freepsgraph.MakeObjectOutput("a_new_value")
+	expected["testing"]["v2"] = freepsgraph.MakeObjectOutput("second")
 	outGet := s.Execute(nil, "getAll", vars, input)
-	assert.DeepEqual(t, outGet, MakeObjectOutput(expected))
+	assert.DeepEqual(t, outGet, freepsgraph.MakeObjectOutput(expected))
 }

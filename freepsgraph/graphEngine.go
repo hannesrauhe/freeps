@@ -45,7 +45,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
-	ge.operators["store"] = NewOpStore()
 
 	ge.hooks = make(map[string]FreepsHook)
 
@@ -118,7 +117,8 @@ func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainAr
 	if g == nil {
 		return o
 	}
-	ge.TriggerExecuteHooks(ctx, graphName, mainArgs, mainInput)
+	ge.TriggerOnExecuteHooks(ctx, graphName, mainArgs, mainInput)
+	defer ge.TriggerOnExecutionFinishedHooks(ctx, graphName, mainArgs, mainInput)
 	return g.execute(ctx, mainArgs, mainInput)
 }
 
@@ -129,6 +129,8 @@ func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, 
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
+	ge.TriggerOnExecuteHooks(ctx, name, mainArgs, mainInput)
+	defer ge.TriggerOnExecutionFinishedHooks(ctx, name, mainArgs, mainInput)
 	return g.execute(ctx, mainArgs, mainInput)
 }
 
@@ -314,8 +316,8 @@ func (ge *GraphEngine) AddHook(h FreepsHook) {
 	ge.hooks[h.GetName()] = h
 }
 
-// TriggerExecuteHooks adds a hook to the graph engine
-func (ge *GraphEngine) TriggerExecuteHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+// TriggerOnExecuteHooks adds a hook to the graph engine
+func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
 	ge.hookLock.Lock()
 	defer ge.hookLock.Unlock()
 
@@ -330,8 +332,24 @@ func (ge *GraphEngine) TriggerExecuteHooks(ctx *utils.Context, graphName string,
 	}
 }
 
+// TriggerOnExecutionFinishedHooks adds a hook to the graph engine
+func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+	ge.hookLock.Lock()
+	defer ge.hookLock.Unlock()
+
+	for name, h := range ge.hooks {
+		if h == nil {
+			continue
+		}
+		err := h.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
+		if err != nil {
+			ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
+		}
+	}
+}
+
 // AddTemporaryGraph adds a graph to the temporary graph list
-func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) error {
+func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc, source string) error {
 	_, err := NewGraph(nil, graphName, gd, ge)
 	if err != nil {
 		return err
@@ -339,7 +357,7 @@ func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) error 
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	gd.Source = "temporary"
+	gd.Source = source
 	ge.temporaryGraphs[graphName] = &GraphInfo{Desc: *gd}
 	return nil
 }

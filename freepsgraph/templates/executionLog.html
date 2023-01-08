@@ -1,0 +1,23 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<form method="GET" action="/graph/executionLog">
+    <label>
+        Max Age: <input type="text" value="{{$.maxAge}}" name="maxAge" label="max Age">
+    </label>
+    <input type="hidden" value="_context" name="namespace" />
+    <button>Submit</button>
+    <button formaction="/store/deleteOlder">DeleteOlder</button>
+</form>
+
+<table>
+    <tr><th>Name</th><th>Time</th><th>Duration</th></tr>
+{{ range $namespaceName, $namespace := . }}
+{{ range $ctxName, $ctx := $namespace }}
+<tr> <td><b>{{$ctxName}}</b></td><td>{{$ctx.Output.Created}}</td><td></td></tr>
+{{ range $i, $Operation := $ctx.Output.Operations }}
+<tr><td>{{$Operation.GraphName}} {{$Operation.OpDesc}}</td><td>{{$Operation.StartTime }}</td><td>{{$Operation.ExecutionDuration }} </td></tr>
+{{ end }}
+{{ end }}
+{{ end }}
+</table>
+

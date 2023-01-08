@@ -50,6 +50,15 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 			return MakePlainOutput(m)
 		}
 		return MakeEmptyOutput()
+	case "echoArguments":
+		output := map[string]interface{}{}
+		for k, v := range vars {
+			output[k] = v
+		}
+		if m, ok := vars["inputKey"]; ok && !input.IsEmpty() {
+			output[m] = input.Output
+		}
+		return MakeObjectOutput(output)
 	case "flatten":
 		return m.Flatten(vars, input)
 	case "eval":
@@ -85,12 +94,15 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 }
 
 func (m *OpEval) GetFunctions() []string {
-	return []string{"eval", "regexp", "dedup", "echo", "flatten", "strreplace"}
+	return []string{"eval", "regexp", "dedup", "echo", "echoArguments", "flatten", "strreplace"}
 }
 
 func (m *OpEval) GetPossibleArgs(fn string) []string {
 	if fn == "echo" {
 		return []string{"output"}
+	}
+	if fn == "echoArguments" {
+		return []string{"inputKey"}
 	}
 	if fn == "dedup" {
 		return []string{"retention"}

@@ -1,0 +1,15 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<form method="GET" action="/graph/storeUI">
+    <label>
+        Namespace: <input type="text" value="{{$.namespace}}" name="namespace" label="Namespace">
+    </label>
+    <button>Submit</button>
+</form>
+
+<table>
+    <tr><th>Key</th><th>Value</th></tr>
+{{ range $key, $value := .nsStore }}
+<tr><td>{{$key}}</td><td>{{$value}}</td></tr>
+{{ end }}
+</table>
