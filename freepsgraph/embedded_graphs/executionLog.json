@@ -1,19 +1,22 @@
 {
-    "Tags": ["system","ui"],
+    "Tags": [
+        "system",
+        "ui"
+    ],
     "OutputFrom": "#1",
     "Operations": [
-      {
-        "Operator": "store",
-        "Function": "getAll",
-        "Arguments": {
-          "namespace": "_context"
+        {
+            "Operator": "store",
+            "Function": "getAll",
+            "Arguments": {
+                "namespace": "_context"
+            },
+            "IgnoreMainArgs": true
         },
-        "IgnoreMainArgs": true
-      },
-      {
-        "Operator": "ui",
-        "Function": "contextLog.html",
-        "InputFrom": "#0"
-      }
+        {
+            "Operator": "ui",
+            "Function": "contextLog.html",
+            "InputFrom": "#0"
+        }
     ]
-  }
+}

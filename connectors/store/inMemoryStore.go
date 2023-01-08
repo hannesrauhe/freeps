@@ -167,7 +167,7 @@ func (s *StoreNamespace) DeleteOlder(maxAge time.Duration) int {
 	tnow := time.Now()
 	keys := []string{}
 	for k, ts := range s.timestamps {
-		if ts.Add(maxAge).After(tnow) {
+		if ts.Add(maxAge).Before(tnow) {
 			delete(s.data, k)
 			keys = append(keys, k)
 		}

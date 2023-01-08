@@ -37,7 +37,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 		keyArgName = "key"
 	}
 	key, ok := args[keyArgName]
-	if fn != "getAll" && fn != "setAll" && !ok {
+	if fn != "getAll" && fn != "setAll" && fn != "deleteOlder" && !ok {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "No key given")
 	}
 	// overwrite input and function to treat setSimpleValue like set
