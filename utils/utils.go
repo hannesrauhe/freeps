@@ -99,12 +99,18 @@ func ParseHexColor(s string) (c color.RGBA, err error) {
 	return
 }
 
+// GetHexColor returns the hex represantion of a Go-color
 func GetHexColor(c color.Color) string {
 	r, g, b, _ := c.RGBA()
 	r = r >> 8
 	g = g >> 8
 	b = b >> 8
 	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
+}
+
+// GetDurationMap returns a map of typical durations for operator argument suggestions
+func GetDurationMap() map[string]string {
+	return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
 }
 
 // DeleteElemFromSlice swaps i-th and last Element and deletes the last

@@ -258,7 +258,7 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	case "maxAge":
 		{
-			return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+			return utils.GetDurationMap()
 		}
 	case "keyArgName":
 		{
