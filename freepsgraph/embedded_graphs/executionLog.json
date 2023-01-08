@@ -10,12 +10,11 @@
             "Function": "getAll",
             "Arguments": {
                 "namespace": "_context"
-            },
-            "IgnoreMainArgs": true
+            }
         },
         {
             "Operator": "ui",
-            "Function": "contextLog.html",
+            "Function": "executionLog.html",
             "InputFrom": "#0"
         }
     ]
