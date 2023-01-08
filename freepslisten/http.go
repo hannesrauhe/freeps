@@ -82,6 +82,7 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := utils.NewContext(httplogger)
+	fmt.Print(req.Header)
 	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	opio.Log(httplogger)
 
@@ -131,11 +132,10 @@ func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsH
 	r.Handle("/{mod}/{function}/", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
 
+	tHandler := http.TimeoutHandler(r, time.Minute, "graph proceesing timeout - graph might still be running")
 	rest.srv = &http.Server{
-		Handler:      r,
-		Addr:         ":8080",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		Handler: tHandler,
+		Addr:    ":8080",
 	}
 
 	go func() {
