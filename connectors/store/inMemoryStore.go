@@ -141,3 +141,39 @@ func (s *StoreNamespace) GetAllValues() map[string]*freepsgraph.OperatorIO {
 	}
 	return copy
 }
+
+// GetAllValuesBeforeExpiration gets the value from the StoreNamespace younger than maxAge
+func (s *StoreNamespace) GetAllValuesBeforeExpiration(maxAge time.Duration) map[string]*freepsgraph.OperatorIO {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	tnow := time.Now()
+	copy := map[string]*freepsgraph.OperatorIO{}
+	for k, v := range s.data {
+		ts, ok := s.timestamps[k]
+		if !ok {
+			copy[k] = freepsgraph.MakeOutputError(http.StatusInternalServerError, "no timestamp for key")
+		}
+		if ts.Add(maxAge).After(tnow) {
+			copy[k] = v
+		}
+	}
+	return copy
+}
+
+// DeleteOlder deletes records older than maxAge
+func (s *StoreNamespace) DeleteOlder(maxAge time.Duration) int {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	tnow := time.Now()
+	keys := []string{}
+	for k, ts := range s.timestamps {
+		if ts.Add(maxAge).After(tnow) {
+			delete(s.data, k)
+			keys = append(keys, k)
+		}
+	}
+	for _, k := range keys {
+		delete(s.timestamps, k)
+	}
+	return len(keys)
+}

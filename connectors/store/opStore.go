@@ -15,6 +15,7 @@ var _ freepsgraph.FreepsOperator = &OpStore{}
 
 // NewOpStore creates a new store operator
 func NewOpStore() *OpStore {
+	store.namespaces = map[string]*StoreNamespace{}
 	return &OpStore{}
 }
 
@@ -62,8 +63,16 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 	case "getAll":
 		{
 			key = ""
-			output = "hierarchy"
-			result[ns] = nsStore.GetAllValues()
+			maxAgeStr, maxAgeRequest := args["maxAge"]
+			if maxAgeRequest {
+				maxAge, err := time.ParseDuration(maxAgeStr)
+				if err != nil {
+					return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
+				}
+				result[ns] = nsStore.GetAllValuesBeforeExpiration(maxAge)
+			} else {
+				result[ns] = nsStore.GetAllValues()
+			}
 		}
 	case "setAll":
 		{
@@ -140,6 +149,18 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 			nsStore.DeleteValue(key)
 			return freepsgraph.MakeEmptyOutput()
 		}
+	case "deleteOlder":
+		{
+			maxAgeStr, maxAgeRequest := args["maxAge"]
+			if !maxAgeRequest {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "No maxAge given")
+			}
+			maxAge, err := time.ParseDuration(maxAgeStr)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
+			}
+			return freepsgraph.MakePlainOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
+		}
 	default:
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function")
 	}
@@ -177,7 +198,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 
 // GetFunctions returns the functions of this operator
 func (o *OpStore) GetFunctions() []string {
-	return []string{"get", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap"}
+	return []string{"get", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder"}
 }
 
 // GetPossibleArgs returns the possible arguments for a function
@@ -186,7 +207,9 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	case "get":
 		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}
 	case "getAll":
-		return []string{"namespace"}
+		return []string{"namespace", "maxAge"}
+	case "deleteOlder":
+		return []string{"namespace", "maxAge"}
 	case "setAll":
 		return []string{"namespace"}
 	case "set":

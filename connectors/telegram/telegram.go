@@ -248,7 +248,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			return
 		}
 		tpl := &freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C}}}
-		r.ge.AddTemporaryGraph(tcr.T, tpl)
+		r.ge.AddTemporaryGraph(tcr.T, tpl, "telegram")
 		op, god = r.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + god.Operator
 		msg.ReplyMarkup, _ = r.getFnKeyboard(&tcr)
