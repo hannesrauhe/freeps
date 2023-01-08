@@ -45,7 +45,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
-	ge.operators["store"] = NewOpStore()
 
 	ge.hooks = make(map[string]FreepsHook)
 
