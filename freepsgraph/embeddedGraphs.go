@@ -23,7 +23,7 @@ func (ge *GraphEngine) LoadEmbeddedGraphs() error {
 		if err != nil {
 			return err
 		}
-		ge.AddTemporaryGraph(e.Name()[:len(e.Name())-5], gd)
+		ge.AddTemporaryGraph(e.Name()[:len(e.Name())-5], gd, "embedded")
 	}
 	return nil
 }

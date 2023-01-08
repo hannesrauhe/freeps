@@ -1,0 +1,15 @@
+{
+    "Tags": ["system","cron","hourly"],
+    "OutputFrom": "#1",
+    "Operations": [
+      {
+        "Operator": "store",
+        "Function": "deleteOlder",
+        "Arguments": {
+            "namespace": "_context",
+            "maxAge": "1d"
+        },
+        "IgnoreMainArgs": true
+      }
+    ]
+  }

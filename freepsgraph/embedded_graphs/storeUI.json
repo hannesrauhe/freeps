@@ -1,0 +1,33 @@
+{
+  "Tags": [
+    "system",
+    "ui",
+    "footer"
+  ],
+  "Source": "temporary",
+  "OutputFrom": "#2",
+  "Operations": [
+    {
+      "Operator": "store",
+      "Function": "getAll",
+      "Arguments": {
+        "namespace": "default",
+        "output": "arguments"
+      }
+    },
+    {
+      "Operator": "eval",
+      "Function": "echoArguments",
+      "Arguments": {
+        "inputKey": "nsStore"
+      },
+      "InputFrom": "#0"
+    },
+    {
+      "Operator": "ui",
+      "Function": "store.html",
+      "InputFrom": "#1",
+      "IgnoreMainArgs": true
+    }
+  ]
+}

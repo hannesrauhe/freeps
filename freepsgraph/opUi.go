@@ -295,14 +295,14 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 			if td.GraphName == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddTemporaryGraph(td.GraphName, gd)
+			err := o.ge.AddTemporaryGraph(td.GraphName, gd, "temporary")
 			if err != nil {
 				return MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			err := o.ge.AddTemporaryGraph("UIgraph", gd)
+			err := o.ge.AddTemporaryGraph("UIgraph", gd, "temporary")
 			if err != nil {
 				return MakeOutputError(http.StatusBadRequest, err.Error())
 			}

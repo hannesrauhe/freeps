@@ -349,7 +349,7 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *utils.Context, graph
 }
 
 // AddTemporaryGraph adds a graph to the temporary graph list
-func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) error {
+func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc, source string) error {
 	_, err := NewGraph(nil, graphName, gd, ge)
 	if err != nil {
 		return err
@@ -357,7 +357,7 @@ func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc) error 
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	gd.Source = "temporary"
+	gd.Source = source
 	ge.temporaryGraphs[graphName] = &GraphInfo{Desc: *gd}
 	return nil
 }
