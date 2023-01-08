@@ -109,7 +109,7 @@ func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	case "operation":
 		return map[string]string{"eq": "eq", "gt": "gt", "lt": "lt", "id": "id"}
 	case "retention":
-		return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+		return utils.GetDurationMap()
 	}
 	return map[string]string{}
 }

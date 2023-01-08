@@ -323,7 +323,6 @@ func (ge *GraphEngine) TriggerExecuteHooks(ctx *utils.Context, graphName string,
 		if h == nil {
 			continue
 		}
-		h.OnExecute(ctx, graphName, mainArgs, mainInput)
 		err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
 			ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())

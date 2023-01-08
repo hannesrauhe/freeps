@@ -47,6 +47,13 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 	}
 	w := NewWLEDConverter(conf)
 
+	var pm struct {
+		PixelMatrix [][]string
+		Name        string
+		NextColor   string
+		Segment     string
+	}
+
 	switch function {
 	case "setImage":
 		var binput []byte
@@ -124,19 +131,32 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 		if ok {
 			w.SetPixelMatrix(wt)
 		}
-		var pm struct {
-			PixelMatrix [][]string
-			Name        string
-			NextColor   string
-			Segment     string
-		}
 		pm.PixelMatrix = w.GetPixelMatrix()
 		pm.Name = pmName
 		pm.NextColor = vars["color"]
 		pm.Segment = vars["SegID"]
 		return freepsgraph.MakeObjectOutput(pm)
 	case "setPixelMatrix":
-		return o.SetPixelMatrix(w, vars["pixelMatrix"], vars["animate"])
+		pmName := vars["pixelMatrix"]
+		if !mainInput.IsEmpty() {
+			err := mainInput.ParseJSON(&pm)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse input as pixelmatrix object: %v", err)
+			}
+			if pmName == "" {
+				pmName = pm.Name
+			}
+			if pmName == "" {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "pixelMatrix name should be given either via parameter or input, but it's empty in both")
+			}
+			o.saved[pmName] = pm.PixelMatrix
+		}
+		animate := AnimationOptions{StepDuration: time.Millisecond * 500}
+		err := utils.ArgsMapToObject(vars, &animate)
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse Animation Parameters: %v", err)
+		}
+		return o.SetPixelMatrix(w, pmName, animate)
 	default:
 		return freepsgraph.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
@@ -159,12 +179,12 @@ func (o *OpWLED) GetFunctions() []string {
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animate"}
+	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType"}
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
-	switch fn {
-	case "animate":
+	switch arg {
+	case "animationType":
 		return map[string]string{"move": "move", "shift": "shift", "squence": "sequence"}
 	case "showImage", "alignRight":
 		return map[string]string{"true": "true", "false": "false"}
@@ -178,40 +198,49 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
-func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate string) *freepsgraph.OperatorIO {
-	pm, ok := o.saved[pmName]
-	if !ok {
-		if pmName == "diagonal" {
-			pm = MakeDiagonalPixelMatrix(w.conf.Width, w.conf.Height, "#FF0000", "#000000")
-		} else {
-			return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
+type AnimationOptions struct {
+	AnimationType string
+	StepDuration  time.Duration
+	Repeat        int `json:",string"`
+}
+
+func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate AnimationOptions) *freepsgraph.OperatorIO {
+	for r := 0; r <= animate.Repeat; r++ {
+		pm, ok := o.saved[pmName]
+		if !ok {
+			if pmName == "diagonal" {
+				pm = MakeDiagonalPixelMatrix(w.conf.Width, w.conf.Height, "#FF0000", "#000000")
+			} else {
+				return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
+			}
 		}
-	}
-	switch animate {
-	case "move":
-		for i := -1 * len(pm); i < len(pm); i++ {
-			wt := pm.MoveRight("#000000", i)
-			w.SetPixelMatrix(wt)
-			w.SendToWLED(false)
-			time.Sleep(time.Second)
-		}
-	case "shift":
-		for i := 0; i < len(pm[0]); i++ {
-			wt := pm.Shift(i)
-			w.SetPixelMatrix(wt)
-			w.SendToWLED(false)
-			time.Sleep(time.Second)
-		}
-	case "sequence":
-		for i := 1; ok; i++ {
+		switch animate.AnimationType {
+		case "move":
+			for i := -1 * len(pm[0]); i < len(pm[0]); i++ {
+				wt := pm.MoveRight("#000000", i)
+				w.SetPixelMatrix(wt)
+				w.SendToWLED(false)
+				time.Sleep(animate.StepDuration)
+			}
+		case "shift":
+			for i := 0; i < len(pm[0]); i++ {
+				wt := pm.Shift(i)
+				w.SetPixelMatrix(wt)
+				w.SendToWLED(false)
+				time.Sleep(animate.StepDuration)
+			}
+		case "sequence":
+			for i := 1; ok; i++ {
+				w.SetPixelMatrix(pm)
+				w.SendToWLED(false)
+				time.Sleep(animate.StepDuration)
+				pm, ok = o.saved[fmt.Sprintf("%v.%d", pmName, i)]
+			}
+		default:
 			w.SetPixelMatrix(pm)
 			w.SendToWLED(false)
-			time.Sleep(time.Second)
-			pm, ok = o.saved[fmt.Sprintf("%v.%d", pmName, i)]
+			return freepsgraph.MakeEmptyOutput()
 		}
-	default:
-		w.SetPixelMatrix(pm)
-		w.SendToWLED(false)
 	}
 	return freepsgraph.MakeEmptyOutput()
 }
