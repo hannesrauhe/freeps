@@ -118,7 +118,8 @@ func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainAr
 	if g == nil {
 		return o
 	}
-	ge.TriggerExecuteHooks(ctx, graphName, mainArgs, mainInput)
+	ge.TriggerOnExecuteHooks(ctx, graphName, mainArgs, mainInput)
+	defer ge.TriggerOnExecutionFinishedHooks(ctx, graphName, mainArgs, mainInput)
 	return g.execute(ctx, mainArgs, mainInput)
 }
 
@@ -129,6 +130,8 @@ func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, 
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
+	ge.TriggerOnExecuteHooks(ctx, name, mainArgs, mainInput)
+	defer ge.TriggerOnExecutionFinishedHooks(ctx, name, mainArgs, mainInput)
 	return g.execute(ctx, mainArgs, mainInput)
 }
 
@@ -314,8 +317,8 @@ func (ge *GraphEngine) AddHook(h FreepsHook) {
 	ge.hooks[h.GetName()] = h
 }
 
-// TriggerExecuteHooks adds a hook to the graph engine
-func (ge *GraphEngine) TriggerExecuteHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+// TriggerOnExecuteHooks adds a hook to the graph engine
+func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
 	ge.hookLock.Lock()
 	defer ge.hookLock.Unlock()
 
@@ -326,6 +329,22 @@ func (ge *GraphEngine) TriggerExecuteHooks(ctx *utils.Context, graphName string,
 		err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
 			ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
+		}
+	}
+}
+
+// TriggerOnExecutionFinishedHooks adds a hook to the graph engine
+func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+	ge.hookLock.Lock()
+	defer ge.hookLock.Unlock()
+
+	for name, h := range ge.hooks {
+		if h == nil {
+			continue
+		}
+		err := h.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
+		if err != nil {
+			ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }

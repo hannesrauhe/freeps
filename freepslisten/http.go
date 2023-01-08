@@ -82,6 +82,7 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := utils.NewContext(httplogger)
+	defer ctx.MarkResponded()
 	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	opio.Log(httplogger)
 
