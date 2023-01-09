@@ -21,6 +21,7 @@ require (
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
+	github.com/briandowns/openweathermap v0.19.0 // indirect
 	github.com/deepmap/oapi-codegen v1.12.4 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
