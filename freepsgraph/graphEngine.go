@@ -43,7 +43,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["graphbytag"] = &OpGraphByTag{ge: ge}
 	ge.operators["time"] = &OpTime{}
 	ge.operators["curl"] = &OpCurl{}
-	ge.operators["weather"] = NewWeatherOp(cr)
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
 
@@ -72,6 +71,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["ui"] = NewHTMLUI(cr, ge)
+		ge.operators["weather"] = NewWeatherOp(cr)
 
 		if err != nil {
 			log.Fatal(err)
