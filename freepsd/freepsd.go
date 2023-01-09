@@ -65,6 +65,12 @@ func main() {
 			logger.SetLevel(logrus.DebugLevel)
 		}
 
+		_, err = utils.GetTempDir()
+		if err != nil {
+			logger.Fatal("Temp dir creation failed: ", err.Error())
+		}
+		defer utils.DeleteTempDir()
+
 		logger.Debug("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -95,6 +101,7 @@ func main() {
 		if err := ge.LoadEmbeddedGraphs(); err != nil {
 			logger.Fatal(err)
 		}
+
 		if mod != "" {
 			args, _ := url.ParseQuery(argstring)
 			oio := freepsgraph.MakeEmptyOutput()

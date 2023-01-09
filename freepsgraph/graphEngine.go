@@ -71,6 +71,7 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 
 		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["ui"] = NewHTMLUI(cr, ge)
+		ge.operators["weather"] = NewWeatherOp(cr)
 
 		if err != nil {
 			log.Fatal(err)
