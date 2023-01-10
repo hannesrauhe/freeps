@@ -1,6 +1,7 @@
 package freepsstore
 
 import (
+	"math"
 	"net/http"
 	"time"
 
@@ -37,7 +38,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 		keyArgName = "key"
 	}
 	key, ok := args[keyArgName]
-	if fn != "getAll" && fn != "setAll" && fn != "deleteOlder" && !ok {
+	if fn != "getAll" && fn != "setAll" && fn != "deleteOlder" && fn != "search" && !ok {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "No key given")
 	}
 	// overwrite input and function to treat setSimpleValue like set
@@ -59,20 +60,36 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 		output = "hierarchy"
 	}
 
+	var err error
+	maxAge := time.Duration(math.MaxInt64)
+	minAge := time.Duration(0)
+	maxAgeRequest := false
+	maxAgeStr := args["maxAge"]
+	if maxAgeStr != "" {
+		maxAgeRequest = true
+		maxAge, err = time.ParseDuration(maxAgeStr)
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
+		}
+	}
+	minAgeStr := args["minAge"]
+	if minAgeStr != "" {
+		minAge, err = time.ParseDuration(minAgeStr)
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse minAge \"%v\" because of error: \"%v\"", minAgeStr, err)
+		}
+	}
+
 	switch fn {
+	case "search":
+		{
+			output = "arguments" // just for completenes, will not be read afterwards
+			fullres := nsStore.GetSearchResultWithMetadata(args["key"], args["value"], args["modifiedBy"], minAge, maxAge)
+			return freepsgraph.MakeObjectOutput(fullres)
+		}
 	case "getAll":
 		{
-			key = ""
-			maxAgeStr, maxAgeRequest := args["maxAge"]
-			if maxAgeRequest {
-				maxAge, err := time.ParseDuration(maxAgeStr)
-				if err != nil {
-					return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
-				}
-				result[ns] = nsStore.GetAllValuesBeforeExpiration(maxAge)
-			} else {
-				result[ns] = nsStore.GetAllValues()
-			}
+			result[ns] = nsStore.GetAllFiltered(key, args["value"], args["modifiedBy"], minAge, maxAge)
 		}
 	case "setAll":
 		{
@@ -84,18 +101,13 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
 			}
 			for inputKey, inputValue := range m {
-				nsStore.SetValue(inputKey, freepsgraph.MakeObjectOutput(inputValue))
+				nsStore.SetValue(inputKey, freepsgraph.MakeObjectOutput(inputValue), ctx.GetID())
 			}
 		}
 	case "get", "equals":
 		{
 			var io *freepsgraph.OperatorIO
-			maxAgeStr, maxAgeRequest := args["maxAge"]
 			if maxAgeRequest {
-				maxAge, err := time.ParseDuration(maxAgeStr)
-				if err != nil {
-					return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
-				}
 				io = nsStore.GetValueBeforeExpiration(key, maxAge)
 			} else {
 				io = nsStore.GetValue(key)
@@ -118,18 +130,13 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 		}
 	case "set":
 		{
-			maxAgeStr, maxAgeRequest := args["maxAge"]
 			if maxAgeRequest {
-				maxAge, err := time.ParseDuration(maxAgeStr)
-				if err != nil {
-					return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
-				}
-				io := nsStore.OverwriteValueIfOlder(key, input, maxAge)
+				io := nsStore.OverwriteValueIfOlder(key, input, maxAge, ctx.GetID())
 				if io.IsError() {
 					return io
 				}
 			}
-			nsStore.SetValue(key, input)
+			nsStore.SetValue(key, input, ctx.GetID())
 			result[ns] = map[string]*freepsgraph.OperatorIO{key: input}
 		}
 	case "compareAndSwap":
@@ -138,7 +145,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 			if !ok {
 				return freepsgraph.MakeOutputError(http.StatusBadRequest, "No expected value given")
 			}
-			io := nsStore.CompareAndSwap(key, val, input)
+			io := nsStore.CompareAndSwap(key, val, input, ctx.GetID())
 			if io.IsError() {
 				return io
 			}
@@ -151,13 +158,8 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 		}
 	case "deleteOlder":
 		{
-			maxAgeStr, maxAgeRequest := args["maxAge"]
 			if !maxAgeRequest {
 				return freepsgraph.MakeOutputError(http.StatusBadRequest, "No maxAge given")
-			}
-			maxAge, err := time.ParseDuration(maxAgeStr)
-			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
 			}
 			return freepsgraph.MakePlainOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
 		}
@@ -198,12 +200,14 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 
 // GetFunctions returns the functions of this operator
 func (o *OpStore) GetFunctions() []string {
-	return []string{"get", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder"}
+	return []string{"get", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder", "search"}
 }
 
 // GetPossibleArgs returns the possible arguments for a function
 func (o *OpStore) GetPossibleArgs(fn string) []string {
 	switch fn {
+	case "search":
+		return []string{"namespace", "key", "value", "modifiedBy", "minAge", "maxAge"}
 	case "get":
 		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}
 	case "getAll":
@@ -266,6 +270,10 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	case "output":
 		{
 			return map[string]string{"direct": "direct", "arguments/simple dict": "arguments", "hierarchy/complete tree": "hierarchy", "empty": "empty", "boolean value": "bool"}
+		}
+	case "minAge":
+		{
+			return utils.GetDurationMap()
 		}
 	case "maxAge":
 		{

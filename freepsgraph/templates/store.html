@@ -2,14 +2,32 @@
 
 <form method="GET" action="/graph/storeUI">
     <label>
-        Namespace: <input type="text" value="{{$.namespace}}" name="namespace" label="Namespace">
+        Namespace: <input type="text" value="{{$.namespace}}" name="namespace">
+    </label>
+    <label>
+        Key: <input type="text" value="{{$.key}}" name="key">
+    </label>
+    <label>
+        Value: <input type="text" value="{{$.value}}" name="value">
+    </label>
+    <label>
+        ModifiedByPattern: <input type="text" value="{{$.modifiedBy}}" name="modifiedBy">
+    </label>
+    <label>
+        MinAge: <input type="text" value="{{$.minAge}}" name="minAge">
+    </label>
+    <label>
+        MaxAge: <input type="text" value="{{$.maxAge}}" name="maxAge">
     </label>
     <button>Submit</button>
+    <button formaction="/store/setSimpleValue" formtarget="_blank">New Entry</button>
 </form>
 
 <table>
-    <tr><th>Key</th><th>Value</th></tr>
-{{ range $key, $value := .nsStore }}
-<tr><td>{{$key}}</td><td>{{$value}}</td></tr>
+    <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>
+{{ range $key, $entry := .storeHierarchy }}
+<tr><td><a href="/store/del?namespace={{$.namespace}}&key={{$key}}" target="_blank">x</a></td><td>{{$key}}</td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
+    <td><a href="/graph/executionLog?key={{$entry.ModifiedBy}}">{{$entry.ModifiedBy}}</a></td></tr>
 {{ end }}
 </table>
+

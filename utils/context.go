@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +16,25 @@ type OperationLog struct {
 	HTTPResponseCode  int
 }
 
+// MarshalJSON provides a custom marshaller with better readable time formats
+func (o *OperationLog) MarshalJSON() ([]byte, error) {
+	readable := struct {
+		GraphName         string
+		OpDesc            string
+		StartTime         string
+		ExecutionDuration string
+		HTTPResponseCode  int
+	}{
+		GraphName:         o.GraphName,
+		OpDesc:            o.OpDesc,
+		StartTime:         o.StartTime.Format(time.RFC1123),
+		ExecutionDuration: o.ExecutionDuration.String(),
+		HTTPResponseCode:  o.HTTPResponseCode,
+	}
+
+	return json.Marshal(readable)
+}
+
 // Context keeps the runtime data of a graph execution tree
 type Context struct {
 	UUID       uuid.UUID
@@ -22,6 +42,23 @@ type Context struct {
 	Created    time.Time
 	Responded  time.Time
 	Operations []OperationLog
+}
+
+// MarshalJSON provides a custom marshaller with better readable time formats
+func (c *Context) MarshalJSON() ([]byte, error) {
+	readable := struct {
+		UUID       uuid.UUID
+		Created    string
+		Responded  string
+		Operations []OperationLog
+	}{
+		UUID:       c.UUID,
+		Created:    c.Created.Format(time.RFC1123),
+		Responded:  c.Responded.Format(time.RFC1123),
+		Operations: c.Operations,
+	}
+
+	return json.Marshal(readable)
 }
 
 // NewContext creates a Context with a given logger
