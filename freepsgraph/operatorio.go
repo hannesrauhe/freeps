@@ -129,7 +129,11 @@ func (io *OperatorIO) GetString() string {
 	case Empty:
 		return ""
 	case Byte:
-		return string(io.Output.([]byte))
+		b := io.Output.([]byte)
+		if len(b) > 1024*10 {
+			return string(b[:1024*10]) + "..."
+		}
+		return string(b)
 	case PlainText:
 		return io.Output.(string)
 	case Error:
