@@ -59,6 +59,9 @@ func (o OpWeather) Execute(ctx *utils.Context, function string, vars map[string]
 		if err != nil {
 			return MakeOutputError(http.StatusBadRequest, err.Error())
 		}
+		if wm.ID == 0 {
+			return MakeOutputError(http.StatusInternalServerError, "ID of response is 0")
+		}
 		return MakeObjectOutput(wm)
 	case "icon":
 		d, _ := utils.GetTempDir()
