@@ -18,7 +18,7 @@ type internalStoreEntry struct {
 
 type StoreEntry struct {
 	Value      string
-	Age        string
+	Age        string //TODO: better use Time.Duration and a custom marshal
 	ModifiedBy string
 }
 

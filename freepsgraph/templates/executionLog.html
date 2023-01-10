@@ -32,7 +32,7 @@
 {{ range $ctxName, $ctx := $namespace }}
 <tr> <td><b>{{$ctxName}}</b></td><td>{{$ctx.Output.Created}}</td><td></td></tr>
 {{ range $i, $Operation := $ctx.Output.Operations }}
-<tr><td>{{$Operation.GraphName}} {{$Operation.OpDesc}}</td><td>{{$Operation.StartTime }}</td><td>{{$Operation.ExecutionDuration }} </td></tr>
+<tr><td>{{$Operation.GraphName}} {{$Operation.OpDesc}}</td><td>{{$Operation.StartTime }}</td><td align="right">{{$Operation.ExecutionDuration }}</td></tr>
 {{ end }}
 {{ end }}
 {{ end }}
