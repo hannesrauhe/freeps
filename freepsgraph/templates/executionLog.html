@@ -2,12 +2,29 @@
 
 <form method="GET" action="/graph/executionLog">
     <label>
-        Max Age: <input type="text" value="{{$.maxAge}}" name="maxAge" label="max Age">
+        ContextID: <input type="search" value="{{$.key}}" name="key" list="keys">
+    </label>
+    <label>
+        Value: <input type="text" value="{{$.value}}" name="value">
+    </label>
+    <label>
+        MinAge: <input type="text" value="{{$.minAge}}" name="minAge">
+    </label>
+    <label>
+        Max Age: <input type="text" value="{{$.maxAge}}" name="maxAge">
     </label>
     <input type="hidden" value="_context" name="namespace" />
     <button>Submit</button>
     <button formaction="/store/deleteOlder">DeleteOlder</button>
 </form>
+
+<datalist id="keys">
+{{ range $namespaceName, $namespace := . }}
+{{ range $ctxName, $ctx := $namespace }}
+    <option value="{{$ctxName}}">
+{{ end }}
+{{ end }}
+</datalist>
 
 <table>
     <tr><th>Name</th><th>Time</th><th>Duration</th></tr>
@@ -20,4 +37,3 @@
 {{ end }}
 {{ end }}
 </table>
-

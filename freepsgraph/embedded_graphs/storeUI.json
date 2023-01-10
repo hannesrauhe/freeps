@@ -9,17 +9,17 @@
   "Operations": [
     {
       "Operator": "store",
-      "Function": "getAll",
+      "Function": "search",
       "Arguments": {
-        "namespace": "default",
-        "output": "arguments"
+        "namespace": "default"
       }
     },
     {
       "Operator": "eval",
       "Function": "echoArguments",
       "Arguments": {
-        "inputKey": "nsStore"
+        "namespace": "default",
+        "inputKey": "storeHierarchy"
       },
       "InputFrom": "#0"
     },
