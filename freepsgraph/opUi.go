@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
@@ -159,7 +160,15 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 
-		err = tFooter.Execute(&w, o.ge.GetGraphInfoByTag([]string{"ui", "footer"}))
+		var fdata struct {
+			FooterGraphs map[string]GraphInfo
+			Version      string
+			StartedAt    string
+		}
+		fdata.FooterGraphs = o.ge.GetGraphInfoByTag([]string{"ui", "footer"})
+		fdata.Version = utils.BuildVersion()
+		fdata.StartedAt = utils.StartTimestamp.Format(time.RFC1123)
+		err = tFooter.Execute(&w, &fdata)
 		if err != nil {
 			logger.Println(err)
 			return MakeOutputError(http.StatusInternalServerError, err.Error())

@@ -53,6 +53,7 @@ func main() {
 	flag.Parse()
 
 	logger := logrus.StandardLogger()
+	logger.Infof("Freeps %v", utils.BuildFullVersion())
 	running := true
 	for running {
 		cr, err := utils.NewConfigReader(logger.WithField("component", "config"), configpath)
