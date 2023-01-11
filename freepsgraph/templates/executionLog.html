@@ -27,12 +27,12 @@
 </datalist>
 
 <table>
-    <tr><th>Name</th><th>Time</th><th>Duration</th></tr>
+    <tr><th>Name</th><th>Time</th><th>Code</th><th>Duration</th></tr>
 {{ range $namespaceName, $namespace := . }}
 {{ range $ctxName, $ctx := $namespace }}
-<tr> <td><b>{{$ctxName}}</b></td><td>{{$ctx.Output.Created}}</td><td></td></tr>
+<tr> <td><b>{{$ctxName}}</b></td><td>{{$ctx.Output.Created}}</td><td></td><td></td></tr>
 {{ range $i, $Operation := $ctx.Output.Operations }}
-<tr><td>{{$Operation.GraphName}} {{$Operation.OpDesc}}</td><td>{{$Operation.StartTime }}</td><td align="right">{{$Operation.ExecutionDuration }}</td></tr>
+<tr><td>{{$Operation.GraphName}} {{$Operation.OpDesc}}</td><td>{{$Operation.StartTime}}</td><td>{{$Operation.HTTPResponseCode}}</td><td align="right">{{$Operation.ExecutionDuration}}</td></tr>
 {{ end }}
 {{ end }}
 {{ end }}

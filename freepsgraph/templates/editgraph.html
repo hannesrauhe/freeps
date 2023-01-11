@@ -32,6 +32,9 @@
 				{{ if not (eq $value.ExecuteOnFailOf "") }}
 				<tr><td>ExecuteOnFailOf</td><td> {{ $value.ExecuteOnFailOf }}</td></tr>
 				{{ end }}
+				{{ if not (eq $value.ArgumentsFrom "") }}
+				<tr><td>ArgumentsFrom</td><td> {{ $value.ArgumentsFrom }}</td></tr>
+				{{ end }}
 				{{ range $argName, $argVal := $value.Arguments }}
 				<tr><td>{{ $argName }}</td><td> {{ $argVal }} </td></tr>
 				{{ end }}
@@ -101,6 +104,13 @@
 		<button name="executeOnFailOf" value="{{ $value }}">{{ $value }}</button>
 		{{ end }}
 		<button name="executeOnFailOf" value="">_empty_</button>
+	</p>
+	<p>
+		<h4>ArgumentsFrom:</h4>
+		{{ range $index, $value := .InputFromSuggestions }}
+		<button name="argumentsFrom" value="{{ $value }}">{{ $value }}</button>
+		{{ end }}
+		<button name="argumentsFrom" value="">_empty_</button>
 	</p>
 	<p>
 		<h4>IgnoreMainArgs:</h4>
