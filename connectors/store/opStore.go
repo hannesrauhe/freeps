@@ -27,6 +27,10 @@ func (o *OpStore) GetName() string {
 
 // Execute gets, sets or deletes a value from the store
 func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+	if fn == "getNamespaces" {
+		return freepsgraph.MakeObjectOutput(store.GetNamespaces())
+	}
+
 	result := map[string]map[string]*freepsgraph.OperatorIO{}
 	ns, ok := args["namespace"]
 	if !ok {
@@ -200,7 +204,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 
 // GetFunctions returns the functions of this operator
 func (o *OpStore) GetFunctions() []string {
-	return []string{"get", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder", "search"}
+	return []string{"get", "getNamespaces", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder", "search"}
 }
 
 // GetPossibleArgs returns the possible arguments for a function
