@@ -221,6 +221,8 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 			gopd.Function = v
 		} else if k == "inputFrom" {
 			gopd.InputFrom = v
+		} else if k == "argumentsFrom" {
+			gopd.ArgumentsFrom = v
 		} else if k == "executeOnFailOf" {
 			gopd.ExecuteOnFailOf = v
 		} else if k == "ignoreMainArgs" {
