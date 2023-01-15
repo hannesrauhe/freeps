@@ -16,6 +16,20 @@ func MakeDiagonalPixelMatrix(width int, height int, color string, bgcol string) 
 	}
 	return pm
 }
+func MakeZigZagPixelMatrix(width int, height int, color string, bgcol string) PixelMatrix {
+	pm := make([][]string, height)
+	for y := 0; y < height; y++ {
+		pm[y] = make([]string, width)
+		for x := 0; x < width; x++ {
+			pm[y][x] = bgcol
+		}
+	}
+	for x := 0; x < width; x++ {
+		pm[x%height][x] = color
+	}
+
+	return pm
+}
 
 func (p PixelMatrix) MoveRight(bgcol string, i int) PixelMatrix {
 	if i < 0 {

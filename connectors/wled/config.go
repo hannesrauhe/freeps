@@ -2,11 +2,20 @@ package wled
 
 import "fmt"
 
+type ConnectionReference struct {
+	Name    string
+	OffsetX int
+	OffsetY int
+}
+
+// WLEDConfig either describes a segment or references mutlipe other segments
 type WLEDConfig struct {
 	Width   int `json:",string"`
 	Height  int `json:",string"`
 	SegID   int `json:",string"`
 	Address string
+
+	References []ConnectionReference
 }
 
 type OpConfig struct {
@@ -16,7 +25,15 @@ type OpConfig struct {
 
 var DefaultConfig = OpConfig{Connections: map[string]WLEDConfig{}, DefaultConnection: "default"}
 
-func (c *WLEDConfig) Validate() error {
+func (c *WLEDConfig) Validate(requireNoReference bool) error {
+	if len(c.References) > 0 {
+		if requireNoReference {
+			return fmt.Errorf("Nesting of segments not allowed")
+		}
+		//TODO(HR): check existence and validity of referenced connections
+		return nil
+	}
+
 	if c.Width <= 0 {
 		return fmt.Errorf("X is not a valid width: %v", c.Width)
 	}

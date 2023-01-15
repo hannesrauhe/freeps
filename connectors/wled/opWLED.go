@@ -41,11 +41,10 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse parameters: %v", err.Error())
 	}
-	err = conf.Validate()
+	w, err := NewWLEDConverter(conf, o.config.Connections)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
 	}
-	w := NewWLEDConverter(conf)
 
 	var pm struct {
 		PixelMatrix [][]string
@@ -209,7 +208,9 @@ func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate Animati
 		pm, ok := o.saved[pmName]
 		if !ok {
 			if pmName == "diagonal" {
-				pm = MakeDiagonalPixelMatrix(w.conf.Width, w.conf.Height, "#FF0000", "#000000")
+				pm = MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
+			} else if pmName == "zigzag" {
+				pm = MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
 			} else {
 				return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
 			}
