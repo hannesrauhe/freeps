@@ -21,6 +21,7 @@ type WLEDConverter struct {
 	dst      *image.RGBA
 }
 
+// NewWLEDConverter creates a connection to one or multiple WLED instances, the config might reference other configs
 func NewWLEDConverter(conf WLEDConfig, connections map[string]WLEDConfig) (*WLEDConverter, error) {
 	err := conf.Validate(false)
 	if err != nil {
@@ -164,24 +165,38 @@ func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
 	return freepsgraph.MakeByteOutputWithContentType(writer.Bytes(), contentType)
 }
 
-func (w *WLEDConverter) SendToWLED(returnPNG bool) *freepsgraph.OperatorIO {
+func (w *WLEDConverter) fanoutToSegments(cmd string, returnPNG bool) *freepsgraph.OperatorIO {
+	resp := freepsgraph.MakeEmptyOutput()
 	overallResp := freepsgraph.MakeEmptyOutput()
 	for i, s := range w.segments {
-		resp := s.SendToWLED(w.dst)
-		if len(w.segments) == 1 {
-			if resp.IsError() {
-				return resp
-			}
-			overallResp = resp
+		if cmd == "" {
+			resp = s.SendToWLED(w.dst)
+		} else {
+			resp = s.WLEDCommand(cmd)
 		}
 		if resp.IsError() {
+			if len(w.segments) == 1 {
+				return resp
+			}
 			overallResp = freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error in segment %v: %v", i, resp.GetString())
 			return overallResp
 		}
+		overallResp = resp
 	}
 
 	if returnPNG {
 		return w.GetPNG()
 	}
 	return overallResp
+}
+
+func (w *WLEDConverter) SendToWLED(returnPNG bool) *freepsgraph.OperatorIO {
+	return w.fanoutToSegments("", returnPNG)
+}
+
+func (w *WLEDConverter) WLEDCommand(cmd string) *freepsgraph.OperatorIO {
+	if cmd == "" {
+		return freepsgraph.MakeOutputError(http.StatusBadRequest, "no command specified")
+	}
+	return w.fanoutToSegments(cmd, false)
 }

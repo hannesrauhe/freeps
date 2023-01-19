@@ -54,6 +54,8 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 	}
 
 	switch function {
+	case "sendCmd":
+		return w.WLEDCommand(vars["cmd"])
 	case "setImage":
 		var binput []byte
 		var contentType string
@@ -178,7 +180,7 @@ func (o *OpWLED) GetFunctions() []string {
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType"}
+	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType", "cmd"}
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
