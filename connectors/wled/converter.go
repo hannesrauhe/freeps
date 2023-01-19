@@ -10,7 +10,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/pbnjay/pixfont"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
@@ -122,11 +121,6 @@ func (w *WLEDConverter) WriteString(s string, c color.Color, alignRight bool) er
 		}
 	}
 	d.DrawString(s)
-	return nil
-}
-
-func (w *WLEDConverter) WriteStringPf(s string, c color.Color) error {
-	pixfont.DrawString(w.dst, w.Width(), w.Height(), s, c)
 	return nil
 }
 

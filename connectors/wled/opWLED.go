@@ -96,7 +96,7 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 				return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
 			}
 		}
-		err = w.WriteStringPf(str, c)
+		err = w.WriteString(str, c, utils.ParseBool(vars["alignRight"]))
 	case "setPixel":
 		c := image.White.C
 		str, ok := vars["pixelMatrix"]
