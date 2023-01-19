@@ -61,48 +61,24 @@ func (root *WLEDRoot) SetImage(dst *image.RGBA) ([]byte, error) {
 	return json.Marshal(root)
 }
 
-var availableCommands = map[string]WLEDState{
-	"on":  {On: true, V: true},
-	"off": {On: false, V: true},
-}
-
-func (root *WLEDRoot) SetCmd(cmd string) ([]byte, error) {
-	state, ok := availableCommands[cmd]
-	if !ok {
-		return nil, fmt.Errorf("cmd %s not found", cmd)
-	}
-
-	return json.Marshal(state)
-}
-
-func (root *WLEDRoot) SendToWLED(dst *image.RGBA) *freepsgraph.OperatorIO {
+func (root *WLEDRoot) SendToWLED(cmd interface{}, dst *image.RGBA) *freepsgraph.OperatorIO {
 	c := http.Client{}
 
-	b, err := root.SetImage(dst)
+	var b []byte
+	var err error
+	path := root.conf.Address + "/json"
+	if dst != nil {
+		b, err = root.SetImage(dst)
+	} else {
+		path += "/state"
+		fmt.Print(cmd)
+		b, err = json.Marshal(cmd)
+	}
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	breader := bytes.NewReader(b)
-	resp, err := c.Post(root.conf.Address+"/json", "application/json", breader)
-
-	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
-	}
-
-	defer resp.Body.Close()
-	bout, err := io.ReadAll(resp.Body)
-	return &freepsgraph.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: freepsgraph.Byte, ContentType: resp.Header.Get("Content-Type")}
-}
-
-func (root *WLEDRoot) WLEDCommand(cmd string) *freepsgraph.OperatorIO {
-	c := http.Client{}
-
-	b, err := root.SetCmd(cmd)
-	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
-	}
-	breader := bytes.NewReader(b)
-	resp, err := c.Post(root.conf.Address+"/json/state", "application/json", breader)
+	resp, err := c.Post(path, "application/json", breader)
 
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())

@@ -165,14 +165,15 @@ func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
 	return freepsgraph.MakeByteOutputWithContentType(writer.Bytes(), contentType)
 }
 
-func (w *WLEDConverter) fanoutToSegments(cmd string, returnPNG bool) *freepsgraph.OperatorIO {
+// SendToWLED sends a command to WLED, if cmd is nil, it sends the stored picture instead
+func (w *WLEDConverter) SendToWLED(cmd interface{}, returnPNG bool) *freepsgraph.OperatorIO {
 	resp := freepsgraph.MakeEmptyOutput()
 	overallResp := freepsgraph.MakeEmptyOutput()
 	for i, s := range w.segments {
-		if cmd == "" {
-			resp = s.SendToWLED(w.dst)
+		if cmd == nil {
+			resp = s.SendToWLED(cmd, w.dst)
 		} else {
-			resp = s.WLEDCommand(cmd)
+			resp = s.SendToWLED(cmd, nil)
 		}
 		if resp.IsError() {
 			if len(w.segments) == 1 {
@@ -184,19 +185,8 @@ func (w *WLEDConverter) fanoutToSegments(cmd string, returnPNG bool) *freepsgrap
 		overallResp = resp
 	}
 
-	if returnPNG {
+	if cmd == nil && returnPNG {
 		return w.GetPNG()
 	}
 	return overallResp
-}
-
-func (w *WLEDConverter) SendToWLED(returnPNG bool) *freepsgraph.OperatorIO {
-	return w.fanoutToSegments("", returnPNG)
-}
-
-func (w *WLEDConverter) WLEDCommand(cmd string) *freepsgraph.OperatorIO {
-	if cmd == "" {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "no command specified")
-	}
-	return w.fanoutToSegments(cmd, false)
 }
