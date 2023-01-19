@@ -35,8 +35,11 @@ func (o *OpWLED) GetName() string {
 func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
 
-	// TODO: pick a config
-	conf := o.config.Connections[o.config.DefaultConnection]
+	activeConnection := o.config.DefaultConnection
+	if vars["config"] != "" {
+		activeConnection = vars["config"]
+	}
+	conf := o.config.Connections[activeConnection]
 	err = utils.ArgsMapToObject(vars, &conf)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse parameters: %v", err.Error())
@@ -55,7 +58,13 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 
 	switch function {
 	case "sendCmd":
-		return w.SendToWLED(mainInput.Output, false)
+		switch vars["cmd"] {
+		case "on":
+			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: true}), false)
+		case "off":
+			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: false}), false)
+		}
+		return w.SendToWLED(mainInput, false)
 	case "setImage":
 		var binput []byte
 		var contentType string
@@ -176,11 +185,11 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 }
 
 func (o *OpWLED) GetFunctions() []string {
-	return []string{"setString", "setImage", "setPixel", "getPixelMatrix", "setPixelMatrix"}
+	return []string{"setString", "setImage", "setPixel", "getPixelMatrix", "setPixelMatrix", "sendCmd"}
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType", "cmd"}
+	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType", "cmd", "config"}
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
@@ -195,6 +204,14 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 			m[k] = k
 		}
 		return m
+	case "config":
+		m := map[string]string{}
+		for k, _ := range o.config.Connections {
+			m[k] = k
+		}
+		return m
+	case "cmd":
+		return map[string]string{"on": "on", "off": "off"}
 	}
 	return map[string]string{}
 }

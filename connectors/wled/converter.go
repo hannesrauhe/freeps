@@ -166,7 +166,7 @@ func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
 }
 
 // SendToWLED sends a command to WLED, if cmd is nil, it sends the stored picture instead
-func (w *WLEDConverter) SendToWLED(cmd interface{}, returnPNG bool) *freepsgraph.OperatorIO {
+func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) *freepsgraph.OperatorIO {
 	resp := freepsgraph.MakeEmptyOutput()
 	overallResp := freepsgraph.MakeEmptyOutput()
 	for i, s := range w.segments {

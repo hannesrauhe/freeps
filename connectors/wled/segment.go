@@ -3,7 +3,6 @@ package wled
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"image"
 	"io"
 	"net/http"
@@ -61,7 +60,7 @@ func (root *WLEDRoot) SetImage(dst *image.RGBA) ([]byte, error) {
 	return json.Marshal(root)
 }
 
-func (root *WLEDRoot) SendToWLED(cmd interface{}, dst *image.RGBA) *freepsgraph.OperatorIO {
+func (root *WLEDRoot) SendToWLED(cmd *freepsgraph.OperatorIO, dst *image.RGBA) *freepsgraph.OperatorIO {
 	c := http.Client{}
 
 	var b []byte
@@ -71,8 +70,7 @@ func (root *WLEDRoot) SendToWLED(cmd interface{}, dst *image.RGBA) *freepsgraph.
 		b, err = root.SetImage(dst)
 	} else {
 		path += "/state"
-		fmt.Print(cmd)
-		b, err = json.Marshal(cmd)
+		b, err = cmd.GetBytes()
 	}
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
