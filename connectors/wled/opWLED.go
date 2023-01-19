@@ -35,17 +35,19 @@ func (o *OpWLED) GetName() string {
 func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
 
-	// TODO: pick a config
-	conf := o.config.Connections[o.config.DefaultConnection]
+	activeConnection := o.config.DefaultConnection
+	if vars["config"] != "" {
+		activeConnection = vars["config"]
+	}
+	conf := o.config.Connections[activeConnection]
 	err = utils.ArgsMapToObject(vars, &conf)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse parameters: %v", err.Error())
 	}
-	err = conf.Validate()
+	w, err := NewWLEDConverter(conf, o.config.Connections)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
 	}
-	w := NewWLEDConverter(conf)
 
 	var pm struct {
 		PixelMatrix [][]string
@@ -55,6 +57,14 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 	}
 
 	switch function {
+	case "sendCmd":
+		switch vars["cmd"] {
+		case "on":
+			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: true}), false)
+		case "off":
+			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: false}), false)
+		}
+		return w.SendToWLED(mainInput, false)
 	case "setImage":
 		var binput []byte
 		var contentType string
@@ -171,15 +181,15 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	return w.SendToWLED(utils.ParseBool(vars["showImage"]))
+	return w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
 }
 
 func (o *OpWLED) GetFunctions() []string {
-	return []string{"setString", "setImage", "setPixel", "getPixelMatrix", "setPixelMatrix"}
+	return []string{"setString", "setImage", "setPixel", "getPixelMatrix", "setPixelMatrix", "sendCmd"}
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType"}
+	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType", "cmd", "config"}
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
@@ -194,6 +204,14 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 			m[k] = k
 		}
 		return m
+	case "config":
+		m := map[string]string{}
+		for k, _ := range o.config.Connections {
+			m[k] = k
+		}
+		return m
+	case "cmd":
+		return map[string]string{"on": "on", "off": "off"}
 	}
 	return map[string]string{}
 }
@@ -209,7 +227,9 @@ func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate Animati
 		pm, ok := o.saved[pmName]
 		if !ok {
 			if pmName == "diagonal" {
-				pm = MakeDiagonalPixelMatrix(w.conf.Width, w.conf.Height, "#FF0000", "#000000")
+				pm = MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
+			} else if pmName == "zigzag" {
+				pm = MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
 			} else {
 				return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
 			}
@@ -219,26 +239,26 @@ func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate Animati
 			for i := -1 * len(pm[0]); i < len(pm[0]); i++ {
 				wt := pm.MoveRight("#000000", i)
 				w.SetPixelMatrix(wt)
-				w.SendToWLED(false)
+				w.SendToWLED(nil, false)
 				time.Sleep(animate.StepDuration)
 			}
 		case "shift":
 			for i := 0; i < len(pm[0]); i++ {
 				wt := pm.Shift(i)
 				w.SetPixelMatrix(wt)
-				w.SendToWLED(false)
+				w.SendToWLED(nil, false)
 				time.Sleep(animate.StepDuration)
 			}
 		case "sequence":
 			for i := 1; ok; i++ {
 				w.SetPixelMatrix(pm)
-				w.SendToWLED(false)
+				w.SendToWLED(nil, false)
 				time.Sleep(animate.StepDuration)
 				pm, ok = o.saved[fmt.Sprintf("%v.%d", pmName, i)]
 			}
 		default:
 			w.SetPixelMatrix(pm)
-			w.SendToWLED(false)
+			w.SendToWLED(nil, false)
 			return freepsgraph.MakeEmptyOutput()
 		}
 	}
