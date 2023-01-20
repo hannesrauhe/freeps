@@ -116,18 +116,11 @@ func NewGraph(ctx *utils.Context, name string, origGraphDesc *GraphDesc, ge *Gra
 func (g *Graph) execute(ctx *utils.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
-	var failed []string
 	for i := 0; i < len(g.desc.Operations); i++ {
 		operation := g.desc.Operations[i]
 		output := g.executeOperation(ctx, &operation, mainArgs)
 		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 		g.opOutputs[operation.Name] = output
-		if output.IsError() {
-			failed = append(failed, operation.Name)
-		}
-	}
-	if len(failed) > 0 {
-		logger.Errorf("The following operations failed: %v.%v", g.name, failed)
 	}
 	if g.desc.OutputFrom == "" {
 		return MakeObjectOutput(g.opOutputs)

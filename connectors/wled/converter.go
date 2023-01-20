@@ -142,9 +142,8 @@ func (w *WLEDConverter) GetPixelMatrix() PixelMatrix {
 }
 
 func (w *WLEDConverter) SetPixelMatrix(pm PixelMatrix) error {
-	for y := 0; y < w.Height(); y++ {
-		pm = append(pm, make([]string, w.Width()))
-		for x := 0; x < w.Width(); x++ {
+	for y := 0; y < w.Height() && y < len(pm); y++ {
+		for x := 0; x < w.Width() && x < len(pm[y]); x++ {
 			p, err := utils.ParseHexColor(pm[y][x])
 			if err != nil {
 				return fmt.Errorf("Pixel %v,%v: %v", x, y, err.Error())
