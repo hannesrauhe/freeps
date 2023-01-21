@@ -83,7 +83,7 @@ func main() {
 		ge.AddOperator(freepsflux.NewFluxMod(cr))
 		ge.AddOperator(postgres.NewPostgresOp())
 		ge.AddOperator(wled.NewWLEDOp(cr))
-		ge.AddOperator(freepsstore.NewOpStore())
+		ge.AddOperator(freepsstore.NewOpStore(cr))
 		freepsexec.AddExecOperators(cr, ge)
 
 		sh, err := freepsstore.NewStoreHook(cr)

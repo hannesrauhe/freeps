@@ -1,6 +1,7 @@
 package freepsstore
 
 import (
+	"log"
 	"math"
 	"net/http"
 	"time"
@@ -14,9 +15,26 @@ type OpStore struct {
 
 var _ freepsgraph.FreepsOperator = &OpStore{}
 
-// NewOpStore creates a new store operator
-func NewOpStore() *OpStore {
-	store.namespaces = map[string]*StoreNamespace{}
+type FreepsStoreConfig struct {
+	PostreSQLConnStr string // The full connection string to the postgres instance
+}
+
+var defaultConfig = FreepsStoreConfig{}
+
+// NewOpStore creates a new store operator and re-initializes the store
+func NewOpStore(cr *utils.ConfigReader) *OpStore {
+	sc := defaultConfig
+	err := cr.ReadSectionWithDefaults("store", &sc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cr.WriteBackConfigIfChanged()
+	if err != nil {
+		log.Print(err)
+	}
+
+	store.namespaces = map[string]StoreNamespace{}
+	addPostgresStores()
 	return &OpStore{}
 }
 

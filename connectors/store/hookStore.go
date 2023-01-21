@@ -12,22 +12,8 @@ type HookStore struct {
 
 var _ freepsgraph.FreepsHook = &HookStore{}
 
-// NewStoreHook creates a new Postgress Hook
+// NewStoreHook creates a new store Hook
 func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
-	//TODO(HR): config?
-	// phc := defaultConfig
-	// err := cr.ReadSectionWithDefaults("postgress", &phc)
-
-	// db, err := sql.Open("postgres", phc.ConnStr)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// err = db.Ping()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	return &HookStore{}, nil
 }
 
