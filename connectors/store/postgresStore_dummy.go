@@ -16,8 +16,7 @@ func initPostgresStores(cf *FreepsStoreConfig) error {
 }
 
 func createNewNamespace(cf *FreepsStoreConfig, name string) error {
-	ns := &postgresStoreNamespace{}
-	return ns
+	panic("postgres support not compiled, method should not be called")
 }
 
 type postgresStoreNamespace struct {

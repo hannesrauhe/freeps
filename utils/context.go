@@ -94,8 +94,8 @@ func (c *Context) IsRootContext() bool {
 	return c.currentLevel == 0
 }
 
-// RecordFinisheOperation records a new entry in the execution log of this context
-func (c *Context) RecordFinisheOperation(graphName string, opDesc string, startTime time.Time, responseCode int) {
+// RecordFinishedOperation records a new entry in the execution log of this context
+func (c *Context) RecordFinishedOperation(graphName string, opDesc string, startTime time.Time, responseCode int) {
 	op := OperationLog{GraphName: graphName, OpDesc: opDesc, StartTime: startTime, HTTPResponseCode: responseCode, ExecutionDuration: time.Now().Sub(startTime), NestingLevel: c.currentLevel}
 	c.Operations = append(c.Operations, op)
 }

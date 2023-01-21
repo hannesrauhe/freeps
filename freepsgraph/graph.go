@@ -206,7 +206,7 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
 
-		ctx.RecordFinisheOperation(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, t, output.HTTPCode)
+		ctx.RecordFinishedOperation(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, t, output.HTTPCode)
 		return output
 	}
 	return g.collectAndReturnOperationError(input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)

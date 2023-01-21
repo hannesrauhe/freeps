@@ -3,7 +3,9 @@ VERSION=$(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.
 COMMIT_HASH=$(shell git rev-parse --short HEAD)
 BUILD_TIMESTAMP=$(shell date '+%Y-%m-%dT%H:%M:%S')
 
-all: build/freepsd build/freepsd_light
+.PHONY: build/freepsd build/freepsd-light
+
+all: build/freepsd build/freepsd-light
 
 build:
 	mkdir -p build
@@ -11,8 +13,8 @@ build:
 build/freepsd: build
 	go build -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o freepsd/freepsd freepsd/freepsd.go
 
-build/freepsd_light: build
-	go build -tags nopostgress -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o freepsd/freepsd freepsd/freepsd.go
+build/freepsd-light: build
+	go build -tags nopostgress -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o freepsd/freepsd-light freepsd/freepsd.go
 
 install: build/freepsd
 	mv freepsd/freepsd /usr/bin/freepsd
