@@ -43,7 +43,7 @@ type Context struct {
 	UUID         uuid.UUID
 	logger       log.FieldLogger
 	Created      time.Time
-	Responded    time.Time
+	Finished     time.Time
 	Operations   []OperationLog
 	currentLevel int
 }
@@ -53,12 +53,12 @@ func (c *Context) MarshalJSON() ([]byte, error) {
 	readable := struct {
 		UUID       uuid.UUID
 		Created    string
-		Responded  string
+		Finished   string
 		Operations []OperationLog
 	}{
 		UUID:       c.UUID,
 		Created:    c.Created.Format(time.RFC1123),
-		Responded:  c.Responded.Format(time.RFC1123),
+		Finished:   c.Finished.Format(time.RFC1123),
 		Operations: c.Operations,
 	}
 
@@ -81,18 +81,13 @@ func (c *Context) GetLogger() log.FieldLogger {
 	return c.logger
 }
 
-// MarkResponded can be called to record that a response was sent
-// TODO(HR): 1. execution might still be running at this point. 2. Hooks might have already recorded the ctx before this is called
-func (c *Context) MarkResponded() {
-	c.Responded = time.Now()
-}
-
 func (c *Context) IncreaseNesting() {
 	c.currentLevel++
 }
 
 func (c *Context) DecreaseNesting() {
 	c.currentLevel--
+	c.Finished = time.Now()
 }
 
 func (c *Context) IsRootContext() bool {

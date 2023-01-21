@@ -102,7 +102,6 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 		}
 	}
 	ctx := utils.NewContext(fm.mqttlogger)
-	defer ctx.MarkResponded()
 	out := fm.ge.ExecuteGraph(ctx, graphName, map[string]string{"topic": topic}, input)
 
 	if fm.Config.ResultTopic == "" {
@@ -135,7 +134,6 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 	}
 	input := freepsgraph.MakeObjectOutput(message.Payload())
 	ctx := utils.NewContext(fm.mqttlogger)
-	ctx.MarkResponded()
 	output := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
 	output.WriteTo(os.Stdout)
 }
