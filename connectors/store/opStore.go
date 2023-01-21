@@ -1,41 +1,52 @@
 package freepsstore
 
 import (
-	"log"
 	"math"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpStore struct {
+	cr *utils.ConfigReader
 }
 
 var _ freepsgraph.FreepsOperator = &OpStore{}
 
 type FreepsStoreConfig struct {
-	PostreSQLConnStr string // The full connection string to the postgres instance
+	PostgresConnStr        string // The full connection string to the postgres instance
+	PostgresSchema         string // the schema to store namespace-tables in
+	ExecutionLogInPostgres bool   // store the execution log in postgres if available
+	ExecutionLogName       string // name of the namespace for the execution log
 }
 
-var defaultConfig = FreepsStoreConfig{}
+var defaultConfig = FreepsStoreConfig{PostgresConnStr: "", PostgresSchema: "freepsstore", ExecutionLogInPostgres: true, ExecutionLogName: "execution_log"}
 
 // NewOpStore creates a new store operator and re-initializes the store
 func NewOpStore(cr *utils.ConfigReader) *OpStore {
 	sc := defaultConfig
 	err := cr.ReadSectionWithDefaults("store", &sc)
 	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
+		logrus.Fatal(err)
 	}
 
 	store.namespaces = map[string]StoreNamespace{}
-	addPostgresStores()
-	return &OpStore{}
+	if sc.PostgresConnStr != "" {
+		err = initPostgresStores(&sc)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+	}
+
+	cr.WriteBackConfigIfChanged()
+	if err != nil {
+		logrus.Print(err)
+	}
+	return &OpStore{cr: cr}
 }
 
 // GetName returns the name of the operator
@@ -54,6 +65,7 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 	if !ok {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
+	ns = utils.StringToIdentifier(ns)
 	nsStore := store.GetNamespace(ns)
 	keyArgName := args["keyArgName"]
 	if keyArgName == "" {

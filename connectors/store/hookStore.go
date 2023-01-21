@@ -1,6 +1,9 @@
 package freepsstore
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
@@ -8,13 +11,20 @@ import (
 )
 
 type HookStore struct {
+	conf  *FreepsStoreConfig
+	store StoreNamespace
 }
 
 var _ freepsgraph.FreepsHook = &HookStore{}
 
 // NewStoreHook creates a new store Hook
 func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
-	return &HookStore{}, nil
+	sc := defaultConfig
+	err := cr.ReadSectionWithDefaults("store", &sc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &HookStore{&sc, store.GetNamespace(sc.ExecutionLogName)}, nil
 }
 
 // GetName returns the name of the hook
@@ -29,9 +39,13 @@ func (h *HookStore) OnExecute(ctx *utils.Context, graphName string, mainArgs map
 
 // OnExecutionFinished gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
-	nsStore := store.GetNamespace("_context")
-	nsStore.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
-	return nil
+	if h.store == nil {
+		return fmt.Errorf("no namespace in hook")
+	}
+	if !ctx.IsRootContext() {
+		return nil
+	}
+	return h.store.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
 }
 
 // Shutdown gets called on graceful shutdown

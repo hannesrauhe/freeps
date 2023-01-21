@@ -40,7 +40,7 @@ type StoreNamespace interface {
 	GetValue(key string) *freepsgraph.OperatorIO
 	GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO
 	OverwriteValueIfOlder(key string, io *freepsgraph.OperatorIO, maxAge time.Duration, modifiedBy string) *freepsgraph.OperatorIO
-	SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string)
+	SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error
 }
 
 // Store is a collection of different namespaces in which values can be stored

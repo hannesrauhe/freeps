@@ -53,10 +53,11 @@ func (s *inMemoryStoreNamespace) deleteValueUnlocked(key string) {
 }
 
 // SetValue in the StoreNamespace
-func (s *inMemoryStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) {
+func (s *inMemoryStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	s.setValueUnlocked(key, io, modifiedBy)
+	return nil
 }
 
 // CompareAndSwap sets the value if the string representation of the already stored value is as expected

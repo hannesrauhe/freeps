@@ -114,6 +114,8 @@ func NewGraph(ctx *utils.Context, name string, origGraphDesc *GraphDesc, ge *Gra
 }
 
 func (g *Graph) execute(ctx *utils.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	ctx.IncreaseNesting()
+	defer ctx.DecreaseNesting()
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {
@@ -204,7 +206,7 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
 
-		ctx.RecordOperation(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, t, output.HTTPCode)
+		ctx.RecordFinisheOperation(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, t, output.HTTPCode)
 		return output
 	}
 	return g.collectAndReturnOperationError(input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
