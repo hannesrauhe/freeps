@@ -14,6 +14,7 @@ type OperationLog struct {
 	StartTime         time.Time
 	ExecutionDuration time.Duration
 	HTTPResponseCode  int
+	NestingLevel      int
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
@@ -24,12 +25,14 @@ func (o *OperationLog) MarshalJSON() ([]byte, error) {
 		StartTime         string
 		ExecutionDuration string
 		HTTPResponseCode  int
+		NestingLevel      int
 	}{
 		GraphName:         o.GraphName,
 		OpDesc:            o.OpDesc,
 		StartTime:         o.StartTime.Format(time.RFC1123),
 		ExecutionDuration: o.ExecutionDuration.String(),
 		HTTPResponseCode:  o.HTTPResponseCode,
+		NestingLevel:      o.NestingLevel,
 	}
 
 	return json.Marshal(readable)
@@ -37,11 +40,12 @@ func (o *OperationLog) MarshalJSON() ([]byte, error) {
 
 // Context keeps the runtime data of a graph execution tree
 type Context struct {
-	UUID       uuid.UUID
-	logger     log.FieldLogger
-	Created    time.Time
-	Responded  time.Time
-	Operations []OperationLog
+	UUID         uuid.UUID
+	logger       log.FieldLogger
+	Created      time.Time
+	Finished     time.Time
+	Operations   []OperationLog
+	currentLevel int
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
@@ -49,12 +53,12 @@ func (c *Context) MarshalJSON() ([]byte, error) {
 	readable := struct {
 		UUID       uuid.UUID
 		Created    string
-		Responded  string
+		Finished   string
 		Operations []OperationLog
 	}{
 		UUID:       c.UUID,
 		Created:    c.Created.Format(time.RFC1123),
-		Responded:  c.Responded.Format(time.RFC1123),
+		Finished:   c.Finished.Format(time.RFC1123),
 		Operations: c.Operations,
 	}
 
@@ -77,14 +81,21 @@ func (c *Context) GetLogger() log.FieldLogger {
 	return c.logger
 }
 
-// MarkResponded can be called to record that a response was sent
-// TODO(HR): 1. execution might still be running at this point. 2. Hooks might have already recorded the ctx before this is called
-func (c *Context) MarkResponded() {
-	c.Responded = time.Now()
+func (c *Context) IncreaseNesting() {
+	c.currentLevel++
 }
 
-// RecordOperation records a new entry in the execution log of this context
-func (c *Context) RecordOperation(graphName string, opDesc string, startTime time.Time, responseCode int) {
-	op := OperationLog{GraphName: graphName, OpDesc: opDesc, StartTime: startTime, HTTPResponseCode: responseCode, ExecutionDuration: time.Now().Sub(startTime)}
+func (c *Context) DecreaseNesting() {
+	c.currentLevel--
+	c.Finished = time.Now()
+}
+
+func (c *Context) IsRootContext() bool {
+	return c.currentLevel == 0
+}
+
+// RecordFinisheOperation records a new entry in the execution log of this context
+func (c *Context) RecordFinisheOperation(graphName string, opDesc string, startTime time.Time, responseCode int) {
+	op := OperationLog{GraphName: graphName, OpDesc: opDesc, StartTime: startTime, HTTPResponseCode: responseCode, ExecutionDuration: time.Now().Sub(startTime), NestingLevel: c.currentLevel}
 	c.Operations = append(c.Operations, op)
 }
