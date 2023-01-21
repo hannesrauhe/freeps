@@ -44,6 +44,11 @@ func (h *HookStore) OnExecute(ctx *utils.Context, graphName string, mainArgs map
 // OnExecutionFinished gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
 	nsStore := store.GetNamespace("_context")
+
+	if !ctx.IsRootContext() {
+		return nil
+	}
+
 	nsStore.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
 	return nil
 }
