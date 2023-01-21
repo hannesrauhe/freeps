@@ -3,6 +3,8 @@ VERSION=$(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.
 COMMIT_HASH=$(shell git rev-parse --short HEAD)
 BUILD_TIMESTAMP=$(shell date '+%Y-%m-%dT%H:%M:%S')
 
+.PHONY: build
+
 build:
 	go build -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o freepsd/freepsd freepsd/freepsd.go
 

@@ -293,7 +293,6 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 
 	if tcr.F {
 		ctx := utils.NewContext(telelogger)
-		defer ctx.MarkResponded()
 		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
 		byt, err := io.GetBytes()
 		if err != nil {
