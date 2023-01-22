@@ -1,0 +1,65 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<form action="#" method="POST">
+<div style="float: left; max-width: 500px">
+	<input type="hidden" name="selectednumop" value="{{ .Numop }}" />
+
+	{{ $op := (index .GraphDesc.Operations $.Numop) }}
+	<input type="hidden" name="opName" value="{{ $op.Name }}" onChange="this.form.submit()" />
+	<p>
+		<h4>Operator:</h4>
+		{{ range $key, $value := .OpSuggestions }}
+		<button name="op" value="{{ $key }}" {{ if $value}} disabled="true" {{ end }} >{{ $key }}</button>
+		{{ end }}
+	</p>
+	<p>
+		<h4>Function:</h4>
+		{{ range $key, $value := .FnSuggestions }}
+		<button name="fn" value="{{ $key }}" {{ if $value}} disabled="true" {{ end }}>{{ $key }}</button>
+		{{ end }}
+		<input type="text" name="fn" value="{{ $op.Function }}" onChange="this.form.submit()" />
+	</p>
+
+	<p>
+		<h4>Arguments:</h4>
+		{{ range $argName, $argVal := $op.Arguments }}
+		<p>{{ $argName }}:
+			{{ range $argopt, $argmap := $.ArgSuggestions }}
+				{{if eq $argopt $argName}}
+					{{ range $argShowValue, $argRealValue := $argmap }}<button name="arg.{{ $argName }}" value="{{ $argRealValue }}">{{ $argShowValue }}</button>{{ end }}
+				{{ end }}
+			{{ end }}
+			<input type="text" name="arg.{{ $argName }}" value="{{ $argVal }}"  onChange="this.form.submit()" />
+			<button name="delArg" value="{{ $argName }}">-</button>
+		</p>
+		{{ end }}
+		New Argument:
+		 {{ range $argName, $argSelected := $.ArgSuggestions }}
+		 <button type="submit" name="newArg" value="{{ $argName }}">{{ $argName }}</button>
+		 {{ end }}
+		<input type="text" name="newArg" />
+		<button type="submit">+</button>
+	</p>
+
+	<p>
+		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
+	</p>
+</div>
+
+	<div style="float: left; margin:10px">
+		<textarea name="GraphJSON" cols="50" rows="20" >{{ .GraphJSON }}</textarea>
+	</div>
+
+	<div style="clear: both">
+		<button type="submit" name="Execute" value="Execute">Execute</button>
+		<input type="text" name="GraphName" value="{{ .GraphName }}" />
+		<button type="submit" name="SaveTemp">Save Temporarily</button>
+		<button type="submit" name="SaveGraph">Save Graph</button>
+		<button type="submit" name="GraphJSON" value="" />Reset</button>
+	</div>
+{{ if ne .Output "" }}
+<iframe name="outputframe"
+	style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden"
+	id="outputframe" src="{{ .Output }}"></iframe>
+{{ end }}
+
+	</form>
