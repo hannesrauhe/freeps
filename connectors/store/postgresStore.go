@@ -10,7 +10,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/sirupsen/logrus"
 
 	_ "github.com/lib/pq"
 )
@@ -66,7 +65,7 @@ func (s *Store) createPostgresNamespace(name string) error {
 		return fmt.Errorf("No active postgres connection")
 	}
 	name = utils.StringToIdentifier(name)
-	if _, err := db.Exec(fmt.Sprintf("create table %s.%s (key text primary key, output_type text, content_type text, http_code smallint, value_bytes bytea default NULL, value_plain text default NULL, value_json json default NULL, modification_time timestamp with time zone default current_timestamp, modified_by text);", s.config.PostgresSchema, name)); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("create table %s.%s (key text primary key, output_type text not null, content_type text not null, http_code smallint not null, value_bytes bytea default NULL, value_plain text default NULL, value_json json default NULL, modification_time timestamp with time zone default current_timestamp not null, modified_by text not null);", s.config.PostgresSchema, name)); err != nil {
 		return fmt.Errorf("create table: %v", err)
 	}
 	store.namespaces[name] = newPostgresStoreNamespace(s.config.PostgresSchema, name)
@@ -141,25 +140,26 @@ func (p *postgresStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		http_code := 0
-		var output_type, content_type, value_plain sql.NullString
-		var value_bytes, value_json []byte
-		if err := rows.Scan(&http_code, &output_type, &content_type, &value_plain, &value_bytes, &value_json); err != nil {
+		output := freepsgraph.OperatorIO{}
+		var valuePlain sql.NullString
+		var valueBytes, valueJSON []byte
+		if err := rows.Scan(&output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON); err != nil {
 			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 		}
-		switch output_type.String {
-		case "empty":
-			return freepsgraph.MakeEmptyOutput()
-		case "plain":
-			return freepsgraph.MakePlainOutput(value_plain.String)
-		case "byte":
-			return freepsgraph.MakeByteOutputWithContentType(value_bytes, content_type.String)
-		case "object":
-			return freepsgraph.MakeByteOutputWithContentType(value_bytes, content_type.String)
+		switch output.OutputType {
+		case freepsgraph.Empty:
+		case freepsgraph.PlainText:
+			if !valuePlain.Valid {
+				return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: plain value is NULL")
+			}
+			output.Output = valuePlain.String
+		case freepsgraph.Byte:
+		case freepsgraph.Object:
+			output.Output = valueBytes
 		default:
 			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: %v", err)
 		}
-		logrus.Print(http_code)
+		return &output
 	}
 	if err := rows.Err(); err != nil {
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
