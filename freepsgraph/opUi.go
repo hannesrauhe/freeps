@@ -265,7 +265,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 	return gd
 }
 
-func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
+func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.Entry, tmpl string) *OperatorIO {
 	var gd *GraphDesc
 	var exists bool
 	targetNum := 0
@@ -361,7 +361,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 		td.InputFromSuggestions = append(td.InputFromSuggestions, name)
 	}
 	td.Quicklink = gopd.ToQuicklink()
-	return o.createTemplate(`editgraph.html`, td, logger)
+	return o.createTemplate(tmpl, td, logger)
 }
 
 func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -449,10 +449,12 @@ func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, in
 	logger := stdlogger.WithField("component", "UI")
 
 	switch fn {
-	case "", "showGraphs":
+	case "", "home":
+		return o.editGraph(vars, input, logger, "home.html")
+	case "showGraphs":
 		return o.showGraphs(vars, input, logger)
 	case "edit", "editGraph":
-		return o.editGraph(vars, input, logger)
+		return o.editGraph(vars, input, logger, "editgraph.html")
 	case "config":
 		return o.editConfig(vars, input, logger)
 	case "show":
