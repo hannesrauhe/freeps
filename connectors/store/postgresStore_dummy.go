@@ -11,12 +11,12 @@ type dummydb struct{}
 
 var db *dummydb = nil
 
-func initPostgresStores(cf *FreepsStoreConfig) error {
+func (s *Store) initPostgresStores() error {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func createNewNamespace(cf *FreepsStoreConfig, name string) error {
-	panic("postgres support not compiled, method should not be called")
+func (s *Store) createPostgresNamespace(name string) error {
+	return fmt.Errorf("Postgres support not available")
 }
 
 type postgresStoreNamespace struct {

@@ -2,29 +2,23 @@ package freepsstore
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
-
-	_ "github.com/lib/pq"
 )
 
 type HookStore struct {
-	conf  *FreepsStoreConfig
-	store StoreNamespace
+	storeNs StoreNamespace
 }
 
 var _ freepsgraph.FreepsHook = &HookStore{}
 
 // NewStoreHook creates a new store Hook
 func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
-	sc := defaultConfig
-	err := cr.ReadSectionWithDefaults("store", &sc)
-	if err != nil {
-		log.Fatal(err)
+	if store.namespaces == nil || store.config == nil {
+		return nil, fmt.Errorf("Store was not properly initialized")
 	}
-	return &HookStore{&sc, store.GetNamespace(sc.ExecutionLogName)}, nil
+	return &HookStore{store.GetNamespace(store.config.ExecutionLogName)}, nil
 }
 
 // GetName returns the name of the hook
@@ -39,13 +33,13 @@ func (h *HookStore) OnExecute(ctx *utils.Context, graphName string, mainArgs map
 
 // OnExecutionFinished gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
-	if h.store == nil {
+	if h.storeNs == nil {
 		return fmt.Errorf("no namespace in hook")
 	}
 	if !ctx.IsRootContext() {
 		return nil
 	}
-	return h.store.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
+	return h.storeNs.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
 }
 
 // Shutdown gets called on graceful shutdown

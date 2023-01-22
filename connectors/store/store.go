@@ -47,7 +47,18 @@ type StoreNamespace interface {
 type Store struct {
 	namespaces map[string]StoreNamespace
 	globalLock sync.Mutex
+	config     *FreepsStoreConfig
 }
+
+// FreepsStoreConfig contains all start-parameters for the store
+type FreepsStoreConfig struct {
+	PostgresConnStr        string // The full connection string to the postgres instance
+	PostgresSchema         string // the schema to store namespace-tables in
+	ExecutionLogInPostgres bool   // store the execution log in postgres if available
+	ExecutionLogName       string // name of the namespace for the execution log
+}
+
+var defaultConfig = FreepsStoreConfig{PostgresConnStr: "", PostgresSchema: "freepsstore", ExecutionLogInPostgres: true, ExecutionLogName: "execution_log"}
 
 // GetNamespace from the store, create InMemoryNamespace if it does not exist
 func (s *Store) GetNamespace(ns string) StoreNamespace {

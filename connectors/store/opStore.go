@@ -17,15 +17,6 @@ type OpStore struct {
 
 var _ freepsgraph.FreepsOperator = &OpStore{}
 
-type FreepsStoreConfig struct {
-	PostgresConnStr        string // The full connection string to the postgres instance
-	PostgresSchema         string // the schema to store namespace-tables in
-	ExecutionLogInPostgres bool   // store the execution log in postgres if available
-	ExecutionLogName       string // name of the namespace for the execution log
-}
-
-var defaultConfig = FreepsStoreConfig{PostgresConnStr: "", PostgresSchema: "freepsstore", ExecutionLogInPostgres: true, ExecutionLogName: "execution_log"}
-
 // NewOpStore creates a new store operator and re-initializes the store
 func NewOpStore(cr *utils.ConfigReader) *OpStore {
 	sc := defaultConfig
@@ -35,8 +26,9 @@ func NewOpStore(cr *utils.ConfigReader) *OpStore {
 	}
 
 	store.namespaces = map[string]StoreNamespace{}
+	store.config = &sc
 	if sc.PostgresConnStr != "" {
-		err = initPostgresStores(&sc)
+		err = store.initPostgresStores()
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -66,6 +58,14 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
 	ns = utils.StringToIdentifier(ns)
+
+	if fn == "createPostgresNamespace" {
+		err := store.createPostgresNamespace(ns)
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+		return freepsgraph.MakePlainOutput("Namespace %v created", ns)
+	}
 	nsStore := store.GetNamespace(ns)
 	keyArgName := args["keyArgName"]
 	if keyArgName == "" {
@@ -234,7 +234,11 @@ func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string,
 
 // GetFunctions returns the functions of this operator
 func (o *OpStore) GetFunctions() []string {
-	return []string{"get", "getNamespaces", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder", "search"}
+	res := []string{"get", "getNamespaces", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder", "search"}
+	if db == nil {
+		return res
+	}
+	return append(res, "createPostgresNamespace")
 }
 
 // GetPossibleArgs returns the possible arguments for a function
@@ -249,6 +253,8 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	case "deleteOlder":
 		return []string{"namespace", "maxAge"}
 	case "setAll":
+		return []string{"namespace"}
+	case "createPostgresNamespace":
 		return []string{"namespace"}
 	case "set":
 		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}

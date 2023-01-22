@@ -5,10 +5,12 @@ package freepsstore
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/sirupsen/logrus"
 
 	_ "github.com/lib/pq"
 )
@@ -23,17 +25,17 @@ func closingError(format string, a ...any) error {
 	return fmt.Errorf(format, a...)
 }
 
-func initPostgresStores(cf *FreepsStoreConfig) error {
+func (s *Store) initPostgresStores() error {
 	var err error
-	if db, err = sql.Open("postgres", cf.PostgresConnStr); err != nil {
+	if db, err = sql.Open("postgres", s.config.PostgresConnStr); err != nil {
 		return closingError("init database connection: %v", err)
 	}
 
-	cf.PostgresSchema = utils.StringToIdentifier(cf.PostgresSchema)
-	if _, err = db.Exec("create schema if not exists " + cf.PostgresSchema); err != nil {
+	s.config.PostgresSchema = utils.StringToIdentifier(s.config.PostgresSchema)
+	if _, err = db.Exec("create schema if not exists " + s.config.PostgresSchema); err != nil {
 		return closingError("create schema: %v", err)
 	}
-	rows, err := db.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = $1", cf.PostgresSchema)
+	rows, err := db.Query("select table_name from information_schema.tables where table_schema = $1", s.config.PostgresSchema)
 	if err != nil {
 		return closingError("query namespaces: %v", err)
 	}
@@ -43,26 +45,31 @@ func initPostgresStores(cf *FreepsStoreConfig) error {
 		if err := rows.Scan(&ns); err != nil {
 			return closingError("query namespaces: %v", err)
 		}
-		store.namespaces[ns] = newPostgresStoreNamespace(cf.PostgresSchema, ns)
+		store.namespaces[ns] = newPostgresStoreNamespace(s.config.PostgresSchema, ns)
 	}
 	if err := rows.Err(); err != nil {
 		return closingError("query namespaces: %v", err)
 	}
-	cf.ExecutionLogName = utils.StringToIdentifier(cf.ExecutionLogName)
-	if _, ok := store.namespaces[cf.ExecutionLogName]; !ok {
-		err = createNewNamespace(cf, cf.ExecutionLogName)
-		return err
+	s.config.ExecutionLogName = utils.StringToIdentifier(s.config.ExecutionLogName)
+	if s.config.ExecutionLogInPostgres {
+		if _, ok := store.namespaces[s.config.ExecutionLogName]; !ok {
+			err = s.createPostgresNamespace(s.config.ExecutionLogName)
+			return err
+		}
 	}
 
 	return nil
 }
 
-func createNewNamespace(cf *FreepsStoreConfig, name string) error {
+func (s *Store) createPostgresNamespace(name string) error {
+	if db == nil {
+		return fmt.Errorf("No active postgres connection")
+	}
 	name = utils.StringToIdentifier(name)
-	if _, err := db.Exec(fmt.Sprintf("create table %s.%s (key text primary key, output_type text, content_type text, http_code smallint, value_bytes bytea default NULL, value_plain text default NULL, value_json json default NULL, modification_time timestamp with time zone default current_timestamp, modified_by text);", cf.PostgresSchema, name)); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("create table %s.%s (key text primary key, output_type text, content_type text, http_code smallint, value_bytes bytea default NULL, value_plain text default NULL, value_json json default NULL, modification_time timestamp with time zone default current_timestamp, modified_by text);", s.config.PostgresSchema, name)); err != nil {
 		return fmt.Errorf("create table: %v", err)
 	}
-	store.namespaces[name] = newPostgresStoreNamespace(cf.PostgresSchema, name)
+	store.namespaces[name] = newPostgresStoreNamespace(s.config.PostgresSchema, name)
 	return nil
 }
 
@@ -77,6 +84,11 @@ type postgresStoreNamespace struct {
 }
 
 var _ StoreNamespace = &postgresStoreNamespace{}
+
+func (p *postgresStoreNamespace) query(projection string, filter string, args ...any) (*sql.Rows, error) {
+	queryString := fmt.Sprintf("select %v from %v.%v where %v", projection, p.schema, p.name, filter)
+	return db.Query(queryString, args...)
+}
 
 func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO {
 	panic("not implemented") // TODO: Implement
@@ -99,7 +111,23 @@ func (p *postgresStoreNamespace) GetAllValues() map[string]*freepsgraph.Operator
 }
 
 func (p *postgresStoreNamespace) GetKeys() []string {
-	panic("not implemented") // TODO: Implement
+	res := []string{}
+	rows, err := p.query("key", "1=1")
+	if err != nil {
+		return res
+	}
+	defer rows.Close()
+	for rows.Next() {
+		key := ""
+		if err := rows.Scan(&key); err != nil {
+			return res
+		}
+		res = append(res, key)
+	}
+	if err := rows.Err(); err != nil {
+		return res
+	}
+	return res
 }
 
 func (p *postgresStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry {
@@ -107,7 +135,36 @@ func (p *postgresStoreNamespace) GetSearchResultWithMetadata(keyPattern string, 
 }
 
 func (p *postgresStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
-	panic("not implemented") // TODO: Implement
+	rows, err := p.query("http_code, output_type, content_type, value_plain, value_bytes, value_json", "key=$1", key)
+	if err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		http_code := 0
+		var output_type, content_type, value_plain sql.NullString
+		var value_bytes, value_json []byte
+		if err := rows.Scan(&http_code, &output_type, &content_type, &value_plain, &value_bytes, &value_json); err != nil {
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		}
+		switch output_type.String {
+		case "empty":
+			return freepsgraph.MakeEmptyOutput()
+		case "plain":
+			return freepsgraph.MakePlainOutput(value_plain.String)
+		case "byte":
+			return freepsgraph.MakeByteOutputWithContentType(value_bytes, content_type.String)
+		case "object":
+			return freepsgraph.MakeByteOutputWithContentType(value_bytes, content_type.String)
+		default:
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: %v", err)
+		}
+		logrus.Print(http_code)
+	}
+	if err := rows.Err(); err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+	}
+	return freepsgraph.MakeOutputError(http.StatusNotFound, "Key not found")
 }
 
 func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO {
