@@ -248,7 +248,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			return
 		}
 		tpl := &freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C}}}
-		r.ge.AddTemporaryGraph(tcr.T, tpl)
+		r.ge.AddTemporaryGraph(tcr.T, tpl, "telegram")
 		op, god = r.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + god.Operator
 		msg.ReplyMarkup, _ = r.getFnKeyboard(&tcr)
@@ -292,7 +292,8 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	}
 
 	if tcr.F {
-		io := r.ge.ExecuteGraph(utils.NewContext(telelogger), tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
+		ctx := utils.NewContext(telelogger)
+		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
 		byt, err := io.GetBytes()
 		if err != nil {
 			msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)

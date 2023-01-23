@@ -1,0 +1,21 @@
+{
+    "Tags": [
+        "system",
+        "ui"
+    ],
+    "OutputFrom": "#1",
+    "Operations": [
+        {
+            "Operator": "store",
+            "Function": "getAll",
+            "Arguments": {
+                "namespace": "_context"
+            }
+        },
+        {
+            "Operator": "ui",
+            "Function": "executionLog.html",
+            "InputFrom": "#0"
+        }
+    ]
+}

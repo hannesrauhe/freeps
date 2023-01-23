@@ -3,12 +3,13 @@ package wled
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"image"
-	"image/color"
 	"image/jpeg"
 	"image/png"
-	"io"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -18,6 +19,7 @@ import (
 type OpWLED struct {
 	cr     *utils.ConfigReader
 	config *OpConfig
+	saved  map[string]PixelMatrix
 }
 
 //go:embed font/*
@@ -31,25 +33,38 @@ func (o *OpWLED) GetName() string {
 }
 
 func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
-	c := http.Client{}
-
-	var resp *http.Response
 	var err error
-	var bgcolor color.Color //TODO: unused
 
-	// TODO: pick a config
-	conf := o.config.Connections[o.config.DefaultConnection]
+	activeConnection := o.config.DefaultConnection
+	if vars["config"] != "" {
+		activeConnection = vars["config"]
+	}
+	conf := o.config.Connections[activeConnection]
 	err = utils.ArgsMapToObject(vars, &conf)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse parameters: %v", err.Error())
 	}
-	err = conf.Validate()
+	w, err := NewWLEDConverter(conf, o.config.Connections)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
 	}
-	w := NewWLEDConverter(conf.X, conf.Y, bgcolor)
+
+	var pm struct {
+		PixelMatrix [][]string
+		Name        string
+		NextColor   string
+		Segment     string
+	}
 
 	switch function {
+	case "sendCmd":
+		switch vars["cmd"] {
+		case "on":
+			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: true}), false)
+		case "off":
+			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: false}), false)
+		}
+		return w.SendToWLED(mainInput, false)
 	case "setImage":
 		var binput []byte
 		var contentType string
@@ -93,43 +108,161 @@ func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]st
 			}
 		}
 		err = w.WriteString(str, c, utils.ParseBool(vars["alignRight"]))
+	case "setPixel":
+		c := image.White.C
+		str, ok := vars["pixelMatrix"]
+		if ok {
+			wt, ok := o.saved[str]
+			if ok {
+				w.SetPixelMatrix(wt)
+			}
+		}
+		if colstr, ok := vars["color"]; ok {
+			c, err = utils.ParseHexColor(colstr)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+			}
+		}
+		x, err := strconv.Atoi(vars["x"])
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "x not a valid integer")
+		}
+		y, err := strconv.Atoi(vars["y"])
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
+		}
+		err = w.SetPixel(x, y, c)
+	case "getPixelMatrix":
+		pmName, ok := vars["pixelMatrix"]
+		if !ok || pmName == "" {
+			return freepsgraph.MakeOutputError(http.StatusBadRequest, "pixelMatrix paramter should contain the name but is missing")
+		}
+		wt, ok := o.saved[pmName]
+		if ok {
+			w.SetPixelMatrix(wt)
+		}
+		pm.PixelMatrix = w.GetPixelMatrix()
+		pm.Name = pmName
+		pm.NextColor = vars["color"]
+		pm.Segment = vars["SegID"]
+		return freepsgraph.MakeObjectOutput(pm)
+	case "setPixelMatrix":
+		pmName := vars["pixelMatrix"]
+		if !mainInput.IsEmpty() {
+			err := mainInput.ParseJSON(&pm)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse input as pixelmatrix object: %v", err)
+			}
+			if pmName == "" {
+				pmName = pm.Name
+			}
+			if pmName == "" {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "pixelMatrix name should be given either via parameter or input, but it's empty in both")
+			}
+			o.saved[pmName] = pm.PixelMatrix
+		}
+		animate := AnimationOptions{StepDuration: time.Millisecond * 500}
+		err := utils.ArgsMapToObject(vars, &animate)
+		if err != nil {
+			return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse Animation Parameters: %v", err)
+		}
+		return o.SetPixelMatrix(w, pmName, animate)
 	default:
 		return freepsgraph.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 
+	if pmName, ok := vars["pixelMatrix"]; ok {
+		o.saved[pmName] = w.GetPixelMatrix()
+	} else {
+		o.saved["last"] = w.GetPixelMatrix()
+	}
+
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	b, err := w.GetJSON(conf.SegID)
-	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
-	}
-	breader := bytes.NewReader(b)
-	resp, err = c.Post(conf.Address+"/json", "encoding/json", breader)
-
-	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
-	}
-
-	if utils.ParseBool(vars["showImage"]) {
-		return w.GetImage()
-	}
-	defer resp.Body.Close()
-	bout, err := io.ReadAll(resp.Body)
-	return &freepsgraph.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: freepsgraph.Byte, ContentType: resp.Header.Get("Content-Type")}
+	return w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
 }
 
 func (o *OpWLED) GetFunctions() []string {
-	return []string{"setString", "setImage"}
+	return []string{"setString", "setImage", "setPixel", "getPixelMatrix", "setPixelMatrix", "sendCmd"}
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage"}
+	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType", "cmd", "config"}
 }
 
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	switch arg {
+	case "animationType":
+		return map[string]string{"move": "move", "shift": "shift", "squence": "sequence"}
+	case "showImage", "alignRight":
+		return map[string]string{"true": "true", "false": "false"}
+	case "pixelMatrix":
+		m := map[string]string{}
+		for k, _ := range o.saved {
+			m[k] = k
+		}
+		return m
+	case "config":
+		m := map[string]string{}
+		for k, _ := range o.config.Connections {
+			m[k] = k
+		}
+		return m
+	case "cmd":
+		return map[string]string{"on": "on", "off": "off"}
+	}
 	return map[string]string{}
+}
+
+type AnimationOptions struct {
+	AnimationType string
+	StepDuration  time.Duration
+	Repeat        int `json:",string"`
+}
+
+func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate AnimationOptions) *freepsgraph.OperatorIO {
+	for r := 0; r <= animate.Repeat; r++ {
+		pm, ok := o.saved[pmName]
+		if !ok {
+			if pmName == "diagonal" {
+				pm = MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
+			} else if pmName == "zigzag" {
+				pm = MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
+			} else {
+				return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
+			}
+		}
+		switch animate.AnimationType {
+		case "move":
+			for i := -1 * len(pm[0]); i < len(pm[0]); i++ {
+				wt := pm.MoveRight("#000000", i)
+				w.SetPixelMatrix(wt)
+				w.SendToWLED(nil, false)
+				time.Sleep(animate.StepDuration)
+			}
+		case "shift":
+			for i := 0; i < len(pm[0]); i++ {
+				wt := pm.Shift(i)
+				w.SetPixelMatrix(wt)
+				w.SendToWLED(nil, false)
+				time.Sleep(animate.StepDuration)
+			}
+		case "sequence":
+			for i := 1; ok; i++ {
+				w.SetPixelMatrix(pm)
+				w.SendToWLED(nil, false)
+				time.Sleep(animate.StepDuration)
+				pm, ok = o.saved[fmt.Sprintf("%v.%d", pmName, i)]
+			}
+		default:
+			w.SetPixelMatrix(pm)
+			w.SendToWLED(nil, false)
+			return freepsgraph.MakeEmptyOutput()
+		}
+	}
+	return freepsgraph.MakeEmptyOutput()
 }
 
 func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
@@ -143,7 +276,7 @@ func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
 			logrus.Error(err)
 		}
 	}
-	return &OpWLED{cr: cr, config: &conf}
+	return &OpWLED{cr: cr, config: &conf, saved: make(map[string]PixelMatrix)}
 }
 
 // Shutdown (noOp)

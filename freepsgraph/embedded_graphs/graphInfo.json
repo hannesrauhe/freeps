@@ -1,0 +1,19 @@
+{
+    "Tags": [
+        "ui",
+        "system",
+        "footer"
+    ],
+    "OutputFrom": "#1",
+    "Operations": [
+      {
+        "Operator": "system",
+        "Function": "getGraphInfoByTag"
+      },
+      {
+        "Operator": "ui",
+        "Function": "graphInfo.html",
+        "InputFrom": "#0"
+      }
+    ]
+  }

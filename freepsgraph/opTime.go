@@ -83,6 +83,17 @@ func (o *OpTime) Execute(ctx *utils.Context, function string, vars map[string]st
 		fallthrough
 	case "isNight":
 		return o.sunriseFunctions(function, vars)
+	case "sleep":
+		dstr, ok := vars["duration"]
+		if !ok {
+			return MakeOutputError(http.StatusBadRequest, "duration missing")
+		}
+		d, err := time.ParseDuration(dstr)
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "duration parsing failed: %v", err)
+		}
+		time.Sleep(d)
+		return MakeEmptyOutput()
 	case "now":
 		if vars["format"] != "" {
 			return MakePlainOutput("%v", time.Now().Format(vars["format"]))
@@ -94,14 +105,30 @@ func (o *OpTime) Execute(ctx *utils.Context, function string, vars map[string]st
 }
 
 func (o *OpTime) GetFunctions() []string {
-	return []string{"sunrise", "isDay", "isNight", "now"}
+	return []string{"sunrise", "isDay", "isNight", "now", "sleep"}
 }
 
 func (o *OpTime) GetPossibleArgs(fn string) []string {
-	return []string{"latitude", "longitude", "format"}
+	switch fn {
+	case "sunrise":
+		fallthrough
+	case "isDay":
+		fallthrough
+	case "isNight":
+		return []string{"latitude", "longitude"}
+	case "sleep":
+		return []string{"duration"}
+	case "now":
+		return []string{"format"}
+	}
+	return []string{}
 }
 
 func (o *OpTime) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	switch arg {
+	case "duration":
+		return utils.GetDurationMap()
+	}
 	return map[string]string{}
 }
 

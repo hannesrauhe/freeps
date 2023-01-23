@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
@@ -159,7 +160,15 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 
-		err = tFooter.Execute(&w, o.ge.GetGraphInfoByTag([]string{"ui", "footer"}))
+		var fdata struct {
+			FooterGraphs map[string]GraphInfo
+			Version      string
+			StartedAt    string
+		}
+		fdata.FooterGraphs = o.ge.GetGraphInfoByTag([]string{"ui", "footer"})
+		fdata.Version = utils.BuildVersion()
+		fdata.StartedAt = utils.StartTimestamp.Format(time.RFC1123)
+		err = tFooter.Execute(&w, &fdata)
 		if err != nil {
 			logger.Println(err)
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
@@ -212,6 +221,8 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 			gopd.Function = v
 		} else if k == "inputFrom" {
 			gopd.InputFrom = v
+		} else if k == "argumentsFrom" {
+			gopd.ArgumentsFrom = v
 		} else if k == "executeOnFailOf" {
 			gopd.ExecuteOnFailOf = v
 		} else if k == "ignoreMainArgs" {
@@ -254,7 +265,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 	return gd
 }
 
-func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
+func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.Entry, tmpl string) *OperatorIO {
 	var gd *GraphDesc
 	var exists bool
 	targetNum := 0
@@ -295,14 +306,14 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 			if td.GraphName == "" {
 				return MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddTemporaryGraph(td.GraphName, gd)
+			err := o.ge.AddTemporaryGraph(td.GraphName, gd, "temporary")
 			if err != nil {
 				return MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			err := o.ge.AddTemporaryGraph("UIgraph", gd)
+			err := o.ge.AddTemporaryGraph("UIgraph", gd, "temporary")
 			if err != nil {
 				return MakeOutputError(http.StatusBadRequest, err.Error())
 			}
@@ -350,7 +361,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 		td.InputFromSuggestions = append(td.InputFromSuggestions, name)
 	}
 	td.Quicklink = gopd.ToQuicklink()
-	return o.createTemplate(`editgraph.html`, td, logger)
+	return o.createTemplate(tmpl, td, logger)
 }
 
 func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -438,10 +449,12 @@ func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, in
 	logger := stdlogger.WithField("component", "UI")
 
 	switch fn {
-	case "", "showGraphs":
+	case "", "home":
+		return o.editGraph(vars, input, logger, "home.html")
+	case "showGraphs":
 		return o.showGraphs(vars, input, logger)
 	case "edit", "editGraph":
-		return o.editGraph(vars, input, logger)
+		return o.editGraph(vars, input, logger, "editgraph.html")
 	case "config":
 		return o.editConfig(vars, input, logger)
 	case "show":

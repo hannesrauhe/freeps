@@ -1,0 +1,24 @@
+<style>
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding: 1px;
+    margin: 4px;
+}
+</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<a href="/graph/graphInfo">All Graphs</a>
+<br>
+<table style="float: left">
+<tr><th>Graph</th><th>Actions</th><th>Counter</th><th>Last Execution Time</th><th>Tags</th></tr>
+		{{ range $value, $info := . }}
+				<tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
+                    <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}" target="outputframe">Delete</a></td>
+                    <td>{{ $info.ExecutionCounter }} </td>
+                    <td>{{ $info.LastExecutionTime }}</td>
+                    <td>{{ range $index, $t := $info.Desc.Tags }} <a href="/graph/graphInfo?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
+		{{ end }}
+</table>
+<div style="float: left">
+<iframe name="outputframe" style="min-width: 500px; height:500px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
+</div>

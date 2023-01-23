@@ -29,16 +29,18 @@ type MuteMeConfig struct {
 	DoublePressTime  time.Duration
 	VendorID         uint16
 	ProductID        uint16
-	PressGraph       string
-	DoublePressGraph string
+	Tag              string
+	PressedTag       string
+	DoublePressedTag string
 }
 
 var DefaultConfig = MuteMeConfig{
 	DoublePressTime:  time.Second,
 	VendorID:         0x20a0,
 	ProductID:        0x42da,
-	PressGraph:       "muteMePressed",
-	DoublePressGraph: "muteMeDoublePress",
+	Tag:              "muteme",
+	PressedTag:       "muteMePressed",
+	DoublePressedTag: "muteMeDoublePressed",
 }
 
 func (m *MuteMeImpl) setColor(color string) error {
@@ -103,11 +105,9 @@ func (m *MuteMeImpl) mainloop() {
 			}
 
 			if tpress2.Sub(tpress1) < doublePressTime {
-				// fmt.Println("Doublepress")
-				m.ge.ExecuteGraph(utils.NewContext(m.logger), m.config.DoublePressGraph, map[string]string{}, freepsgraph.MakeEmptyOutput())
+				m.ge.ExecuteGraphByTags(utils.NewContext(m.logger), []string{m.config.DoublePressedTag, m.config.Tag}, map[string]string{}, freepsgraph.MakeEmptyOutput())
 			} else {
-				m.ge.ExecuteGraph(utils.NewContext(m.logger), m.config.PressGraph, map[string]string{"time": lastPressed.String()}, freepsgraph.MakeEmptyOutput())
-				// fmt.Printf("Pressed: %v\n", lastPressed)
+				m.ge.ExecuteGraphByTags(utils.NewContext(m.logger), []string{m.config.PressedTag, m.config.Tag}, map[string]string{"time": lastPressed.String()}, freepsgraph.MakeEmptyOutput())
 			}
 			ignoreUntil = time.Now().Add(time.Second)
 			lastPressed = time.Microsecond

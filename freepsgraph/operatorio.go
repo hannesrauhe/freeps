@@ -129,7 +129,11 @@ func (io *OperatorIO) GetString() string {
 	case Empty:
 		return ""
 	case Byte:
-		return string(io.Output.([]byte))
+		b := io.Output.([]byte)
+		if len(b) > 1024*10 {
+			return string(b[:1024*10]) + "..."
+		}
+		return string(b)
 	case PlainText:
 		return io.Output.(string)
 	case Error:
@@ -159,6 +163,10 @@ func (io *OperatorIO) IsError() bool {
 
 func (io *OperatorIO) IsPlain() bool {
 	return io.OutputType == PlainText
+}
+
+func (io *OperatorIO) IsObject() bool {
+	return io.OutputType == Object
 }
 
 func (io *OperatorIO) IsEmpty() bool {

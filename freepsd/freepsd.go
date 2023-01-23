@@ -15,7 +15,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
-	"github.com/hannesrauhe/freeps/connectors/postgres"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -53,6 +53,7 @@ func main() {
 	flag.Parse()
 
 	logger := logrus.StandardLogger()
+	logger.Infof("Freeps %v", utils.BuildFullVersion())
 	running := true
 	for running {
 		cr, err := utils.NewConfigReader(logger.WithField("component", "config"), configpath)
@@ -67,6 +68,12 @@ func main() {
 		if verbose {
 			logger.SetLevel(logrus.DebugLevel)
 		}
+
+		_, err = utils.GetTempDir()
+		if err != nil {
+			logger.Fatal("Temp dir creation failed: ", err.Error())
+		}
+		defer utils.DeleteTempDir()
 
 		logger.Debug("Loading graph engine")
 		ctx, cancel := context.WithCancel(context.Background())
@@ -85,15 +92,19 @@ func main() {
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
 		ge.AddOperator(freepsflux.NewFluxMod(cr))
-		ge.AddOperator(postgres.NewPostgresOp())
 		ge.AddOperator(wled.NewWLEDOp(cr))
+		ge.AddOperator(freepsstore.NewOpStore(cr))
 		freepsexec.AddExecOperators(cr, ge)
 
-		ph, err := postgres.NewPostgressHook(cr)
+		sh, err := freepsstore.NewStoreHook(cr)
 		if err != nil {
-			logger.Errorf("Postgres hook not available: %v", err.Error())
+			logger.Errorf("Store hook not available: %v", err.Error())
 		} else {
-			ge.AddHook(ph)
+			ge.AddHook(sh)
+		}
+
+		if err := ge.LoadEmbeddedGraphs(); err != nil {
+			logger.Fatal(err)
 		}
 
 		if mod != "" {

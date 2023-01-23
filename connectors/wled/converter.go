@@ -2,58 +2,84 @@ package wled
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
-	"log"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/utils"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
 
-type WLEDSegment struct {
-	ID int         `json:"id"`
-	I  [][3]uint32 `json:"i"`
-}
-
-type WLEDRoot struct {
-	Seg WLEDSegment `json:"seg"`
-}
-
 type WLEDConverter struct {
-	r       WLEDRoot
-	x       int
-	y       int
-	bgcolor color.Color
-	dst     *image.RGBA
+	segments []WLEDRoot
+	dst      *image.RGBA
 }
 
-func NewWLEDConverter(x int, y int, bgcolor color.Color) *WLEDConverter {
-	w := WLEDConverter{x: x, y: y, dst: image.NewRGBA(image.Rect(0, 0, x, y)), bgcolor: bgcolor}
-	return &w
-}
-
-func (w *WLEDConverter) AppendIndividualPixel(r uint32, g uint32, b uint32) {
-	if w.r.Seg.I == nil {
-		w.r.Seg.I = make([][3]uint32, 0)
+// NewWLEDConverter creates a connection to one or multiple WLED instances, the config might reference other configs
+func NewWLEDConverter(conf WLEDConfig, connections map[string]WLEDConfig) (*WLEDConverter, error) {
+	err := conf.Validate(false)
+	if err != nil {
+		return nil, err
 	}
-	w.r.Seg.I = append(w.r.Seg.I, [3]uint32{r, g, b})
+	segments := []WLEDRoot{}
+	if conf.References == nil || len(conf.References) == 0 {
+		newSeg, err := newWLEDRoot(conf, 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		segments = append(segments, *newSeg)
+	} else {
+		for _, r := range conf.References {
+			subconf, ok := connections[r.Name]
+			if !ok {
+				return nil, fmt.Errorf("Unknown referenced connection: %v", r.Name)
+			}
+			newSeg, err := newWLEDRoot(subconf, r.OffsetX, r.OffsetY)
+			if err != nil {
+				return nil, fmt.Errorf("Unknown when adding referenced connection \"%v\": %v", r.Name, err)
+			}
+			segments = append(segments, *newSeg)
+		}
+	}
+	w := WLEDConverter{segments: segments}
+	w.dst = image.NewRGBA(image.Rect(0, 0, w.Width(), w.Height()))
+	return &w, nil
 }
 
-func (w *WLEDConverter) SetPixel(x, y int, r, g, b uint8) error {
-	if x >= w.x {
+func (w *WLEDConverter) Width() int {
+	max := int(0)
+	for _, s := range w.segments {
+		if max < s.offsetX+s.Width() {
+			max = s.offsetX + s.Width()
+		}
+	}
+	return max
+}
+
+func (w *WLEDConverter) Height() int {
+	max := int(0)
+	for _, s := range w.segments {
+		if max < s.offsetY+s.Height() {
+			max = s.offsetY + s.Height()
+		}
+	}
+	return max
+}
+
+func (w *WLEDConverter) SetPixel(x, y int, c color.Color) error {
+	if x >= w.dst.Rect.Dx() {
 		return fmt.Errorf("x dimension out of bounds")
 	}
-	if y >= w.y {
+	if y >= w.dst.Rect.Dy() {
 		return fmt.Errorf("y dimension out of bounds")
 	}
-	w.dst.SetRGBA(x, y, color.RGBA{R: r, G: g, B: b})
+	w.dst.Set(x, y, c)
 	return nil
 }
 
@@ -67,11 +93,11 @@ func (w *WLEDConverter) WriteString(s string, c color.Color, alignRight bool) er
 
 	fontBytes, err := staticContent.ReadFile("font/Grand9K Pixel.ttf")
 	if err != nil {
-		log.Fatalf("Reading file from embed fs: %v", err)
+		return fmt.Errorf("Reading file from embed fs: %v", err)
 	}
 	f, err := opentype.Parse(fontBytes)
 	if err != nil {
-		log.Fatalf("Parse: %v", err)
+		return fmt.Errorf("Parse: %v", err)
 	}
 	face, err := opentype.NewFace(f, &opentype.FaceOptions{
 		Size:    32,
@@ -79,7 +105,7 @@ func (w *WLEDConverter) WriteString(s string, c color.Color, alignRight bool) er
 		Hinting: font.HintingNone,
 	})
 	if err != nil {
-		log.Fatalf("NewFace: %v", err)
+		return fmt.Errorf("NewFace: %v", err)
 	}
 
 	d := font.Drawer{
@@ -103,26 +129,32 @@ func (w *WLEDConverter) ScaleImage(src image.Image) {
 	draw.NearestNeighbor.Scale(w.dst, w.dst.Rect, src, src.Bounds(), draw.Over, nil)
 }
 
-func (w *WLEDConverter) GetJSON(segid int) ([]byte, error) {
-	if w.r.Seg.I == nil {
-		w.r.Seg.ID = segid
-		w.r.Seg.I = make([][3]uint32, 0)
-	}
-	for x := 0; x < w.x; x++ {
-		for y := 0; y < w.y; y++ {
-			j := y
-			if x&1 != 0 {
-				j = w.y - y - 1
-			}
-			r, g, b, _ := w.dst.At(x, j).RGBA()
-			p := [3]uint32{r >> 8, g >> 8, b >> 8}
-			w.r.Seg.I = append(w.r.Seg.I, p)
+func (w *WLEDConverter) GetPixelMatrix() PixelMatrix {
+	pm := make([][]string, 0)
+	for y := 0; y < w.Height(); y++ {
+		pm = append(pm, make([]string, w.Width()))
+		for x := 0; x < w.Width(); x++ {
+			c := w.dst.At(x, y)
+			pm[y][x] = utils.GetHexColor(c)
 		}
 	}
-	return json.Marshal(w.r)
+	return pm
 }
 
-func (w *WLEDConverter) GetImage() *freepsgraph.OperatorIO {
+func (w *WLEDConverter) SetPixelMatrix(pm PixelMatrix) error {
+	for y := 0; y < w.Height() && y < len(pm); y++ {
+		for x := 0; x < w.Width() && x < len(pm[y]); x++ {
+			p, err := utils.ParseHexColor(pm[y][x])
+			if err != nil {
+				return fmt.Errorf("Pixel %v,%v: %v", x, y, err.Error())
+			}
+			w.dst.Set(x, y, p)
+		}
+	}
+	return nil
+}
+
+func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
 	var bout []byte
 	contentType := "image/png"
 	writer := bytes.NewBuffer(bout)
@@ -130,4 +162,30 @@ func (w *WLEDConverter) GetImage() *freepsgraph.OperatorIO {
 		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
 	}
 	return freepsgraph.MakeByteOutputWithContentType(writer.Bytes(), contentType)
+}
+
+// SendToWLED sends a command to WLED, if cmd is nil, it sends the stored picture instead
+func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) *freepsgraph.OperatorIO {
+	resp := freepsgraph.MakeEmptyOutput()
+	overallResp := freepsgraph.MakeEmptyOutput()
+	for i, s := range w.segments {
+		if cmd == nil {
+			resp = s.SendToWLED(cmd, w.dst)
+		} else {
+			resp = s.SendToWLED(cmd, nil)
+		}
+		if resp.IsError() {
+			if len(w.segments) == 1 {
+				return resp
+			}
+			overallResp = freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error in segment %v: %v", i, resp.GetString())
+			return overallResp
+		}
+		overallResp = resp
+	}
+
+	if cmd == nil && returnPNG {
+		return w.GetPNG()
+	}
+	return overallResp
 }

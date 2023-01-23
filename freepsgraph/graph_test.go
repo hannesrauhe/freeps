@@ -182,34 +182,34 @@ func TestGraphExecution(t *testing.T) {
 	ge := NewGraphEngine(cr, func() {})
 
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"not"}),
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"not"}, make(map[string]string), MakeEmptyOutput()),
 		404, nil)
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{}),
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{}, make(map[string]string), MakeEmptyOutput()),
 		400, nil)
 
 	g1 := validGraph
 	g1.Tags = []string{"t1"}
 	ge.AddExternalGraph("test1", &g1, "")
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}),
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{})
 
 	g2 := validGraph
 	g2.Tags = []string{"t1"}
 	ge.AddExternalGraph("test2", &g2, "")
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}),
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{"test1", "test2"})
 
 	g3 := validGraph
 	g3.Tags = []string{"t1", "t2"}
 	ge.AddExternalGraph("test3", &g3, "foo.json")
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}),
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{"test1", "test2", "test3"})
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1", "t2"}),
+		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1", "t2"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{})
 
 	g4 := validGraph

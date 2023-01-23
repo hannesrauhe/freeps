@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -113,20 +114,15 @@ func NewGraph(ctx *utils.Context, name string, origGraphDesc *GraphDesc, ge *Gra
 }
 
 func (g *Graph) execute(ctx *utils.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+	ctx.IncreaseNesting()
+	defer ctx.DecreaseNesting()
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
-	var failed []string
 	for i := 0; i < len(g.desc.Operations); i++ {
 		operation := g.desc.Operations[i]
 		output := g.executeOperation(ctx, &operation, mainArgs)
 		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 		g.opOutputs[operation.Name] = output
-		if output.IsError() {
-			failed = append(failed, operation.Name)
-		}
-	}
-	if len(failed) > 0 {
-		logger.Errorf("The following operations failed: %v.%v", g.name, failed)
 	}
 	if g.desc.OutputFrom == "" {
 		return MakeObjectOutput(g.opOutputs)
@@ -204,10 +200,13 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
+		t := time.Now()
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
 			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
+
+		ctx.RecordFinishedOperation(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, t, output.HTTPCode)
 		return output
 	}
 	return g.collectAndReturnOperationError(input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)

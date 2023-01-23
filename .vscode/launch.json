@@ -27,47 +27,15 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "graph", "-f", "testmuteme", "-v"]
+      "args": ["-m", "wled", "-f", "sendCmd", "-a", "on=1"]
     },
     {
-      "name": "wled",
+      "name": "weather",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "wled", "-f", "writeString"]
-    },
-    {
-      "name": "wled",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "wled", "-f", "setImage", "-i", ""]
-    },
-    {
-      "name": "convert",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "convert", "-a", "name=mqttaction"]
-    },
-    {
-      "name": "fritztemplate",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "fritzgetdev"]
-    },
-    {
-      "name": "wledoff",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "template", "-f", "wledoff"]
+      "args": ["-m", "weather", "-f", "current"]
     },
     {
       "name": "fritz",

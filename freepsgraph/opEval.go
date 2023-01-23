@@ -50,6 +50,24 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 			return MakePlainOutput(m)
 		}
 		return MakeEmptyOutput()
+	case "echoArguments":
+		output := map[string]interface{}{}
+		if !input.IsEmpty() {
+			if m, ok := vars["inputKey"]; ok {
+				output[m] = input.Output
+			}
+			iMap, err := input.GetArgsMap()
+			if err != nil {
+				MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string, assign inputKey")
+			}
+			for k, v := range iMap {
+				output[k] = v
+			}
+		}
+		for k, v := range vars {
+			output[k] = v
+		}
+		return MakeObjectOutput(output)
 	case "flatten":
 		return m.Flatten(vars, input)
 	case "eval":
@@ -85,12 +103,15 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 }
 
 func (m *OpEval) GetFunctions() []string {
-	return []string{"eval", "regexp", "dedup", "echo", "flatten", "strreplace"}
+	return []string{"eval", "regexp", "dedup", "echo", "echoArguments", "flatten", "strreplace"}
 }
 
 func (m *OpEval) GetPossibleArgs(fn string) []string {
 	if fn == "echo" {
 		return []string{"output"}
+	}
+	if fn == "echoArguments" {
+		return []string{"inputKey"}
 	}
 	if fn == "dedup" {
 		return []string{"retention"}
@@ -109,7 +130,7 @@ func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	case "operation":
 		return map[string]string{"eq": "eq", "gt": "gt", "lt": "lt", "id": "id"}
 	case "retention":
-		return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+		return utils.GetDurationMap()
 	}
 	return map[string]string{}
 }

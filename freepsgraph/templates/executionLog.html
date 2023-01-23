@@ -1,0 +1,39 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<form method="GET" action="/graph/executionLog">
+    <label>
+        ContextID: <input type="search" value="{{$.key}}" name="key" list="keys">
+    </label>
+    <label>
+        Value: <input type="text" value="{{$.value}}" name="value">
+    </label>
+    <label>
+        MinAge: <input type="text" value="{{$.minAge}}" name="minAge">
+    </label>
+    <label>
+        Max Age: <input type="text" value="{{$.maxAge}}" name="maxAge">
+    </label>
+    <input type="hidden" value="_context" name="namespace" />
+    <button>Submit</button>
+    <button formaction="/store/deleteOlder">DeleteOlder</button>
+</form>
+
+<datalist id="keys">
+{{ range $namespaceName, $namespace := . }}
+{{ range $ctxName, $ctx := $namespace }}
+    <option value="{{$ctxName}}">
+{{ end }}
+{{ end }}
+</datalist>
+
+<table>
+    <tr><th>Name</th><th>Time</th><th>Code</th><th>Duration</th></tr>
+{{ range $namespaceName, $namespace := . }}
+{{ range $ctxName, $ctx := $namespace }}
+<tr> <td><b>{{$ctxName}}</b></td><td>{{$ctx.Output.Created}}</td><td></td><td></td></tr>
+{{ range $i, $Operation := $ctx.Output.Operations }}
+<tr><td>{{$Operation.GraphName}} {{$Operation.OpDesc}}</td><td>{{$Operation.StartTime}}</td><td>{{$Operation.HTTPResponseCode}}</td><td align="right">{{$Operation.ExecutionDuration}}</td></tr>
+{{ end }}
+{{ end }}
+{{ end }}
+</table>

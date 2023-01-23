@@ -99,13 +99,36 @@ func ParseHexColor(s string) (c color.RGBA, err error) {
 	return
 }
 
+// GetHexColor returns the hex represantion of a Go-color
+func GetHexColor(c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	r = r >> 8
+	g = g >> 8
+	b = b >> 8
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
+}
+
+// GetDurationMap returns a map of typical durations for operator argument suggestions
+func GetDurationMap() map[string]string {
+	return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+}
+
 // DeleteElemFromSlice swaps i-th and last Element and deletes the last
 func DeleteElemFromSlice(s []string, i int) []string {
-	if i>=len(s) || i<0 {
+	if i >= len(s) || i < 0 {
 		return s
 	}
-	if i<len(s)-1 {
-		s[i]=s[len(s)-1]
+	if i < len(s)-1 {
+		s[i] = s[len(s)-1]
 	}
 	return s[:len(s)-1]
+}
+
+func StringToIdentifier(input string) string {
+	reg, err := regexp.Compile("[^a-zA-Z0-9_]+")
+	if err != nil {
+		log.Fatal(err)
+	}
+	output := reg.ReplaceAllString(input, "")
+	return strings.ToLower(output)
 }
