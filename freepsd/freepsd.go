@@ -14,7 +14,6 @@ import (
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
-	"github.com/hannesrauhe/freeps/connectors/postgres"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/wled"
@@ -81,9 +80,8 @@ func main() {
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
 		ge.AddOperator(freepsflux.NewFluxMod(cr))
-		ge.AddOperator(postgres.NewPostgresOp())
 		ge.AddOperator(wled.NewWLEDOp(cr))
-		ge.AddOperator(freepsstore.NewOpStore())
+		ge.AddOperator(freepsstore.NewOpStore(cr))
 		freepsexec.AddExecOperators(cr, ge)
 
 		sh, err := freepsstore.NewStoreHook(cr)
@@ -91,12 +89,6 @@ func main() {
 			logger.Errorf("Store hook not available: %v", err.Error())
 		} else {
 			ge.AddHook(sh)
-		}
-		ph, err := postgres.NewPostgressHook(cr)
-		if err != nil {
-			logger.Errorf("Postgres hook not available: %v", err.Error())
-		} else {
-			ge.AddHook(ph)
 		}
 
 		if err := ge.LoadEmbeddedGraphs(); err != nil {

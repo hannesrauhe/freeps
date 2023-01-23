@@ -165,6 +165,10 @@ func (io *OperatorIO) IsPlain() bool {
 	return io.OutputType == PlainText
 }
 
+func (io *OperatorIO) IsObject() bool {
+	return io.OutputType == Object
+}
+
 func (io *OperatorIO) IsEmpty() bool {
 	switch io.OutputType {
 	case Empty:

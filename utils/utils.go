@@ -123,3 +123,12 @@ func DeleteElemFromSlice(s []string, i int) []string {
 	}
 	return s[:len(s)-1]
 }
+
+func StringToIdentifier(input string) string {
+	reg, err := regexp.Compile("[^a-zA-Z0-9_]+")
+	if err != nil {
+		log.Fatal(err)
+	}
+	output := reg.ReplaceAllString(input, "")
+	return strings.ToLower(output)
+}

@@ -1,34 +1,24 @@
 package freepsstore
 
 import (
+	"fmt"
+
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
-
-	_ "github.com/lib/pq"
 )
 
 type HookStore struct {
+	storeNs StoreNamespace
 }
 
 var _ freepsgraph.FreepsHook = &HookStore{}
 
-// NewStoreHook creates a new Postgress Hook
+// NewStoreHook creates a new store Hook
 func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
-	//TODO(HR): config?
-	// phc := defaultConfig
-	// err := cr.ReadSectionWithDefaults("postgress", &phc)
-
-	// db, err := sql.Open("postgres", phc.ConnStr)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// err = db.Ping()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return &HookStore{}, nil
+	if store.namespaces == nil || store.config == nil {
+		return nil, fmt.Errorf("Store was not properly initialized")
+	}
+	return &HookStore{store.GetNamespace(store.config.ExecutionLogName)}, nil
 }
 
 // GetName returns the name of the hook
@@ -43,14 +33,13 @@ func (h *HookStore) OnExecute(ctx *utils.Context, graphName string, mainArgs map
 
 // OnExecutionFinished gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
-	nsStore := store.GetNamespace("_context")
-
+	if h.storeNs == nil {
+		return fmt.Errorf("no namespace in hook")
+	}
 	if !ctx.IsRootContext() {
 		return nil
 	}
-
-	nsStore.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
-	return nil
+	return h.storeNs.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
 }
 
 // Shutdown gets called on graceful shutdown

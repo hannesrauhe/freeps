@@ -2,6 +2,7 @@ package freepsstore
 
 import (
 	"net/http"
+	"path"
 	"testing"
 	"time"
 
@@ -12,11 +13,15 @@ import (
 )
 
 func testOutput(t *testing.T, fn string, output string) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value"}
 	input := freepsgraph.MakePlainOutput("test_value")
 	ctx := utils.NewContext(logrus.StandardLogger())
 
-	s := NewOpStore()
+	s := NewOpStore(cr)
 	vars["output"] = "empty"
 	out := s.Execute(ctx, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
@@ -68,8 +73,11 @@ func TestStoreExpiration(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
 	input := freepsgraph.MakePlainOutput("test_value")
 	ctx := utils.NewContext(logrus.StandardLogger())
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
 
-	s := NewOpStore()
+	s := NewOpStore(cr)
 	out := s.Execute(ctx, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
@@ -123,7 +131,11 @@ func TestStoreCompareAndSwap(t *testing.T) {
 	input := freepsgraph.MakePlainOutput("a_new_value")
 	ctx := utils.NewContext(logrus.StandardLogger())
 
-	s := NewOpStore()
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+
+	s := NewOpStore(cr)
 	out := s.Execute(ctx, "compareAndSwap", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusNotFound)
@@ -148,7 +160,11 @@ func TestStoreSetGetAll(t *testing.T) {
 	input := freepsgraph.MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
 	ctx := utils.NewContext(logrus.StandardLogger())
 
-	s := NewOpStore()
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+
+	s := NewOpStore(cr)
 	outSet := s.Execute(ctx, "setAll", vars, input)
 	assert.Assert(t, !outSet.IsError(), outSet.Output)
 
