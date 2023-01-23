@@ -90,7 +90,7 @@ func (p *postgresStoreNamespace) query(projection string, filter string, args ..
 }
 
 func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO {
-	panic("not implemented") // TODO: Implement
+	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
 func (p *postgresStoreNamespace) DeleteOlder(maxAge time.Duration) int {
@@ -168,11 +168,11 @@ func (p *postgresStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
 }
 
 func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO {
-	panic("not implemented") // TODO: Implement
+	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
 func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *freepsgraph.OperatorIO, maxAge time.Duration, modifiedBy string) *freepsgraph.OperatorIO {
-	panic("not implemented") // TODO: Implement
+	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
 func (p *postgresStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error {
