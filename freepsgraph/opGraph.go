@@ -70,7 +70,7 @@ func (o *OpGraphByTag) Execute(ctx *utils.Context, fn string, args map[string]st
 		tags = append(tags, strings.Split(addTstr, ",")...)
 	}
 
-	return o.ge.ExecuteGraphByTags(ctx, tags)
+	return o.ge.ExecuteGraphByTags(ctx, tags, make(map[string]string), MakeEmptyOutput())
 }
 
 // GetName returns the name of the operator

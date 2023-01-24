@@ -136,26 +136,23 @@ func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, 
 }
 
 // ExecuteGraphByTags executes graphs with given tags
-func (ge *GraphEngine) ExecuteGraphByTags(ctx *utils.Context, tags []string) *OperatorIO {
+func (ge *GraphEngine) ExecuteGraphByTags(ctx *utils.Context, tags []string, args map[string]string, input *OperatorIO) *OperatorIO {
 	if tags == nil || len(tags) == 0 {
 		return MakeOutputError(http.StatusBadRequest, "No tags given")
 	}
-
-	args := map[string]string{}
-	input := MakeEmptyOutput()
 
 	tg := ge.GetGraphInfoByTag(tags)
 	if len(tg) <= 1 {
 		for n := range tg {
 			return ge.ExecuteGraph(ctx, n, args, input)
 		}
-		return MakeOutputError(404, "No graph with tags \"%s\" found", strings.Join(tags, ","))
+		return MakeOutputError(404, "No graph with tags \"%s\" found", strings.Join(tags, ", "))
 	}
 
 	// need to build a temporary graph containing all graphs with matching tags
 	op := []GraphOperationDesc{}
 	for n := range tg {
-		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n})
+		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n, InputFrom: "_"})
 	}
 	gd := GraphDesc{Operations: op, Tags: []string{"internal"}}
 	name := "ByTag/" + strings.Join(tags, ",")
@@ -164,6 +161,9 @@ func (ge *GraphEngine) ExecuteGraphByTags(ctx *utils.Context, tags []string) *Op
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
+
+	ge.TriggerOnExecuteHooks(ctx, name, args, input)
+	defer ge.TriggerOnExecutionFinishedHooks(ctx, name, args, input)
 	return g.execute(ctx, args, input)
 }
 

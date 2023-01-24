@@ -14,6 +14,7 @@ import (
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
+	"github.com/hannesrauhe/freeps/connectors/muteme"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/wled"
@@ -60,6 +61,9 @@ func main() {
 			logger.Fatal(err)
 		}
 		configureLogging(cr, logger)
+		if verbose {
+			logger.SetLevel(logrus.DebugLevel)
+		}
 
 		if verbose {
 			logger.SetLevel(logrus.DebugLevel)
@@ -76,6 +80,14 @@ func main() {
 		defer cancel()
 
 		ge := freepsgraph.NewGraphEngine(cr, cancel)
+
+		mm, err := muteme.NewMuteMe(logger, cr, ge)
+		if err != nil {
+			logger.Errorf("MuteMe not started: %v", err)
+		} else {
+			ge.AddOperator(muteme.NewMuteMeOp(mm))
+		}
+
 		//TODO(HR): load operators from config?
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
@@ -125,13 +137,15 @@ func main() {
 			logger.Errorf("MQTT not started: %v", err)
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
+		mm.StartListening()
 
 		select {
 		case <-ctx.Done():
 			// Shutdown the server when the context is canceled
 			mqtt.Shutdown()
-			telg.Shutdown(ctx)
-			http.Shutdown(ctx)
+			telg.Shutdown(context.TODO())
+			http.Shutdown(context.TODO())
+			mm.Shutdown()
 		}
 		running = ge.ReloadRequested()
 		ge.Shutdown(utils.NewContext(logger))

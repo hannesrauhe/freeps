@@ -15,6 +15,7 @@ require (
 	github.com/lib/pq v1.10.7
 	github.com/mackerelio/go-osstat v0.2.3
 	github.com/sirupsen/logrus v1.9.0
+	github.com/sstallion/go-hid v0.12.4
 	golang.org/x/image v0.2.0
 	gotest.tools/v3 v3.4.0
 )
