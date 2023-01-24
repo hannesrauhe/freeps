@@ -31,6 +31,7 @@ type TemplateData struct {
 	OpSuggestions        map[string]bool
 	FnSuggestions        map[string]bool
 	ArgSuggestions       map[string]map[string]string
+	TagSuggestions       map[string]string
 	InputFromSuggestions []string
 	GraphName            string
 	GraphDesc            *GraphDesc
@@ -215,6 +216,10 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 			gopd.Arguments[v] = ""
 		} else if k == "delArg" {
 			delete(gopd.Arguments, v)
+		} else if k == "addTag" && v != "" {
+			gd.addTag(v)
+		} else if k == "delTag" {
+			gd.removeTag(v)
 		} else if k == "op" {
 			gopd.Operator = v
 		} else if k == "fn" {
@@ -270,7 +275,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 	var exists bool
 	targetNum := 0
 
-	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: []string{}, GraphName: vars["graph"]}
+	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: []string{}, GraphName: vars["graph"], TagSuggestions: map[string]string{}}
 
 	if input.IsEmpty() {
 		gd, exists = o.ge.GetGraphDesc(td.GraphName)
@@ -359,6 +364,10 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 			name = fmt.Sprintf("#%d", i)
 		}
 		td.InputFromSuggestions = append(td.InputFromSuggestions, name)
+	}
+	td.TagSuggestions = o.ge.GetTags()
+	for _, t := range gd.Tags {
+		delete(td.TagSuggestions, t)
 	}
 	td.Quicklink = gopd.ToQuicklink()
 	return o.createTemplate(tmpl, td, logger)

@@ -13,35 +13,6 @@ import (
 
 const ROOT_SYMBOL = "_"
 
-// GraphEngineConfig is the configuration for the GraphEngine
-type GraphEngineConfig struct {
-	Graphs         map[string]GraphDesc
-	GraphsFromURL  []string
-	GraphsFromFile []string
-}
-
-var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{}, GraphsFromURL: []string{}, Graphs: map[string]GraphDesc{}}
-
-// GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
-type GraphOperationDesc struct {
-	Name            string `json:",omitempty"`
-	Operator        string
-	Function        string
-	Arguments       map[string]string `json:",omitempty"`
-	InputFrom       string            `json:",omitempty"`
-	ExecuteOnFailOf string            `json:",omitempty"`
-	ArgumentsFrom   string            `json:",omitempty"`
-	IgnoreMainArgs  bool              `json:",omitempty"`
-}
-
-// GraphDesc contains a number of operations and defines which output to use
-type GraphDesc struct {
-	Tags       []string
-	Source     string
-	OutputFrom string
-	Operations []GraphOperationDesc
-}
-
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
 	name      string
