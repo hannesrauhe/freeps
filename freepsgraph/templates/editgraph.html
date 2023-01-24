@@ -122,6 +122,18 @@
 	<p>
 		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
 	</p>
+	<p>
+		<h4>Tags:</h4>
+		{{ range $index, $value := .GraphDesc.Tags }}
+		<button name="delTag" value="{{ $value }}">{{ $value }} (X)</button>
+		{{ end }}
+		<br>
+		{{ range $index, $value := .TagSuggestions }}
+		<button name="addTag" value="{{ $value }}">{{ $value }}</button>
+		{{ end }}
+		<input type="text" name="addTag" />
+		<button type="submit">+</button>
+	</p>
 	<textarea name="GraphJSON" cols="200" rows="50">
 {{ .GraphJSON }}
 </textarea>

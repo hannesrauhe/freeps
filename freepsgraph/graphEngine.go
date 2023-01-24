@@ -13,12 +13,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// GraphInfo holds the GraphDesc and some runtime info about the graph execution
-type GraphInfo struct {
-	Desc              GraphDesc
-	LastExecutionTime time.Time
-	ExecutionCounter  int64
+// GraphEngineConfig is the configuration for the GraphEngine
+type GraphEngineConfig struct {
+	Graphs         map[string]GraphDesc
+	GraphsFromURL  []string
+	GraphsFromFile []string
 }
+
+var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{}, GraphsFromURL: []string{}, Graphs: map[string]GraphDesc{}}
 
 // GraphEngine holds all available graphs and operators
 type GraphEngine struct {
