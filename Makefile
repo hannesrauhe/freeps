@@ -16,10 +16,10 @@ build/freepsd: build
 build/freepsd-light: build
 	go build -tags nopostgress -tags nomuteme -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o build/freepsd-light freepsd/freepsd.go
 
-install: freepsd/freepsd
-	mv freepsd/freepsd /usr/bin/freepsd
+install: build/freepsd
+	mv build/freepsd /usr/bin/freepsd
 	adduser freeps --no-create-home --system --ingroup video
 	cp systemd/freepsd.service /etc/systemd/system/freepsd.service
-	mkdir /etc/freepsd && chown freeps /etc/freepsd
+	mkdir -p /etc/freepsd && chown freeps /etc/freepsd
 	systemctl daemon-reload
 	systemctl restart freepsd
