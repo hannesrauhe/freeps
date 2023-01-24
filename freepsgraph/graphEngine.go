@@ -146,7 +146,7 @@ func (ge *GraphEngine) ExecuteGraphByTags(ctx *utils.Context, tags []string, arg
 		for n := range tg {
 			return ge.ExecuteGraph(ctx, n, args, input)
 		}
-		return MakeOutputError(404, "No graph with tags \"%s\" found", strings.Join(tags, ","))
+		return MakeOutputError(404, "No graph with tags \"%s\" found", strings.Join(tags, ", "))
 	}
 
 	// need to build a temporary graph containing all graphs with matching tags
@@ -161,6 +161,9 @@ func (ge *GraphEngine) ExecuteGraphByTags(ctx *utils.Context, tags []string, arg
 	if err != nil {
 		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
+
+	ge.TriggerOnExecuteHooks(ctx, name, args, input)
+	defer ge.TriggerOnExecutionFinishedHooks(ctx, name, args, input)
 	return g.execute(ctx, args, input)
 }
 

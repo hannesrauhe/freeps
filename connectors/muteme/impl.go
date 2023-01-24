@@ -19,28 +19,37 @@ type MuteMeImpl struct {
 	dev          *hid.Device
 	ge           *freepsgraph.GraphEngine
 	currentColor atomic.Value
-	lastColor    string
 	cmd          chan string
 	config       *MuteMeConfig
 	logger       logrus.FieldLogger
 }
 
 type MuteMeConfig struct {
-	DoublePressTime  time.Duration
-	VendorID         uint16
-	ProductID        uint16
-	Tag              string
-	PressedTag       string
-	DoublePressedTag string
+	MultiTouchDuration time.Duration // if touched multiple times within that duration, a separate graph will be called with the TouchCount
+	LongTouchDuration  time.Duration // if touched once longer that than this, a separate graph will be called with the TouchDuration
+	VendorID           uint16        // USB Vendor ID
+	ProductID          uint16        // USB Product ID
+	Tag                string        // tag that all graphs must have to be called
+	TouchTag           string        // graphs with this tag will be called on a short single touch
+	MultiTouchTag      string        // graphs with this tag will be called when button was touched multiple times within MultiTouchDuration
+	LongTouchTag       string        // graphs with this tag will be called on a long single touch
+	ProcessColor       string        // color to set while graphs are executed (if button is already in that color, turn light off instead)
+	SuccessColor       string        // color to indicate successful graph execution
+	ErrorColor         string        // colot to indicate error during graph execution
 }
 
 var DefaultConfig = MuteMeConfig{
-	DoublePressTime:  time.Second,
-	VendorID:         0x20a0,
-	ProductID:        0x42da,
-	Tag:              "muteme",
-	PressedTag:       "muteMePressed",
-	DoublePressedTag: "muteMeDoublePressed",
+	MultiTouchDuration: time.Second,
+	LongTouchDuration:  3 * time.Second,
+	VendorID:           0x20a0,
+	ProductID:          0x42da,
+	Tag:                "muteme",
+	TouchTag:           "Touch",
+	MultiTouchTag:      "MultiTouch",
+	LongTouchTag:       "LongTouch",
+	ProcessColor:       "purple",
+	SuccessColor:       "green",
+	ErrorColor:         "red",
 }
 
 func (m *MuteMeImpl) setColor(color string) error {
@@ -57,7 +66,6 @@ func (m *MuteMeImpl) setColor(color string) error {
 	_, err := m.dev.Write(b)
 	lColor := m.currentColor.Load().(string)
 	if err == nil && color != lColor {
-		m.lastColor = lColor
 		m.currentColor.Store(color)
 	}
 	if err != nil {
@@ -71,59 +79,97 @@ func (m *MuteMeImpl) mainloop() {
 	tpress1 := time.Now()
 	tpress2 := time.Now()
 	ignoreUntil := time.Now()
-	lastPressed := time.Microsecond
-	doublePressTime := m.config.DoublePressTime
+	indicatorLightActive := false
+	lastTouchDuration := time.Microsecond
+	lastTouchCounter := 0
 	running := true
+	color := "off"
 	for running {
-		select {
-		case str, open := <-m.cmd:
-			if !open {
-				running = false
-			} else {
-				m.setColor(str)
+		if !indicatorLightActive {
+			select {
+			case str, open := <-m.cmd:
+				if !open {
+					running = false
+				} else {
+					m.setColor(str)
+				}
+				continue
+			default:
+				// nothing to do
 			}
-			continue
-		default:
-			// nothing to do
 		}
-		_, err := m.dev.ReadWithTimeout(bin, doublePressTime)
+		_, err := m.dev.ReadWithTimeout(bin, m.config.MultiTouchDuration)
 		if time.Now().Before(ignoreUntil) {
 			if bin[3] == 4 {
-				// fmt.Println("Ignored")
+				// make sure we don't execute something twice because the user was too slow when double touching
 				ignoreUntil = time.Now().Add(time.Second)
 			}
 			continue
 		}
 		if err != nil {
+			// should be a timeout error in normal operation
 			if !errors.Is(err, hid.ErrTimeout) {
-				// usually interrupted system call. Nothing to do but ignore
+				// it's another error, usually interrupted system call. Nothing to do but ignore
 				// logrus.Errorf("Error getting state: %v", err)
 				continue
 			}
-			if lastPressed <= time.Microsecond {
+
+			if lastTouchDuration <= time.Microsecond {
+				// nothing happened
 				continue
 			}
 
-			if tpress2.Sub(tpress1) < doublePressTime {
-				m.ge.ExecuteGraphByTags(utils.NewContext(m.logger), []string{m.config.DoublePressedTag, m.config.Tag}, map[string]string{}, freepsgraph.MakeEmptyOutput())
+			// action:
+			tags := []string{m.config.Tag}
+			args := map[string]string{}
+			if tpress2.Sub(tpress1) < m.config.MultiTouchDuration {
+				tags = append(tags, m.config.MultiTouchTag)
+				args["TouchCount"] = fmt.Sprint(lastTouchCounter)
 			} else {
-				m.ge.ExecuteGraphByTags(utils.NewContext(m.logger), []string{m.config.PressedTag, m.config.Tag}, map[string]string{"time": lastPressed.String()}, freepsgraph.MakeEmptyOutput())
+				if lastTouchDuration > m.config.LongTouchDuration {
+					tags = append(tags, m.config.LongTouchTag)
+				} else {
+					tags = append(tags, m.config.TouchTag)
+				}
+				args["TouchDuration"] = lastTouchDuration.String()
 			}
+			resultIO := m.ge.ExecuteGraphByTags(utils.NewContext(m.logger), tags, args, freepsgraph.MakeEmptyOutput())
 			ignoreUntil = time.Now().Add(time.Second)
-			lastPressed = time.Microsecond
-			m.setColor(m.lastColor)
+			m.logger.Debugf("Muteme touched, result: %v", resultIO)
+			resultIndicatorColor := m.config.SuccessColor
+			if resultIO.IsError() {
+				resultIndicatorColor = m.config.ErrorColor
+			}
+			for range []int{0, 1, 2, 3} {
+				m.setColor("off")
+				time.Sleep(100 * time.Millisecond)
+				m.setColor(resultIndicatorColor)
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			// reset state variables
+			lastTouchDuration = time.Microsecond
+			lastTouchCounter = 0
+			indicatorLightActive = false
+			m.setColor(color)
 		}
 		if bin[3] == 4 { // press
+			lastTouchCounter++
 			tpress1 = tpress2
 			tpress2 = time.Now()
-			if m.GetColor() != "red" {
-				m.setColor("red")
-			} else {
-				m.setColor("off")
+			if !indicatorLightActive {
+				// make sure to not change the color multiple times
+				indicatorLightActive = true
+				color = m.GetColor()
+				if color != m.config.ProcessColor {
+					m.setColor(m.config.ProcessColor)
+				} else {
+					m.setColor("off")
+				}
 			}
 		}
 		if bin[3] == 2 { // release
-			lastPressed = time.Now().Sub(tpress2)
+			lastTouchDuration = time.Now().Sub(tpress2)
 		}
 
 		if bin[3] == 1 {

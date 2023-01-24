@@ -5,7 +5,6 @@ import (
 )
 
 type FreepsOperator interface {
-	// GetOutputType() OutputT
 	Execute(ctx *utils.Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO
 
 	GetFunctions() []string // returns a list of functions that this operator can execute
