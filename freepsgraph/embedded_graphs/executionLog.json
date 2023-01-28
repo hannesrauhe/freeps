@@ -9,7 +9,7 @@
             "Operator": "store",
             "Function": "getAll",
             "Arguments": {
-                "namespace": "_context"
+                "namespace": "execution_log"
             }
         },
         {
