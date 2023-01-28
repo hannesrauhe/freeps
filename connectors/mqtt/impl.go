@@ -21,6 +21,7 @@ type FreepsMqttImpl struct {
 	Config     *FreepsMqttConfig
 	ge         *freepsgraph.GraphEngine
 	mqttlogger log.FieldLogger
+	topics     map[string]bool
 }
 
 type FieldConfig struct {
@@ -58,6 +59,29 @@ type FieldWithType struct {
 type JsonArgs struct {
 	Measurement    string
 	FieldsWithType map[string]FieldWithType
+}
+
+func (fm *FreepsMqttImpl) publishResult(topic string, ctx *utils.Context, out *freepsgraph.OperatorIO) {
+	if fm.Config.ResultTopic == "" {
+		return
+	}
+	rt := fm.Config.ResultTopic + "/" + ctx.GetID() + "/"
+	err := fm.publish(rt+"topic", topic, 0, false)
+	if err != nil {
+		fm.mqttlogger.Errorf("Publishing freepsresult/topic failed: %v", err.Error())
+	}
+	// err = fm.publish(rt+"graphName", graphName, 0, false)
+	// if err != nil {
+	// 	fm.mqttlogger.Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
+	// }
+	err = fm.publish(rt+"type", string(out.OutputType), 0, false)
+	if err != nil {
+		fm.mqttlogger.Errorf("Publishing freepsresult/type failed: %v", err.Error())
+	}
+	err = fm.publish(rt+"content", out.GetString(), 0, false)
+	if err != nil {
+		fm.mqttlogger.Errorf("Publishing freepsresult/content failed: %v", err.Error())
+	}
 }
 
 func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic string) {
@@ -103,27 +127,7 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 	}
 	ctx := utils.NewContext(fm.mqttlogger)
 	out := fm.ge.ExecuteGraph(ctx, graphName, map[string]string{"topic": topic}, input)
-
-	if fm.Config.ResultTopic == "" {
-		return
-	}
-	rt := fm.Config.ResultTopic + "/" + ctx.GetID() + "/"
-	err := fm.publish(rt+"topic", topic, 0, false)
-	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/topic failed: %v", err.Error())
-	}
-	err = fm.publish(rt+"graphName", graphName, 0, false)
-	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
-	}
-	err = fm.publish(rt+"type", string(out.OutputType), 0, false)
-	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/type failed: %v", err.Error())
-	}
-	err = fm.publish(rt+"content", out.GetString(), 0, false)
-	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/content failed: %v", err.Error())
-	}
+	fm.publishResult(topic, ctx, out)
 }
 
 func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
@@ -134,8 +138,88 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 	}
 	input := freepsgraph.MakeObjectOutput(message.Payload())
 	ctx := utils.NewContext(fm.mqttlogger)
-	output := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
-	output.WriteTo(os.Stdout)
+	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
+	fm.publishResult(message.Topic(), ctx, out)
+}
+
+func (fm *FreepsMqttImpl) starTagSubscriptions() error {
+	c := fm.client
+	if c == nil || !c.IsConnected() {
+		return fmt.Errorf("client is not connected")
+	}
+
+	tokens := []MQTT.Token{}
+
+	newTopics := map[string]bool{}
+	existingTopics := map[string]bool{}
+	for _, info := range fm.ge.GetGraphInfoByTag([]string{"mqtt"}) {
+		for _, t := range info.Desc.Tags {
+			if len(t) > len("topic:") && t[:6] == "topic:" {
+				topic := t[6:]
+				if _, ok := fm.topics[topic]; ok {
+					fm.topics[topic] = true
+					existingTopics[topic] = false
+				} else {
+					newTopics[topic] = true
+				}
+			}
+		}
+	}
+
+	// unsubscribe unused topics first
+	unsubTopics := []string{}
+	for t, s := range fm.topics {
+		if !s {
+			unsubTopics = append(unsubTopics, t)
+		}
+	}
+	if len(unsubTopics) > 0 {
+		tokens = append(tokens, c.Unsubscribe(unsubTopics...))
+	}
+
+	// subscribe to new Topics
+	for topic := range newTopics {
+		// build the slice here so we don't run into https://go.dev/doc/faq#closures_and_goroutines
+		tags := []string{"mqtt", "topic:" + topic}
+		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+			ctx := utils.NewContext(fm.mqttlogger)
+			input := freepsgraph.MakeByteOutput(message.Payload())
+			out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"topic": message.Topic()}, input)
+			fm.publishResult(topic, ctx, out)
+		}
+		tokens = append(tokens, c.Subscribe(topic, byte(0), onMessageReceived))
+		existingTopics[topic] = false
+	}
+
+	fm.topics = existingTopics
+
+	errStr := ""
+	for _, token := range tokens {
+		token.Wait()
+		if err := token.Error(); err != nil {
+			fmt.Println(err)
+			errStr += "* " + err.Error() + "\n"
+		}
+	}
+	if errStr == "" {
+		return nil
+	}
+	return fmt.Errorf("Errors during subscribe/unsubscribe:\n%v", errStr)
+}
+
+func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
+	for _, k := range fm.Config.Topics {
+		k := k // see https://go.dev/doc/faq#closures_and_goroutines
+		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+			fm.processMessage(k, message.Payload(), message.Topic())
+		}
+		if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
+			panic(token.Error())
+		}
+	}
+	if token := c.Subscribe("freeps/#", 0, fm.systemMessageReceived); token.Wait() && token.Error() != nil {
+		panic(token.Error())
+	}
 }
 
 func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
@@ -156,7 +240,7 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqttImpl{Config: &fmc, ge: ge, mqttlogger: mqttlogger}
+	fmqtt := &FreepsMqttImpl{Config: &fmc, ge: ge, mqttlogger: mqttlogger, topics: map[string]bool{}}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true).SetOrderMatters(false)
 	if fmc.Username != "" {
@@ -168,20 +252,7 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
 	connOpts.SetTLSConfig(tlsConfig)
 	connOpts.SetCleanSession(true)
-	connOpts.OnConnect = func(c MQTT.Client) {
-		for _, k := range fmc.Topics {
-			k := k // see https://go.dev/doc/faq#closures_and_goroutines
-			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-				fmqtt.processMessage(k, message.Payload(), message.Topic())
-			}
-			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
-				panic(token.Error())
-			}
-		}
-		if token := c.Subscribe("freeps/#", 0, fmqtt.systemMessageReceived); token.Wait() && token.Error() != nil {
-			panic(token.Error())
-		}
-	}
+	connOpts.OnConnect = fmqtt.startConfigSubscriptions
 
 	client := MQTT.NewClient(connOpts)
 	go func() {

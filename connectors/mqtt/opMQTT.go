@@ -56,6 +56,12 @@ func (o *OpMQTT) Execute(ctx *utils.Context, fn string, args map[string]string, 
 			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		return freepsgraph.MakeEmptyOutput()
+	case "reinit":
+		err := GetInstance().SubscribeToTags()
+		if err != nil {
+			return freepsgraph.MakeOutputError(500, "Error during reinit: %v", err.Error())
+		}
+		return freepsgraph.MakePlainOutput("Subsciption done")
 	}
 	return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 }
