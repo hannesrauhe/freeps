@@ -479,9 +479,11 @@ func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, in
 	case "fritzdevicelist":
 		return o.fritzDeviceList(vars, input, logger)
 	default:
-		if input.IsObject() {
-			return o.createTemplate(fn, input.Output, logger)
-		}
+		// Note: in order to have the UI show values as if they were printed as JSON, they are parsed once
+		// This would lead to accessing the objects directly (MarshallJSON would not be called):
+		// if input.IsObject() {
+		// 	return o.createTemplate(fn, input.Output, logger)
+		// }
 		tdata := make(map[string]interface{})
 		err := input.ParseJSON(&tdata)
 		if err != nil {
