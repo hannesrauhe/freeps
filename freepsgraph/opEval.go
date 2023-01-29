@@ -55,13 +55,14 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 		if !input.IsEmpty() {
 			if m, ok := vars["inputKey"]; ok {
 				output[m] = input.Output
-			}
-			iMap, err := input.GetArgsMap()
-			if err != nil {
-				MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string, assign inputKey")
-			}
-			for k, v := range iMap {
-				output[k] = v
+			} else {
+				iMap, err := input.GetArgsMap()
+				if err != nil {
+					return MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string, assign inputKey")
+				}
+				for k, v := range iMap {
+					output[k] = v
+				}
 			}
 		}
 		for k, v := range vars {

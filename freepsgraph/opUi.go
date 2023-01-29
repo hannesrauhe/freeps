@@ -479,6 +479,9 @@ func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, in
 	case "fritzdevicelist":
 		return o.fritzDeviceList(vars, input, logger)
 	default:
+		if input.IsObject() {
+			return o.createTemplate(fn, input.Output, logger)
+		}
 		tdata := make(map[string]interface{})
 		err := input.ParseJSON(&tdata)
 		if err != nil {

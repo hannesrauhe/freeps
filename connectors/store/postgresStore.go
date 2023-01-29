@@ -34,6 +34,9 @@ func (s *Store) initPostgresStores() error {
 	if _, err = db.Exec("create schema if not exists " + s.config.PostgresSchema); err != nil {
 		return closingError("create schema: %v", err)
 	}
+
+	s.config.ExecutionLogName = utils.StringToIdentifier(s.config.ExecutionLogName)
+
 	rows, err := db.Query("select table_name from information_schema.tables where table_schema = $1", s.config.PostgresSchema)
 	if err != nil {
 		return closingError("query namespaces: %v", err)
@@ -44,12 +47,16 @@ func (s *Store) initPostgresStores() error {
 		if err := rows.Scan(&ns); err != nil {
 			return closingError("query namespaces: %v", err)
 		}
+		if ns == s.config.ExecutionLogName && !s.config.ExecutionLogInPostgres {
+			// skip the execution log namespace if it was disabled by the user
+			continue
+		}
 		store.namespaces[ns] = newPostgresStoreNamespace(s.config.PostgresSchema, ns)
 	}
 	if err := rows.Err(); err != nil {
 		return closingError("query namespaces: %v", err)
 	}
-	s.config.ExecutionLogName = utils.StringToIdentifier(s.config.ExecutionLogName)
+
 	if s.config.ExecutionLogInPostgres {
 		if _, ok := store.namespaces[s.config.ExecutionLogName]; !ok {
 			err = s.createPostgresNamespace(s.config.ExecutionLogName)
