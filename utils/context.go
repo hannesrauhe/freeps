@@ -18,7 +18,7 @@ type OperationLog struct {
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
-func (o *OperationLog) MarshalJSON() ([]byte, error) {
+func (o OperationLog) MarshalJSON() ([]byte, error) {
 	readable := struct {
 		GraphName         string
 		OpDesc            string
@@ -49,7 +49,7 @@ type Context struct {
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
-func (c *Context) MarshalJSON() ([]byte, error) {
+func (c Context) MarshalJSON() ([]byte, error) {
 	readable := struct {
 		UUID       uuid.UUID
 		Created    string

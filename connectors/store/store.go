@@ -19,7 +19,7 @@ type StoreEntry struct {
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
-func (v *StoreEntry) MarshalJSON() ([]byte, error) {
+func (v StoreEntry) MarshalJSON() ([]byte, error) {
 	readable := struct {
 		Value      string
 		Age        string
