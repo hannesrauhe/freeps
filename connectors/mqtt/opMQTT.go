@@ -57,10 +57,6 @@ func (o *OpMQTT) Execute(ctx *utils.Context, fn string, args map[string]string, 
 		}
 		return freepsgraph.MakeEmptyOutput()
 	case "getSubscriptions":
-		err := GetInstance().SubscribeToTags()
-		if err != nil {
-			return freepsgraph.MakeOutputError(500, "Error during reinit: %v", err.Error())
-		}
 		topics, err := GetInstance().GetSubscriptions()
 		if err != nil {
 			return freepsgraph.MakeOutputError(500, "Error when trying to get Subscriptions: %v", err.Error())

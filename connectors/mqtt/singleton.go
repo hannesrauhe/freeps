@@ -55,16 +55,13 @@ func (fm *FreepsMqtt) SubscribeToTags() error {
 	if fm.impl == nil {
 		return fmt.Errorf("Mqtt not initialized")
 	}
-	return fm.impl.starTagSubscriptions()
+	return fm.impl.startTagSubscriptions()
 }
 
 func (fm *FreepsMqtt) GetSubscriptions() ([]string, error) {
 	if fm.impl == nil {
 		return nil, fmt.Errorf("Mqtt not initialized")
 	}
-	topics := make([]string, 0, len(fm.impl.topics))
-	for t := range fm.impl.topics {
-		topics = append(topics, t)
-	}
+	topics := fm.impl.getTopicSubscriptions()
 	return topics, nil
 }

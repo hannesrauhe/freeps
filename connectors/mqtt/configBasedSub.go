@@ -10,6 +10,34 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type FieldConfig struct {
+	Datatype  string
+	Alias     *string // name used in influx
+	TrueValue *string // if datatype==bool, this is used as true value, everything else is false
+}
+
+var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "mqttaction"}
+
+type FieldWithType struct {
+	FieldType  string
+	FieldValue string
+}
+type JsonArgs struct {
+	Measurement    string
+	FieldsWithType map[string]FieldWithType
+}
+
+type TopicConfig struct {
+	Topic string // Topic to subscribe to
+	Qos   int    // The QoS to subscribe to messages at
+	// the topic string is split by slash; the values of the resulting array can be used as measurement and field - the index can be specified here
+	MeasurementIndex int                    // index that points to the measurement in the topic-array
+	FieldIndex       int                    // index that points to the field in the topic-array
+	Fields           map[string]FieldConfig `json:",omitempty"`
+	TemplateToCall   string                 `json:",omitempty"`
+	GraphToCall      string
+}
+
 func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic string) {
 	input := freepsgraph.MakeByteOutput(message)
 	graphName := tc.GraphToCall

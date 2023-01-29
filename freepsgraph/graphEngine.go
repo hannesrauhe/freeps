@@ -335,7 +335,7 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *utils.Context, graphName strin
 	}
 }
 
-// TriggerOnExecutionFinishedHooks adds a hook to the graph engine
+// TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
 func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
 	ge.hookLock.Lock()
 	defer ge.hookLock.Unlock()
@@ -351,6 +351,22 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *utils.Context, graph
 	}
 }
 
+// TriggerGraphChangedHooks triggers hooks whenever a graph was added or removed
+func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, removedGraphNames []string) {
+	ge.hookLock.Lock()
+	defer ge.hookLock.Unlock()
+
+	for _, h := range ge.hooks {
+		if h == nil {
+			continue
+		}
+		err := h.OnGraphChanged(addedGraphNames, removedGraphNames)
+		if err != nil {
+			// ctx.GetLogger().Errorf("Execution of GraphChangedHook \"%v\" failed with error: %v", name, err.Error())
+		}
+	}
+}
+
 // AddTemporaryGraph adds a graph to the temporary graph list
 func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc, source string) error {
 	_, err := NewGraph(nil, graphName, gd, ge)
@@ -358,15 +374,22 @@ func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd *GraphDesc, source
 		return err
 	}
 
+	defer ge.TriggerGraphChangedHooks([]string{graphName}, []string{})
+
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	gd.Source = source
 	ge.temporaryGraphs[graphName] = &GraphInfo{Desc: *gd}
+
 	return nil
 }
 
 // DeleteTemporaryGraph deletes the graph from the temporary graph list
 func (ge *GraphEngine) DeleteTemporaryGraph(graphName string) {
+	//TODO(HR): figure out changes
+	// defere so the lock is released first
+	ge.TriggerGraphChangedHooks([]string{}, []string{graphName})
+
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	delete(ge.temporaryGraphs, graphName)
@@ -391,6 +414,10 @@ func (ge *GraphEngine) AddExternalGraphs(graphs map[string]GraphDesc, fileName s
 	if fileName == "" {
 		return errors.New("No filename given")
 	}
+
+	//TODO(HR): figure out changes
+	// defere so the lock is released first
+	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
@@ -436,6 +463,7 @@ func (ge *GraphEngine) AddExternalGraphs(graphs map[string]GraphDesc, fileName s
 	for n := range graphs {
 		delete(ge.temporaryGraphs, n)
 	}
+
 	return nil
 }
 
@@ -444,6 +472,10 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	if graphName == "" {
 		return errors.New("No name given")
 	}
+
+	//TODO(HR): figure out changes
+	// defere so the lock is released first
+	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
@@ -485,6 +517,7 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	}
 	config.GraphsFromFile = utils.DeleteElemFromSlice(config.GraphsFromFile, deleteIndex)
 	err := ge.cr.WriteSection("graphs", config, true)
+
 	return err
 }
 

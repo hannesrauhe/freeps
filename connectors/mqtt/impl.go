@@ -1,6 +1,8 @@
 package mqtt
 
 import (
+	"sync"
+
 	log "github.com/sirupsen/logrus"
 
 	"crypto/tls"
@@ -22,23 +24,7 @@ type FreepsMqttImpl struct {
 	ge         *freepsgraph.GraphEngine
 	mqttlogger log.FieldLogger
 	topics     map[string]bool
-}
-
-type FieldConfig struct {
-	Datatype  string
-	Alias     *string // name used in influx
-	TrueValue *string // if datatype==bool, this is used as true value, everything else is false
-}
-
-type TopicConfig struct {
-	Topic string // Topic to subscribe to
-	Qos   int    // The QoS to subscribe to messages at
-	// the topic string is split by slash; the values of the resulting array can be used as measurement and field - the index can be specified here
-	MeasurementIndex int                    // index that points to the measurement in the topic-array
-	FieldIndex       int                    // index that points to the field in the topic-array
-	Fields           map[string]FieldConfig `json:",omitempty"`
-	TemplateToCall   string                 `json:",omitempty"`
-	GraphToCall      string
+	topicLock  sync.Mutex
 }
 
 type FreepsMqttConfig struct {
@@ -49,17 +35,7 @@ type FreepsMqttConfig struct {
 	ResultTopic string // Topic to publish results to; empty (default) means no publishing of results
 }
 
-var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "mqttaction"}
 var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
-
-type FieldWithType struct {
-	FieldType  string
-	FieldValue string
-}
-type JsonArgs struct {
-	Measurement    string
-	FieldsWithType map[string]FieldWithType
-}
 
 func (fm *FreepsMqttImpl) publishResult(topic string, ctx *utils.Context, out *freepsgraph.OperatorIO) {
 	if fm.Config.ResultTopic == "" {
@@ -87,7 +63,7 @@ func (fm *FreepsMqttImpl) publishResult(topic string, ctx *utils.Context, out *f
 func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
 	t := strings.Split(message.Topic(), "/")
 	if len(t) <= 2 {
-		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
+		log.Infof("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
 	input := freepsgraph.MakeObjectOutput(message.Payload())
@@ -96,11 +72,14 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 	fm.publishResult(message.Topic(), ctx, out)
 }
 
-func (fm *FreepsMqttImpl) starTagSubscriptions() error {
+func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 	c := fm.client
 	if c == nil || !c.IsConnected() {
 		return fmt.Errorf("client is not connected")
 	}
+
+	fm.topicLock.Lock()
+	defer fm.topicLock.Unlock()
 
 	tokens := []MQTT.Token{}
 
@@ -151,7 +130,7 @@ func (fm *FreepsMqttImpl) starTagSubscriptions() error {
 	for _, token := range tokens {
 		token.Wait()
 		if err := token.Error(); err != nil {
-			fmt.Println(err)
+			fm.mqttlogger.Errorf("Error when trying to subscribe/unsubscribe: %v", err)
 			errStr += "* " + err.Error() + "\n"
 		}
 	}
@@ -174,6 +153,7 @@ func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
 	if token := c.Subscribe("freeps/#", 0, fm.systemMessageReceived); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
+	fm.startTagSubscriptions()
 }
 
 func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
@@ -185,7 +165,7 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 	}
 	cr.WriteBackConfigIfChanged()
 	if err != nil {
-		log.Print(err)
+		log.Error(err)
 	}
 
 	if fmc.Server == "" {
@@ -211,9 +191,9 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 	client := MQTT.NewClient(connOpts)
 	go func() {
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			panic(token.Error())
+			mqttlogger.Errorf("Error when connecting to %s: %v \n", fmc.Server, token.Error().Error())
 		} else {
-			fmt.Printf("Connected to %s\n", fmc.Server)
+			mqttlogger.Infof("Connected to %s", fmc.Server)
 		}
 	}()
 	fmqtt.client = client
@@ -228,6 +208,17 @@ func (fm *FreepsMqttImpl) publish(topic string, msg interface{}, qos int, retain
 	token := fm.client.Publish(topic, byte(qos), retain, msg)
 	token.Wait()
 	return token.Error()
+}
+
+func (fm *FreepsMqttImpl) getTopicSubscriptions() []string {
+	fm.topicLock.Lock()
+	defer fm.topicLock.Unlock()
+
+	topics := make([]string, 0, len(fm.topics))
+	for t := range fm.topics {
+		topics = append(topics, t)
+	}
+	return topics
 }
 
 // Shutdown MQTT and cancel all subscriptions
