@@ -132,9 +132,12 @@ func main() {
 
 		logger.Printf("Starting Listeners")
 		http := freepslisten.NewFreepsHttp(cr, ge)
-		mqtt := mqtt.GetInstance()
-		if err := mqtt.Init(logger, cr, ge); err != nil {
+		m := mqtt.GetInstance()
+		if err := m.Init(logger, cr, ge); err != nil {
 			logger.Errorf("MQTT not started: %v", err)
+		} else {
+			h, _ := mqtt.NewMQTTHook(cr)
+			ge.AddHook(h)
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
 		mm.StartListening()
@@ -142,7 +145,7 @@ func main() {
 		select {
 		case <-ctx.Done():
 			// Shutdown the server when the context is canceled
-			mqtt.Shutdown()
+			m.Shutdown()
 			telg.Shutdown(context.TODO())
 			http.Shutdown(context.TODO())
 			mm.Shutdown()

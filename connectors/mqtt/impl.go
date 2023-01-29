@@ -1,6 +1,8 @@
 package mqtt
 
 import (
+	"sync"
+
 	log "github.com/sirupsen/logrus"
 
 	"crypto/tls"
@@ -21,23 +23,8 @@ type FreepsMqttImpl struct {
 	Config     *FreepsMqttConfig
 	ge         *freepsgraph.GraphEngine
 	mqttlogger log.FieldLogger
-}
-
-type FieldConfig struct {
-	Datatype  string
-	Alias     *string // name used in influx
-	TrueValue *string // if datatype==bool, this is used as true value, everything else is false
-}
-
-type TopicConfig struct {
-	Topic string // Topic to subscribe to
-	Qos   int    // The QoS to subscribe to messages at
-	// the topic string is split by slash; the values of the resulting array can be used as measurement and field - the index can be specified here
-	MeasurementIndex int                    // index that points to the measurement in the topic-array
-	FieldIndex       int                    // index that points to the field in the topic-array
-	Fields           map[string]FieldConfig `json:",omitempty"`
-	TemplateToCall   string                 `json:",omitempty"`
-	GraphToCall      string
+	topics     map[string]bool
+	topicLock  sync.Mutex
 }
 
 type FreepsMqttConfig struct {
@@ -48,62 +35,9 @@ type FreepsMqttConfig struct {
 	ResultTopic string // Topic to publish results to; empty (default) means no publishing of results
 }
 
-var DefaultTopicConfig = TopicConfig{Topic: "#", Qos: 0, MeasurementIndex: -1, FieldIndex: -1, Fields: map[string]FieldConfig{}, TemplateToCall: "mqttaction"}
 var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 
-type FieldWithType struct {
-	FieldType  string
-	FieldValue string
-}
-type JsonArgs struct {
-	Measurement    string
-	FieldsWithType map[string]FieldWithType
-}
-
-func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic string) {
-	input := freepsgraph.MakeByteOutput(message)
-	graphName := tc.GraphToCall
-	if graphName == "" {
-		graphName = tc.TemplateToCall
-	}
-
-	// rather complicated logic that was introduced to push to Influx
-	if len(tc.Fields) > 0 {
-		value := string(message)
-		t := strings.Split(topic, "/")
-		field := ""
-		if len(t) > tc.FieldIndex {
-			field = t[tc.FieldIndex]
-		}
-		measurement := ""
-		if len(t) > tc.MeasurementIndex {
-			measurement = t[tc.MeasurementIndex]
-		}
-		fconf, fieldExists := tc.Fields[field]
-		if fieldExists {
-			fieldAlias := field
-			if fconf.Alias != nil {
-				fieldAlias = *fconf.Alias
-			}
-			if fconf.TrueValue != nil {
-				if value == *fconf.TrueValue {
-					value = "true"
-				} else {
-					value = "false"
-				}
-			}
-
-			fwt := FieldWithType{fconf.Datatype, value}
-			args := JsonArgs{Measurement: measurement, FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
-
-			input = freepsgraph.MakeObjectOutput(args)
-		} else {
-			fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
-		}
-	}
-	ctx := utils.NewContext(fm.mqttlogger)
-	out := fm.ge.ExecuteGraph(ctx, graphName, map[string]string{"topic": topic}, input)
-
+func (fm *FreepsMqttImpl) publishResult(topic string, ctx *utils.Context, out *freepsgraph.OperatorIO) {
 	if fm.Config.ResultTopic == "" {
 		return
 	}
@@ -112,10 +46,10 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 	if err != nil {
 		fm.mqttlogger.Errorf("Publishing freepsresult/topic failed: %v", err.Error())
 	}
-	err = fm.publish(rt+"graphName", graphName, 0, false)
-	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
-	}
+	// err = fm.publish(rt+"graphName", graphName, 0, false)
+	// if err != nil {
+	// 	fm.mqttlogger.Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
+	// }
 	err = fm.publish(rt+"type", string(out.OutputType), 0, false)
 	if err != nil {
 		fm.mqttlogger.Errorf("Publishing freepsresult/type failed: %v", err.Error())
@@ -129,13 +63,101 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
 	t := strings.Split(message.Topic(), "/")
 	if len(t) <= 2 {
-		log.Printf("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
+		log.Infof("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
 	input := freepsgraph.MakeObjectOutput(message.Payload())
 	ctx := utils.NewContext(fm.mqttlogger)
-	output := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
-	output.WriteTo(os.Stdout)
+	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
+	fm.publishResult(message.Topic(), ctx, out)
+}
+
+func (fm *FreepsMqttImpl) startTagSubscriptions() error {
+	c := fm.client
+	if c == nil || !c.IsConnected() {
+		return fmt.Errorf("client is not connected")
+	}
+
+	fm.topicLock.Lock()
+	defer fm.topicLock.Unlock()
+
+	tokens := []MQTT.Token{}
+
+	newTopics := map[string]bool{}
+	existingTopics := map[string]bool{}
+	for _, info := range fm.ge.GetGraphInfoByTag([]string{"mqtt"}) {
+		for _, t := range info.Desc.Tags {
+			if len(t) > len("topic:") && t[:6] == "topic:" {
+				topic := t[6:]
+				if topic == fm.Config.ResultTopic {
+					fm.mqttlogger.Errorf("Skipping subscirption to result topic to prevent endless loops")
+					continue
+				}
+				if _, ok := fm.topics[topic]; ok {
+					fm.topics[topic] = true
+					existingTopics[topic] = false
+				} else {
+					newTopics[topic] = true
+				}
+			}
+		}
+	}
+
+	// unsubscribe unused topics first
+	unsubTopics := []string{}
+	for t, s := range fm.topics {
+		if !s {
+			unsubTopics = append(unsubTopics, t)
+		}
+	}
+	if len(unsubTopics) > 0 {
+		tokens = append(tokens, c.Unsubscribe(unsubTopics...))
+	}
+
+	// subscribe to new Topics
+	for topic := range newTopics {
+		// build the slice here so we don't run into https://go.dev/doc/faq#closures_and_goroutines
+		tags := []string{"mqtt", "topic:" + topic}
+		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+			ctx := utils.NewContext(fm.mqttlogger)
+			input := freepsgraph.MakeByteOutput(message.Payload())
+			out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"topic": message.Topic(), "subscription": tags[1]}, input)
+			fm.publishResult(topic, ctx, out)
+		}
+		tokens = append(tokens, c.Subscribe(topic, byte(0), onMessageReceived))
+		existingTopics[topic] = false
+	}
+
+	fm.topics = existingTopics
+
+	errStr := ""
+	for _, token := range tokens {
+		token.Wait()
+		if err := token.Error(); err != nil {
+			fm.mqttlogger.Errorf("Error when trying to subscribe/unsubscribe: %v", err)
+			errStr += "* " + err.Error() + "\n"
+		}
+	}
+	if errStr == "" {
+		return nil
+	}
+	return fmt.Errorf("Errors during subscribe/unsubscribe:\n%v", errStr)
+}
+
+func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
+	for _, k := range fm.Config.Topics {
+		k := k // see https://go.dev/doc/faq#closures_and_goroutines
+		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+			fm.processMessage(k, message.Payload(), message.Topic())
+		}
+		if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
+			panic(token.Error())
+		}
+	}
+	if token := c.Subscribe("freeps/#", 0, fm.systemMessageReceived); token.Wait() && token.Error() != nil {
+		panic(token.Error())
+	}
+	fm.startTagSubscriptions()
 }
 
 func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
@@ -147,7 +169,7 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 	}
 	cr.WriteBackConfigIfChanged()
 	if err != nil {
-		log.Print(err)
+		log.Error(err)
 	}
 
 	if fmc.Server == "" {
@@ -156,7 +178,7 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqttImpl{Config: &fmc, ge: ge, mqttlogger: mqttlogger}
+	fmqtt := &FreepsMqttImpl{Config: &fmc, ge: ge, mqttlogger: mqttlogger, topics: map[string]bool{}}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true).SetOrderMatters(false)
 	if fmc.Username != "" {
@@ -168,27 +190,14 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
 	connOpts.SetTLSConfig(tlsConfig)
 	connOpts.SetCleanSession(true)
-	connOpts.OnConnect = func(c MQTT.Client) {
-		for _, k := range fmc.Topics {
-			k := k // see https://go.dev/doc/faq#closures_and_goroutines
-			onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-				fmqtt.processMessage(k, message.Payload(), message.Topic())
-			}
-			if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
-				panic(token.Error())
-			}
-		}
-		if token := c.Subscribe("freeps/#", 0, fmqtt.systemMessageReceived); token.Wait() && token.Error() != nil {
-			panic(token.Error())
-		}
-	}
+	connOpts.OnConnect = fmqtt.startConfigSubscriptions
 
 	client := MQTT.NewClient(connOpts)
 	go func() {
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			panic(token.Error())
+			mqttlogger.Errorf("Error when connecting to %s: %v \n", fmc.Server, token.Error().Error())
 		} else {
-			fmt.Printf("Connected to %s\n", fmc.Server)
+			mqttlogger.Infof("Connected to %s", fmc.Server)
 		}
 	}()
 	fmqtt.client = client
@@ -203,6 +212,17 @@ func (fm *FreepsMqttImpl) publish(topic string, msg interface{}, qos int, retain
 	token := fm.client.Publish(topic, byte(qos), retain, msg)
 	token.Wait()
 	return token.Error()
+}
+
+func (fm *FreepsMqttImpl) getTopicSubscriptions() []string {
+	fm.topicLock.Lock()
+	defer fm.topicLock.Unlock()
+
+	topics := make([]string, 0, len(fm.topics))
+	for t := range fm.topics {
+		topics = append(topics, t)
+	}
+	return topics
 }
 
 // Shutdown MQTT and cancel all subscriptions

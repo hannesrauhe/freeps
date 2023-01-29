@@ -56,12 +56,18 @@ func (o *OpMQTT) Execute(ctx *utils.Context, fn string, args map[string]string, 
 			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		return freepsgraph.MakeEmptyOutput()
+	case "getSubscriptions":
+		topics, err := GetInstance().GetSubscriptions()
+		if err != nil {
+			return freepsgraph.MakeOutputError(500, "Error when trying to get Subscriptions: %v", err.Error())
+		}
+		return freepsgraph.MakeObjectOutput(topics)
 	}
 	return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 }
 
 func (o *OpMQTT) GetFunctions() []string {
-	return []string{"publish"}
+	return []string{"publish", "getSubscriptions"}
 }
 
 func (o *OpMQTT) GetPossibleArgs(fn string) []string {

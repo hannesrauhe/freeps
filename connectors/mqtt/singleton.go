@@ -50,3 +50,18 @@ func (fm *FreepsMqtt) Publish(topic string, msg interface{}, qos int, retain boo
 	}
 	return fm.impl.publish(topic, msg, qos, retain)
 }
+
+func (fm *FreepsMqtt) SubscribeToTags() error {
+	if fm.impl == nil {
+		return fmt.Errorf("Mqtt not initialized")
+	}
+	return fm.impl.startTagSubscriptions()
+}
+
+func (fm *FreepsMqtt) GetSubscriptions() ([]string, error) {
+	if fm.impl == nil {
+		return nil, fmt.Errorf("Mqtt not initialized")
+	}
+	topics := fm.impl.getTopicSubscriptions()
+	return topics, nil
+}

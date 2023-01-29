@@ -42,6 +42,11 @@ func (h *HookStore) OnExecutionFinished(ctx *utils.Context, graphName string, ma
 	return h.storeNs.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
 }
 
+// OnGraphChanged does nothing in store
+func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
+	return nil
+}
+
 // Shutdown gets called on graceful shutdown
 func (h *HookStore) Shutdown() error {
 	return nil
