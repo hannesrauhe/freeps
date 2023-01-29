@@ -109,7 +109,7 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 }
 
 func (m *OpEval) GetFunctions() []string {
-	return []string{"eval", "regexp", "dedup", "echo", "echoArguments", "flatten", "strreplace"}
+	return []string{"eval", "regexp", "dedup", "echo", "echoArguments", "flatten", "strreplace", "split"}
 }
 
 func (m *OpEval) GetPossibleArgs(fn string) []string {
