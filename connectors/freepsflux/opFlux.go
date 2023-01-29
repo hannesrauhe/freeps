@@ -87,6 +87,20 @@ func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 				return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err)
 			}
 		}
+	case "pushsinglefield":
+		{
+			m := vars["measurement"]
+			fields := map[string]interface{}{vars["field"]: input.Output}
+			delete(vars, "measurement")
+			delete(vars, "field")
+
+			err = o.ff.PushFields(m, vars, fields)
+			if err == nil {
+				return freepsgraph.MakePlainOutput("Pushed to influx: %v %v %v", m, vars, fields)
+			} else {
+				return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err)
+			}
+		}
 	case "pushfreepsdevicelist":
 		{
 			return o.pushFreepsDeviceList(input)
@@ -143,7 +157,7 @@ func (o *OpFlux) pushFreepsMetrics(input *freepsgraph.OperatorIO) *freepsgraph.O
 }
 
 func (o *OpFlux) GetFunctions() []string {
-	return []string{"pushfields", "pushfreepsdevicelist", "pushfreepsmetrics", "pushfreepsdata"}
+	return []string{"pushfields", "pushsinglefield", "pushfreepsdevicelist", "pushfreepsmetrics", "pushfreepsdata"}
 }
 
 func (o *OpFlux) GetPossibleArgs(fn string) []string {

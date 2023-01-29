@@ -66,6 +66,9 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 			}
 		}
 		for k, v := range vars {
+			if k == "inputKey" {
+				continue
+			}
 			output[k] = v
 		}
 		return MakeObjectOutput(output)
@@ -73,6 +76,8 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 		return m.Flatten(vars, input)
 	case "eval":
 		return m.Eval(vars, input)
+	case "split":
+		return m.Split(vars, input)
 	case "regexp":
 		return m.Regexp(vars, input)
 	case "strreplace":
@@ -127,7 +132,7 @@ func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	}
 	switch arg {
 	case "valueType":
-		return map[string]string{"int": "int"}
+		return map[string]string{"int": "int", "string": "string", "bool": "bool", "float": "float"}
 	case "operation":
 		return map[string]string{"eq": "eq", "gt": "gt", "lt": "lt", "id": "id"}
 	case "retention":
@@ -290,6 +295,27 @@ func (m *OpEval) Regexp(args map[string]string, input *OperatorIO) *OperatorIO {
 		return MakePlainOutput(input.GetString()[loc[2]:loc[3]])
 	}
 	return MakeOutputError(http.StatusBadRequest, "No such op %s", args["op"])
+}
+
+func (m *OpEval) Split(argsmap map[string]string, input *OperatorIO) *OperatorIO {
+	sep := argsmap["sep"]
+	if sep == "" {
+		return MakeOutputError(http.StatusBadRequest, "Need a separator (sep) to split")
+	}
+	strArray := strings.Split(input.GetString(), sep)
+
+	posStr := argsmap["pos"]
+	if posStr == "" {
+		return MakeObjectOutput(strArray)
+	}
+	pos, err := parseIntOrReturnDirectly(posStr)
+	if err != nil {
+		return MakeOutputError(http.StatusBadRequest, "%v is not an integer: %v", posStr, err.Error())
+	}
+	if pos >= len(strArray) {
+		return MakeOutputError(http.StatusBadRequest, "Pos %v not available in array %v", pos, strArray)
+	}
+	return MakePlainOutput(strArray[pos])
 }
 
 // Shutdown (noOp)
