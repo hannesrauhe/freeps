@@ -187,7 +187,7 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 }
 
 func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
-	standardOP := []GraphOperationDesc{{Operator: "eval", Function: "echo", Arguments: map[string]string{}}}
+	standardOP := []GraphOperationDesc{{Operator: "graph", Function: "storeUI", Arguments: map[string]string{}}}
 
 	gd := &GraphDesc{}
 	v, ok := formInput["GraphJSON"]

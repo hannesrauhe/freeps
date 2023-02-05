@@ -3,19 +3,29 @@
         "system",
         "ui"
     ],
-    "OutputFrom": "#1",
+    "OutputFrom": "#2",
     "Operations": [
         {
             "Operator": "store",
             "Function": "getAll",
             "Arguments": {
+                "maxAge": "10m",
                 "namespace": "execution_log"
             }
         },
         {
+            "Operator": "eval",
+            "Function": "echoArguments",
+            "Arguments": {
+                "maxAge": "10m",
+                "inputKey": "storeEntries"
+            },
+            "InputFrom": "#0"
+        },
+        {
             "Operator": "ui",
             "Function": "executionLog.html",
-            "InputFrom": "#0"
+            "InputFrom": "#1"
         }
     ]
 }

@@ -4,6 +4,7 @@ package freepsstore
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -92,8 +93,31 @@ type postgresStoreNamespace struct {
 var _ StoreNamespace = &postgresStoreNamespace{}
 
 func (p *postgresStoreNamespace) query(projection string, filter string, args ...any) (*sql.Rows, error) {
-	queryString := fmt.Sprintf("select %v from %v.%v where %v", projection, p.schema, p.name, filter)
+	if filter == "" {
+		filter = "1=1"
+	}
+	// TODO(HR): remove hard-coded limit of 100 rows
+	queryString := fmt.Sprintf("select %v from %v.%v where %v limit %d", projection, p.schema, p.name, filter, 100)
 	return db.Query(queryString, args...)
+}
+
+func (p *postgresStoreNamespace) entryToOutput(output *freepsgraph.OperatorIO, valuePlain sql.NullString, valueBytes []byte, valueJSON []byte) {
+	switch output.OutputType {
+	case freepsgraph.Empty:
+		output.Output = nil
+	case freepsgraph.PlainText:
+		if !valuePlain.Valid {
+			*output = *freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: plain value is NULL")
+		}
+		output.Output = valuePlain.String
+	case freepsgraph.Byte:
+		output.Output = valueBytes
+	case freepsgraph.Object:
+		output.Output = map[string]interface{}{}
+		json.Unmarshal(valueJSON, &output.Output)
+	default:
+		*output = *freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: OutputType unkown")
+	}
 }
 
 func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO {
@@ -109,7 +133,63 @@ func (p *postgresStoreNamespace) DeleteValue(key string) {
 }
 
 func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*freepsgraph.OperatorIO {
-	panic("not implemented") // TODO: Implement
+	result := map[string]*freepsgraph.OperatorIO{}
+	filter := ""
+	filterParts := []any{}
+	if keyPattern != "" {
+		filter = "key LIKE $1"
+		filterParts = append(filterParts, keyPattern)
+	}
+	if modifiedByPattern != "" {
+		if filter != "" {
+			filter += " AND "
+		}
+		filter += fmt.Sprintf("modified_by LIKE $%d", len(filterParts)+1)
+		filterParts = append(filterParts, modifiedByPattern)
+	}
+	if minAge != 0 {
+		if filter != "" {
+			filter += " AND "
+		}
+		filter += fmt.Sprintf("modification_time < now() - interval '%v'", minAge.String())
+	}
+	if maxAge != 0 {
+		if filter != "" {
+			filter += " AND "
+		}
+		filter += fmt.Sprintf("modification_time > now() - interval '%v'", maxAge.String())
+	}
+	// TODO(HR): meh
+	// if valuePattern != "" {
+	// 	if len(filterParts) > 0 {
+	// 		filter += " AND "
+	// 	}
+	// 	filter += fmt.Sprintf("value_plain LIKE $%d or value_bytes as string LIKE $%d or value_json as string LIKE $%d", len(filterParts)+1, len(filterParts)+1, len(filterParts)+1)
+	// 	filterParts = append(filterParts, valuePattern)
+	// }
+
+	rows, err := p.query("key, http_code, output_type, content_type, value_plain, value_bytes, value_json", filter, filterParts...)
+	if err != nil {
+		result["error"] = freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		return result
+	}
+	defer rows.Close()
+	for rows.Next() {
+		key := ""
+		output := freepsgraph.OperatorIO{}
+		var valuePlain sql.NullString
+		var valueBytes, valueJSON []byte
+		if err := rows.Scan(&key, &output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON); err != nil {
+			result["error"] = freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+			return result
+		}
+		p.entryToOutput(&output, valuePlain, valueBytes, valueJSON)
+		result[key] = &output
+	}
+	if err := rows.Err(); err != nil {
+		result["error"] = freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+	}
+	return result
 }
 
 func (p *postgresStoreNamespace) GetAllValues() map[string]*freepsgraph.OperatorIO {
@@ -118,7 +198,7 @@ func (p *postgresStoreNamespace) GetAllValues() map[string]*freepsgraph.Operator
 
 func (p *postgresStoreNamespace) GetKeys() []string {
 	res := []string{}
-	rows, err := p.query("key", "1=1")
+	rows, err := p.query("key", "")
 	if err != nil {
 		return res
 	}
@@ -153,19 +233,7 @@ func (p *postgresStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
 		if err := rows.Scan(&output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON); err != nil {
 			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 		}
-		switch output.OutputType {
-		case freepsgraph.Empty:
-		case freepsgraph.PlainText:
-			if !valuePlain.Valid {
-				return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: plain value is NULL")
-			}
-			output.Output = valuePlain.String
-		case freepsgraph.Byte:
-		case freepsgraph.Object:
-			output.Output = valueBytes
-		default:
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: %v", err)
-		}
+		p.entryToOutput(&output, valuePlain, valueBytes, valueJSON)
 		return &output
 	}
 	if err := rows.Err(); err != nil {
