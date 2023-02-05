@@ -17,7 +17,7 @@ func NewMQTTHook(cr *utils.ConfigReader) (*HookMQTT, error) {
 
 // GetName returns the name of the hook
 func (h *HookMQTT) GetName() string {
-	return "store"
+	return "mqtt"
 }
 
 // OnExecute does nothing

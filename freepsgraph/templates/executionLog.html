@@ -18,7 +18,7 @@
 </form>
 
 <datalist id="keys">
-{{ range $namespaceName, $namespace := . }}
+{{ range $namespaceName, $namespace := .storeEntries }}
 {{ range $ctxName, $ctx := $namespace }}
     <option value="{{$ctxName}}">
 {{ end }}
@@ -27,7 +27,7 @@
 
 <table>
     <tr><th>Name</th><th>Time</th><th>Code</th><th>Duration</th></tr>
-{{ range $namespaceName, $namespace := . }}
+{{ range $namespaceName, $namespace := .storeEntries }}
 {{ range $ctxName, $ctx := $namespace }}
 <tr> <td><b>{{$ctxName}}</b></td><td>{{$ctx.Output.Created}}</td><td></td><td></td></tr>
 {{ range $i, $Operation := $ctx.Output.Operations }}
