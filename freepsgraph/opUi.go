@@ -19,6 +19,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const buttonPrefix string = "button_"
+
 type OpUI struct {
 	ge *GraphEngine
 	cr *utils.ConfigReader
@@ -119,7 +121,7 @@ func (o *OpUI) deleteTemplateFile(templateBaseName string) error {
 	return os.Remove(configPath)
 }
 
-func (o *OpUI) getTemplateBytes(templateBaseName string, logger *log.Entry) ([]byte, error) {
+func (o *OpUI) getFileBytes(templateBaseName string, logger *log.Entry) ([]byte, error) {
 	if templateBaseName == "" {
 		return nil, fmt.Errorf("empty Template Name not allowd")
 	}
@@ -140,9 +142,9 @@ func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*templ
 	return template.ParseFS(embeddedFiles, path)
 }
 
-func (o *OpUI) createTemplate(templateBaseName string, templateData interface{}, logger *log.Entry) *OperatorIO {
-	/* parse footer if requested template is html-file */
-	if filepath.Ext(templateBaseName) == ".html" {
+func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *OperatorIO {
+	/* parse as template if basename is html */
+	if filepath.Ext(templateBaseName) == ".html" || filepath.Ext(templateBaseName) == ".htm" {
 		t, err := o.parseTemplate(templateBaseName, logger)
 		if err != nil {
 			// could be any other error code, but I don't want to parse error strings
@@ -155,30 +157,32 @@ func (o *OpUI) createTemplate(templateBaseName string, templateData interface{},
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 
-		tFooter, err := o.parseTemplate("footer.html", logger)
-		if err != nil {
-			logger.Errorf("Problem when opening template footer: %v", err)
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
-		}
+		if withFooter {
+			tFooter, err := o.parseTemplate("footer.html", logger)
+			if err != nil {
+				logger.Errorf("Problem when opening template footer: %v", err)
+				return MakeOutputError(http.StatusInternalServerError, err.Error())
+			}
 
-		var fdata struct {
-			FooterGraphs map[string]GraphInfo
-			Version      string
-			StartedAt    string
-		}
-		fdata.FooterGraphs = o.ge.GetGraphInfoByTag([]string{"ui", "footer"})
-		fdata.Version = utils.BuildVersion()
-		fdata.StartedAt = utils.StartTimestamp.Format(time.RFC1123)
-		err = tFooter.Execute(&w, &fdata)
-		if err != nil {
-			logger.Println(err)
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			var fdata struct {
+				FooterGraphs map[string]GraphInfo
+				Version      string
+				StartedAt    string
+			}
+			fdata.FooterGraphs = o.ge.GetGraphInfoByTag([]string{"ui", "footer"})
+			fdata.Version = utils.BuildVersion()
+			fdata.StartedAt = utils.StartTimestamp.Format(time.RFC1123)
+			err = tFooter.Execute(&w, &fdata)
+			if err != nil {
+				logger.Error(err)
+				return MakeOutputError(http.StatusInternalServerError, err.Error())
+			}
 		}
 		return MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")
 	}
 
 	// return file directly if not html:
-	b, err := o.getTemplateBytes(templateBaseName, logger)
+	b, err := o.getFileBytes(templateBaseName, logger)
 	if err != nil {
 		// could be an internal error, but I don't want to parse error strings
 		return MakeOutputError(http.StatusNotFound, "Error when reading plain file \"%v\": \"%v\"", templateBaseName, err.Error())
@@ -210,7 +214,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 		gopd.Arguments = make(map[string]string)
 	}
 	for k, v := range formInput {
-		if len(k) > 4 && k[0:4] == "arg." {
+		if utils.StringStartsWith(k, "arg.") {
 			gopd.Arguments[k[4:]] = v
 		} else if k == "newArg" && v != "" {
 			gopd.Arguments[v] = ""
@@ -232,7 +236,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 			gopd.ExecuteOnFailOf = v
 		} else if k == "ignoreMainArgs" {
 			gopd.IgnoreMainArgs = utils.ParseBool(v)
-		} else if k == "opName" && len(v) > 0 && v[0:1] != "#" {
+		} else if k == "opName" && len(v) > 0 && !utils.StringStartsWith(v, "#") {
 			gopd.Name = v
 		} else if k == "graphOutput" {
 			gd.OutputFrom = v
@@ -370,7 +374,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 		delete(td.TagSuggestions, t)
 	}
 	td.Quicklink = gopd.ToQuicklink()
-	return o.createTemplate(tmpl, td, logger)
+	return o.createOutput(tmpl, td, logger, true)
 }
 
 func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -387,7 +391,7 @@ func (o *OpUI) showGraphs(vars map[string]string, input *OperatorIO, logger *log
 		}
 	}
 
-	return o.createTemplate(`showgraphs.html`, &d, logger)
+	return o.createOutput(`showgraphs.html`, &d, logger, true)
 }
 
 func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -407,7 +411,7 @@ func (o *OpUI) editConfig(vars map[string]string, input *OperatorIO, logger *log
 	}
 	d.ConfigText = o.cr.GetConfigFileContent()
 
-	return o.createTemplate(`editconfig.html`, &d, logger)
+	return o.createOutput(`editconfig.html`, &d, logger, true)
 }
 
 func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -416,7 +420,7 @@ func (o *OpUI) fritzDeviceList(vars map[string]string, input *OperatorIO, logger
 	if err != nil {
 		return MakeOutputError(http.StatusBadRequest, "Error when parsing Devicelist: %v", err)
 	}
-	return o.createTemplate(`fritzdevicelist.html`, &devicelist, logger)
+	return o.createOutput(`fritzdevicelist.html`, &devicelist, logger, true)
 }
 
 func (o *OpUI) editTemplate(vars map[string]string, input *OperatorIO, logger *log.Entry) *OperatorIO {
@@ -446,16 +450,44 @@ func (o *OpUI) editTemplate(vars map[string]string, input *OperatorIO, logger *l
 		}
 	}
 
-	b, _ := o.getTemplateBytes(tname, logger)
+	b, _ := o.getFileBytes(tname, logger)
 	tdata := make(map[string]interface{})
 	tdata["templateName"] = tname
 	tdata["templateCode"] = template.HTML(b)
-	return o.createTemplate(`edittemplate.html`, tdata, logger)
+	return o.createOutput(`edittemplate.html`, tdata, logger, true)
+}
+
+func (o *OpUI) simpleTile(vars map[string]string, input *OperatorIO, ctx *utils.Context) *OperatorIO {
+	tdata := make(map[string]interface{})
+
+	buttons := make(map[string]string)
+	for k, v := range vars {
+		if utils.StringStartsWith(k, buttonPrefix) {
+			buttons[k[len(buttonPrefix):]] = v
+		}
+	}
+
+	if !input.IsEmpty() {
+		formdata, err := input.ParseFormData()
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+		}
+		for k, _ := range utils.URLArgsToMap(formdata) {
+			graphName := vars[buttonPrefix+k]
+			if graphName != "" {
+				o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), MakeEmptyOutput())
+			}
+		}
+	}
+	tdata["buttons"] = buttons
+	tdata["status"] = vars["header"]
+	return o.createOutput(`simpleTile.html`, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), false)
 }
 
 func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
-	stdlogger := log.StandardLogger()
-	logger := stdlogger.WithField("component", "UI")
+	logger := ctx.GetLogger().WithField("component", "UI")
+	withFooter := !utils.ParseBool(vars["noFooter"])
+	delete(vars, "noFooter")
 
 	switch fn {
 	case "", "home":
@@ -478,6 +510,8 @@ func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, in
 		return MakeEmptyOutput()
 	case "fritzdevicelist":
 		return o.fritzDeviceList(vars, input, logger)
+	case "simpleTile":
+		return o.simpleTile(vars, input, ctx)
 	default:
 		// Note: in order to have the UI show values as if they were printed as JSON, they are parsed once
 		// This would lead to accessing the objects directly (MarshallJSON would not be called):
@@ -485,20 +519,35 @@ func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, in
 		// 	return o.createTemplate(fn, input.Output, logger)
 		// }
 		tdata := make(map[string]interface{})
-		err := input.ParseJSON(&tdata)
-		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+		// TODO(HR): this injects unwanted data in some templates...
+		// if vars != nil && len(vars) > 0 {
+		// 	tdata["arguments"] = vars
+		// }
+		if !input.IsEmpty() {
+			err := input.ParseJSON(&tdata)
+			if err != nil {
+				return MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+			}
 		}
-		return o.createTemplate(fn, &tdata, logger)
+		return o.createOutput(fn, &tdata, logger, withFooter)
 	}
 }
 
 func (o *OpUI) GetFunctions() []string {
-	return []string{"edit", "show", "config", "editTemplate", "deleteTemplate", "fritzdevicelist"}
+	r := o.getTemplateNames()
+	return append(r, "edit", "show", "config", "editTemplate", "deleteTemplate", "fritzdevicelist", "simpleTile")
 }
 
 func (o *OpUI) GetPossibleArgs(fn string) []string {
-	return []string{"graph", "templateName"}
+	switch fn {
+	case "editGraph":
+		return []string{"graph"}
+	case "editTemplate", "deleteTemplate":
+		return []string{"templateName"}
+	case "simpleTile":
+		return []string{"header", "button_On", "button_Off"}
+	}
+	return []string{"noFooter"}
 }
 
 func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
@@ -507,6 +556,14 @@ func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]str
 		for _, tn := range o.getTemplateNames() {
 			r[tn] = tn
 		}
+	}
+	if fn == "simpleTile" && utils.StringStartsWith(arg, buttonPrefix) {
+		agd := o.ge.GetAllGraphDesc()
+		graphs := make(map[string]string)
+		for n := range agd {
+			graphs[n] = n
+		}
+		return graphs
 	}
 	return r
 }

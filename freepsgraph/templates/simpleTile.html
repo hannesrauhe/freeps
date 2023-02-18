@@ -1,0 +1,8 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<form method="post">
+    <div class="tile-header">{{ .status }}</div>
+	{{range $key, $value := .buttons}}
+    <button name="{{$key}}" value="{{$value}}">{{$key}}</button>
+    {{end}}
+</form>
+</div>

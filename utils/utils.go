@@ -132,3 +132,7 @@ func StringToIdentifier(input string) string {
 	output := reg.ReplaceAllString(input, "")
 	return strings.ToLower(output)
 }
+
+func StringStartsWith(input string, prefix string) bool {
+	return len(input) >= len(prefix) && input[0:len(prefix)] == prefix
+}

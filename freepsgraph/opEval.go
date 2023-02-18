@@ -50,6 +50,13 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 			return MakePlainOutput(m)
 		}
 		return MakeEmptyOutput()
+	case "formToJSON":
+		o, err := input.ParseFormData()
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "input not valid form data: %v", err)
+		}
+		o2 := utils.URLArgsToMap(o)
+		return MakeObjectOutput(o2)
 	case "echoArguments":
 		output := map[string]interface{}{}
 		if !input.IsEmpty() {
@@ -109,7 +116,7 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 }
 
 func (m *OpEval) GetFunctions() []string {
-	return []string{"eval", "regexp", "dedup", "echo", "echoArguments", "flatten", "strreplace", "split"}
+	return []string{"eval", "regexp", "dedup", "echo", "echoArguments", "flatten", "strreplace", "split", "formToJSON"}
 }
 
 func (m *OpEval) GetPossibleArgs(fn string) []string {

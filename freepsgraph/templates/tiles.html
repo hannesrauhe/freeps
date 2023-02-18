@@ -1,9 +1,13 @@
+<style>
+	.tile  {float: left; width: 130px; height: 150px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; }
+	.tile-header  {height: 50px; margin: auto}
+</style>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <div>
-	{{ range $key, $value := .Device }}
+	{{ range $key, $value := ._tiles.devicelist.Output.Device }}
 		{{ if or $value.HKR $value.SimpleOnOff }}
-		<div style="float: left; width: 130px; height: 150px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; ">
-			<div style="height: 50px; margin: auto"> {{ $value.Name }} {{ if $value.Temperature }} - {{ $value.Temperature.Celsius }} {{ end }} </div>
+		<div class="tile">
+			<div class="tile-header"> {{ $value.Name }} {{ if $value.Temperature }} - {{ $value.Temperature.Celsius }} {{ end }} </div>
 			{{ if $value.HKR }}
 			<div style="margin: auto">
 
@@ -42,5 +46,12 @@
 		</div>
 		{{ end}}
 	{{ end }}
-	<iframe name="outputframe" id="outputframe" style="float: left; width: 130px; height: 150px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; "></iframe>
+
+	{{ range $key, $value := ._tiles }}
+	{{ if ne $key "devicelist" }}
+		<iframe name="tile-{{$key}}" class="tile" src="/graph/{{$key}}"></iframe>
+	{{end}}
+	{{end}}
+
+	<iframe name="outputframe" id="outputframe" class="tile"></iframe>
 </div>

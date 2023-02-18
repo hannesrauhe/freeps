@@ -1,0 +1,63 @@
+{
+    "Tags": [
+      "ui",
+      "footer"
+    ],
+    "OutputFrom": "finalUI",
+    "Operations": [
+      {
+        "Operator": "store",
+        "Function": "get",
+        "Arguments": {
+          "key": "devicelist",
+          "maxAge": "100s",
+          "namespace": "_tiles"
+        }
+      },
+      {
+        "Operator": "fritz",
+        "Function": "getdevicelistinfos",
+        "ExecuteOnFailOf": "#0"
+      },
+      {
+        "Operator": "store",
+        "Function": "set",
+        "Arguments": {
+          "key": "devicelist",
+          "namespace": "_tiles"
+        },
+        "InputFrom": "#1"
+      },
+      {
+        "Operator": "system",
+        "Function": "getGraphInfoByTag",
+        "Arguments": {
+          "tag": "ui",
+          "tags": "tile",
+          "namespace": "_tiles"
+        }
+      },
+      {
+        "Operator": "store",
+        "Function": "setAll",
+        "Arguments": {
+          "namespace": "_tiles"
+        },
+        "InputFrom": "#3"
+      },
+      {
+        "name": "unifiedInputForUI",
+        "Operator": "store",
+        "Function": "getAll",
+        "Arguments": {
+          "namespace": "_tiles"
+        }
+      },
+      {
+        "name": "finalUI",
+        "Operator": "ui",
+        "Function": "tiles.html",
+        "InputFrom": "unifiedInputForUI"
+      }
+    ]
+  }
