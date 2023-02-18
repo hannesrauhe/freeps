@@ -90,6 +90,17 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 		r := map[string]interface{}{"errors": o.ge.executionErrors.GetErrorsSince(duration)}
 		return MakeObjectOutput(r)
 
+	case "contextToDot":
+		var iCtx utils.ContextNoTime
+		if input.IsEmpty() {
+			return MakeOutputError(http.StatusBadRequest, "No context to parse")
+		}
+		err := input.ParseJSON(&iCtx)
+		if err != nil {
+			return MakeOutputError(http.StatusBadRequest, "Unable to parse context: %v", err)
+		}
+		return MakePlainOutput(iCtx.ToDot())
+
 	case "stats":
 		var s interface{}
 		var err error
@@ -118,7 +129,7 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "deleteGraph"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {

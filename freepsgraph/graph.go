@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -171,13 +170,12 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
-		t := time.Now()
+		opI := ctx.RecordOperationStart(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
 			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
-
-		ctx.RecordFinishedOperation(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, t, output.HTTPCode)
+		ctx.RecordOperationFinish(opI, output.HTTPCode)
 		return output
 	}
 	return g.collectAndReturnOperationError(input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
