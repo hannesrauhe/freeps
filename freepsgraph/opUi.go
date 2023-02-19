@@ -353,7 +353,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *OperatorIO, logger *log.
 		for _, k := range mod.GetFunctions() {
 			td.FnSuggestions[k] = (k == gopd.Function)
 		}
-		for _, k := range mod.GetPossibleArgs(gopd.Function) {
+		for k := range gopd.Arguments {
 			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, td.Args)
 		}
 	}
