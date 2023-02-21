@@ -109,7 +109,7 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 		default:
 			return MakeOutputError(http.StatusBadRequest, "unknown statType: "+args["statType"])
 		}
-		if err == nil {
+		if err != nil {
 			MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		return MakeObjectOutput(s)
