@@ -470,6 +470,10 @@ func (o *OpUI) simpleTile(vars map[string]string, input *OperatorIO, ctx *utils.
 		}
 	}
 
+	tdata["buttons"] = buttons
+	tdata["status"] = vars["header"]
+	tdata["status_error"] = ""
+	tdata["status_ok"] = ""
 	if !input.IsEmpty() {
 		formdata, err := input.ParseFormData()
 		if err != nil {
@@ -478,12 +482,15 @@ func (o *OpUI) simpleTile(vars map[string]string, input *OperatorIO, ctx *utils.
 		for k, _ := range utils.URLArgsToMap(formdata) {
 			graphName := vars[buttonPrefix+k]
 			if graphName != "" {
-				o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), MakeEmptyOutput())
+				out := o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), MakeEmptyOutput())
+				if out.IsError() {
+					tdata["status_error"] = k
+				} else {
+					tdata["status_ok"] = k
+				}
 			}
 		}
 	}
-	tdata["buttons"] = buttons
-	tdata["status"] = vars["header"]
 	return o.createOutput(`simpleTile.html`, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), false)
 }
 

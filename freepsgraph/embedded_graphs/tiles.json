@@ -42,7 +42,7 @@
         "Function": "deleteOlder",
         "Arguments": {
           "namespace": "_tiles",
-          "maxAge": "100s",
+          "maxAge": "100s"
         }
       },
       {
