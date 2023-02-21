@@ -39,6 +39,14 @@
       },
       {
         "Operator": "store",
+        "Function": "deleteOlder",
+        "Arguments": {
+          "namespace": "_tiles",
+          "maxAge": "100s",
+        }
+      },
+      {
+        "Operator": "store",
         "Function": "setAll",
         "Arguments": {
           "namespace": "_tiles"
