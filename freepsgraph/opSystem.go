@@ -104,7 +104,7 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 			s, err = memory.Get()
 		case "network":
 			s, err = network.Get()
-		case "uptime ":
+		case "uptime":
 			s, err = uptime.Get()
 		default:
 			return MakeOutputError(http.StatusBadRequest, "unknown statType: "+args["statType"])
