@@ -139,7 +139,15 @@ func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*templ
 		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
 		return template.ParseFiles(path)
 	}
-	return template.ParseFS(embeddedFiles, path)
+	funcMap := template.FuncMap{
+		"add": func(a int, b int) int {
+			return a + b
+		},
+		"divisibleBy": func(a int, b int) bool {
+			return a != 0 && a%b == 0
+		},
+	}
+	return template.New(templateBaseName).Funcs(funcMap).ParseFS(embeddedFiles, path)
 }
 
 func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *OperatorIO {
@@ -151,6 +159,12 @@ func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, l
 			return MakeOutputError(http.StatusBadRequest, "Error with template \"%v\": \"%v\"", templateBaseName, err.Error())
 		}
 		var w bytes.Buffer
+		styles, err := o.getFileBytes("style.html", logger)
+		if err != nil {
+			logger.Error(err)
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
+		w.Write(styles)
 		err = t.Execute(&w, templateData)
 		if err != nil {
 			logger.Error(err)

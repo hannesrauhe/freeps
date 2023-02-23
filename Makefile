@@ -7,16 +7,19 @@ BUILD_TIMESTAMP=$(shell date '+%Y-%m-%dT%H:%M:%S')
 
 all: build/freepsd build/freepsd-light
 
+freepslisten/static_server_content/chota.min.css:
+	curl https://raw.githubusercontent.com/jenil/chota/v0.8.1/dist/chota.min.css -o freepslisten/static_server_content/chota.min.css
+
 build:
 	mkdir -p build
 
-build/freepsd: build
+build/freepsd: build freepslisten/static_server_content/chota.min.css
 	go build -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o build/freepsd freepsd/freepsd.go
 
-build/freepsd-light: build
+build/freepsd-light: build freepslisten/static_server_content/vendor/chota.min.css
 	go build -tags nopostgress -tags nomuteme -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o build/freepsd-light freepsd/freepsd.go
 
-install: build/freepsd
+install:
 	mv build/freepsd /usr/bin/freepsd
 	adduser freeps --no-create-home --system --ingroup video
 	cp systemd/freepsd.service /etc/systemd/system/freepsd.service

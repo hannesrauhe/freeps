@@ -1,14 +1,14 @@
-<style>
-	.tile  {float: left; width: 130px; height: 150px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; }
-	.tile-header  {height: 50px; margin: auto}
-</style>
+<link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<div>
-	{{ range $key, $value := ._tiles.devicelist.Output.Device }}
-		{{ if or $value.HKR $value.SimpleOnOff }}
-		<div class="tile">
-			<div class="tile-header"> {{ $value.Name }} {{ if $value.Temperature }} - {{ $value.Temperature.Celsius }} {{ end }} </div>
-			{{ if $value.HKR }}
+{{$i := 0}}
+<div class="container">
+	<div class="row">
+{{ range $key, $value := ._tiles.devicelist.Output.Device }}
+	{{ if or $value.HKR $value.SimpleOnOff }}
+		{{ if divisibleBy $i 5 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
+		<div class="col">
+			<header><h4>{{ $value.Name }} {{ if $value.Temperature }} - {{ $value.Temperature.Celsius }} {{ end }} </h4></header>
+		{{ if $value.HKR }}
 			<div style="margin: auto">
 
 			<form action="/fritz/sethkrtsoll" method="GET" target="outputframe" style="display: flex; justify-content: center">
@@ -19,39 +19,44 @@
 			<form action="/fritz/sethkrtsoll" method="GET" target="outputframe">
 			<input type="hidden" name="ain" value="{{ $value.AIN }}">
 			<div style="display: flex; justify-content: center">
-			<button name="param" value="32">16°C</button>
-			<button name="param" value="38">19°C</button>
+				<button name="param" value="32">16°C</button>
+				<button name="param" value="38">19°C</button>
 			</div>
 			<div style="display: flex; justify-content: center">
-			<button name="param" value="44">22°C</button>
-			<button name="param" value="50">25°C</button>
+				<button name="param" value="44">22°C</button>
+				<button name="param" value="50">25°C</button>
 			</div>
 			</form>
 			</div>
-			{{ end}}
+		{{ end}}
 
-			{{ if $value.SimpleOnOff }}
+		{{ if $value.SimpleOnOff }}
 			<div style="margin: auto">
 
 			<form action="/fritz/setsimpleonoff"  method="GET" target="outputframe">
 			<input type="hidden" name="device" value="{{ $value.AIN }}">
 			<div style="display: flex; justify-content: center">
-			<button name="onoff" value="1">On</button>
-			<button name="onoff" value="0">Off</button>
-			<button name="onoff" value="Toggle">Toggle</button>
+				<button name="onoff" value="1">On</button>
+				<button name="onoff" value="0">Off</button>
+			</div>
+			<div style="display: flex; justify-content: center">
+				<button name="onoff" value="Toggle">Toggle</button>
 			</div>
 			</form>
 			</div>
-			{{ end}}
-		</div>
 		{{ end}}
-	{{ end }}
+		</div>
+	{{ end}}
+{{ end}}
 
-	{{ range $key, $value := ._tiles }}
+{{ range $key, $value := ._tiles }}
 	{{ if ne $key "devicelist" }}
-		<iframe name="tile-{{$key}}" class="tile" src="/graph/{{$key}}"></iframe>
+	{{ if divisibleBy $i 5 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
+		<iframe name="tile-{{$key}}" class="col" src="/graph/{{$key}}"></iframe>
 	{{end}}
-	{{end}}
+{{end}}
 
-	<iframe name="outputframe" id="outputframe" class="tile"></iframe>
-</div>
+{{ if divisibleBy $i 5 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
+		<iframe name="outputframe" id="outputframe" class="col"></iframe>
+	</div>  <!--  row -->
+</div><!--  container -->
