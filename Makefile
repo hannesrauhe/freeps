@@ -16,7 +16,7 @@ build:
 build/freepsd: build freepslisten/static_server_content/chota.min.css
 	go build -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o build/freepsd freepsd/freepsd.go
 
-build/freepsd-light: build freepslisten/static_server_content/vendor/chota.min.css
+build/freepsd-light: build freepslisten/static_server_content/chota.min.css
 	go build -tags nopostgress -tags nomuteme -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o build/freepsd-light freepsd/freepsd.go
 
 install:
