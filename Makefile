@@ -21,7 +21,7 @@ build/freepsd-light: build freepslisten/static_server_content/chota.min.css
 
 install:
 	mv build/freepsd /usr/bin/freepsd
-	adduser freeps --no-create-home --system --ingroup video
+	adduser freeps --home /usr/local/freeps --system --ingroup video
 	cp systemd/freepsd.service /etc/systemd/system/freepsd.service
 	mkdir -p /etc/freepsd && chown freeps /etc/freepsd
 	systemctl daemon-reload
