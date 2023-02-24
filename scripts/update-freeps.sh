@@ -14,7 +14,8 @@ if [ ! -d src ] ; then
 fi
 
 pushd src
-git clean -xf
+git fetch
+git clean -f
 git reset --hard HEAD
 
 BRANCH=main
