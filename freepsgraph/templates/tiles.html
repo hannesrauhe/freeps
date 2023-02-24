@@ -5,7 +5,7 @@
 	<div class="row">
 {{ range $key, $value := ._tiles.devicelist.Output.Device }}
 	{{ if or $value.HKR $value.SimpleOnOff }}
-		{{ if divisibleBy $i 5 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
+		{{ if divisibleBy $i 4 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
 		<div class="col">
 			<header><h4>{{ $value.Name }} {{ if $value.Temperature }} - {{ $value.Temperature.Celsius }} {{ end }} </h4></header>
 		{{ if $value.HKR }}
@@ -51,12 +51,12 @@
 
 {{ range $key, $value := ._tiles }}
 	{{ if ne $key "devicelist" }}
-	{{ if divisibleBy $i 5 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
+	{{ if divisibleBy $i 4 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
 		<iframe name="tile-{{$key}}" class="col" src="/graph/{{$key}}"></iframe>
 	{{end}}
 {{end}}
 
-{{ if divisibleBy $i 5 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
+{{ if divisibleBy $i 4 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
 		<iframe name="outputframe" id="outputframe" class="col"></iframe>
 	</div>  <!--  row -->
 </div><!--  container -->
