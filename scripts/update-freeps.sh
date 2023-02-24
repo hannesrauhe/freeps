@@ -14,7 +14,6 @@ if [ ! -d src ] ; then
 fi
 
 pushd src
-git fetch
 git clean -f
 git reset --hard HEAD
 
@@ -27,6 +26,7 @@ fi
 echo "Updating freeps from branch $BRANCH"
 
 git checkout $BRANCH
+git pull --ff-only
 make
 popd
 
