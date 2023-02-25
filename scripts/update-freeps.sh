@@ -30,8 +30,6 @@ git pull --ff-only
 make
 popd
 
-if [ ! -L bin ] ; then
-    ln -s src/build bin
-fi
+cp src/build/freepsd src/scripts/update-freeps.sh bin
 
 popd

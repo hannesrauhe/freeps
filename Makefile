@@ -2,6 +2,7 @@ PACKAGE=github.com/hannesrauhe/freeps
 VERSION=$(shell git describe --tags --always --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*' 2> /dev/null | sed 's/^.//')
 COMMIT_HASH=$(shell git rev-parse --short HEAD)
 BUILD_TIMESTAMP=$(shell date '+%Y-%m-%dT%H:%M:%S')
+INSTALL_PREFIX=/usr/local
 
 .PHONY: build/freepsd build/freepsd-light
 
@@ -19,10 +20,15 @@ build/freepsd: build freepslisten/static_server_content/chota.min.css
 build/freepsd-light: build freepslisten/static_server_content/chota.min.css
 	go build -tags nopostgress -tags nomuteme -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -o build/freepsd-light freepsd/freepsd.go
 
+# if you are reading this to learn how freepsd is deployed: freepsd runs without any additional libraries. Just run it.
+# this just creates a user and a srevice and an optional update-script
 install:
-	mv build/freepsd /usr/bin/freepsd
-	adduser freeps --home /usr/local/freeps --system --ingroup video
+	adduser freeps --home ${INSTALL_PREFIX}/freeps --system --ingroup video
 	cp systemd/freepsd.service /etc/systemd/system/freepsd.service
 	mkdir -p /etc/freepsd && chown freeps /etc/freepsd
+	mkdir -p ${INSTALL_PREFIX}/freeps/bin
+	mv build/freepsd scripts/update-freeps.sh ${INSTALL_PREFIX}/freeps/bin/
+	chown -R freeps ${INSTALL_PREFIX}/freeps
+	ln -s ${INSTALL_PREFIX}/freeps/bin/freepsd /usr/bin
 	systemctl daemon-reload
 	systemctl restart freepsd
