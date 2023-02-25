@@ -1,32 +1,37 @@
+<link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<form method="GET" action="/graph/storeUI">
-    <label>
+<div class="container">
+<form method="GET" action="/graph/storeUI"  class="row">
+    <div class="col">
         Namespace: <input type="text" value="{{$.namespace}}" name="namespace">
-    </label>
-    <label>
+    </div>
+    <div class="col">
         Key: <input type="text" value="{{$.key}}" name="key">
-    </label>
-    <label>
+    </div>
+    <div class="col">
         Value: <input type="text" value="{{$.value}}" name="value">
-    </label>
-    <label>
+    </div>
+    <div class="col">
         ModifiedByPattern: <input type="text" value="{{$.modifiedBy}}" name="modifiedBy">
-    </label>
-    <label>
+    </div>
+    <div class="col">
         MinAge: <input type="text" value="{{$.minAge}}" name="minAge">
-    </label>
-    <label>
+    </div>
+    <div class="col">
         MaxAge: <input type="text" value="{{$.maxAge}}" name="maxAge">
-    </label>
-    <button>Submit</button>
-    <button formaction="/store/setSimpleValue" formtarget="_blank">New Entry</button>
+    </div>
+    <div class="col">
+        <button>Submit</button>
+        <button formaction="/store/setSimpleValue" formtarget="_blank">New Entry</button>
+    </div>
 </form>
+</div>
 
 <table>
     <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>
 {{ range $key, $entry := .storeHierarchy }}
-<tr><td><a href="/store/del?namespace={{$.namespace}}&key={{$key}}" target="_blank">x</a></td><td>{{$key}}</td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
+<tr><td><a href="/store/del?namespace={{$.namespace}}&key={{$key}}" class="button" target="_blank">x</a></td><td>{{$key}}</td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
     <td><a href="/graph/executionLog?key={{$entry.ModifiedBy}}&maxAge=&minAge=">{{$entry.ModifiedBy}}</a></td></tr>
 {{ end }}
 </table>
