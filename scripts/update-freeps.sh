@@ -25,11 +25,13 @@ elif git rev-parse --is-inside-work-tree ; then
 fi
 echo "Updating freeps from branch $BRANCH"
 
+git fetch --all
 git checkout $BRANCH
 git pull --ff-only
 make
 popd
 
+mkdir -p bin
 cp src/build/freepsd src/scripts/update-freeps.sh bin
 
 popd
