@@ -31,6 +31,7 @@ git pull --ff-only
 make
 popd
 
+mkdir -p bin
 cp src/build/freepsd src/scripts/update-freeps.sh bin
 
 popd
