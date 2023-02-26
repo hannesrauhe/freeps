@@ -68,12 +68,14 @@ func (o *OpCurl) Execute(ctx *utils.Context, function string, vars map[string]st
 		}
 		return &OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: Byte, ContentType: resp.Header.Get("Content-Type")}
 	}
+	// sanitize outputFile:
+	outputFile = path.Base(outputFile)
 	dir, err := utils.GetTempDir()
 	if err != nil {
 		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	var dstFile *os.File
-	if outputFile == "" {
+	if outputFile == "" || outputFile == "/" || outputFile == "." {
 		extensions, _ := mime.ExtensionsByType(resp.Header.Get("Content-Type"))
 		ext := ""
 		if len(extensions) > 0 {

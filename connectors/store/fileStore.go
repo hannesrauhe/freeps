@@ -1,5 +1,3 @@
-//go:build !nopostgress
-
 package freepsstore
 
 import (
@@ -130,11 +128,11 @@ func (p *fileStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
 }
 
 func (p *fileStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
 func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *freepsgraph.OperatorIO, maxAge time.Duration, modifiedBy string) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
 func (p *fileStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error {
