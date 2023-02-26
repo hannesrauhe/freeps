@@ -504,8 +504,11 @@ func (o *OpUI) simpleTile(vars map[string]string, input *OperatorIO, ctx *utils.
 			}
 		}
 	}
-	templateName := `simpleTile.html`
-	templateName, _ = vars["templateName"]
+
+	templateName, ok := vars["templateName"]
+	if !ok {
+		templateName = "simpleTile.html"
+	}
 	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), false)
 }
 
