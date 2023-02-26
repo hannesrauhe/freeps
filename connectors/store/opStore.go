@@ -33,6 +33,11 @@ func NewOpStore(cr *utils.ConfigReader) *OpStore {
 			logrus.Fatal(err)
 		}
 	}
+	fns, err := newFileStoreNamespace()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	store.namespaces["_files"] = fns
 
 	cr.WriteBackConfigIfChanged()
 	if err != nil {

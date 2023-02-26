@@ -75,8 +75,12 @@ func makeArgs(argsmap map[string]string) []string {
 
 func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	args := makeArgs(argsmap)
-
+	var err error
 	e := exec.Command(o.Path, args...)
+	e.Dir, err = utils.GetTempDir()
+	if err != nil {
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Cannot set working dir: %v", err.Error())
+	}
 	if !input.IsEmpty() {
 		stdin, err := e.StdinPipe()
 		if err != nil {
@@ -97,7 +101,7 @@ func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *f
 	byt, err := e.CombinedOutput()
 
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v", o.name, err.Error())
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v\n%q\n", o.name, err.Error(), byt)
 	}
 
 	return freepsgraph.MakeByteOutputWithContentType(byt, o.OutputContentType)
