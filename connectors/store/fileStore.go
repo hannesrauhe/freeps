@@ -46,7 +46,11 @@ func (p *fileStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 }
 
 func (p *fileStoreNamespace) DeleteValue(key string) {
-	panic("not implemented") // TODO: Implement
+	path, err := p.getFilePath(key)
+	if err != nil {
+		return
+	}
+	os.Remove(path)
 }
 
 func (p *fileStoreNamespace) GetAllValues() map[string]*freepsgraph.OperatorIO {
