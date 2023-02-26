@@ -1,10 +1,28 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<form method="post">
-  <header><h4>{{ .status }}</h4></header>
-	{{range $key, $value := .buttons}}
-    <button name="{{$key}}" value="{{$value}}" class={{if eq $.status_error $key}} "button error" {{else if eq $.status_ok $key}}"button success" {{else}} "button" {{end}}>{{$key}}</button>
-    {{end}}
+<header><h4>{{ .status }}</h4></header>
+{{range $text, $execute := .buttons}}
+<form method="post" style="display:inline">
+  <input type="hidden" name="ExecuteGraph" value="{{$execute}}" >
+  <button name="{{$text}}" value="{{$execute}}" class={{if eq $.status_error $execute}} "button error" {{else if eq $.status_ok $execute}}"button success" {{else}} "button" {{end}}>{{$text}}</button>
 </form>
+{{end}}
+
+<!-- grid looks to wide
+
+<div class="container">
+  <header><h4>{{ $.status }}</h4></header>
+  <div class="row">
+  {{range $text, $execute := .buttons}}
+  <div class="col">
+  <form method="post" style="display: inline;">
+    <button name="{{$text}}" value="{{$execute}}" class={{if eq $.status_error $text}} "button error" {{else if eq $.status_ok $text}}"button success" {{else}} "button" {{end}}>{{$text}}</button>
+  </form>
+  </div>
+  {{end}}
+
+  </div>
 </div>
+
+-->

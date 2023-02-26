@@ -485,6 +485,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *OperatorIO, ctx *utils.
 	}
 
 	tdata["buttons"] = buttons
+	tdata["input"] = input.Output
 	tdata["status"] = vars["header"]
 	tdata["status_error"] = ""
 	tdata["status_ok"] = ""
@@ -493,19 +494,19 @@ func (o *OpUI) simpleTile(vars map[string]string, input *OperatorIO, ctx *utils.
 		if err != nil {
 			return MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 		}
-		for k, _ := range utils.URLArgsToMap(formdata) {
-			graphName := vars[buttonPrefix+k]
-			if graphName != "" {
-				out := o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), MakeEmptyOutput())
-				if out.IsError() {
-					tdata["status_error"] = k
-				} else {
-					tdata["status_ok"] = k
-				}
+		graphName := formdata.Get("ExecuteGraph")
+		if graphName != "" {
+			out := o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), MakeEmptyOutput())
+			if out.IsError() {
+				tdata["status_error"] = graphName
+			} else {
+				tdata["status_ok"] = graphName
 			}
 		}
 	}
-	return o.createOutput(`simpleTile.html`, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), false)
+	templateName := `simpleTile.html`
+	templateName, _ = vars["templateName"]
+	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), false)
 }
 
 func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
@@ -569,7 +570,7 @@ func (o *OpUI) GetPossibleArgs(fn string) []string {
 	case "editTemplate", "deleteTemplate":
 		return []string{"templateName"}
 	case "simpleTile":
-		return []string{"header", "button_On", "button_Off"}
+		return []string{"header", "button_On", "button_Off", "templateName"}
 	}
 	return []string{"noFooter"}
 }
