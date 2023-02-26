@@ -141,7 +141,7 @@ func (p *fileStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, mo
 		return err
 	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}

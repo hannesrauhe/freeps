@@ -50,6 +50,11 @@ func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 			return MakePlainOutput(m)
 		}
 		return MakeEmptyOutput()
+	case "hasInput":
+		if input.IsEmpty() {
+			return MakeOutputError(http.StatusBadRequest, "Expected input")
+		}
+		return input
 	case "formToJSON":
 		o, err := input.ParseFormData()
 		if err != nil {
