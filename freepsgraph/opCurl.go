@@ -3,8 +3,11 @@ package freepsgraph
 import (
 	"bytes"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
+	"os"
+	"path"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -56,8 +59,42 @@ func (o *OpCurl) Execute(ctx *utils.Context, function string, vars map[string]st
 		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	defer resp.Body.Close()
-	b, err := io.ReadAll(resp.Body)
-	return &OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: Byte, ContentType: resp.Header.Get("Content-Type")}
+
+	outputFile, WriteToFile := vars["file"]
+	if !WriteToFile {
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		}
+		return &OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: Byte, ContentType: resp.Header.Get("Content-Type")}
+	}
+	// sanitize outputFile:
+	outputFile = path.Base(outputFile)
+	dir, err := utils.GetTempDir()
+	if err != nil {
+		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+	}
+	var dstFile *os.File
+	if outputFile == "" || outputFile == "/" || outputFile == "." {
+		extensions, _ := mime.ExtensionsByType(resp.Header.Get("Content-Type"))
+		ext := ""
+		if len(extensions) > 0 {
+			ext = extensions[0]
+		}
+		dstFile, err = os.CreateTemp(dir, "freeps-opcurl*"+ext)
+	} else {
+		dstFile, err = os.OpenFile(path.Join(dir, outputFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	}
+	if err != nil {
+		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+	}
+	r := map[string]interface{}{}
+	r["size"], err = io.Copy(dstFile, resp.Body)
+	if err != nil {
+		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+	}
+	r["name"] = path.Base(dstFile.Name())
+	return MakeObjectOutput(r)
 }
 
 func (o *OpCurl) GetFunctions() []string {
