@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -73,9 +74,9 @@ func makeArgs(argsmap map[string]string) []string {
 	return args
 }
 
-func (o *OpExec) execBin(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
-	args := makeArgs(argsmap)
+func (o *OpExec) execBin(ctx *utils.Context, args []string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
+
 	e := exec.Command(o.Path, args...)
 	e.Dir, err = utils.GetTempDir()
 	if err != nil {
@@ -173,9 +174,14 @@ func (o *OpExec) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 
 	switch fn {
 	case "do", "run":
-		return o.execBin(ctx, argsmap, input)
+		args := makeArgs(argsmap)
+		return o.execBin(ctx, args, input)
 	case "doNoDefaultArgs", "runWithoutDefaultArgs":
-		return o.execBin(ctx, vars, input)
+		args := makeArgs(vars)
+		return o.execBin(ctx, args, input)
+	case "runSingleArgString":
+		args := strings.Split(vars["argString"], " ")
+		return o.execBin(ctx, args, input)
 	case "runInBackground":
 		return o.runInBackground(ctx, argsmap, input)
 	case "stopBackgroundProcess":
@@ -187,13 +193,16 @@ func (o *OpExec) Execute(ctx *utils.Context, fn string, vars map[string]string, 
 
 // GetFunctions returns functions representing how to execute bin
 func (o *OpExec) GetFunctions() []string {
-	ret := []string{"run", "runWithoutDefaultArgs", "runInBackground", "stopBackgroundProcess"}
+	ret := []string{"run", "runSingleArgString", "runWithoutDefaultArgs", "runInBackground", "stopBackgroundProcess"}
 	return ret
 }
 
 // GetPossibleArgs returns possible command line arguments
 func (o *OpExec) GetPossibleArgs(fn string) []string {
 	ret := []string{}
+	if fn == "runSingleArgString" {
+		return []string{"argString"}
+	}
 	for k := range o.AvailableArguments {
 		ret = append(ret, k)
 	}
