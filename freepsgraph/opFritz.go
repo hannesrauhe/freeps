@@ -78,6 +78,14 @@ func (m *OpFritz) Execute(ctx *utils.Context, mixedCaseFn string, vars map[strin
 			}
 			return MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
+	case "getdevicemap":
+		{
+			devl, err := m.GetDeviceMap()
+			if err == nil {
+				return MakeObjectOutput(devl)
+			}
+			return MakeOutputError(http.StatusInternalServerError, err.Error())
+		}
 	case "getdeviceinfos":
 		{
 			devObject, err := m.GetDeviceByAIN(dev)
@@ -136,7 +144,7 @@ func (m *OpFritz) GetFunctions() []string {
 	for k := range swc {
 		fn = append(fn, k)
 	}
-	fn = append(fn, "upnp", "getdata", "wakeup", "getmetrics", "getdevices", "gettemplates")
+	fn = append(fn, "upnp", "getdata", "wakeup", "getmetrics", "getdevices", "getdevicemap", "gettemplates")
 	sort.Strings(fn)
 	return fn
 }
@@ -241,6 +249,19 @@ func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
 		}
 	}
 	return nil, fmt.Errorf("Device with AIN \"%v\" not found", AIN)
+}
+
+// GetDeviceMap returns all devices by AIN
+func (m *OpFritz) GetDeviceMap() (map[string]freepslib.AvmDevice, error) {
+	devl, err := m.getDeviceList()
+	if devl == nil || err != nil {
+		return nil, err
+	}
+	r := map[string]freepslib.AvmDevice{}
+	for _, dev := range devl.Device {
+		r[dev.AIN] = dev
+	}
+	return r, nil
 }
 
 // getDeviceList retrieves the devicelist and caches
