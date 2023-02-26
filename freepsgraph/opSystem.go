@@ -104,7 +104,7 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 			s, err = memory.Get()
 		case "network":
 			s, err = network.Get()
-		case "uptime ":
+		case "uptime":
 			s, err = uptime.Get()
 		default:
 			return MakeOutputError(http.StatusBadRequest, "unknown statType: "+args["statType"])
@@ -118,7 +118,7 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "deleteGraph"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
