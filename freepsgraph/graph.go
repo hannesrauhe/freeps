@@ -83,6 +83,11 @@ func NewGraph(ctx *base.Context, name string, origGraphDesc *GraphDesc, ge *Grap
 	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
 }
 
+// GetCompleteDesc returns the GraphDesc that was sanitized and completed when creating the graph
+func (g *Graph) GetCompleteDesc() *GraphDesc {
+	return g.desc
+}
+
 func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	ctx.IncreaseNesting()
 	defer ctx.DecreaseNesting()
@@ -195,24 +200,4 @@ func (gop *GraphOperationDesc) ToQuicklink() string {
 		s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
 	}
 	return s.String()
-}
-
-// HasTags return true if the GraphDesc contains all given tags
-func (gd *GraphDesc) HasTags(expectedTags []string) bool {
-	if expectedTags == nil && len(expectedTags) == 0 {
-		return true
-	}
-
-	for _, exexpectedTag := range expectedTags {
-		found := false
-		for _, tag := range gd.Tags {
-			if tag == exexpectedTag {
-				found = true
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
 }
