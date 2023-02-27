@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
-	"github.com/hannesrauhe/freeps/utils"
+	"github.com/hannesrauhe/freeps/base"
 )
 
 const ROOT_SYMBOL = "_"
@@ -16,14 +15,14 @@ const ROOT_SYMBOL = "_"
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
 	name      string
-	context   *utils.Context
+	context   *base.Context
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*OperatorIO
 }
 
 // NewGraph creates a new graph from a graph description
-func NewGraph(ctx *utils.Context, name string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
+func NewGraph(ctx *base.Context, name string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 	if ge == nil {
 		return nil, errors.New("GraphEngine not set")
 	}
@@ -84,7 +83,7 @@ func NewGraph(ctx *utils.Context, name string, origGraphDesc *GraphDesc, ge *Gra
 	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
 }
 
-func (g *Graph) execute(ctx *utils.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	ctx.IncreaseNesting()
 	defer ctx.DecreaseNesting()
 	g.opOutputs[ROOT_SYMBOL] = mainInput
@@ -111,7 +110,7 @@ func (g *Graph) collectAndReturnOperationError(input *OperatorIO, opDesc *GraphO
 	return error
 }
 
-func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
+func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
 	logger := ctx.GetLogger()
 	input := MakeEmptyOutput()
 	if originalOpDesc.InputFrom != "" {
@@ -171,13 +170,12 @@ func (g *Graph) executeOperation(ctx *utils.Context, originalOpDesc *GraphOperat
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
-		t := time.Now()
+		opI := ctx.RecordOperationStart(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
 			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
 		}
-
-		ctx.RecordFinishedOperation(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, t, output.HTTPCode)
+		ctx.RecordOperationFinish(opI, output.HTTPCode)
 		return output
 	}
 	return g.collectAndReturnOperationError(input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)

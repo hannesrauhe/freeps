@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/jeremywohl/flatten"
 )
@@ -43,7 +44,7 @@ func (o *OpEval) GetName() string {
 	return "eval"
 }
 
-func (m *OpEval) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Execute(ctx *base.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "echo":
 		if m, ok := vars["output"]; ok {
@@ -331,7 +332,7 @@ func (m *OpEval) Split(argsmap map[string]string, input *OperatorIO) *OperatorIO
 }
 
 // Shutdown (noOp)
-func (o *OpEval) Shutdown(ctx *utils.Context) {
+func (o *OpEval) Shutdown(ctx *base.Context) {
 }
 
 func parseIntOrReturnDirectly(v interface{}) (int, error) {

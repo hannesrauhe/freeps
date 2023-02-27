@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
@@ -74,7 +75,7 @@ func makeArgs(argsmap map[string]string) []string {
 	return args
 }
 
-func (o *OpExec) execBin(ctx *utils.Context, args []string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpExec) execBin(ctx *base.Context, args []string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
 
 	e := exec.Command(o.Path, args...)
@@ -108,7 +109,7 @@ func (o *OpExec) execBin(ctx *utils.Context, args []string, input *freepsgraph.O
 	return freepsgraph.MakeByteOutputWithContentType(byt, o.OutputContentType)
 }
 
-func (o *OpExec) runInBackground(ctx *utils.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpExec) runInBackground(ctx *base.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	o.processLock.Lock()
 	defer o.processLock.Unlock()
 
@@ -141,7 +142,7 @@ func (o *OpExec) runInBackground(ctx *utils.Context, argsmap map[string]string, 
 	return freepsgraph.MakeEmptyOutput()
 }
 
-func (o *OpExec) stopBackground(ctx *utils.Context) *freepsgraph.OperatorIO {
+func (o *OpExec) stopBackground(ctx *base.Context) *freepsgraph.OperatorIO {
 	o.processLock.Lock()
 	defer o.processLock.Unlock()
 
@@ -162,7 +163,7 @@ func (o *OpExec) stopBackground(ctx *utils.Context) *freepsgraph.OperatorIO {
 }
 
 // Execute executes the binary
-func (o *OpExec) Execute(ctx *utils.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpExec) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 
 	argsmap := map[string]string{}
 	for k, v := range o.DefaultArguments {
@@ -224,7 +225,7 @@ func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 }
 
 // Shutdown (noOp)
-func (o *OpExec) Shutdown(ctx *utils.Context) {
+func (o *OpExec) Shutdown(ctx *base.Context) {
 	o.stopBackground(ctx)
 }
 

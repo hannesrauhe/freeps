@@ -5,6 +5,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -21,7 +22,7 @@ func (*MockOperator) GetName() string {
 	return "mock"
 }
 
-func (*MockOperator) Execute(ctx *utils.Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (*MockOperator) Execute(ctx *base.Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	return mainInput
 }
 
@@ -38,7 +39,7 @@ func (*MockOperator) GetArgSuggestions(fn string, arg string, otherArgs map[stri
 }
 
 // Shutdown (noOp)
-func (*MockOperator) Shutdown(ctx *utils.Context) {
+func (*MockOperator) Shutdown(ctx *base.Context) {
 }
 
 var _ FreepsOperator = &MockOperator{}
@@ -46,7 +47,7 @@ var _ FreepsOperator = &MockOperator{}
 var validGraph = GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval", Function: "echo"}}}
 
 func TestOperatorErrorChain(t *testing.T) {
-	ctx := utils.NewContext(log.StandardLogger())
+	ctx := base.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
 	ge.temporaryGraphs["test"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
@@ -66,7 +67,7 @@ func TestOperatorErrorChain(t *testing.T) {
 }
 
 func TestCheckGraph(t *testing.T) {
-	ctx := utils.NewContext(log.StandardLogger())
+	ctx := base.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
 	ge.temporaryGraphs["test_noinput"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
@@ -182,34 +183,34 @@ func TestGraphExecution(t *testing.T) {
 	ge := NewGraphEngine(cr, func() {})
 
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"not"}, make(map[string]string), MakeEmptyOutput()),
+		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"not"}, make(map[string]string), MakeEmptyOutput()),
 		404, nil)
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{}, make(map[string]string), MakeEmptyOutput()),
+		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{}, make(map[string]string), MakeEmptyOutput()),
 		400, nil)
 
 	g1 := validGraph
 	g1.Tags = []string{"t1"}
 	ge.AddExternalGraph("test1", &g1, "")
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
+		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{})
 
 	g2 := validGraph
 	g2.Tags = []string{"t1"}
 	ge.AddExternalGraph("test2", &g2, "")
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
+		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{"test1", "test2"})
 
 	g3 := validGraph
 	g3.Tags = []string{"t1", "t2"}
 	ge.AddExternalGraph("test3", &g3, "foo.json")
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
+		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{"test1", "test2", "test3"})
 	expectOutput(t,
-		ge.ExecuteGraphByTags(utils.NewContext(log.StandardLogger()), []string{"t1", "t2"}, make(map[string]string), MakeEmptyOutput()),
+		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1", "t2"}, make(map[string]string), MakeEmptyOutput()),
 		200, []string{})
 
 	g4 := validGraph
@@ -218,6 +219,6 @@ func TestGraphExecution(t *testing.T) {
 
 	// test the operator once
 	expectOutput(t,
-		ge.ExecuteOperatorByName(utils.NewContext(log.StandardLogger()), "graphbytag", "t4", map[string]string{}, MakeEmptyOutput()),
+		ge.ExecuteOperatorByName(base.NewContext(log.StandardLogger()), "graphbytag", "t4", map[string]string{}, MakeEmptyOutput()),
 		200, []string{})
 }

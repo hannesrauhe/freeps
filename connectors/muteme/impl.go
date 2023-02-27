@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	logrus "github.com/sirupsen/logrus"
@@ -133,7 +134,7 @@ func (m *MuteMeImpl) mainloop() {
 				}
 				args["TouchDuration"] = lastTouchDuration.String()
 			}
-			resultIO := m.ge.ExecuteGraphByTags(utils.NewContext(m.logger), tags, args, freepsgraph.MakeEmptyOutput())
+			resultIO := m.ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, freepsgraph.MakeEmptyOutput())
 			ignoreUntil = time.Now().Add(time.Second)
 			m.logger.Debugf("Muteme touched, result: %v", resultIO)
 			resultIndicatorColor := m.config.SuccessColor

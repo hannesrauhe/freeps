@@ -8,6 +8,7 @@ import (
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -27,7 +28,7 @@ func (o *OpMQTT) GetName() string {
 	return "mqtt"
 }
 
-func (o *OpMQTT) Execute(ctx *utils.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpMQTT) Execute(ctx *base.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	switch fn {
 	case "publish":
 		topic, ok := args["topic"]
@@ -88,7 +89,7 @@ func (o *OpMQTT) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 }
 
 // Shutdown (noOp)
-func (o *OpMQTT) Shutdown(ctx *utils.Context) {
+func (o *OpMQTT) Shutdown(ctx *base.Context) {
 }
 
 // publish on a new connection to a defined server

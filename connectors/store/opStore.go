@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -53,7 +54,7 @@ func (o *OpStore) GetName() string {
 }
 
 // Execute everything in a single spaghetti - needs cleanup
-func (o *OpStore) Execute(ctx *utils.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	if fn == "getNamespaces" {
 		return freepsgraph.MakeObjectOutput(store.GetNamespaces())
 	}
@@ -345,5 +346,5 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 }
 
 // Shutdown (noOp)
-func (o *OpStore) Shutdown(ctx *utils.Context) {
+func (o *OpStore) Shutdown(ctx *base.Context) {
 }

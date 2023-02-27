@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/gorilla/mux"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -81,7 +82,7 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		mainArgs["device"] = device
 	}
 
-	ctx := utils.NewContext(httplogger)
+	ctx := base.NewContext(httplogger)
 	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	opio.Log(httplogger)
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -22,7 +23,7 @@ func (o *OpCurl) GetName() string {
 	return "curl"
 }
 
-func (o *OpCurl) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	c := http.Client{}
 
 	var resp *http.Response
@@ -110,5 +111,5 @@ func (o *OpCurl) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 }
 
 // Shutdown (noOp)
-func (o *OpCurl) Shutdown(ctx *utils.Context) {
+func (o *OpCurl) Shutdown(ctx *base.Context) {
 }

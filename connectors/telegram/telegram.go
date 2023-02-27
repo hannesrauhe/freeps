@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -292,7 +293,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	}
 
 	if tcr.F {
-		ctx := utils.NewContext(telelogger)
+		ctx := base.NewContext(telelogger)
 		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
 		byt, err := io.GetBytes()
 		if err != nil {

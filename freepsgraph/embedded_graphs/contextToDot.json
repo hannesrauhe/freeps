@@ -1,0 +1,29 @@
+{
+    "Tags": [
+        "system",
+        "ui"
+    ],
+    "OutputFrom": "#2",
+    "Operations": [
+        {
+            "Operator": "store",
+            "Function": "get",
+            "Arguments":
+            {
+                "output": "direct"
+            }
+        },
+        {
+            "Operator": "system",
+            "Function": "contextToDot",
+            "ignoreMainArgs": true,
+            "InputFrom": "#0"
+        },
+        {
+            "Operator": "graphviz",
+            "Function": "run",
+            "ignoreMainArgs": true,
+            "InputFrom": "#1"
+        }
+    ]
+}
