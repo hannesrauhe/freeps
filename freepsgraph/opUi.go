@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 	log "github.com/sirupsen/logrus"
@@ -453,7 +454,7 @@ func (o *OpUI) editTemplate(vars map[string]string, input *OperatorIO, logger *l
 	return o.createTemplate(`edittemplate.html`, tdata, logger)
 }
 
-func (o *OpUI) Execute(ctx *utils.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	stdlogger := log.StandardLogger()
 	logger := stdlogger.WithField("component", "UI")
 
@@ -512,5 +513,5 @@ func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]str
 }
 
 // Shutdown (noOp)
-func (o *OpUI) Shutdown(ctx *utils.Context) {
+func (o *OpUI) Shutdown(ctx *base.Context) {
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hannesrauhe/freeps/utils"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/mackerelio/go-osstat/disk"
 	"github.com/mackerelio/go-osstat/loadavg"
@@ -31,7 +31,7 @@ func (o *OpSystem) GetName() string {
 	return "system"
 }
 
-func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	switch fn {
 	case "stop", "shutdown":
 		o.ge.reloadRequested = false
@@ -91,7 +91,7 @@ func (o *OpSystem) Execute(ctx *utils.Context, fn string, args map[string]string
 		return MakeObjectOutput(r)
 
 	case "contextToDot":
-		var iCtx utils.ContextNoTime
+		var iCtx base.ContextNoTime
 		if input.IsEmpty() {
 			return MakeOutputError(http.StatusBadRequest, "No context to parse")
 		}
@@ -202,5 +202,5 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 }
 
 // Shutdown (noOp)
-func (o *OpSystem) Shutdown(ctx *utils.Context) {
+func (o *OpSystem) Shutdown(ctx *base.Context) {
 }

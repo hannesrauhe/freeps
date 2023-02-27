@@ -6,6 +6,7 @@ import (
 	"path"
 
 	owm "github.com/briandowns/openweathermap"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -44,7 +45,7 @@ func (o OpWeather) GetName() string {
 	return "weather"
 }
 
-func (o OpWeather) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o OpWeather) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
 	err := utils.ArgsMapToObject(vars, &o.conf)
 	if err != nil {
 		return MakeOutputError(http.StatusBadRequest, err.Error())
@@ -97,5 +98,5 @@ func (o OpWeather) GetArgSuggestions(fn string, arg string, otherArgs map[string
 }
 
 // Shutdown (noOp)
-func (o OpWeather) Shutdown(ctx *utils.Context) {
+func (o OpWeather) Shutdown(ctx *base.Context) {
 }

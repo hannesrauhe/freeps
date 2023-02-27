@@ -11,6 +11,7 @@ import (
 
 	logrus "github.com/sirupsen/logrus"
 
+	"github.com/hannesrauhe/freeps/base"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
@@ -125,7 +126,7 @@ func main() {
 				}
 				oio = freepsgraph.MakeByteOutput(content)
 			}
-			output := ge.ExecuteOperatorByName(utils.NewContext(logger), mod, fn, utils.URLArgsToMap(args), oio)
+			output := ge.ExecuteOperatorByName(base.NewContext(logger), mod, fn, utils.URLArgsToMap(args), oio)
 			output.WriteTo(os.Stdout)
 			return
 		}
@@ -151,7 +152,7 @@ func main() {
 			mm.Shutdown()
 		}
 		running = ge.ReloadRequested()
-		ge.Shutdown(utils.NewContext(logger))
+		ge.Shutdown(base.NewContext(logger))
 		logger.Printf("Stopping Listeners")
 	}
 }

@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -21,12 +22,12 @@ func (h *HookMQTT) GetName() string {
 }
 
 // OnExecute does nothing
-func (h *HookMQTT) OnExecute(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h *HookMQTT) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
 	return nil
 }
 
 // OnExecutionFinished does nothing
-func (h *HookMQTT) OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h *HookMQTT) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
 	return nil
 }
 

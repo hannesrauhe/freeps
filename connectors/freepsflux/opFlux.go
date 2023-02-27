@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
@@ -47,7 +48,7 @@ func (o *OpFlux) GetName() string {
 	return "flux"
 }
 
-func (o *OpFlux) Execute(ctx *utils.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpFlux) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
 	switch fn {
 	case "pushfields":
@@ -169,5 +170,5 @@ func (o *OpFlux) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 }
 
 // Shutdown (noOp)
-func (o *OpFlux) Shutdown(ctx *utils.Context) {
+func (o *OpFlux) Shutdown(ctx *base.Context) {
 }

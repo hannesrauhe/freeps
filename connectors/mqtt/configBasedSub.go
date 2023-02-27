@@ -5,8 +5,8 @@ package mqtt
 import (
 	"strings"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -79,7 +79,7 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 			fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 		}
 	}
-	ctx := utils.NewContext(fm.mqttlogger)
+	ctx := base.NewContext(fm.mqttlogger)
 	out := fm.ge.ExecuteGraph(ctx, graphName, map[string]string{"topic": topic}, input)
 	fm.publishResult(topic, ctx, out)
 }

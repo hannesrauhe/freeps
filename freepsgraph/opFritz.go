@@ -8,6 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
@@ -41,7 +42,7 @@ func (o *OpFritz) GetName() string {
 	return "fritz"
 }
 
-func (m *OpFritz) Execute(ctx *utils.Context, mixedCaseFn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *OperatorIO) *OperatorIO {
 	dev := vars["device"]
 	fn := strings.ToLower(mixedCaseFn)
 
@@ -293,5 +294,5 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 }
 
 // Shutdown (noOp)
-func (o *OpFritz) Shutdown(ctx *utils.Context) {
+func (o *OpFritz) Shutdown(ctx *base.Context) {
 }
