@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -115,7 +116,7 @@ func (ge *GraphEngine) ReloadRequested() bool {
 }
 
 // ExecuteGraph executes a graph stored in the engine
-func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	g, o := ge.prepareGraphExecution(ctx, graphName, true)
 	if g == nil {
 		return o
@@ -126,7 +127,7 @@ func (ge *GraphEngine) ExecuteGraph(ctx *utils.Context, graphName string, mainAr
 }
 
 // ExecuteOperatorByName executes an operator directly
-func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
 	g, err := NewGraph(ctx, name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
 	if err != nil {
@@ -138,7 +139,7 @@ func (ge *GraphEngine) ExecuteOperatorByName(ctx *utils.Context, opName string, 
 }
 
 // ExecuteGraphByTags executes graphs with given tags
-func (ge *GraphEngine) ExecuteGraphByTags(ctx *utils.Context, tags []string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args map[string]string, input *OperatorIO) *OperatorIO {
 	if tags == nil || len(tags) == 0 {
 		return MakeOutputError(http.StatusBadRequest, "No tags given")
 	}
@@ -181,7 +182,7 @@ func (ge *GraphEngine) getGraphInfoUnlocked(graphName string) (*GraphInfo, bool)
 	return nil, false
 }
 
-func (ge *GraphEngine) prepareGraphExecution(ctx *utils.Context, graphName string, countExecution bool) (*Graph, *OperatorIO) {
+func (ge *GraphEngine) prepareGraphExecution(ctx *base.Context, graphName string, countExecution bool) (*Graph, *OperatorIO) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	gi, exists := ge.getGraphInfoUnlocked(graphName)
@@ -320,7 +321,7 @@ func (ge *GraphEngine) AddHook(h FreepsHook) {
 }
 
 // TriggerOnExecuteHooks adds a hook to the graph engine
-func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
 	ge.hookLock.Lock()
 	defer ge.hookLock.Unlock()
 
@@ -336,7 +337,7 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *utils.Context, graphName strin
 }
 
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
-func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
 	ge.hookLock.Lock()
 	defer ge.hookLock.Unlock()
 
@@ -522,7 +523,7 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 }
 
 // Shutdown should be called for graceful shutdown
-func (ge *GraphEngine) Shutdown(ctx *utils.Context) {
+func (ge *GraphEngine) Shutdown(ctx *base.Context) {
 	for _, h := range ge.hooks {
 		if h != nil {
 			h.Shutdown()

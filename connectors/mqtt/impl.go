@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
@@ -37,7 +38,7 @@ type FreepsMqttConfig struct {
 
 var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 
-func (fm *FreepsMqttImpl) publishResult(topic string, ctx *utils.Context, out *freepsgraph.OperatorIO) {
+func (fm *FreepsMqttImpl) publishResult(topic string, ctx *base.Context, out *freepsgraph.OperatorIO) {
 	if fm.Config.ResultTopic == "" {
 		return
 	}
@@ -67,7 +68,7 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 		return
 	}
 	input := freepsgraph.MakeObjectOutput(message.Payload())
-	ctx := utils.NewContext(fm.mqttlogger)
+	ctx := base.NewContext(fm.mqttlogger)
 	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
 	fm.publishResult(message.Topic(), ctx, out)
 }
@@ -119,7 +120,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 		// build the slice here so we don't run into https://go.dev/doc/faq#closures_and_goroutines
 		tags := []string{"mqtt", "topic:" + topic}
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-			ctx := utils.NewContext(fm.mqttlogger)
+			ctx := base.NewContext(fm.mqttlogger)
 			input := freepsgraph.MakeByteOutput(message.Payload())
 			out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"topic": message.Topic(), "subscription": tags[1]}, input)
 			fm.publishResult(topic, ctx, out)

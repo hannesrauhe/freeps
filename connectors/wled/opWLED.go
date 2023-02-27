@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -32,7 +33,7 @@ func (o *OpWLED) GetName() string {
 	return "wled"
 }
 
-func (o *OpWLED) Execute(ctx *utils.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	var err error
 
 	activeConnection := o.config.DefaultConnection
@@ -280,5 +281,5 @@ func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
 }
 
 // Shutdown (noOp)
-func (o *OpWLED) Shutdown(ctx *utils.Context) {
+func (o *OpWLED) Shutdown(ctx *base.Context) {
 }

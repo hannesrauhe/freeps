@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/capossele/GoGraphviz/graphviz"
-	"github.com/hannesrauhe/freeps/utils"
+	"github.com/hannesrauhe/freeps/base"
 )
 
-func (g *Graph) toDot(ctx *utils.Context, G *graphviz.Graph, nameIDMap map[string]int, mainInputID int) {
+func (g *Graph) toDot(ctx *base.Context, G *graphviz.Graph, nameIDMap map[string]int, mainInputID int) {
 	for _, v := range g.desc.Operations {
 		nodename := strings.Join([]string{g.name, v.Name}, ".")
 		for true {
@@ -52,7 +52,7 @@ func (g *Graph) toDot(ctx *utils.Context, G *graphviz.Graph, nameIDMap map[strin
 }
 
 // ToDot creates the Graphviz/dot represantion of a graph
-func (g *Graph) ToDot(ctx *utils.Context) []byte {
+func (g *Graph) ToDot(ctx *base.Context) []byte {
 	nameIDMap := map[string]int{}
 	G := graphviz.Graph{}
 	G.MakeDirected()

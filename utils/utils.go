@@ -12,11 +12,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// URLArgsToMap converts the string map of arrays to a string map of strings by dropping
-// all but the first elements from the map, it returns the resulting map
+// URLArgsToMap converts the string map of arrays to a string map of strings by joining multiple values per key
+// this simplfies handling of single key-value pairs, while consciously sacrificing keys with multiple values
 func URLArgsToMap(args map[string][]string) map[string]string {
 	retMap := map[string]string{}
 	for k, v := range args {
+		if len(v) > 1 {
+			strings.Join(v, ",")
+		}
 		retMap[k] = v[0]
 	}
 	return retMap

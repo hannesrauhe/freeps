@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -19,7 +20,7 @@ func testOutput(t *testing.T, fn string, output string) {
 
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value"}
 	input := freepsgraph.MakePlainOutput("test_value")
-	ctx := utils.NewContext(logrus.StandardLogger())
+	ctx := base.NewContext(logrus.StandardLogger())
 
 	s := NewOpStore(cr)
 	vars["output"] = "empty"
@@ -72,7 +73,7 @@ func TestStoreOpOutput(t *testing.T) {
 func TestStoreExpiration(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
 	input := freepsgraph.MakePlainOutput("test_value")
-	ctx := utils.NewContext(logrus.StandardLogger())
+	ctx := base.NewContext(logrus.StandardLogger())
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
@@ -129,7 +130,7 @@ func TestStoreExpiration(t *testing.T) {
 func TestStoreCompareAndSwap(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
 	input := freepsgraph.MakePlainOutput("a_new_value")
-	ctx := utils.NewContext(logrus.StandardLogger())
+	ctx := base.NewContext(logrus.StandardLogger())
 
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
@@ -158,7 +159,7 @@ func TestStoreCompareAndSwap(t *testing.T) {
 func TestStoreSetGetAll(t *testing.T) {
 	vars := map[string]string{"namespace": "testing"}
 	input := freepsgraph.MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
-	ctx := utils.NewContext(logrus.StandardLogger())
+	ctx := base.NewContext(logrus.StandardLogger())
 
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))

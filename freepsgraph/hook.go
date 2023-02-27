@@ -1,11 +1,11 @@
 package freepsgraph
 
-import "github.com/hannesrauhe/freeps/utils"
+import "github.com/hannesrauhe/freeps/base"
 
 type FreepsHook interface {
 	GetName() string
-	OnExecute(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) error
-	OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) error
+	OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) error
+	OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) error
 	OnGraphChanged(addedGraphName []string, removedGraphName []string) error
 	Shutdown() error
 }

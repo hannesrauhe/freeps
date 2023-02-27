@@ -3,6 +3,7 @@ package freepsstore
 import (
 	"fmt"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -27,12 +28,12 @@ func (h *HookStore) GetName() string {
 }
 
 // OnExecute gets called when freepsgraph starts executing a Graph
-func (h *HookStore) OnExecute(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
 	return nil
 }
 
 // OnExecutionFinished gets called when freepsgraph starts executing a Graph
-func (h *HookStore) OnExecutionFinished(ctx *utils.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
 	if h.storeNs == nil {
 		return fmt.Errorf("no namespace in hook")
 	}

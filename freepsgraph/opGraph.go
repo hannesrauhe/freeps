@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hannesrauhe/freeps/utils"
+	"github.com/hannesrauhe/freeps/base"
 )
 
 type OpGraph struct {
@@ -18,7 +18,7 @@ type OpGraphByTag struct {
 var _ FreepsOperator = &OpGraph{}
 var _ FreepsOperator = &OpGraphByTag{}
 
-func (o *OpGraph) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpGraph) Execute(ctx *base.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
@@ -52,12 +52,12 @@ func (o *OpGraph) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 }
 
 // Shutdown (noOp)
-func (o *OpGraph) Shutdown(*utils.Context) {
+func (o *OpGraph) Shutdown(*base.Context) {
 }
 
 /*** By Tag ****/
 
-func (o *OpGraphByTag) Execute(ctx *utils.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
@@ -100,5 +100,5 @@ func (o *OpGraphByTag) GetArgSuggestions(fn string, arg string, otherArgs map[st
 }
 
 // Shutdown (noOp)
-func (o *OpGraphByTag) Shutdown(*utils.Context) {
+func (o *OpGraphByTag) Shutdown(*base.Context) {
 }

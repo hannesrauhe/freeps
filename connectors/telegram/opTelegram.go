@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -55,7 +56,7 @@ func (m *OpTelegram) sendIOtoChat(chatid int64, io *freepsgraph.OperatorIO) *fre
 	return freepsgraph.MakeObjectOutput(res)
 }
 
-func (m *OpTelegram) Execute(ctx *utils.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (m *OpTelegram) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	chatid, err := strconv.ParseInt(vars["ChatID"], 10, 64)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
@@ -81,5 +82,5 @@ func (m *OpTelegram) GetArgSuggestions(fn string, arg string, otherArgs map[stri
 }
 
 // Shutdown (noOp)
-func (o *OpTelegram) Shutdown(ctx *utils.Context) {
+func (o *OpTelegram) Shutdown(ctx *base.Context) {
 }
