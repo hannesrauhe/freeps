@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
@@ -135,12 +136,7 @@ func (o *OpUI) getFileBytes(templateBaseName string, logger *log.Entry) ([]byte,
 	return embeddedFiles.ReadFile(path)
 }
 
-func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*template.Template, error) {
-	isCustom, path := o.isCustomTemplate(templateBaseName)
-	if isCustom {
-		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
-		return template.ParseFiles(path)
-	}
+func (o *OpUI) createTemplateFuncMap() template.FuncMap {
 	funcMap := template.FuncMap{
 		"add": func(a int, b int) int {
 			return a + b
@@ -148,8 +144,20 @@ func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*templ
 		"divisibleBy": func(a int, b int) bool {
 			return a != 0 && a%b == 0
 		},
+		"storeGetNamespaces": func() []string {
+			return freepsstore.GetGlobalStore().GetNamespaces()
+		},
 	}
-	return template.New(templateBaseName).Funcs(funcMap).ParseFS(embeddedFiles, path)
+	return funcMap
+}
+
+func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*template.Template, error) {
+	isCustom, path := o.isCustomTemplate(templateBaseName)
+	if isCustom {
+		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
+		return template.ParseFiles(path)
+	}
+	return template.New(templateBaseName).Funcs(o.createTemplateFuncMap()).ParseFS(embeddedFiles, path)
 }
 
 func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *freepsgraph.OperatorIO {

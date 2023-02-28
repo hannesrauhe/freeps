@@ -67,7 +67,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 	if len(multiNs) > 1 && fn == "getAll" {
 		for _, ns := range multiNs {
 			ns = utils.StringToIdentifier(ns)
-			result[ns] = store.GetNamespace(ns).GetAllValues()
+			result[ns] = store.GetNamespace(ns).GetAllValues(0)
 		}
 		return freepsgraph.MakeObjectOutput(result)
 	}

@@ -4,7 +4,12 @@
 <div class="container">
 <form method="GET" action="/graph/storeUI"  class="row">
     <div class="col">
-        Namespace: <input type="text" value="{{$.namespace}}" name="namespace">
+        Namespace: <select name="namespace" >
+            <option value=""></option>
+            {{ range $i, $ns_opt := storeGetNamespaces }}
+            <option value="{{$ns_opt}}" {{if eq $ns_opt $.namespace}}selected{{end}}>{{$ns_opt}}</option>
+            {{ end }}
+        </select>
     </div>
     <div class="col">
         Key: <input type="text" value="{{$.key}}" name="key">
@@ -27,6 +32,12 @@
     </div>
 </form>
 </div>
+
+<datalist id="namespaces">
+    {{ range $i, $namespace := storeGetNamespaces }}
+        <option value="{{$namespace}}">
+    {{ end }}
+</datalist>
 
 <table>
     <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>

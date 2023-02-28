@@ -41,7 +41,7 @@ func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern 
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) GetAllValues() map[string]*freepsgraph.OperatorIO {
+func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*freepsgraph.OperatorIO {
 	panic("postgres support not compiled, method should not be called")
 }
 
