@@ -53,7 +53,7 @@ func (p *fileStoreNamespace) DeleteValue(key string) {
 	os.Remove(path)
 }
 
-func (p *fileStoreNamespace) GetAllValues() map[string]*freepsgraph.OperatorIO {
+func (p *fileStoreNamespace) GetAllValues(limit int) map[string]*freepsgraph.OperatorIO {
 	panic("not implemented") // TODO: Implement
 }
 
