@@ -34,7 +34,7 @@ type StoreNamespace interface {
 	DeleteOlder(maxAge time.Duration) int
 	DeleteValue(key string)
 	GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*freepsgraph.OperatorIO
-	GetAllValues() map[string]*freepsgraph.OperatorIO
+	GetAllValues(limit int) map[string]*freepsgraph.OperatorIO
 	GetKeys() []string
 	GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry
 	GetValue(key string) *freepsgraph.OperatorIO
@@ -81,4 +81,9 @@ func (s *Store) GetNamespaces() []string {
 		ns = append(ns, n)
 	}
 	return ns
+}
+
+// GetGlobalStore returns the store shared by everything in freeps
+func GetGlobalStore() *Store {
+	return &store
 }

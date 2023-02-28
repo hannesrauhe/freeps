@@ -192,7 +192,7 @@ func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern 
 	return result
 }
 
-func (p *postgresStoreNamespace) GetAllValues() map[string]*freepsgraph.OperatorIO {
+func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*freepsgraph.OperatorIO {
 	panic("not implemented") // TODO: Implement
 }
 

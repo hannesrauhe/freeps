@@ -3,6 +3,7 @@ package freepsstore
 import (
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -52,16 +53,23 @@ func (o *OpStore) GetName() string {
 	return "store"
 }
 
-// Execute gets, sets or deletes a value from the store
+// Execute everything in a single spaghetti - needs cleanup
 func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	if fn == "getNamespaces" {
 		return freepsgraph.MakeObjectOutput(store.GetNamespaces())
 	}
-
 	result := map[string]map[string]*freepsgraph.OperatorIO{}
 	ns, ok := args["namespace"]
 	if !ok {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "No namespace given")
+	}
+	multiNs := strings.Split(ns, ",")
+	if len(multiNs) > 1 && fn == "getAll" {
+		for _, ns := range multiNs {
+			ns = utils.StringToIdentifier(ns)
+			result[ns] = store.GetNamespace(ns).GetAllValues(0)
+		}
+		return freepsgraph.MakeObjectOutput(result)
 	}
 	ns = utils.StringToIdentifier(ns)
 
@@ -191,7 +199,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			}
 			result[ns] = map[string]*freepsgraph.OperatorIO{key: input}
 		}
-	case "del":
+	case "del", "delete", "remove":
 		{
 			nsStore.DeleteValue(key)
 			return freepsgraph.MakeEmptyOutput()

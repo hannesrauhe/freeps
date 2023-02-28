@@ -105,12 +105,17 @@ func (s *inMemoryStoreNamespace) GetKeys() []string {
 }
 
 // GetAllValues from the StoreNamespace
-func (s *inMemoryStoreNamespace) GetAllValues() map[string]*freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) GetAllValues(limit int) map[string]*freepsgraph.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	copy := map[string]*freepsgraph.OperatorIO{}
+	counter := 0
 	for k, v := range s.entries {
 		copy[k] = v.data
+		counter++
+		if limit != 0 && counter >= limit {
+			return copy
+		}
 	}
 	return copy
 }
