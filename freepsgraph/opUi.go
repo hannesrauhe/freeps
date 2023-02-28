@@ -218,9 +218,9 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *GraphDesc {
 		} else if k == "delArg" {
 			delete(gopd.Arguments, v)
 		} else if k == "addTag" && v != "" {
-			gd.addTag(v)
+			gd.AddTag(v)
 		} else if k == "delTag" {
-			gd.removeTag(v)
+			gd.RemoveTag(v)
 		} else if k == "op" {
 			gopd.Operator = v
 		} else if k == "fn" {
