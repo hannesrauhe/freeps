@@ -124,6 +124,21 @@ func (io *OperatorIO) GetBytes() ([]byte, error) {
 	}
 }
 
+func (io *OperatorIO) GetSize() (int, error) {
+	switch io.OutputType {
+	case Empty:
+		return 0, nil
+	case Byte:
+		return len(io.Output.([]byte)), nil
+	case PlainText:
+		return len(io.Output.(string)), nil
+	case Error:
+		return len(io.Output.(error).Error()), nil
+	default:
+		return 0, fmt.Errorf("Size not available")
+	}
+}
+
 func (io *OperatorIO) GetString() string {
 	switch io.OutputType {
 	case Empty:
