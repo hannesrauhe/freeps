@@ -11,7 +11,7 @@ table, th, td {
 <br>
 <table style="float: left">
 <tr><th>Graph</th><th>Actions</th><th>Counter</th><th>Last Execution Time</th><th>Tags</th></tr>
-		{{ range $value, $info := . }}
+		{{ range $value, $info := .input }}
 				<tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
                     <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}" target="outputframe">Delete</a></td>
                     <td>{{ $info.ExecutionCounter }} </td>

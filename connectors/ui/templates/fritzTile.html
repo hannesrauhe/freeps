@@ -1,18 +1,18 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-
-<header><h4>{{ $.input.Name }} {{ if $.input.Temperature }} - {{ $.input.Temperature.Celsius }} {{ end }} </h4></header>
-{{ if $.input.HKR }}
+{{ $dev := store_Get "_fritz" $.arguments.ain }}
+<header><h4>{{ $dev.Name }} {{ if $dev.Temperature }} - {{ $dev.Temperature.Celsius }} {{ end }} </h4></header>
+{{ if $dev.HKR }}
   <div style="margin: auto">
 
   <form action="/fritz/sethkrtsoll" method="GET" target="outputframe" style="display: flex; justify-content: center">
-  <input style="width:80px;" type="number" name="param" min="16" max="56" value="{{ $.input.HKR.Tsoll }}" />
-  <button name="ain" value="{{ $.input.AIN }}">Set</button>
+  <input style="width:80px;" type="number" name="param" min="16" max="56" value="{{ $dev.HKR.Tsoll }}" />
+  <button name="ain" value="{{ $dev.AIN }}">Set</button>
   </form>
 
   <form action="/fritz/sethkrtsoll" method="GET" target="outputframe">
-  <input type="hidden" name="ain" value="{{ $.input.AIN }}">
+  <input type="hidden" name="ain" value="{{ $dev.AIN }}">
   <div style="display: flex; justify-content: center">
     <button name="param" value="32">16°C</button>
     <button name="param" value="38">19°C</button>
@@ -25,11 +25,11 @@
   </div>
 {{ end}}
 
-{{ if $.input.SimpleOnOff }}
+{{ if $dev.SimpleOnOff }}
   <div style="margin: auto">
 
   <form action="/fritz/setsimpleonoff"  method="GET" target="outputframe">
-  <input type="hidden" name="device" value="{{ $.input.AIN }}">
+  <input type="hidden" name="device" value="{{ $dev.AIN }}">
   <div style="display: flex; justify-content: center">
     <button name="onoff" value="1">On</button>
     <button name="onoff" value="0">Off</button>

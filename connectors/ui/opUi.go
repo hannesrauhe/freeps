@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"time"
 
@@ -144,8 +143,29 @@ func (o *OpUI) createTemplateFuncMap() template.FuncMap {
 		"divisibleBy": func(a int, b int) bool {
 			return a != 0 && a%b == 0
 		},
-		"storeGetNamespaces": func() []string {
+		"store_GetNamespaces": func() []string {
 			return freepsstore.GetGlobalStore().GetNamespaces()
+		},
+		"store_GetKeys": func(namespace string) []string {
+			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			if ns == nil {
+				return nil
+			}
+			return ns.GetKeys()
+		},
+		"store_Get": func(namespace string, key string) interface{} {
+			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			if ns == nil {
+				return nil
+			}
+			v := ns.GetValue(key)
+			if v == nil {
+				return nil
+			}
+			return v.Output
+		},
+		"graph_GetGraphInfoByTag": func(tag string) map[string]freepsgraph.GraphInfo {
+			return o.ge.GetGraphInfoByTag([]string{tag})
 		},
 	}
 	return funcMap
@@ -404,23 +424,6 @@ func (o *OpUI) editGraph(vars map[string]string, input *freepsgraph.OperatorIO, 
 	return o.createOutput(tmpl, td, logger, true)
 }
 
-func (o *OpUI) showGraphs(vars map[string]string, input *freepsgraph.OperatorIO, logger *log.Entry) *freepsgraph.OperatorIO {
-	var d ShowGraphsData
-	d.Graphs = make([]string, 0)
-	for n := range o.ge.GetAllGraphDesc() {
-		d.Graphs = append(d.Graphs, n)
-	}
-	sort.Strings(d.Graphs)
-	if g, ok := vars["graph"]; ok {
-		if gd, ok := o.ge.GetGraphDesc(g); ok {
-			b, _ := json.MarshalIndent(gd, "", "  ")
-			d.GraphJSON = string(b)
-		}
-	}
-
-	return o.createOutput(`showgraphs.html`, &d, logger, true)
-}
-
 func (o *OpUI) editConfig(vars map[string]string, input *freepsgraph.OperatorIO, logger *log.Entry) *freepsgraph.OperatorIO {
 	var d EditConfigData
 	if !input.IsEmpty() {
@@ -496,6 +499,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *freepsgraph.OperatorIO,
 
 	tdata["buttons"] = buttons
 	tdata["input"] = input.Output
+	tdata["arguments"] = vars
 	tdata["status"] = vars["header"]
 	tdata["status_error"] = ""
 	tdata["status_ok"] = ""
@@ -530,14 +534,10 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 	switch fn {
 	case "", "home":
 		return o.editGraph(vars, input, logger, "home.html")
-	case "showGraphs":
-		return o.showGraphs(vars, input, logger)
 	case "edit", "editGraph":
 		return o.editGraph(vars, input, logger, "editgraph.html")
 	case "config":
 		return o.editConfig(vars, input, logger)
-	case "show":
-		return o.showGraphs(vars, input, logger)
 	case "editTemplate":
 		return o.editTemplate(vars, input, logger)
 	case "deleteTemplate":
@@ -551,21 +551,23 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 	case "simpleTile":
 		return o.simpleTile(vars, input, ctx)
 	default:
-		// Note: in order to have the UI show values as if they were printed as JSON, they are parsed once
-		// This would lead to accessing the objects directly (MarshallJSON would not be called):
-		// if input.IsObject() {
-		// 	return o.createTemplate(fn, input.Output, logger)
-		// }
 		tdata := make(map[string]interface{})
-		// TODO(HR): this injects unwanted data in some templates...
-		// if vars != nil && len(vars) > 0 {
-		// 	tdata["arguments"] = vars
-		// }
+
+		if vars != nil && len(vars) > 0 {
+			tdata["arguments"] = vars
+		}
 		if !input.IsEmpty() {
-			err := input.ParseJSON(&tdata)
+			// Note: in order to have the UI show values as if they were printed as JSON, they are parsed once
+			// This would lead to accessing the objects directly (MarshallJSON would not be called):
+			// if input.IsObject() {
+			// 	tdata["input"] = input.Output
+			// }
+			tinput := make(map[string]interface{})
+			err := input.ParseJSON(&tinput)
 			if err != nil {
 				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 			}
+			tdata["input"] = tinput
 		}
 		return o.createOutput(fn, &tdata, logger, withFooter)
 	}

@@ -18,7 +18,7 @@
 </form>
 
 <datalist id="keys">
-{{ range $namespaceName, $namespace := .storeEntries }}
+{{ range $namespaceName, $namespace := .input.storeEntries }}
 {{ range $ctxName, $ctx := $namespace }}
     <option value="{{$ctxName}}">
 {{ end }}
@@ -27,7 +27,7 @@
 
 <table>
     <tr><th>Name</th><th>Time</th><th>Code</th><th>Duration</th></tr>
-{{ range $namespaceName, $namespace := .storeEntries }}
+{{ range $namespaceName, $namespace := .input.storeEntries }}
 {{ range $ctxName, $ctx := $namespace }}
 <tr> <td><b>{{$ctxName}}</b></td><td>{{$ctx.Output.Created}}</td><td colspan=2 align="right"><a href="/store/get?namespace={{$namespaceName}}&key={{$ctxName}}&output=direct">Plain</a> <a href="/graph/contextToDot/?namespace={{$namespaceName}}&key={{$ctxName}}">ToDot</a></td></tr>
 {{ range $i, $Operation := $ctx.Output.Operations }}

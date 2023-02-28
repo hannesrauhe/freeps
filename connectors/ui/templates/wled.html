@@ -14,10 +14,10 @@
 </form>
 
 <div style="background-color: black;">
-{{ range $y, $row := .PixelMatrix }}
+{{ range $y, $row := .input.PixelMatrix }}
 {{ range $x, $color := $row }}
     <div style="float:left; background-color: {{ $color }};width: 20px;height: 20px;border: solid black">
-            <a href="/graph/wledPixelMatrix?x={{$x}}&y={{$y}}&color={{$.NextColor}}&pixelMatrix={{$.Name}}&SegID={{$.Segment}}" class="display: block; height: 100%; width: 100%; text-decoration: none;">_</a>
+            <a href="/graph/wledPixelMatrix?x={{$x}}&y={{$y}}&color={{$.input.NextColor}}&pixelMatrix={{$.input.Name}}&SegID={{$.input.Segment}}" class="display: block; height: 100%; width: 100%; text-decoration: none;">_</a>
     </div>
 {{ end}}
 <br /><br />
