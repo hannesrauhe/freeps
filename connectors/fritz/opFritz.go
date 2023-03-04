@@ -1,26 +1,31 @@
-package freepsgraph
+package fritz
 
 import (
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
 
+const deviceNamespace = "_fritz_devices"
+const templateNamespace = "_fritz_templates"
+const maxAge = time.Second * 100
+
 type OpFritz struct {
-	fl              *freepslib.Freeps
-	fc              *freepslib.FBconfig
-	cachedDevices   map[string]string
-	cachedTemplates map[string]string
+	fl *freepslib.Freeps
+	fc *freepslib.FBconfig
 }
 
-var _ FreepsOperator = &OpFritz{}
+var _ freepsgraph.FreepsOperator = &OpFritz{}
 
 // NewOpFritz creates a new operator for Freeps and Freepsflux
 func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
@@ -34,7 +39,9 @@ func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
 		log.Print(err)
 	}
 	f, _ := freepslib.NewFreepsLib(&conf)
-	return &OpFritz{fl: f, fc: &conf}
+	op := &OpFritz{fl: f, fc: &conf}
+	op.getDeviceList() // fill cache
+	return op
 }
 
 // GetName returns the name of the operator
@@ -42,7 +49,7 @@ func (o *OpFritz) GetName() string {
 	return "fritz"
 }
 
-func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
 	dev := vars["device"]
 	fn := strings.ToLower(mixedCaseFn)
 
@@ -51,65 +58,65 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 		{
 			m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
 			if err == nil {
-				return MakeObjectOutput(m)
+				return freepsgraph.MakeObjectOutput(m)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getmetrics":
 		{
 			met, err := m.fl.GetMetrics()
 			if err == nil {
-				return MakeObjectOutput(&met)
+				return freepsgraph.MakeObjectOutput(&met)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdevices":
 		{
-			return MakeObjectOutput(m.GetDevices())
+			return freepsgraph.MakeObjectOutput(m.GetDevices())
 		}
 	case "gettemplates":
 		{
-			return MakeObjectOutput(m.GetTemplates())
+			return freepsgraph.MakeObjectOutput(m.GetTemplates())
 		}
 	case "getdevicelistinfos":
 		{
 			devl, err := m.getDeviceList()
 			if err == nil {
-				return MakeObjectOutput(devl)
+				return freepsgraph.MakeObjectOutput(devl)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdevicemap":
 		{
 			devl, err := m.GetDeviceMap()
 			if err == nil {
-				return MakeObjectOutput(devl)
+				return freepsgraph.MakeObjectOutput(devl)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdeviceinfos":
 		{
 			devObject, err := m.GetDeviceByAIN(dev)
 			if err == nil {
-				return MakeObjectOutput(devObject)
+				return freepsgraph.MakeObjectOutput(devObject)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "gettemplatelistinfos":
 		{
 			tl, err := m.fl.GetTemplateList()
 			if err == nil {
-				return MakeObjectOutput(tl)
+				return freepsgraph.MakeObjectOutput(tl)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdata":
 		{
 			r, err := m.fl.GetData()
 			if err == nil {
-				return MakeObjectOutput(r)
+				return freepsgraph.MakeObjectOutput(r)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "wakeup":
 		{
@@ -117,9 +124,9 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 			log.Printf("Waking Up %v", netdev)
 			err := m.fl.WakeUpDevice(netdev)
 			if err == nil {
-				return MakePlainOutput("Woke up %s", netdev)
+				return freepsgraph.MakePlainOutput("Woke up %s", netdev)
 			}
-			return MakeOutputError(http.StatusInternalServerError, err.Error())
+			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	}
 
@@ -127,16 +134,16 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 		err := m.fl.HomeAutoSwitch(fn, dev, vars)
 		if err == nil {
 			vars["fn"] = fn
-			return MakeObjectOutput(vars)
+			return freepsgraph.MakeObjectOutput(vars)
 		}
-		return MakeOutputError(http.StatusInternalServerError, err.Error())
+		return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 
 	r, err := m.fl.HomeAutomation(fn, dev, vars)
 	if err == nil {
-		return MakeByteOutput(r)
+		return freepsgraph.MakeByteOutput(r)
 	}
-	return MakeOutputError(http.StatusInternalServerError, err.Error())
+	return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
 }
 
 func (m *OpFritz) GetFunctions() []string {
@@ -221,35 +228,55 @@ func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	return map[string]string{}
 }
 
-// GetDevices returns a map of all devices
+// GetDevices returns a map of all device AINs
 func (m *OpFritz) GetDevices() map[string]string {
-	if len(m.cachedDevices) == 0 {
+	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
+	keys := devNs.GetKeys()
+	if len(keys) == 0 {
 		m.getDeviceList()
 	}
-	return m.cachedDevices
+	keys = devNs.GetKeys()
+	r := map[string]string{}
+	for _, k := range keys {
+		r[k] = k
+	}
+	return r
 }
 
 // GetTemplates returns a map of all templates
 func (m *OpFritz) GetTemplates() map[string]string {
-	if len(m.cachedTemplates) == 0 {
+	tNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
+	keys := tNs.GetKeys()
+	if len(keys) == 0 {
 		m.getTemplateList()
 	}
-	return m.cachedTemplates
+	keys = tNs.GetKeys()
+	r := map[string]string{}
+	for _, k := range keys {
+		r[k] = k
+	}
+	return r
 }
 
 // GetDeviceByAIN returns the device object for the device with the given AIN
 func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
-	//TODO(HR): better use getDevice API method?
-	devl, err := m.getDeviceList()
-	if devl == nil || err != nil {
-		return nil, err
-	}
-	for _, dev := range devl.Device {
-		if dev.AIN == AIN {
-			return &dev, nil
+	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
+	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge)
+	if cachedDev.IsError() {
+		devl, err := m.getDeviceList()
+		if devl == nil || err != nil {
+			return nil, err
 		}
+		cachedDev = devNs.GetValue(AIN)
 	}
-	return nil, fmt.Errorf("Device with AIN \"%v\" not found", AIN)
+	if cachedDev.IsError() {
+		return nil, fmt.Errorf("Device with AIN \"%v\" not found", AIN)
+	}
+	dev, ok := cachedDev.Output.(freepslib.AvmDevice)
+	if !ok {
+		return nil, fmt.Errorf("Cached record for %v is invalid", AIN)
+	}
+	return &dev, nil
 }
 
 // GetDeviceMap returns all devices by AIN
@@ -259,36 +286,43 @@ func (m *OpFritz) GetDeviceMap() (map[string]freepslib.AvmDevice, error) {
 		return nil, err
 	}
 	r := map[string]freepslib.AvmDevice{}
-	for _, dev := range devl.Device {
-		r[dev.AIN] = dev
+
+	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
+	for AIN, cachedDev := range devNs.GetAllValues(0) {
+		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
+		if !ok {
+			return nil, fmt.Errorf("Cached record for %v is invalid", AIN)
+		}
+		r[AIN] = dev
 	}
+
 	return r, nil
 }
 
 // getDeviceList retrieves the devicelist and caches
 func (m *OpFritz) getDeviceList() (*freepslib.AvmDeviceList, error) {
-	m.cachedDevices = map[string]string{}
 	devl, err := m.fl.GetDeviceList()
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
+	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
 	for _, dev := range devl.Device {
-		m.cachedDevices[dev.Name] = dev.AIN
+		devNs.SetValue(dev.AIN, freepsgraph.MakeObjectOutput(dev), "")
 	}
 	return devl, nil
 }
 
 // getTemplateList retrieves the template list and caches
 func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
-	m.cachedTemplates = map[string]string{}
 	templ, err := m.fl.GetTemplateList()
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
+	templNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
 	for _, t := range templ.Template {
-		m.cachedTemplates[t.Name] = t.ID
+		templNs.SetValue(t.ID, freepsgraph.MakeObjectOutput(t), "")
 	}
 	return templ, nil
 }
