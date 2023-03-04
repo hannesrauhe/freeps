@@ -14,6 +14,7 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
+	"github.com/hannesrauhe/freeps/connectors/fritz"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
@@ -97,6 +98,7 @@ func main() {
 		ge.AddOperator(wled.NewWLEDOp(cr))
 		ge.AddOperator(freepsstore.NewOpStore(cr))
 		ge.AddOperator(ui.NewHTMLUI(cr, ge))
+		ge.AddOperator(fritz.NewOpFritz(cr))
 		freepsexec.AddExecOperators(cr, ge)
 
 		sh, err := freepsstore.NewStoreHook(cr)

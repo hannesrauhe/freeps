@@ -72,7 +72,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 		}
 
-		ge.operators["fritz"] = NewOpFritz(cr)
 		ge.operators["weather"] = NewWeatherOp(cr)
 
 		if err != nil {
