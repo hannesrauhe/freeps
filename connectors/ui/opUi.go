@@ -11,13 +11,13 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/hannesrauhe/freepslib"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -164,8 +164,9 @@ func (o *OpUI) createTemplateFuncMap() template.FuncMap {
 			}
 			return v.Output
 		},
-		"graph_GetGraphInfoByTag": func(tag string) map[string]freepsgraph.GraphInfo {
-			return o.ge.GetGraphInfoByTag([]string{tag})
+		"graph_GetGraphInfoByTag": func(tagstr string) map[string]freepsgraph.GraphInfo {
+			tags := strings.Split(tagstr, ",")
+			return o.ge.GetGraphInfoByTag(tags)
 		},
 	}
 	return funcMap
@@ -209,11 +210,9 @@ func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, l
 			}
 
 			var fdata struct {
-				FooterGraphs map[string]freepsgraph.GraphInfo
-				Version      string
-				StartedAt    string
+				Version   string
+				StartedAt string
 			}
-			fdata.FooterGraphs = o.ge.GetGraphInfoByTag([]string{"ui", "footer"})
 			fdata.Version = utils.BuildVersion()
 			fdata.StartedAt = utils.StartTimestamp.Format(time.RFC1123)
 			err = tFooter.Execute(&w, &fdata)
@@ -444,15 +443,6 @@ func (o *OpUI) editConfig(vars map[string]string, input *freepsgraph.OperatorIO,
 	return o.createOutput(`editconfig.html`, &d, logger, true)
 }
 
-func (o *OpUI) fritzDeviceList(vars map[string]string, input *freepsgraph.OperatorIO, logger *log.Entry) *freepsgraph.OperatorIO {
-	var devicelist freepslib.AvmDeviceList
-	err := input.ParseJSON(&devicelist)
-	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing Devicelist: %v", err)
-	}
-	return o.createOutput(`fritzdevicelist.html`, &devicelist, logger, true)
-}
-
 func (o *OpUI) editTemplate(vars map[string]string, input *freepsgraph.OperatorIO, logger *log.Entry) *freepsgraph.OperatorIO {
 	tname := vars["templateName"]
 
@@ -546,8 +536,6 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when deleting template: %v", err)
 		}
 		return freepsgraph.MakeEmptyOutput()
-	case "fritzdevicelist":
-		return o.fritzDeviceList(vars, input, logger)
 	case "simpleTile":
 		return o.simpleTile(vars, input, ctx)
 	default:
