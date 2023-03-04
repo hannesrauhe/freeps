@@ -1,8 +1,9 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-{{ $dev := store_Get "_fritz" $.arguments.ain }}
-<header><h4>{{ $dev.Name }} {{ if $dev.Temperature }} - {{ $dev.Temperature.Celsius }} {{ end }} </h4></header>
+<div class="card" style="max-width: 250px;">
+{{ $dev := store_Get "_fritz_devices" $.arguments.ain }}
+<header style="text-overflow: fade;"><h4>{{ $dev.Name }} {{ if $dev.Temperature }} - {{ $dev.Temperature.Celsius }} {{ end }} </h4></header>
 {{ if $dev.HKR }}
   <div style="margin: auto">
 
@@ -41,3 +42,4 @@
   </div>
 {{ end}}
 
+</div>

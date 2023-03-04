@@ -3,7 +3,7 @@
 {{$i := 0}}
 <div class="container">
 	<div class="row">
-{{ range $key, $value := store_GetKeys "_fritz" }}
+{{ range $key, $value := store_GetKeys "_fritz_devices" }}
 	{{ if divisibleBy $i 3 }}</div><div class="row">{{ end }}{{$i = add $i 1}}
 		<iframe name="fritz-tile-{{$key}}" class="col" src="/ui/simpleTile?templateName=fritzTile.html&ain={{$value}}"></iframe>
 {{ end}}
