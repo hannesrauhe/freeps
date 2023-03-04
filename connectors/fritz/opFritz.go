@@ -231,29 +231,41 @@ func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 // GetDevices returns a map of all device AINs
 func (m *OpFritz) GetDevices() map[string]string {
 	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
-	keys := devNs.GetKeys()
-	if len(keys) == 0 {
+	devs := devNs.GetAllValues(0)
+	if len(devs) == 0 {
 		m.getDeviceList()
+		devs = devNs.GetAllValues(0)
 	}
-	keys = devNs.GetKeys()
 	r := map[string]string{}
-	for _, k := range keys {
-		r[k] = k
+
+	for AIN, cachedDev := range devs {
+		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
+		if !ok {
+			log.Errorf("Cached record for %v is invalid", AIN)
+			continue
+		}
+		r[dev.Name] = dev.AIN
 	}
+
 	return r
 }
 
-// GetTemplates returns a map of all templates
+// GetTemplates returns a map of all templates IDs
 func (m *OpFritz) GetTemplates() map[string]string {
 	tNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
-	keys := tNs.GetKeys()
+	keys := tNs.GetAllValues(0)
 	if len(keys) == 0 {
 		m.getTemplateList()
+		keys = tNs.GetAllValues(0)
 	}
-	keys = tNs.GetKeys()
 	r := map[string]string{}
-	for _, k := range keys {
-		r[k] = k
+	for ID, cachedTempl := range keys {
+		templ, ok := cachedTempl.Output.(freepslib.AvmTemplate)
+		if !ok {
+			log.Errorf("Cached record for %v is invalid", ID)
+			continue
+		}
+		r[templ.Name] = templ.ID
 	}
 	return r
 }
