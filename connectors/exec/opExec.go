@@ -44,6 +44,16 @@ var DefaultConfig = OpExecConfig{
 				"--quality":    "90",
 				"--brightness": "50"},
 		},
+		"graphviz": {
+			Path: "/usr/bin/dot",
+			AvailableArguments: map[string]map[string]string{
+				"-rot": {"0": "0", "90": "90", "180": "180", "270": "270"},
+				"-ss":  {"1s": "1000", "2s": "2000", "3s": "3000", "4s": "4000", "5s": "5000"},
+			},
+			DefaultArguments: map[string]string{
+				"-Tpng": "",
+			},
+		},
 	},
 }
 
