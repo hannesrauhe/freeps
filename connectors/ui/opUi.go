@@ -153,6 +153,13 @@ func (o *OpUI) createTemplateFuncMap() template.FuncMap {
 			}
 			return ns.GetKeys()
 		},
+		"store_GetAll": func(namespace string) map[string]*freepsgraph.OperatorIO {
+			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			if ns == nil {
+				return nil
+			}
+			return ns.GetAllValues(100)
+		},
 		"store_Get": func(namespace string, key string) interface{} {
 			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
 			if ns == nil {
