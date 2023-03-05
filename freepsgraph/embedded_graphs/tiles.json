@@ -1,0 +1,14 @@
+{
+    "Tags": [
+      "ui",
+      "footer"
+    ],
+    "OutputFrom": "finalUI",
+    "Operations": [
+      {
+        "name": "finalUI",
+        "Operator": "ui",
+        "Function": "tiles.html"
+      }
+    ]
+  }
