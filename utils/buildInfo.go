@@ -9,6 +9,7 @@ var (
 	Version        = "dev"
 	CommitHash     = "n/a"
 	BuildTime      = "n/a"
+	Branch         = "n/a"
 	StartTimestamp = time.Now()
 )
 
@@ -17,5 +18,5 @@ func BuildVersion() string {
 }
 
 func BuildFullVersion() string {
-	return fmt.Sprintf("%s-%s (%s)", Version, CommitHash, BuildTime)
+	return fmt.Sprintf("%s-%s (Build at %s from Branch %s)", Version, CommitHash, BuildTime, Branch)
 }
