@@ -8,8 +8,7 @@
       {
         "name": "finalUI",
         "Operator": "ui",
-        "Function": "tiles.html",
-        "InputFrom": "unifiedInputForUI"
+        "Function": "tiles.html"
       }
     ]
   }
