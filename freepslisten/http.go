@@ -34,34 +34,52 @@ func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string
 	mainArgs = utils.URLArgsToMap(query)
 	var byteinput []byte
 
-	if req.Method == "POST" {
-		if strings.Split(req.Header.Get("Content-Type"), ";")[0] == "multipart/form-data" {
-			err = req.ParseMultipartForm(1024 * 1024 * 2)
-			if err != nil {
-				return
-			}
-			if len(req.MultipartForm.File) > 1 {
-				err = fmt.Errorf("Can only process one file per form, not %v", len(req.MultipartForm.File))
-				return
-			}
-			for n, _ := range req.MultipartForm.File {
-				f, _, serr := req.FormFile(n)
-				if serr != nil {
-					err = serr
-					return
-				}
-				byteinput, err = io.ReadAll(f)
-			}
-		} else {
-			defer req.Body.Close()
-			byteinput, err = io.ReadAll(req.Body)
-		}
+	// a simple get request, no input
+	if req.Method != "POST" {
+		return
+	}
+	ct := req.Header.Get("Content-Type")
+	// a form containing a file
+	if strings.Split(ct, ";")[0] == "multipart/form-data" {
+		err = req.ParseMultipartForm(1024 * 1024 * 2)
 		if err != nil {
 			return
 		}
-		ct := http.DetectContentType(byteinput)
-		mainInput = freepsgraph.MakeByteOutputWithContentType(byteinput, ct)
+		if len(req.MultipartForm.File) > 1 {
+			err = fmt.Errorf("Can only process one file per form, not %v", len(req.MultipartForm.File))
+			return
+		}
+		for n, _ := range req.MultipartForm.File {
+			f, _, serr := req.FormFile(n)
+			if serr != nil {
+				err = serr
+				return
+			}
+			byteinput, err = io.ReadAll(f)
+			if err != nil {
+				return
+			}
+			mainInput = freepsgraph.MakeByteOutputWithContentType(byteinput, http.DetectContentType(byteinput))
+			return
+		}
+		return
 	}
+
+	req.ParseForm() // does nothing if not the correct content type
+
+	// a regular curl call or something alike
+	if req.PostForm == nil {
+		defer req.Body.Close()
+		byteinput, err = io.ReadAll(req.Body)
+		if ct == "" {
+			ct = http.DetectContentType(byteinput)
+		}
+		mainInput = freepsgraph.MakeByteOutputWithContentType(byteinput, ct)
+		return
+	}
+
+	// it's an html form without an attached file
+	mainInput = freepsgraph.MakeObjectOutputWithContentType(req.PostForm, "application/x-www-form-urlencoded")
 	return
 }
 

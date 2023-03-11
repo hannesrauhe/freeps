@@ -1,25 +1,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<form method="GET" action="/graph/wledPixelMatrix">
+{{$pmName := "pixelmatrix"}}
+{{$nextColor := "#ffffff"}}
+{{if $.arguments.color }}
+{{$nextColor = $.arguments.color}}
+{{end}}
+{{if $.arguments.pixelMatrix }}
+{{$pmName = $.arguments.pixelMatrix}}
+{{end}}
+<form method="GET">
     <label>
-        Color: <input style="clear: both" type="color" value="{{$.NextColor}}" name="color" onChange="this.form.submit()">
+        Color: <input style="clear: both" type="color" value="{{$nextColor}}" name="color" onChange="this.form.submit()">
     </label>
     <label>
-        Name: <input type="text" value="{{$.Name}}" name="pixelMatrix" label="Pixel Matrix Name">
-    </label>
-    <label>
-        Segment: <input type="text" value="{{$.Segment}}" name="SegID" label="Pixel Matrix Name">
+        Name: <input type="text" value="{{$pmName}}" name="pixelMatrix" label="Pixel Matrix Name">
     </label>
     <button>Submit</button>
 </form>
 
-<div style="background-color: black;">
-{{ range $y, $row := .input.PixelMatrix }}
+<form method="POST">
+    <input type="hidden" name="ExecuteOperator" value="wled">
+    <input type="hidden" name="ExecuteFunction" value="drawPixel">
+    <div style="background-color: black;">
+{{ range $y, $row := store_Get "_wled" $pmName }}
 {{ range $x, $color := $row }}
-    <div style="float:left; background-color: {{ $color }};width: 20px;height: 20px;border: solid black">
-            <a href="/graph/wledPixelMatrix?x={{$x}}&y={{$y}}&color={{$.input.NextColor}}&pixelMatrix={{$.input.Name}}&SegID={{$.input.Segment}}" class="display: block; height: 100%; width: 100%; text-decoration: none;">_</a>
-    </div>
+        <button name="ExecuteArgs" value="x={{$x}}&y={{$y}}&color={{$nextColor}}" style="float:left; background-color: {{ $color }};width: 20px;height: 20px;border: solid black, display: block;"> </button>
 {{ end}}
+</form>
 <br /><br />
 {{ end }}
 </div>

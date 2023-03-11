@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"net/http"
 
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"golang.org/x/image/draw"
@@ -22,7 +23,11 @@ type WLEDConverter struct {
 }
 
 // NewWLEDConverter creates a connection to one or multiple WLED instances, the config might reference other configs
-func NewWLEDConverter(conf WLEDConfig, connections map[string]WLEDConfig) (*WLEDConverter, error) {
+func NewWLEDConverter(confName string, connections map[string]WLEDConfig) (*WLEDConverter, error) {
+	conf, exists := connections[confName]
+	if !exists {
+		return nil, fmt.Errorf("Connection \"%v\" does not exist", confName)
+	}
 	err := conf.Validate(false)
 	if err != nil {
 		return nil, err
@@ -141,7 +146,7 @@ func (w *WLEDConverter) GetPixelMatrix() PixelMatrix {
 	return pm
 }
 
-func (w *WLEDConverter) SetPixelMatrix(pm PixelMatrix) error {
+func (w *WLEDConverter) DrawPixelMatrix(pm PixelMatrix) error {
 	for y := 0; y < w.Height() && y < len(pm); y++ {
 		for x := 0; x < w.Width() && x < len(pm[y]); x++ {
 			p, err := utils.ParseHexColor(pm[y][x])
@@ -152,6 +157,20 @@ func (w *WLEDConverter) SetPixelMatrix(pm PixelMatrix) error {
 		}
 	}
 	return nil
+}
+
+func (w *WLEDConverter) SetPixelMatrix(pmName string) error {
+	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	io := wledNs.GetValue(pmName)
+	if io.IsError() {
+		return fmt.Errorf("No pixelmatrix stored")
+	}
+	var pm PixelMatrix
+	err := io.ParseJSON(&pm)
+	if err != nil {
+		return fmt.Errorf("Could not parse input as pixelmatrix object: %v", err)
+	}
+	return w.DrawPixelMatrix(pm)
 }
 
 func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
@@ -184,8 +203,18 @@ func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) 
 		overallResp = resp
 	}
 
+	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	wledNs.SetValue("pixelmatrix", freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), "")
 	if cmd == nil && returnPNG {
 		return w.GetPNG()
 	}
 	return overallResp
+}
+
+func (w *WLEDConverter) PrepareStore() error {
+	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	wledNs.SetValue("pixelmatrix", freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), "")
+	wledNs.SetValue("diagonal", freepsgraph.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "")
+	wledNs.SetValue("zigzag", freepsgraph.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "")
+	return nil
 }
