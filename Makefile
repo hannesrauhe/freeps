@@ -16,10 +16,10 @@ build:
 	mkdir -p build
 
 build/freepsd: build freepslisten/static_server_content/chota.min.css
-	go build -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -X ${PACKAGE}/utils.Branch=${BRANCH}" -o build/freepsd freepsd/freepsd.go
+	go build -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP} -X ${PACKAGE}/utils.Branch=${BRANCH}" -o build/freepsd freepsd/freepsd.go
 
 build/freepsd-light: build freepslisten/static_server_content/chota.min.css
-	go build -tags nopostgress -tags nomuteme -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP}" -X ${PACKAGE}/utils.Branch=${BRANCH}" -o build/freepsd-light freepsd/freepsd.go
+	go build -tags nopostgress -tags nomuteme -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP} -X ${PACKAGE}/utils.Branch=${BRANCH}" -o build/freepsd-light freepsd/freepsd.go
 
 # if you are reading this to learn how freepsd is deployed: freepsd runs without any additional libraries. Just run it.
 # this just creates a user and a srevice and an optional update-script
