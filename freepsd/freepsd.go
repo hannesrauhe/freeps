@@ -92,11 +92,11 @@ func main() {
 		}
 
 		//TODO(HR): load operators from config?
+		ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
 		ge.AddOperator(telegram.NewTelegramOp(cr))
 		ge.AddOperator(freepsflux.NewFluxMod(cr))
 		ge.AddOperator(wled.NewWLEDOp(cr))
-		ge.AddOperator(freepsstore.NewOpStore(cr))
 		ge.AddOperator(ui.NewHTMLUI(cr, ge))
 		ge.AddOperator(fritz.NewOpFritz(cr))
 		freepsexec.AddExecOperators(cr, ge)

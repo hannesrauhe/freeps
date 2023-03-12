@@ -2,7 +2,6 @@ package wled
 
 import (
 	"bytes"
-	"embed"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -20,11 +20,7 @@ import (
 type OpWLED struct {
 	cr     *utils.ConfigReader
 	config *OpConfig
-	saved  map[string]PixelMatrix
 }
-
-//go:embed font/*
-var staticContent embed.FS
 
 var _ freepsgraph.FreepsOperator = &OpWLED{}
 
@@ -34,27 +30,17 @@ func (o *OpWLED) GetName() string {
 }
 
 func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
-	var err error
-
 	activeConnection := o.config.DefaultConnection
 	if vars["config"] != "" {
 		activeConnection = vars["config"]
 	}
-	conf := o.config.Connections[activeConnection]
-	err = utils.ArgsMapToObject(vars, &conf)
-	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse parameters: %v", err.Error())
-	}
-	w, err := NewWLEDConverter(conf, o.config.Connections)
+	w, err := NewWLEDConverter(activeConnection, o.config.Connections)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
 	}
-
-	var pm struct {
-		PixelMatrix [][]string
-		Name        string
-		NextColor   string
-		Segment     string
+	pmName := vars["pixelMatrix"]
+	if pmName == "" {
+		pmName = "last"
 	}
 
 	switch function {
@@ -109,15 +95,9 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 			}
 		}
 		err = w.WriteString(str, c, utils.ParseBool(vars["alignRight"]))
-	case "setPixel":
+	case "drawPixel":
 		c := image.White.C
-		str, ok := vars["pixelMatrix"]
-		if ok {
-			wt, ok := o.saved[str]
-			if ok {
-				w.SetPixelMatrix(wt)
-			}
-		}
+		w.SetPixelMatrix(pmName)
 		if colstr, ok := vars["color"]; ok {
 			c, err = utils.ParseHexColor(colstr)
 			if err != nil {
@@ -133,36 +113,8 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 			return freepsgraph.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
 		}
 		err = w.SetPixel(x, y, c)
-	case "getPixelMatrix":
-		pmName, ok := vars["pixelMatrix"]
-		if !ok || pmName == "" {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "pixelMatrix paramter should contain the name but is missing")
-		}
-		wt, ok := o.saved[pmName]
-		if ok {
-			w.SetPixelMatrix(wt)
-		}
-		pm.PixelMatrix = w.GetPixelMatrix()
-		pm.Name = pmName
-		pm.NextColor = vars["color"]
-		pm.Segment = vars["SegID"]
-		return freepsgraph.MakeObjectOutput(pm)
-	case "setPixelMatrix":
-		pmName := vars["pixelMatrix"]
-		if !mainInput.IsEmpty() {
-			err := mainInput.ParseJSON(&pm)
-			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse input as pixelmatrix object: %v", err)
-			}
-			if pmName == "" {
-				pmName = pm.Name
-			}
-			if pmName == "" {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "pixelMatrix name should be given either via parameter or input, but it's empty in both")
-			}
-			o.saved[pmName] = pm.PixelMatrix
-		}
-		animate := AnimationOptions{StepDuration: time.Millisecond * 500}
+	case "drawPixelMatrix":
+		animate := AnimationOptions{StepDurationInMillis: 500}
 		err := utils.ArgsMapToObject(vars, &animate)
 		if err != nil {
 			return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse Animation Parameters: %v", err)
@@ -172,21 +124,18 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 		return freepsgraph.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 
-	if pmName, ok := vars["pixelMatrix"]; ok {
-		o.saved[pmName] = w.GetPixelMatrix()
-	} else {
-		o.saved["last"] = w.GetPixelMatrix()
-	}
-
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	return w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
+	ret := w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
+	w.StorePixelMatrix(ctx, pmName)
+	w.StorePixelMatrix(ctx, activeConnection)
+	return ret
 }
 
 func (o *OpWLED) GetFunctions() []string {
-	return []string{"setString", "setImage", "setPixel", "getPixelMatrix", "setPixelMatrix", "sendCmd"}
+	return []string{"setString", "setImage", "drawPixel", "drawPixelMatrix", "sendCmd"}
 }
 
 func (o *OpWLED) GetPossibleArgs(fn string) []string {
@@ -196,12 +145,13 @@ func (o *OpWLED) GetPossibleArgs(fn string) []string {
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {
 	case "animationType":
-		return map[string]string{"move": "move", "shift": "shift", "squence": "sequence"}
+		return map[string]string{"move": "move", "shift": "shift", "moveLeft": "moveLeft", "shiftLeft": "shiftLeft", "squence": "sequence"}
 	case "showImage", "alignRight":
 		return map[string]string{"true": "true", "false": "false"}
 	case "pixelMatrix":
 		m := map[string]string{}
-		for k, _ := range o.saved {
+		wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+		for _, k := range wledNs.GetKeys() {
 			m[k] = k
 		}
 		return m
@@ -218,47 +168,46 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 }
 
 type AnimationOptions struct {
-	AnimationType string
-	StepDuration  time.Duration
-	Repeat        int `json:",string"`
+	AnimationType        string
+	StepDurationInMillis int `json:",string"`
+	Repeat               int `json:",string"`
 }
 
 func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate AnimationOptions) *freepsgraph.OperatorIO {
+	w.SetPixelMatrix(pmName) // ignore error, this will just draw an empty one
+	pm := w.GetPixelMatrix()
+
 	for r := 0; r <= animate.Repeat; r++ {
-		pm, ok := o.saved[pmName]
-		if !ok {
-			if pmName == "diagonal" {
-				pm = MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
-			} else if pmName == "zigzag" {
-				pm = MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")
-			} else {
-				return freepsgraph.MakeOutputError(404, "No such Pixel Matrix \"%v\"", pmName)
-			}
-		}
 		switch animate.AnimationType {
-		case "move":
+		case "move", "moveLeft":
 			for i := -1 * len(pm[0]); i < len(pm[0]); i++ {
-				wt := pm.MoveRight("#000000", i)
-				w.SetPixelMatrix(wt)
+				if animate.AnimationType == "moveLeft" {
+					w.DrawPixelMatrix(pm.MoveLeft("#000000", i))
+				} else {
+					w.DrawPixelMatrix(pm.MoveRight("#000000", i))
+				}
 				w.SendToWLED(nil, false)
-				time.Sleep(animate.StepDuration)
+				time.Sleep(time.Duration(animate.StepDurationInMillis) * time.Millisecond)
 			}
 		case "shift":
 			for i := 0; i < len(pm[0]); i++ {
-				wt := pm.Shift(i)
-				w.SetPixelMatrix(wt)
+				w.DrawPixelMatrix(pm.Shift(i))
 				w.SendToWLED(nil, false)
-				time.Sleep(animate.StepDuration)
+				time.Sleep(time.Duration(animate.StepDurationInMillis) * time.Millisecond)
 			}
 		case "sequence":
-			for i := 1; ok; i++ {
-				w.SetPixelMatrix(pm)
+			seqName := pmName
+			for i := 1; true; i++ {
+				err := w.SetPixelMatrix(seqName)
+				if err != nil {
+					break
+				}
 				w.SendToWLED(nil, false)
-				time.Sleep(animate.StepDuration)
-				pm, ok = o.saved[fmt.Sprintf("%v.%d", pmName, i)]
+				time.Sleep(time.Duration(animate.StepDurationInMillis) * time.Millisecond)
+				seqName = fmt.Sprintf("%v.%d", pmName, i)
 			}
 		default:
-			w.SetPixelMatrix(pm)
+			w.DrawPixelMatrix(pm)
 			w.SendToWLED(nil, false)
 			return freepsgraph.MakeEmptyOutput()
 		}
@@ -277,7 +226,16 @@ func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
 			logrus.Error(err)
 		}
 	}
-	return &OpWLED{cr: cr, config: &conf, saved: make(map[string]PixelMatrix)}
+
+	activeConnection := conf.DefaultConnection
+	w, err := NewWLEDConverter(activeConnection, conf.Connections)
+	if err == nil {
+		err = w.PrepareStore()
+		if err != nil {
+			logrus.Error(err)
+		}
+	}
+	return &OpWLED{cr: cr, config: &conf}
 }
 
 // Shutdown (noOp)

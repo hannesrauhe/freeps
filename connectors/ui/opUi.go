@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -520,7 +521,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *freepsgraph.OperatorIO,
 	if !ok {
 		templateName = "simpleTile.html"
 	}
-	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), false)
+	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
 }
 
 func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
@@ -551,7 +552,32 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 		if vars != nil && len(vars) > 0 {
 			tdata["arguments"] = vars
 		}
-		if !input.IsEmpty() {
+		if input.IsFormData() {
+			formInput, err := input.ParseFormData()
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+			}
+			opName := formInput.Get("ExecuteOperator")
+			graphName := formInput.Get("ExecuteGraph")
+			argQuery, err := url.ParseQuery(formInput.Get("ExecuteArgs"))
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
+			}
+			executeWithArgs := utils.URLArgsToMap(argQuery)
+			for k, v := range formInput {
+				if utils.StringStartsWith(k, "ExecuteArg.") {
+					executeWithArgs[k[11:]] = v[0]
+				}
+			}
+			executeWithInput := freepsgraph.MakeEmptyOutput()
+			if graphName != "" {
+				tdata["response"] = o.ge.ExecuteGraph(ctx, graphName, executeWithArgs, executeWithInput)
+			} else if opName != "" {
+				fnName := formInput.Get("ExecuteFunction")
+				tdata["response"] = o.ge.ExecuteOperatorByName(ctx, opName, fnName, executeWithArgs, executeWithInput)
+			}
+			tdata["input"] = formInput
+		} else if !input.IsEmpty() {
 			// Note: in order to have the UI show values as if they were printed as JSON, they are parsed once
 			// This would lead to accessing the objects directly (MarshallJSON would not be called):
 			// if input.IsObject() {

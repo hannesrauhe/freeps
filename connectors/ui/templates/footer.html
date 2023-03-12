@@ -7,3 +7,21 @@
   <br><br>
   Freeps {{ .Version }}, started at {{ .StartedAt }}
 </footer>
+
+<script>
+  function inIframe() {
+    try {
+      return window.self !== window.top;
+    } catch (e) {
+      return true;
+    }
+  }
+  if (window.matchMedia &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.body.classList.add('dark');
+  }
+  if (inIframe()) {
+    f = document.querySelector("footer")
+    f.parentNode.removeChild(f)
+  }
+</script>

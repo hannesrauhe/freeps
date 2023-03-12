@@ -2,12 +2,17 @@ package wled
 
 import (
 	"bytes"
+	"embed"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"net/http"
+	"path"
 
+	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"golang.org/x/image/draw"
@@ -16,13 +21,20 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+//go:embed font/* pixelart/*
+var staticContent embed.FS
+
 type WLEDConverter struct {
 	segments []WLEDRoot
 	dst      *image.RGBA
 }
 
 // NewWLEDConverter creates a connection to one or multiple WLED instances, the config might reference other configs
-func NewWLEDConverter(conf WLEDConfig, connections map[string]WLEDConfig) (*WLEDConverter, error) {
+func NewWLEDConverter(confName string, connections map[string]WLEDConfig) (*WLEDConverter, error) {
+	conf, exists := connections[confName]
+	if !exists {
+		return nil, fmt.Errorf("Connection \"%v\" does not exist", confName)
+	}
 	err := conf.Validate(false)
 	if err != nil {
 		return nil, err
@@ -141,7 +153,7 @@ func (w *WLEDConverter) GetPixelMatrix() PixelMatrix {
 	return pm
 }
 
-func (w *WLEDConverter) SetPixelMatrix(pm PixelMatrix) error {
+func (w *WLEDConverter) DrawPixelMatrix(pm PixelMatrix) error {
 	for y := 0; y < w.Height() && y < len(pm); y++ {
 		for x := 0; x < w.Width() && x < len(pm[y]); x++ {
 			p, err := utils.ParseHexColor(pm[y][x])
@@ -152,6 +164,20 @@ func (w *WLEDConverter) SetPixelMatrix(pm PixelMatrix) error {
 		}
 	}
 	return nil
+}
+
+func (w *WLEDConverter) SetPixelMatrix(pmName string) error {
+	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	io := wledNs.GetValue(pmName)
+	if io.IsError() {
+		return fmt.Errorf("No pixelmatrix stored")
+	}
+	var pm PixelMatrix
+	err := io.ParseJSON(&pm)
+	if err != nil {
+		return fmt.Errorf("Could not parse input as pixelmatrix object: %v", err)
+	}
+	return w.DrawPixelMatrix(pm)
 }
 
 func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
@@ -188,4 +214,38 @@ func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) 
 		return w.GetPNG()
 	}
 	return overallResp
+}
+
+func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error {
+	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	return wledNs.SetValue(pmName, freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID())
+}
+
+func (w *WLEDConverter) PrepareStore() error {
+	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	wledNs.SetValue("last", freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), "startup")
+	wledNs.SetValue("diagonal", freepsgraph.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
+	wledNs.SetValue("zigzag", freepsgraph.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
+	files, err := staticContent.ReadDir("pixelart")
+	if err != nil {
+		return err
+	}
+	retErr := err
+	for _, fn := range files {
+		key := fn.Name()[:len(fn.Name())-5]
+		value, err := staticContent.ReadFile(path.Join("pixelart", fn.Name()))
+		if err != nil {
+			retErr = err
+			continue
+		}
+		var pm PixelMatrix
+		err = json.Unmarshal(value, &pm)
+		if err != nil {
+			retErr = err
+			continue
+		}
+
+		wledNs.SetValue(key, freepsgraph.MakeObjectOutput(pm), "startup")
+	}
+	return retErr
 }

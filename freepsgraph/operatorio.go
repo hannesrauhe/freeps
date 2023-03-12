@@ -54,6 +54,10 @@ func MakeObjectOutput(output interface{}) *OperatorIO {
 	return &OperatorIO{OutputType: Object, HTTPCode: 200, Output: output}
 }
 
+func MakeObjectOutputWithContentType(output interface{}, contentType string) *OperatorIO {
+	return &OperatorIO{OutputType: Object, HTTPCode: 200, Output: output, ContentType: contentType}
+}
+
 func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
 	strmap, ok := io.Output.(map[string]string)
 	if ok {
@@ -100,6 +104,13 @@ func (io *OperatorIO) ParseJSON(obj interface{}) error {
 
 // ParseFormData returns the data as posted by a HTML form
 func (io *OperatorIO) ParseFormData() (url.Values, error) {
+	if io.IsFormData() {
+		formData, isType := io.Output.(url.Values)
+		if !isType {
+			return nil, fmt.Errorf("Input should be form data but cannot be interpreted as such")
+		}
+		return formData, nil
+	}
 	inBytes, err := io.GetBytes()
 	if err != nil {
 		return nil, err
@@ -182,6 +193,10 @@ func (io *OperatorIO) IsPlain() bool {
 
 func (io *OperatorIO) IsObject() bool {
 	return io.OutputType == Object
+}
+
+func (io *OperatorIO) IsFormData() bool {
+	return io.IsObject() && io.ContentType == "application/x-www-form-urlencoded"
 }
 
 func (io *OperatorIO) IsEmpty() bool {
