@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -149,9 +150,10 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 		return map[string]string{"true": "true", "false": "false"}
 	case "pixelMatrix":
 		m := map[string]string{}
-		// for k, _ := range o.saved {
-		// 	m[k] = k
-		// }
+		wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+		for _, k := range wledNs.GetKeys() {
+			m[k] = k
+		}
 		return m
 	case "config":
 		m := map[string]string{}
