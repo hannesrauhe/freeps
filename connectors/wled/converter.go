@@ -2,12 +2,16 @@ package wled
 
 import (
 	"bytes"
+	"embed"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"net/http"
+	"path"
 
+	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -16,6 +20,9 @@ import (
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
+
+//go:embed font/* pixelart/*
+var staticContent embed.FS
 
 type WLEDConverter struct {
 	segments []WLEDRoot
@@ -203,18 +210,42 @@ func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) 
 		overallResp = resp
 	}
 
-	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
-	wledNs.SetValue("pixelmatrix", freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), "")
 	if cmd == nil && returnPNG {
 		return w.GetPNG()
 	}
 	return overallResp
 }
 
+func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error {
+	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	return wledNs.SetValue(pmName, freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID())
+}
+
 func (w *WLEDConverter) PrepareStore() error {
 	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
-	wledNs.SetValue("pixelmatrix", freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), "")
-	wledNs.SetValue("diagonal", freepsgraph.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "")
-	wledNs.SetValue("zigzag", freepsgraph.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "")
-	return nil
+	wledNs.SetValue("last", freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), "startup")
+	wledNs.SetValue("diagonal", freepsgraph.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
+	wledNs.SetValue("zigzag", freepsgraph.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
+	files, err := staticContent.ReadDir("pixelart")
+	if err != nil {
+		return err
+	}
+	retErr := err
+	for _, fn := range files {
+		key := fn.Name()[:len(fn.Name())-5]
+		value, err := staticContent.ReadFile(path.Join("pixelart", fn.Name()))
+		if err != nil {
+			retErr = err
+			continue
+		}
+		var pm PixelMatrix
+		err = json.Unmarshal(value, &pm)
+		if err != nil {
+			retErr = err
+			continue
+		}
+
+		wledNs.SetValue(key, freepsgraph.MakeObjectOutput(pm), "startup")
+	}
+	return retErr
 }

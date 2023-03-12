@@ -2,7 +2,7 @@ package wled
 
 import (
 	"bytes"
-	"embed"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -21,9 +21,6 @@ type OpWLED struct {
 	config *OpConfig
 }
 
-//go:embed font/*
-var staticContent embed.FS
-
 var _ freepsgraph.FreepsOperator = &OpWLED{}
 
 // GetName returns the name of the operator
@@ -39,6 +36,10 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 	w, err := NewWLEDConverter(activeConnection, o.config.Connections)
 	if err != nil {
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
+	}
+	pmName := vars["pixelMatrix"]
+	if pmName == "" {
+		pmName = "last"
 	}
 
 	switch function {
@@ -95,7 +96,7 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 		err = w.WriteString(str, c, utils.ParseBool(vars["alignRight"]))
 	case "drawPixel":
 		c := image.White.C
-		w.SetPixelMatrix("pixelmatrix")
+		w.SetPixelMatrix(pmName)
 		if colstr, ok := vars["color"]; ok {
 			c, err = utils.ParseHexColor(colstr)
 			if err != nil {
@@ -112,8 +113,7 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 		}
 		err = w.SetPixel(x, y, c)
 	case "drawPixelMatrix":
-		pmName := "pixelmatrix"
-		animate := AnimationOptions{StepDuration: time.Millisecond * 500}
+		animate := AnimationOptions{StepDurationInMillis: 500}
 		err := utils.ArgsMapToObject(vars, &animate)
 		if err != nil {
 			return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse Animation Parameters: %v", err)
@@ -127,7 +127,10 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	return w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
+	ret := w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
+	w.StorePixelMatrix(ctx, pmName)
+	w.StorePixelMatrix(ctx, activeConnection)
+	return ret
 }
 
 func (o *OpWLED) GetFunctions() []string {
@@ -141,7 +144,7 @@ func (o *OpWLED) GetPossibleArgs(fn string) []string {
 func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {
 	case "animationType":
-		return map[string]string{"move": "move", "shift": "shift", "squence": "sequence"}
+		return map[string]string{"move": "move", "shift": "shift", "moveLeft": "moveLeft", "shiftLeft": "shiftLeft", "squence": "sequence"}
 	case "showImage", "alignRight":
 		return map[string]string{"true": "true", "false": "false"}
 	case "pixelMatrix":
@@ -163,39 +166,44 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 }
 
 type AnimationOptions struct {
-	AnimationType string
-	StepDuration  time.Duration
-	Repeat        int `json:",string"`
+	AnimationType        string
+	StepDurationInMillis int `json:",string"`
+	Repeat               int `json:",string"`
 }
 
 func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate AnimationOptions) *freepsgraph.OperatorIO {
-	var pm PixelMatrix
 	w.SetPixelMatrix(pmName) // ignore error, this will just draw an empty one
-	pm = w.GetPixelMatrix()
+	pm := w.GetPixelMatrix()
 
 	for r := 0; r <= animate.Repeat; r++ {
 		switch animate.AnimationType {
-		case "move":
+		case "move", "moveLeft":
 			for i := -1 * len(pm[0]); i < len(pm[0]); i++ {
-				wt := pm.MoveRight("#000000", i)
-				w.DrawPixelMatrix(wt)
+				if animate.AnimationType == "moveLeft" {
+					w.DrawPixelMatrix(pm.MoveLeft("#000000", i))
+				} else {
+					w.DrawPixelMatrix(pm.MoveRight("#000000", i))
+				}
 				w.SendToWLED(nil, false)
-				time.Sleep(animate.StepDuration)
+				time.Sleep(time.Duration(animate.StepDurationInMillis) * time.Millisecond)
 			}
 		case "shift":
 			for i := 0; i < len(pm[0]); i++ {
-				wt := pm.Shift(i)
-				w.DrawPixelMatrix(wt)
+				w.DrawPixelMatrix(pm.Shift(i))
 				w.SendToWLED(nil, false)
-				time.Sleep(animate.StepDuration)
+				time.Sleep(time.Duration(animate.StepDurationInMillis) * time.Millisecond)
 			}
-		// case "sequence":
-		// 	for i := 1; ok; i++ {
-		// 		w.SetPixelMatrix(pm)
-		// 		w.SendToWLED(nil, false)
-		// 		time.Sleep(animate.StepDuration)
-		// 		pm, ok = o.saved[fmt.Sprintf("%v.%d", pmName, i)]
-		// 	}
+		case "sequence":
+			seqName := pmName
+			for i := 1; true; i++ {
+				err := w.SetPixelMatrix(seqName)
+				if err != nil {
+					break
+				}
+				w.SendToWLED(nil, false)
+				time.Sleep(time.Duration(animate.StepDurationInMillis) * time.Millisecond)
+				seqName = fmt.Sprintf("%v.%d", pmName, i)
+			}
 		default:
 			w.DrawPixelMatrix(pm)
 			w.SendToWLED(nil, false)
@@ -220,7 +228,10 @@ func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
 	activeConnection := conf.DefaultConnection
 	w, err := NewWLEDConverter(activeConnection, conf.Connections)
 	if err == nil {
-		w.PrepareStore()
+		err = w.PrepareStore()
+		if err != nil {
+			logrus.Error(err)
+		}
 	}
 	return &OpWLED{cr: cr, config: &conf}
 }

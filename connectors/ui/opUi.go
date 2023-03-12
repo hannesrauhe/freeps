@@ -564,6 +564,11 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
 			}
 			executeWithArgs := utils.URLArgsToMap(argQuery)
+			for k, v := range formInput {
+				if utils.StringStartsWith(k, "ExecuteArg.") {
+					executeWithArgs[k[11:]] = v[0]
+				}
+			}
 			executeWithInput := freepsgraph.MakeEmptyOutput()
 			if graphName != "" {
 				tdata["response"] = o.ge.ExecuteGraph(ctx, graphName, executeWithArgs, executeWithInput)
