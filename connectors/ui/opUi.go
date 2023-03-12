@@ -521,7 +521,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *freepsgraph.OperatorIO,
 	if !ok {
 		templateName = "simpleTile.html"
 	}
-	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), false)
+	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
 }
 
 func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {

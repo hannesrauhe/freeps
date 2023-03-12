@@ -1,7 +1,6 @@
 <!-- <link rel="stylesheet" href="/chota.min.css"> -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-{{$.response}}
 {{$pmName := "last"}}
 {{$nextColor := "#ffffff"}}
 {{if $.arguments.color }}
@@ -43,5 +42,11 @@
     String: <input type="text" value="Freeps" name="ExecuteArg.string">
     <button>Draw</button>
 </form>
+
 <br clear="both" />
+<pre>
+    <code>
+{{$.response}}
+    </code>
+</pre>
 <br />
