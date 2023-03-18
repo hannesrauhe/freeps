@@ -1,6 +1,8 @@
 package freepsbluetooth
 
 import (
+	"fmt"
+
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -19,12 +21,13 @@ import (
 // FreepsBluetooth provides options to scan for bt devices and execute operations based on that
 type FreepsBluetooth struct {
 	log    logrus.FieldLogger
+	ge     *freepsgraph.GraphEngine
 	cancel context.CancelFunc
 }
 
 // NewBTWatcher creates a new BT watcher
 func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsBluetooth, error) {
-	fbt := &FreepsBluetooth{log: logger.WithField("component", "bluetooth")}
+	fbt := &FreepsBluetooth{log: logger.WithField("component", "bluetooth"), ge: ge}
 	err := fbt.run("hci0", false)
 	if err != nil {
 		api.Exit()
@@ -92,9 +95,17 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 
 func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 	ctx := base.NewContext(fbt.log)
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(dev.Properties.Address, freepsgraph.MakeObjectOutput(dev), ctx.GetID())
-	// tags := []string{"bluetooth", "device:" + dev.Properties.Address}
-	// out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"device": dev.Properties.Address, "name": dev.Properties.Name}, freepsgraph.MakeEmptyOutput())
+	input := freepsgraph.MakeObjectOutput(dev)
+	args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI)}
+
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(dev.Properties.Alias, input, ctx.GetID())
+
+	tags := []string{"bluetooth", "device:" + dev.Properties.Alias}
+	fbt.ge.ExecuteGraphByTags(ctx, tags, args, input)
+	tags = []string{"bluetooth", "alldevices"}
+	fbt.ge.ExecuteGraphByTags(ctx, tags, args, input)
+
+	// TODO(HR): not sure yet if I actually need the rest:
 
 	b, err := beacon.NewBeacon(dev)
 	if err != nil {
@@ -116,7 +127,7 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 		name = b.Device.Properties.Name
 	}
 
-	fbt.log.Debugf("Found beacon %s %s", b.Type, name)
+	fbt.log.Infof("Found beacon %s %s", b.Type, name)
 
 	if b.IsEddystone() {
 		ed := b.GetEddystone()
