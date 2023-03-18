@@ -1,6 +1,8 @@
 package freepsbluetooth
 
 import (
+	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
@@ -74,7 +76,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 				continue
 			}
 
-			fbt.log.Infof("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
+			fbt.log.Debugf("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
 
 			go func(ev *adapter.DeviceDiscovered) {
 				err = fbt.handleBeacon(dev)
@@ -89,6 +91,11 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 }
 
 func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
+	ctx := base.NewContext(fbt.log)
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(dev.Properties.Address, freepsgraph.MakeObjectOutput(dev), ctx.GetID())
+	// tags := []string{"bluetooth", "device:" + dev.Properties.Address}
+	// out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"device": dev.Properties.Address, "name": dev.Properties.Name}, freepsgraph.MakeEmptyOutput())
+
 	b, err := beacon.NewBeacon(dev)
 	if err != nil {
 		return err
