@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
@@ -122,6 +123,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
 			ctx := base.NewContext(fm.mqttlogger)
 			input := freepsgraph.MakeByteOutput(message.Payload())
+			freepsstore.GetGlobalStore().GetNamespace("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
 			out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"topic": message.Topic(), "subscription": tags[1]}, input)
 			fm.publishResult(topic, ctx, out)
 		}
