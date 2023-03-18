@@ -12,6 +12,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
@@ -91,6 +92,11 @@ func main() {
 			ge.AddOperator(muteme.NewMuteMeOp(mm))
 		}
 
+		fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
+		if err != nil {
+			logger.Errorf("FreepsBT not started: %v", err)
+		}
+
 		//TODO(HR): load operators from config?
 		ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
@@ -154,6 +160,7 @@ func main() {
 			telg.Shutdown(context.TODO())
 			http.Shutdown(context.TODO())
 			mm.Shutdown()
+			fbt.Shutdown()
 		}
 		running = ge.ReloadRequested()
 		ge.Shutdown(base.NewContext(logger))
