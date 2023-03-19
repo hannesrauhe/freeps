@@ -92,11 +92,6 @@ func main() {
 			ge.AddOperator(muteme.NewMuteMeOp(mm))
 		}
 
-		fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
-		if err != nil {
-			logger.Errorf("FreepsBT not started: %v", err)
-		}
-
 		//TODO(HR): load operators from config?
 		ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
 		ge.AddOperator(mqtt.NewMQTTOp(cr))
@@ -149,6 +144,13 @@ func main() {
 		} else {
 			h, _ := mqtt.NewMQTTHook(cr)
 			ge.AddHook(h)
+		}
+
+		fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
+		if err != nil {
+			logger.Errorf("FreepsBT not started: %v", err)
+		} else {
+			ge.AddHook(&freepsbluetooth.HookBluetooth{})
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
 		mm.StartListening()
