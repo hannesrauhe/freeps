@@ -24,6 +24,7 @@ var btwatcher *FreepsBluetooth
 type FreepsBluetooth struct {
 	discoInitLock      sync.Mutex
 	cancel             context.CancelFunc
+	shuttingDown       bool
 	nextIterationTimer *time.Timer
 	log                logrus.FieldLogger
 	ge                 *freepsgraph.GraphEngine
@@ -31,7 +32,7 @@ type FreepsBluetooth struct {
 
 // NewBTWatcher creates a new BT watcher
 func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsBluetooth, error) {
-	btwatcher = &FreepsBluetooth{log: logger.WithField("component", "bluetooth"), ge: ge}
+	btwatcher = &FreepsBluetooth{log: logger.WithField("component", "bluetooth"), shuttingDown: false, ge: ge}
 
 	err := btwatcher.StartSupscription()
 	if err != nil {
@@ -45,11 +46,18 @@ func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsg
 func (fbt *FreepsBluetooth) StartSupscription() error {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
+	if btwatcher.shuttingDown {
+		return nil
+	}
 
 	if fbt.cancel != nil {
 		return nil
 	}
 	err := btwatcher.run("hci0", false)
+	if err != nil {
+		return err
+	}
+	fbt.nextIterationTimer = time.AfterFunc(time.Minute*2, fbt.StopSupscription)
 	return err
 }
 
@@ -57,10 +65,15 @@ func (fbt *FreepsBluetooth) StartSupscription() error {
 func (fbt *FreepsBluetooth) StopSupscription() {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
+	if btwatcher.shuttingDown {
+		return
+	}
 
 	if fbt.cancel == nil {
 		return
 	}
+
+	fbt.log.Debug("Stop discovery")
 	fbt.cancel()
 	fbt.cancel = nil
 	fbt.nextIterationTimer = time.AfterFunc(time.Minute*5, func() {
@@ -72,6 +85,11 @@ func (fbt *FreepsBluetooth) StopSupscription() {
 func (fbt *FreepsBluetooth) Shutdown() {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
+	fbt.shuttingDown = true
+
+	if fbt.nextIterationTimer != nil {
+		fbt.nextIterationTimer.Stop()
+	}
 
 	if fbt.cancel != nil {
 		fbt.cancel()
@@ -129,7 +147,6 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 			}(ev)
 		}
 	}()
-	fbt.nextIterationTimer = time.AfterFunc(time.Minute*2, fbt.StopSupscription)
 	return nil
 }
 
