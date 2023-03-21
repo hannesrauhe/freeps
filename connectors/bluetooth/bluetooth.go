@@ -111,8 +111,8 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 	if err != nil {
 		return err
 	}
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(time.Hour)
 
-	fbt.log.Debug("Start discovery")
 	discovery, cancel, err := api.Discover(a, nil)
 	if err != nil {
 		return err
@@ -120,6 +120,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 	fbt.cancel = cancel
 
 	go func() {
+		fbt.log.Debug("Started discovery")
 		for ev := range discovery {
 
 			if ev.Type == adapter.DeviceRemoved {
@@ -146,6 +147,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 				}
 			}(ev)
 		}
+		fbt.log.Debug("Stopped discovery")
 	}()
 	return nil
 }
