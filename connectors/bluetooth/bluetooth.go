@@ -159,10 +159,20 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 
 	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(dev.Properties.Alias, input, ctx.GetID())
 
+	//TODO(HR): make sure graphs are only called once
 	tags := []string{"bluetooth", "device:" + dev.Properties.Alias}
 	fbt.ge.ExecuteGraphByTags(ctx, tags, args, input)
 	tags = []string{"bluetooth", "alldevices"}
 	fbt.ge.ExecuteGraphByTags(ctx, tags, args, input)
+
+	if dev.Properties.AddressType == "public" {
+		tags = []string{"bluetooth", "publicdevices"}
+		fbt.ge.ExecuteGraphByTags(ctx, tags, args, input)
+	}
+	if dev.Properties.Name != "" {
+		tags = []string{"bluetooth", "nameddevices"}
+		fbt.ge.ExecuteGraphByTags(ctx, tags, args, input)
+	}
 
 	return nil
 }
