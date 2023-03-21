@@ -91,16 +91,46 @@ func (o *OpFlux) Execute(ctx *base.Context, fn string, vars map[string]string, i
 	case "pushsinglefield":
 		{
 			m := vars["measurement"]
+			if m == "" {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "No measurement name given")
+			}
+			if vars["field"] == "" {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "empty fields map")
+			}
 			fields := map[string]interface{}{vars["field"]: input.Output}
 			delete(vars, "measurement")
 			delete(vars, "field")
 
 			err = o.ff.PushFields(m, vars, fields)
-			if err == nil {
-				return freepsgraph.MakePlainOutput("Pushed to influx: %v %v %v", m, vars, fields)
-			} else {
+			if err != nil {
 				return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err)
 			}
+			return freepsgraph.MakePlainOutput("Pushed to influx: %v %v %v", m, vars, fields)
+		}
+	case "pushmeasurement":
+		{
+			m := vars["measurement"]
+			if m == "" {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "No measurement name given")
+			}
+			if input.IsEmpty() {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "no input")
+			}
+			delete(vars, "measurement")
+			fields := map[string]interface{}{}
+			err := input.ParseJSON(&fields)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Could not parse input: %v", err)
+			}
+			if len(fields) == 0 {
+				return freepsgraph.MakeOutputError(http.StatusBadRequest, "empty fields map")
+			}
+
+			err = o.ff.PushFields(m, vars, fields)
+			if err != nil {
+				return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err)
+			}
+			return freepsgraph.MakePlainOutput("Pushed to influx: %v %v %v", m, vars, fields)
 		}
 	case "pushfreepsdevicelist":
 		{
@@ -158,11 +188,11 @@ func (o *OpFlux) pushFreepsMetrics(input *freepsgraph.OperatorIO) *freepsgraph.O
 }
 
 func (o *OpFlux) GetFunctions() []string {
-	return []string{"pushfields", "pushsinglefield", "pushfreepsdevicelist", "pushfreepsmetrics", "pushfreepsdata"}
+	return []string{"pushfields", "pushsinglefield", "pushmeasurement", "pushfreepsdevicelist", "pushfreepsmetrics", "pushfreepsdata"}
 }
 
 func (o *OpFlux) GetPossibleArgs(fn string) []string {
-	return []string{}
+	return []string{"measurement", "field"}
 }
 
 func (o *OpFlux) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
