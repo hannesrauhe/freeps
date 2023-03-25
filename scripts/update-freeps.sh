@@ -27,7 +27,8 @@ echo "Updating freeps from branch $BRANCH"
 
 git fetch --all
 git checkout $BRANCH
-git pull --ff-only
+git reset --hard origin/$BRANCH
+# git pull --ff-only
 make
 popd
 

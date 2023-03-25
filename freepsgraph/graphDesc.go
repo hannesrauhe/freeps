@@ -100,3 +100,19 @@ func (gd *GraphDesc) RemoveTag(tag string) {
 		gd.Tags = append(gd.Tags, k)
 	}
 }
+
+// RenameOperation renames an operation oldName to newName everywhere in the Graph
+func (gd *GraphDesc) RenameOperation(oldName string, newName string) {
+	rename := func(ref *string) {
+		if *ref == oldName {
+			*ref = newName
+		}
+	}
+	for i := range gd.Operations {
+		rename(&gd.Operations[i].Name)
+		rename(&gd.Operations[i].ArgumentsFrom)
+		rename(&gd.Operations[i].InputFrom)
+		rename(&gd.Operations[i].ExecuteOnFailOf)
+	}
+	rename(&gd.OutputFrom)
+}
