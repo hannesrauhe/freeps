@@ -12,6 +12,7 @@ import (
 
 	"context"
 
+	"github.com/godbus/dbus/v5"
 	"github.com/muka/go-bluetooth/api"
 	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
@@ -174,13 +175,19 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 		if len(k) > 8 {
 			service = k[0:8]
 		}
-		b, ok := v.([]byte)
-		if ok {
-			args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI), "service": service}
-			fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "service"}, []string{service, "allservices"}, args, freepsgraph.MakeByteOutput(b))
-		} else {
-			fbt.log.Errorf("Service %v data is not bytes but %T: %v ", service, v, v)
+		dbv, ok := v.(dbus.Variant)
+		if !ok {
+			fbt.log.Errorf("Service %v data is not dbus.Variant but %T: %v ", service, v, v)
+			continue
 		}
+		b := dbv.Value().([]byte)
+		if !ok {
+			fbt.log.Errorf("Service %v data is not bytes but %T: %v ", service, b, b)
+			continue
+		}
+
+		args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI), "service": service}
+		fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "service"}, []string{service, "allservices"}, args, freepsgraph.MakeByteOutput(b))
 	}
 
 	return nil
