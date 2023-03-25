@@ -155,7 +155,6 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 	ctx := base.NewContext(fbt.log)
 	input := freepsgraph.MakeObjectOutput(dev.Properties)
-	inputService := freepsgraph.MakeObjectOutput(dev.Properties.ServiceData)
 	args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI)}
 
 	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(dev.Properties.Alias, input, ctx.GetID())
