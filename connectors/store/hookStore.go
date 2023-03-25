@@ -32,7 +32,7 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 	return nil
 }
 
-// OnExecutionFinished gets called when freepsgraph starts executing a Graph
+// OnExecutionFinished gets called when freepsgraph is finished executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
 	if h.storeNs == nil {
 		return fmt.Errorf("no namespace in hook")
