@@ -29,9 +29,9 @@ type GraphDesc struct {
 	Operations []GraphOperationDesc
 }
 
-// HasTags return true if the GraphDesc contains all given tags
-func (gd *GraphDesc) HasTags(expectedTags []string) bool {
-	if expectedTags == nil && len(expectedTags) == 0 {
+// HasAllTags return true if the GraphDesc contains all given tags
+func (gd *GraphDesc) HasAllTags(expectedTags []string) bool {
+	if expectedTags == nil || len(expectedTags) == 0 {
 		return true
 	}
 
@@ -47,6 +47,22 @@ func (gd *GraphDesc) HasTags(expectedTags []string) bool {
 		}
 	}
 	return true
+}
+
+// HasAtLeastOneTag return true if the GraphDesc contains at least one of the given tags
+func (gd *GraphDesc) HasAtLeastOneTag(expectedTags []string) bool {
+	if expectedTags == nil || len(expectedTags) == 0 {
+		return true
+	}
+
+	for _, exexpectedTag := range expectedTags {
+		for _, tag := range gd.Tags {
+			if tag == exexpectedTag {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // AddTag adds a Tag to the description and removes duplicates

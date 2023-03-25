@@ -87,7 +87,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 
 	newTopics := map[string]bool{}
 	existingTopics := map[string]bool{}
-	for _, info := range fm.ge.GetGraphInfoByTag([]string{"mqtt"}) {
+	for _, info := range fm.ge.GetGraphInfoByTag([]string{"mqtt"}, []string{}) {
 		for _, t := range info.Desc.Tags {
 			if len(t) > len("topic:") && t[:6] == "topic:" {
 				topic := t[6:]

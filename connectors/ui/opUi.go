@@ -174,7 +174,7 @@ func (o *OpUI) createTemplateFuncMap() template.FuncMap {
 		},
 		"graph_GetGraphInfoByTag": func(tagstr string) map[string]freepsgraph.GraphInfo {
 			tags := strings.Split(tagstr, ",")
-			return o.ge.GetGraphInfoByTag(tags)
+			return o.ge.GetGraphInfoByTag(tags, []string{})
 		},
 	}
 	return funcMap

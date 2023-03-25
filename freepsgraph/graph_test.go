@@ -182,43 +182,52 @@ func TestGraphExecution(t *testing.T) {
 	assert.NilError(t, err)
 	ge := NewGraphEngine(cr, func() {})
 
-	expectOutput(t,
-		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"not"}, make(map[string]string), MakeEmptyOutput()),
-		404, nil)
-	expectOutput(t,
-		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{}, make(map[string]string), MakeEmptyOutput()),
-		400, nil)
+	expectByTagExtendedExecution := func(tagsAnd []string, tagsOr []string, expectedOutputKeys []string) {
+		expectedCode := 200
+		if expectedOutputKeys == nil {
+			expectedCode = 404
+		}
+		expectOutput(t,
+			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger()), tagsAnd, tagsOr, make(map[string]string), MakeEmptyOutput()),
+			expectedCode, expectedOutputKeys)
+	}
+
+	expectByTagExecution := func(tags []string, expectedOutputKeys []string) {
+		expectByTagExtendedExecution(tags, []string{}, expectedOutputKeys)
+	}
+
+	expectByTagExecution([]string{"not"}, nil)
+
+	g0 := validGraph
+	ge.AddExternalGraph("test0", &g0, "")
+	expectByTagExecution([]string{"t1"}, nil)
 
 	g1 := validGraph
-	g1.Tags = []string{"t1"}
+	g1.AddTag("t1")
 	ge.AddExternalGraph("test1", &g1, "")
-	expectOutput(t,
-		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
-		200, []string{})
+	expectByTagExecution([]string{"t1"}, []string{}) //single graph executed with empty output
 
 	g2 := validGraph
-	g2.Tags = []string{"t1"}
+	g2.Tags = []string{"t1", "t4"}
 	ge.AddExternalGraph("test2", &g2, "")
-	expectOutput(t,
-		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
-		200, []string{"test1", "test2"})
+	expectByTagExecution([]string{"t1"}, []string{"test1", "test2"})
 
 	g3 := validGraph
-	g3.Tags = []string{"t1", "t2"}
+	g3.Tags = []string{"t1", "t2", "t4"}
 	ge.AddExternalGraph("test3", &g3, "foo.json")
-	expectOutput(t,
-		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1"}, make(map[string]string), MakeEmptyOutput()),
-		200, []string{"test1", "test2", "test3"})
-	expectOutput(t,
-		ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), []string{"t1", "t2"}, make(map[string]string), MakeEmptyOutput()),
-		200, []string{})
 
 	g4 := validGraph
 	g4.Tags = []string{"t4"}
 	ge.AddExternalGraph("test4", &g4, "foo.json")
 
+	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
+	expectByTagExecution([]string{"t1", "t2"}, []string{}) //single graph executed with empty output
+
+	expectByTagExtendedExecution([]string{"t1"}, []string{"t2", "t4"}, []string{"test2", "test3"})
+	expectByTagExtendedExecution([]string{}, []string{"t2", "t4"}, []string{"test2", "test3", "test4"})
+
 	// test the operator once
 	expectOutput(t,
 		ge.ExecuteOperatorByName(base.NewContext(log.StandardLogger()), "graphbytag", "t4", map[string]string{}, MakeEmptyOutput()),
-		200, []string{})
+		200, []string{"test2", "test3", "test4"})
 }
