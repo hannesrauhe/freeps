@@ -9,7 +9,6 @@ import (
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/influxdata/influxdb-client-go/v2/internal/log"
 
 	"context"
 
@@ -170,7 +169,7 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth"}, tags, args, input)
 
 	for k, v := range dev.Properties.ServiceData {
-		log.Errorf("Service %v data: %v", k, v)
+		fbt.log.Errorf("Service %v data: %v", k, v)
 		args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI), "service": k}
 		fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "service"}, []string{k, "allservices"}, args, freepsgraph.MakeObjectOutput(v))
 	}
