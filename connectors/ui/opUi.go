@@ -288,7 +288,10 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 		} else if k == "ignoreMainArgs" {
 			gopd.IgnoreMainArgs = utils.ParseBool(v)
 		} else if k == "opName" && len(v) > 0 && !utils.StringStartsWith(v, "#") {
-			gopd.Name = v
+			if gopd.Name == "" {
+				gopd.Name = fmt.Sprintf("#%d", targetNum)
+			}
+			gd.RenameOperation(gopd.Name, v)
 		} else if k == "graphOutput" {
 			gd.OutputFrom = v
 		}
@@ -347,7 +350,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *freepsgraph.OperatorIO, 
 			opNum, _ = formInput["selectednumop"]
 		}
 		targetNum, _ = strconv.Atoi(opNum)
-		if targetNum < 0 {
+		if targetNum < 0 || targetNum >= len(gd.Operations) {
 			targetNum = 0
 		}
 
