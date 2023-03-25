@@ -179,7 +179,7 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 			args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI), "service": service}
 			fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "service"}, []string{service, "allservices"}, args, freepsgraph.MakeByteOutput(b))
 		} else {
-			fbt.log.Errorf("Service %v data is not bytes: %v ", service, v)
+			fbt.log.Errorf("Service %v data is not bytes but %T: %v ", service, v, v)
 		}
 	}
 
