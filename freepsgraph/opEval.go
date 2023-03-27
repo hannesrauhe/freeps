@@ -345,6 +345,12 @@ func parseIntOrReturnDirectly(v interface{}) (int, error) {
 		return int(v.(int32)), nil
 	case float64:
 		return int(math.Round(v.(float64))), nil
+	case []byte:
+		b := v.([]byte)
+		if len(b) == 0 {
+			return 0, fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as Int, array is empty", v, v)
+		}
+		return int(b[0]), nil
 	case string:
 		vInt, err := strconv.Atoi(v.(string))
 		if err != nil {
@@ -379,6 +385,12 @@ func parseBoolOrReturnDirectly(v interface{}) (bool, error) {
 	switch v.(type) {
 	case bool:
 		return v.(bool), nil
+	case []byte:
+		b := v.([]byte)
+		if len(b) == 0 {
+			return false, fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as bool, array is empty", v, v)
+		}
+		return b[0] != 0, nil
 	case string:
 		vB, err := strconv.ParseBool(v.(string))
 		if err != nil {

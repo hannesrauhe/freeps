@@ -153,24 +153,20 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 	return nil
 }
 
-func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
-	ctx := base.NewContext(fbt.log)
-	input := freepsgraph.MakeObjectOutput(dev.Properties)
-	args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI)}
+// DiscoveryData is the reduced set of information of Device properties send as input to graphs
+type DiscoveryData struct {
+	Address     string
+	Name        string
+	Alias       string
+	RSSI        int16
+	ServiceData map[string][]byte
+}
 
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(dev.Properties.Alias, input, ctx.GetID())
-
-	tags := []string{"device:" + dev.Properties.Alias, "alldevices"}
-	if dev.Properties.AddressType == "public" {
-		tags = append(tags, "publicdevices")
-	}
-	if dev.Properties.Name != "" {
-		tags = append(tags, "nameddevices")
-	}
-	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth"}, tags, args, input)
-
-	for k, v := range dev.Properties.ServiceData {
-		ctx := base.NewContext(fbt.log)
+func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties) *DiscoveryData {
+	prop.Lock()
+	defer prop.Unlock()
+	d := DiscoveryData{Address: prop.Address, Name: prop.Name, Alias: prop.Alias, RSSI: prop.RSSI, ServiceData: map[string][]byte{}}
+	for k, v := range prop.ServiceData {
 		service := k
 		if len(k) > 8 {
 			service = k[0:8]
@@ -180,15 +176,29 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 			fbt.log.Errorf("Service %v data is not dbus.Variant but %T: %v ", service, v, v)
 			continue
 		}
-		b := dbv.Value().([]byte)
+		d.ServiceData[service] = dbv.Value().([]byte)
 		if !ok {
-			fbt.log.Errorf("Service %v data is not bytes but %T: %v ", service, b, b)
+			fbt.log.Errorf("Service %v data is not bytes but %T: %v ", service, dbv.Value(), dbv.Value())
 			continue
 		}
-
-		args := map[string]string{"device": dev.Properties.Alias, "RSSI": fmt.Sprint(dev.Properties.RSSI), "service": service}
-		fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "service"}, []string{service, "allservices"}, args, freepsgraph.MakeByteOutput(b))
 	}
+
+	return &d
+}
+
+func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
+	devData := fbt.parseDeviceProperties(dev.Properties)
+	ctx := base.NewContext(fbt.log)
+	input := freepsgraph.MakeObjectOutput(devData)
+	args := map[string]string{"device": devData.Alias, "RSSI": fmt.Sprint(devData.RSSI)}
+
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(devData.Alias, input, ctx.GetID())
+
+	tags := []string{"device:" + devData.Alias, "alldevices"}
+	if devData.Name != "" {
+		tags = append(tags, "nameddevices")
+	}
+	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth"}, tags, args, input)
 
 	return nil
 }
