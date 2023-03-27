@@ -159,13 +159,13 @@ type DiscoveryData struct {
 	Name        string
 	Alias       string
 	RSSI        int16
-	ServiceData map[string][]byte
+	ServiceData map[string]interface{}
 }
 
 func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties) *DiscoveryData {
 	prop.Lock()
 	defer prop.Unlock()
-	d := DiscoveryData{Address: prop.Address, Name: prop.Name, Alias: prop.Alias, RSSI: prop.RSSI, ServiceData: map[string][]byte{}}
+	d := DiscoveryData{Address: prop.Address, Name: prop.Name, Alias: prop.Alias, RSSI: prop.RSSI, ServiceData: map[string]interface{}{}}
 	for k, v := range prop.ServiceData {
 		service := k
 		if len(k) > 8 {
@@ -176,11 +176,35 @@ func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties
 			fbt.log.Errorf("Service %v data is not dbus.Variant but %T: %v ", service, v, v)
 			continue
 		}
-		d.ServiceData[service] = dbv.Value().([]byte)
+		serviceBytes, ok := dbv.Value().([]byte)
 		if !ok {
 			fbt.log.Errorf("Service %v data is not bytes but %T: %v ", service, dbv.Value(), dbv.Value())
 			continue
 		}
+		if len(serviceBytes) == 0 {
+			fbt.log.Errorf("Service %v data is empty ", service)
+			continue
+		}
+
+		switch service {
+		case "0000180f":
+			{
+				d.ServiceData["battery"] = int(serviceBytes[0])
+			}
+		case "0000183B":
+			{
+				d.ServiceData["binary"] = serviceBytes[0] != 0
+			}
+		case "00001809":
+			{
+				d.ServiceData["temperature"] = int(serviceBytes[0])
+			}
+		default:
+			{
+				d.ServiceData[service] = serviceBytes
+			}
+		}
+
 	}
 
 	return &d
