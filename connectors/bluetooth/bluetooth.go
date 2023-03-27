@@ -191,7 +191,7 @@ func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties
 			{
 				d.ServiceData["battery"] = int(serviceBytes[0])
 			}
-		case "0000183B":
+		case "0000183b":
 			{
 				d.ServiceData["binary"] = serviceBytes[0] != 0
 			}
