@@ -216,7 +216,7 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 	input := freepsgraph.MakeObjectOutput(devData)
 	args := map[string]string{"device": devData.Alias, "RSSI": fmt.Sprint(devData.RSSI)}
 
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(devData.Alias, input, ctx.GetID())
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(devData.Address, input, ctx.GetID())
 
 	tags := []string{"device:" + devData.Alias, "alldevices"}
 	if devData.Name != "" {
