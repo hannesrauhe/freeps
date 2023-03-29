@@ -155,9 +155,9 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 
 // DiscoveryData is the reduced set of information of Device properties send as input to graphs
 type DiscoveryData struct {
+	Alias       string
 	Address     string
 	Name        string
-	Alias       string
 	RSSI        int16
 	ServiceData map[string]interface{}
 }
@@ -216,12 +216,19 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 	input := freepsgraph.MakeObjectOutput(devData)
 	args := map[string]string{"device": devData.Alias, "RSSI": fmt.Sprint(devData.RSSI)}
 
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue(devData.Address, input, ctx.GetID())
-
 	tags := []string{"device:" + devData.Alias, "alldevices"}
 	if devData.Name != "" {
 		tags = append(tags, "nameddevices")
 	}
+
+	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
+	// oldVal := ns.GetValue(devData.Address)
+	// if !oldVal.IsError() {
+	// 	var oldDevData DiscoveryData
+	// 	oldVal.ParseJSON(&oldDevData)
+	// }
+	ns.SetValue(devData.Address, input, ctx.GetID())
+
 	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth"}, tags, args, input)
 
 	return nil
