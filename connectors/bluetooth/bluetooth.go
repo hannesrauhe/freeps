@@ -210,7 +210,7 @@ func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties
 	return &d
 }
 
-func (fbt *FreepsBluetooth) changedProps(v1, v2 *DiscoveryData, tags []string) bool {
+func (fbt *FreepsBluetooth) changedProps(v1, v2 *DiscoveryData, tags *[]string) bool {
 	res := false
 	if v1.Name != v2.Name {
 		tags = append(tags, "changed.name")
@@ -247,7 +247,7 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 
 	oldDevData := DiscoveryData{}
 	oldVal.ParseJSON(&oldDevData) // ignore errors here, if error, everything will have changed
-	fbt.changedProps(&oldDevData, devData, tags)
+	fbt.changedProps(&oldDevData, devData, &tags)
 
 	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth"}, tags, args, input)
 
