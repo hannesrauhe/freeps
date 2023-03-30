@@ -92,7 +92,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 			if len(t) > len("topic:") && t[:6] == "topic:" {
 				topic := t[6:]
 				if topic == fm.Config.ResultTopic {
-					fm.mqttlogger.Errorf("Skipping subscirption to result topic to prevent endless loops")
+					fm.mqttlogger.Errorf("Skipping subscription to result topic to prevent endless loops")
 					continue
 				}
 				if _, ok := fm.topics[topic]; ok {

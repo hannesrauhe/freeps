@@ -210,6 +210,23 @@ func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties
 	return &d
 }
 
+func (fbt *FreepsBluetooth) changedProps(v1, v2 *DiscoveryData) []string {
+	res := []string{}
+	if v1.Name != v2.Name {
+		res = append(res, "Name")
+	}
+	if v1.RSSI != v2.RSSI {
+		res = append(res, "RSSI")
+	}
+	for s, sv2 := range v2.ServiceData {
+		sv1, ok := v1.ServiceData[s]
+		if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
+			res = append(res, "service:"+s)
+		}
+	}
+	return res
+}
+
 func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 	devData := fbt.parseDeviceProperties(dev.Properties)
 	ctx := base.NewContext(fbt.log)
@@ -222,14 +239,17 @@ func (fbt *FreepsBluetooth) handleBeacon(dev *device.Device1) error {
 	}
 
 	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
-	// oldVal := ns.GetValue(devData.Address)
-	// if !oldVal.IsError() {
-	// 	var oldDevData DiscoveryData
-	// 	oldVal.ParseJSON(&oldDevData)
-	// }
+	oldVal := ns.GetValue(devData.Address)
 	ns.SetValue(devData.Address, input, ctx.GetID())
 
 	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth"}, tags, args, input)
+
+	ctx = base.NewContext(fbt.log) // need second context because old one is closed
+	oldDevData := DiscoveryData{}
+	oldVal.ParseJSON(&oldDevData) // ignore errors here, if error, everything will have changed
+	tags = fbt.changedProps(&oldDevData, devData)
+	fbt.log.Debug("Properties of %v have changed: %v", devData.Alias, tags)
+	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "changed"}, tags, args, input)
 
 	return nil
 }
