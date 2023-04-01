@@ -23,7 +23,7 @@ var btwatcher *FreepsBluetooth
 
 // TODO(HR): config
 var discoveryTime = time.Minute * 1
-var discoveryPauseTime = time.Minute * 30
+var discoveryPauseTime = time.Minute * 10
 var forgetDeviceTime = time.Hour
 
 // FreepsBluetooth provides options to scan for bt devices and execute operations based on that
@@ -163,19 +163,18 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 				if err != nil {
 					fbt.log.Errorf("%s: %s", ev.Path, err)
 				}
-				watch := false
+				// watch := false
 				// for _, reqDev := range watchRequests {
 				// 	if dev.Properties.Alias == reqDev {
 				// 		watch = true
 				// 		break
 				// 	}
 				// }
-				watch = dev.Properties.Name != ""
-				if watch {
-					fbt.log.Infof("Monitoring Device %v for changes", dev.Properties.Name)
-					fbt.log.Info(dev.Connect())
-					go watchProperties(dev)
-				}
+				// watch = dev.Properties.Name != ""
+				// if watch {
+				// 	fbt.log.Infof("Monitoring Device %v for changes", dev.Properties.Name)
+				// 	go watchProperties(dev)
+				// }
 			}(ev)
 		}
 		fbt.log.Debug("Stopped discovery")
