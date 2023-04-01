@@ -21,6 +21,11 @@ import (
 
 var btwatcher *FreepsBluetooth
 
+// TODO(HR): config
+var discoveryTime = time.Minute * 1
+var discoveryPauseTime = time.Minute * 30
+var forgetDeviceTime = time.Hour
+
 // FreepsBluetooth provides options to scan for bt devices and execute operations based on that
 type FreepsBluetooth struct {
 	discoInitLock      sync.Mutex
@@ -58,7 +63,7 @@ func (fbt *FreepsBluetooth) StartSupscription() error {
 	if err != nil {
 		return err
 	}
-	fbt.nextIterationTimer = time.AfterFunc(time.Minute*2, fbt.StopSupscription)
+	fbt.nextIterationTimer = time.AfterFunc(discoveryTime, fbt.StopSupscription)
 	return err
 }
 
@@ -77,7 +82,7 @@ func (fbt *FreepsBluetooth) StopSupscription() {
 	fbt.log.Debug("Stop discovery")
 	fbt.cancel()
 	fbt.cancel = nil
-	fbt.nextIterationTimer = time.AfterFunc(time.Minute*5, func() {
+	fbt.nextIterationTimer = time.AfterFunc(discoveryPauseTime, func() {
 		fbt.StartSupscription()
 	})
 }
@@ -101,6 +106,17 @@ func (fbt *FreepsBluetooth) Shutdown() {
 	api.Exit()
 }
 
+func watchProperties(dev *device.Device1) {
+	ch, err := dev.WatchProperties()
+	if err != nil {
+		// fbt.log.Errorf("Cannot watch properties %s: %s", ev.Path, err)
+		return
+	}
+	for change := range ch {
+		freepsstore.GetGlobalStore().GetNamespace("_bluetooth").SetValue("CHANGED: "+dev.Properties.Address, freepsgraph.MakeObjectOutput(change), "")
+	}
+}
+
 func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 	a, err := adapter.GetAdapter(adapterID)
 	if err != nil {
@@ -112,7 +128,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 	if err != nil {
 		return err
 	}
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(time.Hour)
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(forgetDeviceTime)
 
 	discovery, cancel, err := api.Discover(a, nil)
 	if err != nil {
@@ -122,6 +138,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 
 	go func() {
 		fbt.log.Debug("Started discovery")
+		// watchRequests := fbt.ge.GetTagValues("device")
 		for ev := range discovery {
 
 			if ev.Type == adapter.DeviceRemoved {
@@ -145,6 +162,18 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 				err = fbt.handleBeacon(dev)
 				if err != nil {
 					fbt.log.Errorf("%s: %s", ev.Path, err)
+				}
+				watch := false
+				// for _, reqDev := range watchRequests {
+				// 	if dev.Properties.Alias == reqDev {
+				// 		watch = true
+				// 		break
+				// 	}
+				// }
+				watch = dev.Properties.Name != ""
+				if watch {
+					fbt.log.Infof("Monitoring Device %v for changes", dev.Properties.Name)
+					go watchProperties(dev)
 				}
 			}(ev)
 		}
