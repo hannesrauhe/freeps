@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"os"
 	"path"
+	"sort"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -230,4 +231,23 @@ func TestGraphExecution(t *testing.T) {
 	expectOutput(t,
 		ge.ExecuteOperatorByName(base.NewContext(log.StandardLogger()), "graphbytag", "t4", map[string]string{}, MakeEmptyOutput()),
 		200, []string{"test2", "test3", "test4"})
+
+	/* Keytags */
+
+	g5 := validGraph
+	g5.Tags = []string{"keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man"}
+	ge.AddExternalGraph("test5", &g5, "foo.json")
+	g6 := validGraph
+	g6.Tags = []string{"keytag1:bar", "keytag2:bla"}
+	ge.AddExternalGraph("test6", &g6, "foo.json")
+
+	v := ge.GetTagValues("keytag1")
+	sort.Strings(v)
+	assert.DeepEqual(t, v, []string{"bar", "foo"})
+	assert.DeepEqual(t, ge.GetTagValues("keytag2"), []string{"bla"})
+	assert.DeepEqual(t, ge.GetTagValues("footag"), []string{})
+	assert.DeepEqual(t, ge.GetTagValues(""), []string{})
+	assert.DeepEqual(t, ge.GetTagValues(":yes"), []string{"man"})
+	assert.DeepEqual(t, ge.GetTagValues("f"), []string{"a:shiZ:s"})
+	assert.DeepEqual(t, ge.GetTagValues("f:a"), []string{"shiZ:s"})
 }

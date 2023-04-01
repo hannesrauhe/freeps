@@ -234,6 +234,26 @@ func (ge *GraphEngine) GetTags() map[string]string {
 	return r
 }
 
+// GetTagValues returns a slice of all used values for the given tag
+func (ge *GraphEngine) GetTagValues(keytag string) []string {
+	r := []string{}
+	l := len(keytag)
+	if l == 0 {
+		return r
+	}
+	for _, d := range ge.GetAllGraphDesc() {
+		if d.Tags == nil {
+			continue
+		}
+		for _, t := range d.Tags {
+			if len(t) > l+1 && t[:l] == keytag && t[l] == ':' {
+				r = append(r, t[l+1:])
+			}
+		}
+	}
+	return r
+}
+
 // GetGraphInfo returns the runtime information for the graph with the given Name
 func (ge *GraphEngine) GetGraphInfo(graphName string) (GraphInfo, bool) {
 	ge.graphLock.Lock()
