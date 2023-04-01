@@ -173,6 +173,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 				watch = dev.Properties.Name != ""
 				if watch {
 					fbt.log.Infof("Monitoring Device %v for changes", dev.Properties.Name)
+					fbt.log.Info(dev.Connect())
 					go watchProperties(dev)
 				}
 			}(ev)
