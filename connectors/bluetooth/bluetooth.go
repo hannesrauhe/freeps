@@ -115,14 +115,13 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 
 		ctx := base.NewContext(fbt.log)
 		ns.SetValue("CHANGED: "+alias, freepsgraph.MakeObjectOutput(change), ctx.GetID())
-		args := map[string]string{"device": alias, "change": change.Name}
 
 		changeTags, err := devData.Update(change.Name, change.Value)
 		if err != nil {
 			fbt.log.Errorf("Cannot update properties for \"%s\": %v", alias, err)
 		}
 		input := freepsgraph.MakeObjectOutput(devData)
-		fbt.log.Errorf("Tags for change \"%s\": %v", alias, err)
+		args := map[string]string{"device": alias, "change": change.Name}
 		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, deviceTags, changeTags}, args, input)
 	}
 }

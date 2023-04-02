@@ -222,7 +222,7 @@ func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
 		logger.Debugf(logline)
 		logline = logline[:1000] + "..."
 	}
-	logger.Infof(logline)
+	logger.Debugf(logline)
 }
 
 func (oio *OperatorIO) ToString() string {
