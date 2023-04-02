@@ -29,7 +29,7 @@ func (d *DiscoveryData) Update(change string, value interface{}) ([]string, erro
 		d.Alias, conversionSuccess = value.(string)
 	case "rssi":
 		d.RSSI, conversionSuccess = value.(int16)
-	case "ServiceData":
+	case "servicedata":
 		oldServiceData := d.ServiceData
 		newServiceData, ok := value.(map[string]interface{})
 		if !ok {
