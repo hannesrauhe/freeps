@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -138,21 +137,25 @@ func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, f
 
 // ExecuteGraphByTags executes graphs with given tags
 func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args map[string]string, input *OperatorIO) *OperatorIO {
-	return ge.ExecuteGraphByTagsExtended(ctx, tags, []string{}, args, input)
+	taggroups := [][]string{}
+	for _, t := range tags {
+		taggroups = append(taggroups, []string{t})
+	}
+	return ge.ExecuteGraphByTagsExtended(ctx, taggroups, args, input)
 }
 
-// ExecuteGraphByTagsExtended executes all graphs that contain all tagsAnd and at least one tagsOr
-func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagsAnd []string, tagsOr []string, args map[string]string, input *OperatorIO) *OperatorIO {
-	if (tagsAnd == nil || len(tagsAnd) == 0) && (tagsOr == nil || len(tagsOr) == 0) {
+// ExecuteGraphByTagsExtended executes all graphs that at least one tag of each group
+func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [][]string, args map[string]string, input *OperatorIO) *OperatorIO {
+	if tagGroups == nil || len(tagGroups) == 0 {
 		return MakeOutputError(http.StatusBadRequest, "No tags given")
 	}
 
-	tg := ge.GetGraphInfoByTag(tagsAnd, tagsOr)
+	tg := ge.GetGraphInfoByTagExtended(tagGroups)
 	if len(tg) <= 1 {
 		for n := range tg {
 			return ge.ExecuteGraph(ctx, n, args, input)
 		}
-		return MakeOutputError(404, "No graph with tags \"%s\"(AND), \"%s\"(OR)  found", strings.Join(tagsAnd, ", "), strings.Join(tagsOr, ", "))
+		return MakeOutputError(404, "No graph with tags found: %v", fmt.Sprint(tagGroups))
 	}
 
 	// need to build a temporary graph containing all graphs with matching tags
@@ -161,7 +164,7 @@ func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagsAnd []s
 		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n, InputFrom: "_"})
 	}
 	gd := GraphDesc{Operations: op, Tags: []string{"internal"}}
-	name := "ByTag/" + strings.Join(tagsAnd, ",")
+	name := "ExecuteGraphByTag"
 
 	g, err := NewGraph(ctx, name, &gd, ge)
 	if err != nil {
@@ -280,19 +283,24 @@ func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 	return r
 }
 
-// GetGraphInfoByTag returns the GraphInfo for all Graphs with the given tags (split by logical AND and logical OR)
-func (ge *GraphEngine) GetGraphInfoByTag(tagsAnd []string, tagsOr []string) map[string]GraphInfo {
+// GetGraphInfoByTag returns the GraphInfo for all Graphs with the given tags
+func (ge *GraphEngine) GetGraphInfoByTag(tags []string) map[string]GraphInfo {
+	return ge.GetGraphInfoByTagExtended([][]string{tags})
+}
+
+// GetGraphInfoByTagExtended returns the GraphInfo for all Graphs with the given tags
+func (ge *GraphEngine) GetGraphInfoByTagExtended(tagGroups [][]string) map[string]GraphInfo {
 	r := make(map[string]GraphInfo)
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 
 	for n, g := range ge.externalGraphs {
-		if g.Desc.HasAllTags(tagsAnd) && g.Desc.HasAtLeastOneTag(tagsOr) {
+		if g.Desc.HasAtLeastOneTagPerGroup(tagGroups) {
 			r[n] = *g
 		}
 	}
 	for n, g := range ge.temporaryGraphs {
-		if g.Desc.HasAllTags(tagsAnd) && g.Desc.HasAtLeastOneTag(tagsOr) {
+		if g.Desc.HasAtLeastOneTagPerGroup(tagGroups) {
 			r[n] = *g
 		}
 	}

@@ -183,18 +183,24 @@ func TestGraphExecution(t *testing.T) {
 	assert.NilError(t, err)
 	ge := NewGraphEngine(cr, func() {})
 
-	expectByTagExtendedExecution := func(tagsAnd []string, tagsOr []string, expectedOutputKeys []string) {
+	expectByTagExtendedExecution := func(tagGroups [][]string, expectedOutputKeys []string) {
 		expectedCode := 200
 		if expectedOutputKeys == nil {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger()), tagsAnd, tagsOr, make(map[string]string), MakeEmptyOutput()),
+			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger()), tagGroups, make(map[string]string), MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
 	expectByTagExecution := func(tags []string, expectedOutputKeys []string) {
-		expectByTagExtendedExecution(tags, []string{}, expectedOutputKeys)
+		expectedCode := 200
+		if expectedOutputKeys == nil {
+			expectedCode = 404
+		}
+		expectOutput(t,
+			ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), tags, make(map[string]string), MakeEmptyOutput()),
+			expectedCode, expectedOutputKeys)
 	}
 
 	expectByTagExecution([]string{"not"}, nil)
@@ -224,8 +230,8 @@ func TestGraphExecution(t *testing.T) {
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
 	expectByTagExecution([]string{"t1", "t2"}, []string{}) //single graph executed with empty output
 
-	expectByTagExtendedExecution([]string{"t1"}, []string{"t2", "t4"}, []string{"test2", "test3"})
-	expectByTagExtendedExecution([]string{}, []string{"t2", "t4"}, []string{"test2", "test3", "test4"})
+	expectByTagExtendedExecution([][]string{{"t1"}, {"t2", "t4"}}, []string{"test2", "test3"})
+	expectByTagExtendedExecution([][]string{{"t2", "t4"}}, []string{"test2", "test3", "test4"})
 
 	// test the operator once
 	expectOutput(t,
@@ -240,6 +246,8 @@ func TestGraphExecution(t *testing.T) {
 	g6 := validGraph
 	g6.Tags = []string{"keytag1:bar", "keytag2:bla"}
 	ge.AddExternalGraph("test6", &g6, "foo.json")
+
+	expectByTagExtendedExecution([][]string{{"t2", ":yes:man", "keytag2:bla"}, {"t4", "fadabump", "keytag2:bla"}, {"t2", "keytag2:bla"}}, []string{"test3", "test6"})
 
 	v := ge.GetTagValues("keytag1")
 	sort.Strings(v)
