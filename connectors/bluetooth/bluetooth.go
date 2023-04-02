@@ -109,7 +109,7 @@ func (fbt *FreepsBluetooth) Shutdown() {
 func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *bluez.PropertyChanged) {
 	alias := devData.Alias
 	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
-	tags := []string{"device:" + alias, "device:" + devData.Address}
+	deviceTags := []string{"device:" + alias, "device:" + devData.Address}
 	for change := range ch {
 		fbt.log.Debugf("Changed properties for \"%s\": %s", alias, change)
 
@@ -117,14 +117,13 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		ns.SetValue("CHANGED: "+alias, freepsgraph.MakeObjectOutput(change), ctx.GetID())
 		args := map[string]string{"device": alias, "change": change.Name}
 
-		changeTag, err := devData.Update(change.Name, change.Value)
+		changeTags, err := devData.Update(change.Name, change.Value)
 		if err != nil {
 			fbt.log.Errorf("Cannot update properties for \"%s\": %v", alias, err)
 		}
 		input := freepsgraph.MakeObjectOutput(devData)
-		tags = append(tags, changeTag...)
 		fbt.log.Errorf("Tags for change \"%s\": %v", alias, err)
-		fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "changed"}, tags, args, input)
+		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, deviceTags, changeTags}, args, input)
 	}
 }
 
@@ -203,14 +202,14 @@ func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData 
 	input := freepsgraph.MakeObjectOutput(devData)
 	args := map[string]string{"device": devData.Alias, "RSSI": fmt.Sprint(devData.RSSI)}
 
-	tags := []string{"device:" + devData.Alias, "alldevices"}
+	deviceTags := []string{"device:" + devData.Alias, "alldevices"}
 	if devData.Name != "" {
-		tags = append(tags, "nameddevices")
+		deviceTags = append(deviceTags, "nameddevices")
 	}
 
 	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
 	ns.SetValue(devData.Address, input, ctx.GetID())
-	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "discovered"}, tags, args, input)
+	fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
 
 	return devData
 }
