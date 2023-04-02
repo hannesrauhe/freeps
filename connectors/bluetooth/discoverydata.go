@@ -17,30 +17,67 @@ type DiscoveryData struct {
 	ServiceData map[string]interface{}
 }
 
-func (d *DiscoveryData) Update(change string, value interface{}) (string, error) {
+// Update applies a change to the current state and returns the name of the changed values
+func (d *DiscoveryData) Update(change string, value interface{}) ([]string, error) {
 	change = strings.ToLower(change)
+	changes := []string{"changed." + change}
+	conversionSuccess := true
 	switch change {
 	case "name":
-		d.Name = value.(string)
+		d.Name, conversionSuccess = value.(string)
+	case "alias":
+		d.Alias, conversionSuccess = value.(string)
+	case "rssi":
+		d.RSSI, conversionSuccess = value.(int16)
 	case "ServiceData":
-		// TODO(HR)
-		// sv1, ok := d.ServiceData[s]
-		// if !ok || fmt.Sprint(sv1) != fmt.Sprint(sv1) {
-		// 	tags = append(tags, "changed.service:"+s)
-		// }
+		oldServiceData := d.ServiceData
+		newServiceData, ok := value.(map[string]interface{})
+		if !ok {
+			return changes, fmt.Errorf("new Service data is not the expected map type but %T", value)
+		}
+		d.ServiceData = map[string]interface{}{}
+		for service, serviceValue := range newServiceData {
+			d.AddServiceData(service, serviceValue)
+		}
+
+		for s, sv2 := range oldServiceData {
+			sv1, ok := d.ServiceData[s]
+			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
+				changes = append(changes, "changed.service:"+s)
+			}
+		}
+		for s, sv2 := range d.ServiceData {
+			sv1, ok := oldServiceData[s]
+			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
+				changes = append(changes, "changed.service:"+s)
+			}
+		}
 	}
-	return change, nil
+	if !conversionSuccess {
+		return changes, fmt.Errorf("new data for %v is not the expected map type but %T", change, value)
+	}
+	return changes, nil
 }
 
-func (d *DiscoveryData) AddServiceData(service string, serviceBytes []byte) string {
+// AddServiceData converts the value for a given service to the proper type and adds it to the map under the human readable name if available
+func (d *DiscoveryData) AddServiceData(service string, v interface{}) (string, error) {
 	if len(service) > 8 {
 		service = service[0:8]
+	}
+
+	dbv, ok := v.(dbus.Variant)
+	if !ok {
+		return "", fmt.Errorf("Service %v data is not dbus.Variant but %T: %v ", service, v, v)
+	}
+	serviceBytes, ok := dbv.Value().([]byte)
+	if !ok {
+		return "", fmt.Errorf("Service %v data is not bytes but %T: %v ", service, dbv.Value(), dbv.Value())
 	}
 
 	name := service
 	if len(serviceBytes) == 0 {
 		d.ServiceData[service] = serviceBytes
-		return name
+		return name, nil
 	}
 
 	switch service {
@@ -65,7 +102,7 @@ func (d *DiscoveryData) AddServiceData(service string, serviceBytes []byte) stri
 		}
 	}
 
-	return name
+	return name, nil
 }
 
 func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties) *DiscoveryData {
@@ -73,17 +110,10 @@ func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties
 	defer prop.Unlock()
 	d := DiscoveryData{Address: prop.Address, Name: prop.Name, Alias: prop.Alias, RSSI: prop.RSSI, ServiceData: map[string]interface{}{}}
 	for k, v := range prop.ServiceData {
-		dbv, ok := v.(dbus.Variant)
-		if !ok {
-			fbt.log.Errorf("Service %v data is not dbus.Variant but %T: %v ", k, v, v)
-			continue
+		_, err := d.AddServiceData(k, v)
+		if err != nil {
+			fbt.log.Errorf("%v", err)
 		}
-		serviceBytes, ok := dbv.Value().([]byte)
-		if !ok {
-			fbt.log.Errorf("Service %v data is not bytes but %T: %v ", k, dbv.Value(), dbv.Value())
-			continue
-		}
-		d.AddServiceData(k, serviceBytes)
 	}
 
 	return &d

@@ -13,6 +13,7 @@ import (
 	"context"
 
 	"github.com/muka/go-bluetooth/api"
+	"github.com/muka/go-bluetooth/bluez"
 	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 	"github.com/sirupsen/logrus"
@@ -105,34 +106,25 @@ func (fbt *FreepsBluetooth) Shutdown() {
 	api.Exit()
 }
 
-func (fbt *FreepsBluetooth) watchProperties(dev *device.Device1) {
-	ch, err := dev.WatchProperties()
-	alias := dev.Properties.Alias
-	if err != nil {
-		fbt.log.Errorf("Cannot watch properties for \"%s\": %s", alias, err)
-		return
-	}
+func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *bluez.PropertyChanged) {
+	alias := devData.Alias
 	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
-	tags := []string{"device:" + alias, "device:" + dev.Properties.Address}
+	tags := []string{"device:" + alias, "device:" + devData.Address}
 	for change := range ch {
 		fbt.log.Debugf("Changed properties for \"%s\": %s", alias, change)
 
-		oldVal := ns.GetValue(dev.Properties.Address)
 		ctx := base.NewContext(fbt.log)
 		ns.SetValue("CHANGED: "+alias, freepsgraph.MakeObjectOutput(change), ctx.GetID())
 		args := map[string]string{"device": alias, "change": change.Name}
 
-		oldDevData := DiscoveryData{}
-		err := oldVal.ParseJSON(&oldDevData)
-		if err != nil {
-			fbt.log.Errorf("Cannot read old properties for \"%s\": %v", alias, err)
-		}
-		changeTag, err := oldDevData.Update(change.Name, change.Value)
+		changeTag, err := devData.Update(change.Name, change.Value)
 		if err != nil {
 			fbt.log.Errorf("Cannot update properties for \"%s\": %v", alias, err)
 		}
-		input := freepsgraph.MakeObjectOutput(oldDevData)
-		fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "changed:" + changeTag}, tags, args, input)
+		input := freepsgraph.MakeObjectOutput(devData)
+		tags = append(tags, changeTag...)
+		fbt.log.Errorf("Tags for change \"%s\": %v", alias, err)
+		fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "changed"}, tags, args, input)
 	}
 }
 
@@ -178,20 +170,25 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 			fbt.log.Debugf("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
 
 			go func(ev *adapter.DeviceDiscovered) {
-				err = fbt.handleDiscovery(dev)
+				devData := fbt.handleDiscovery(dev)
 				if err != nil {
 					fbt.log.Errorf("%s: %s", ev.Path, err)
 				}
 				watch := false
 				for _, reqDev := range watchRequests {
-					if dev.Properties.Alias == reqDev || dev.Properties.Address == reqDev {
+					if devData.Alias == reqDev || devData.Address == reqDev {
 						watch = true
 						break
 					}
 				}
 				if watch {
-					fbt.log.Infof("Monitoring Device %v for changes", dev.Properties.Alias)
-					go fbt.watchProperties(dev)
+					fbt.log.Infof("Monitoring Device %v for changes", devData.Alias)
+					ch, err := dev.WatchProperties()
+					if err != nil {
+						fbt.log.Errorf("Cannot watch properties for \"%s\": %s", devData.Alias, err)
+						return
+					}
+					go fbt.watchProperties(devData, ch)
 				}
 			}(ev)
 		}
@@ -200,7 +197,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 	return nil
 }
 
-func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) error {
+func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData {
 	devData := fbt.parseDeviceProperties(dev.Properties)
 	ctx := base.NewContext(fbt.log)
 	input := freepsgraph.MakeObjectOutput(devData)
@@ -215,5 +212,5 @@ func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) error {
 	ns.SetValue(devData.Address, input, ctx.GetID())
 	fbt.ge.ExecuteGraphByTagsExtended(ctx, []string{"bluetooth", "discovered"}, tags, args, input)
 
-	return nil
+	return devData
 }
