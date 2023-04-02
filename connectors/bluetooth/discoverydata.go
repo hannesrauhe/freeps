@@ -31,7 +31,7 @@ func (d *DiscoveryData) Update(change string, value interface{}) ([]string, erro
 		d.RSSI, conversionSuccess = value.(int16)
 	case "servicedata":
 		oldServiceData := d.ServiceData
-		newServiceData, ok := value.(map[string]interface{})
+		newServiceData, ok := value.(map[string]dbus.Variant)
 		if !ok {
 			return changes, fmt.Errorf("new Service data is not the expected map type but %T", value)
 		}
