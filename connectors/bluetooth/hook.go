@@ -13,8 +13,8 @@ type HookBluetooth struct {
 
 var _ freepsgraph.FreepsHook = HookBluetooth{}
 
-// NewMQTTHook creates a Hook to subscribe to topics when graphs change
-func NewMQTTHook(cr *utils.ConfigReader) (HookBluetooth, error) {
+// NewBTHook creates a Hook to subscribe to topics when graphs change
+func NewBTHook(cr *utils.ConfigReader) (HookBluetooth, error) {
 	return HookBluetooth{}, nil
 }
 
