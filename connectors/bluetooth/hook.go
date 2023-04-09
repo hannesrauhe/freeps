@@ -20,7 +20,7 @@ func NewMQTTHook(cr *utils.ConfigReader) (HookBluetooth, error) {
 
 // GetName returns the name of the hook
 func (h HookBluetooth) GetName() string {
-	return "mqtt"
+	return "bluetooth"
 }
 
 // OnExecute does nothing
@@ -36,7 +36,7 @@ func (h HookBluetooth) OnExecutionFinished(ctx *base.Context, graphName string, 
 // OnGraphChanged checks if subscriptions need to be changed
 func (h HookBluetooth) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
 	if btwatcher == nil {
-		return fmt.Errorf("Bluetooth watcher uninitilaized")
+		return fmt.Errorf("Bluetooth watcher uninitialized")
 	}
 	return btwatcher.StartSupscription()
 }

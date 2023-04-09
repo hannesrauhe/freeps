@@ -1,3 +1,5 @@
+//go:build !nobluetooth
+
 package freepsbluetooth
 
 import (
