@@ -15,13 +15,13 @@ var btwatcher *FreepsBluetooth
 type FreepsBluetooth struct {
 }
 
-// StartSupscription acts as a dummy
-func (fbt *FreepsBluetooth) StartSupscription() error {
+// StartDiscovery acts as a dummy
+func (fbt *FreepsBluetooth) StartDiscovery() error {
 	return nil
 }
 
-// StopSupscription acts as a dummy
-func (fbt *FreepsBluetooth) StopSupscription() {
+// StopDiscovery acts as a dummy
+func (fbt *FreepsBluetooth) StopDiscovery() {
 }
 
 // Shutdown acts as a dummy

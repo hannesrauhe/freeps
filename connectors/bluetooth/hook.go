@@ -38,7 +38,7 @@ func (h HookBluetooth) OnGraphChanged(addedGraphName []string, removedGraphName 
 	if btwatcher == nil {
 		return fmt.Errorf("Bluetooth watcher uninitialized")
 	}
-	return btwatcher.StartSupscription()
+	return btwatcher.StartDiscovery()
 }
 
 // Shutdown gets called on graceful shutdown

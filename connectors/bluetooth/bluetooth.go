@@ -23,13 +23,9 @@ import (
 
 var btwatcher *FreepsBluetooth
 
-// TODO(HR): config
-var discoveryTime = time.Minute * 10
-var discoveryPauseTime = time.Minute * 1
-var forgetDeviceTime = time.Hour
-
 // FreepsBluetooth provides options to scan for bt devices and execute operations based on that
 type FreepsBluetooth struct {
+	config             *BluetoothConfig
 	discoInitLock      sync.Mutex
 	cancel             context.CancelFunc
 	shuttingDown       bool
@@ -40,9 +36,24 @@ type FreepsBluetooth struct {
 
 // NewBTWatcher creates a new BT watcher
 func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsBluetooth, error) {
-	btwatcher = &FreepsBluetooth{log: logger.WithField("component", "bluetooth"), shuttingDown: false, ge: ge}
+	btc := defaultBluetoothConfig
+	err := cr.ReadSectionWithDefaults("bluetooth", &btc)
+	if err != nil {
+		return nil, err
+	}
+	cr.WriteBackConfigIfChanged()
+	if err != nil {
+		logrus.Print(err)
+	}
 
-	err := btwatcher.StartSupscription()
+	btlogger := logger.WithField("component", "bluetooth")
+	if !btc.Enabled {
+		btlogger.Infof("Bluetooth module disabled in config")
+		return nil, nil
+	}
+	btwatcher = &FreepsBluetooth{config: &btc, log: btlogger, shuttingDown: false, ge: ge}
+
+	err = btwatcher.StartDiscovery()
 	if err != nil {
 		btwatcher = nil
 		api.Exit()
@@ -50,8 +61,8 @@ func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsg
 	return btwatcher, err
 }
 
-// StartSupscription starts a discovery process
-func (fbt *FreepsBluetooth) StartSupscription() error {
+// StartDiscovery starts the process of discovery new bluetooth devices
+func (fbt *FreepsBluetooth) StartDiscovery() error {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
 	if btwatcher.shuttingDown {
@@ -61,16 +72,16 @@ func (fbt *FreepsBluetooth) StartSupscription() error {
 	if fbt.cancel != nil {
 		return nil
 	}
-	err := btwatcher.run("hci0", false)
+	err := btwatcher.run(fbt.config.AdapterName, false)
 	if err != nil {
 		return err
 	}
-	fbt.nextIterationTimer = time.AfterFunc(discoveryTime, fbt.StopSupscription)
+	fbt.nextIterationTimer = time.AfterFunc(fbt.config.DiscoveryDuration, fbt.StopDiscovery)
 	return err
 }
 
-// StopSupscription starts a discovery process
-func (fbt *FreepsBluetooth) StopSupscription() {
+// StopDiscovery stops bluetooth discovery and schedules the next discovery process
+func (fbt *FreepsBluetooth) StopDiscovery() {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
 	if btwatcher.shuttingDown {
@@ -81,15 +92,15 @@ func (fbt *FreepsBluetooth) StopSupscription() {
 		return
 	}
 
-	fbt.log.Debug("Stop discovery")
+	fbt.log.Debug("Stopping discovery")
 	fbt.cancel()
 	fbt.cancel = nil
-	fbt.nextIterationTimer = time.AfterFunc(discoveryPauseTime, func() {
-		fbt.StartSupscription()
+	fbt.nextIterationTimer = time.AfterFunc(fbt.config.DiscoveryPauseDuration, func() {
+		fbt.StartDiscovery()
 	})
 }
 
-// Shutdown bluetooth scan
+// Shutdown stops discovery and does not schedule it again
 func (fbt *FreepsBluetooth) Shutdown() {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
@@ -104,7 +115,6 @@ func (fbt *FreepsBluetooth) Shutdown() {
 		fbt.cancel = nil
 	}
 
-	//TODO(HR): wait here?
 	api.Exit()
 }
 
@@ -139,7 +149,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 	if err != nil {
 		return err
 	}
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(forgetDeviceTime)
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(fbt.config.ForgetDeviceDuration)
 
 	discovery, cancel, err := api.Discover(a, nil)
 	if err != nil {

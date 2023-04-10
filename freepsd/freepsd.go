@@ -149,7 +149,7 @@ func main() {
 		fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
 		if err != nil {
 			logger.Errorf("FreepsBT not started: %v", err)
-		} else {
+		} else if fbt != nil {
 			ge.AddHook(&freepsbluetooth.HookBluetooth{})
 		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
