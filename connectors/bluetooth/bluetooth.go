@@ -15,7 +15,6 @@ import (
 	"context"
 
 	"github.com/muka/go-bluetooth/api"
-	"github.com/muka/go-bluetooth/bluez"
 	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 	"github.com/sirupsen/logrus"
@@ -32,6 +31,7 @@ type FreepsBluetooth struct {
 	nextIterationTimer *time.Timer
 	log                logrus.FieldLogger
 	ge                 *freepsgraph.GraphEngine
+	monitors           *monitors
 }
 
 // NewBTWatcher creates a new BT watcher
@@ -51,7 +51,7 @@ func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsg
 		btlogger.Infof("Bluetooth module disabled in config")
 		return nil, nil
 	}
-	btwatcher = &FreepsBluetooth{config: &btc, log: btlogger, shuttingDown: false, ge: ge}
+	btwatcher = &FreepsBluetooth{config: &btc, log: btlogger, shuttingDown: false, ge: ge, monitors: &monitors{watchers: map[string]deviceEntry{}}}
 
 	err = btwatcher.StartDiscovery()
 	if err != nil {
@@ -76,12 +76,14 @@ func (fbt *FreepsBluetooth) StartDiscovery() error {
 	if err != nil {
 		return err
 	}
-	fbt.nextIterationTimer = time.AfterFunc(fbt.config.DiscoveryDuration, fbt.StopDiscovery)
+	fbt.nextIterationTimer = time.AfterFunc(fbt.config.DiscoveryDuration, func() {
+		fbt.StopDiscovery(false)
+	})
 	return err
 }
 
 // StopDiscovery stops bluetooth discovery and schedules the next discovery process
-func (fbt *FreepsBluetooth) StopDiscovery() {
+func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
 	if btwatcher.shuttingDown {
@@ -92,11 +94,18 @@ func (fbt *FreepsBluetooth) StopDiscovery() {
 		return
 	}
 
-	fbt.log.Debug("Stopping discovery")
+	fbt.log.Infof("Stopping discovery, immediate restart: %v", restartImmediately)
 	fbt.cancel()
 	fbt.cancel = nil
-	fbt.nextIterationTimer = time.AfterFunc(fbt.config.DiscoveryPauseDuration, func() {
-		fbt.StartDiscovery()
+	dur := fbt.config.DiscoveryPauseDuration
+	if restartImmediately {
+		dur = time.Second
+	}
+	fbt.nextIterationTimer = time.AfterFunc(dur, func() {
+		err := fbt.StartDiscovery()
+		if err != nil {
+			fbt.log.Errorf("Failed to Start Discovery")
+		}
 	})
 }
 
@@ -115,27 +124,9 @@ func (fbt *FreepsBluetooth) Shutdown() {
 		fbt.cancel = nil
 	}
 
+	fbt.deleteAllMonitors()
+
 	api.Exit()
-}
-
-func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *bluez.PropertyChanged) {
-	alias := devData.Alias
-	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
-	deviceTags := []string{"device:" + alias, "device:" + devData.Address}
-	for change := range ch {
-		fbt.log.Debugf("Changed properties for \"%s\": %s", alias, change)
-
-		ctx := base.NewContext(fbt.log)
-		ns.SetValue("CHANGED: "+alias, freepsgraph.MakeObjectOutput(change), ctx.GetID())
-
-		changeTags, err := devData.Update(change.Name, change.Value)
-		if err != nil {
-			fbt.log.Errorf("Cannot update properties for \"%s\": %v", alias, err)
-		}
-		input := freepsgraph.MakeObjectOutput(devData)
-		args := map[string]string{"device": alias, "change": change.Name}
-		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, deviceTags, changeTags}, args, input)
-	}
 }
 
 func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
@@ -192,13 +183,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
 					}
 				}
 				if watch {
-					fbt.log.Infof("Monitoring Device %v for changes", devData.Alias)
-					ch, err := dev.WatchProperties()
-					if err != nil {
-						fbt.log.Errorf("Cannot watch properties for \"%s\": %s", devData.Alias, err)
-						return
-					}
-					go fbt.watchProperties(devData, ch)
+					fbt.addMonitor(dev, devData)
 				}
 			}(ev)
 		}
