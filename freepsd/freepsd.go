@@ -162,7 +162,9 @@ func main() {
 			telg.Shutdown(context.TODO())
 			http.Shutdown(context.TODO())
 			mm.Shutdown()
-			fbt.Shutdown()
+			if fbt != nil {
+				fbt.Shutdown()
+			}
 		}
 		running = ge.ReloadRequested()
 		ge.Shutdown(base.NewContext(logger))
