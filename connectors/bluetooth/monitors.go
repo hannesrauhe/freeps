@@ -28,7 +28,7 @@ func (fbt *FreepsBluetooth) addMonitor(dev *device.Device1, devData *DiscoveryDa
 	m.lck.Lock()
 	defer m.lck.Unlock()
 
-	key := devData.Alias
+	key := devData.Address
 	_, ok := m.watchers[key]
 	if ok {
 		// already monitoring this one
@@ -42,6 +42,24 @@ func (fbt *FreepsBluetooth) addMonitor(dev *device.Device1, devData *DiscoveryDa
 	go fbt.watchProperties(devData, ch)
 	m.watchers[key] = deviceEntry{dev: dev, ch: ch}
 	return true
+}
+
+func (fbt *FreepsBluetooth) getDeviceWatchTags(devData *DiscoveryData) []string {
+	return []string{"device:" + devData.Alias, "device:" + devData.Address}
+}
+
+func (fbt *FreepsBluetooth) getMonitoredTags() map[string][]string {
+	m := fbt.monitors
+
+	m.lck.Lock()
+	defer m.lck.Unlock()
+	r := map[string][]string{}
+	for k, v := range m.watchers {
+		deviceTags := []string{"device:" + v.dev.Properties.Alias, "device:" + v.dev.Properties.Address}
+		r[k] = deviceTags
+	}
+
+	return r
 }
 
 func (fbt *FreepsBluetooth) deleteMonitor(key string) bool {
@@ -73,7 +91,7 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 	fbt.log.Infof("Monitoring device \"%v\" for changes", devData.Alias)
 	alias := devData.Alias
 	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
-	deviceTags := []string{"device:" + alias, "device:" + devData.Address}
+	deviceTags := fbt.getDeviceWatchTags(devData)
 	for change := range ch {
 		if change == nil {
 			continue

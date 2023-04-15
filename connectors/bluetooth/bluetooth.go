@@ -82,6 +82,80 @@ func (fbt *FreepsBluetooth) StartDiscovery() error {
 	return err
 }
 
+func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
+	a, err := adapter.GetAdapter(adapterID)
+	if err != nil {
+		return err
+	}
+
+	fbt.log.Debug("Flush cached devices")
+	err = a.FlushDevices()
+	if err != nil {
+		return err
+	}
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(fbt.config.ForgetDeviceDuration)
+
+	discovery, cancel, err := api.Discover(a, nil)
+	if err != nil {
+		return err
+	}
+	fbt.cancel = cancel
+
+	go func() {
+		fbt.log.Debug("Started discovery")
+		for ev := range discovery {
+
+			if ev.Type == adapter.DeviceRemoved {
+				continue
+			}
+
+			dev, err := device.NewDevice1(ev.Path)
+			if err != nil {
+				fbt.log.Errorf("%s: %s", ev.Path, err)
+				continue
+			}
+
+			if dev == nil {
+				fbt.log.Errorf("%s: not found", ev.Path)
+				continue
+			}
+
+			fbt.log.Debugf("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
+
+			go func(ev *adapter.DeviceDiscovered) {
+				devData := fbt.handleDiscovery(dev)
+				if err != nil {
+					fbt.log.Errorf("%s: %s", ev.Path, err)
+				}
+				deviceTags := fbt.getDeviceWatchTags(devData)
+				if len(fbt.ge.GetGraphInfoByTagExtended([][]string{{"bluetooth"}, deviceTags})) > 0 {
+					fbt.addMonitor(dev, devData)
+				}
+			}(ev)
+		}
+		fbt.log.Debug("Stopped discovery")
+	}()
+	return nil
+}
+
+func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData {
+	devData := fbt.parseDeviceProperties(dev.Properties)
+	ctx := base.NewContext(fbt.log)
+	input := freepsgraph.MakeObjectOutput(devData)
+	args := map[string]string{"device": devData.Alias, "RSSI": fmt.Sprint(devData.RSSI)}
+
+	deviceTags := []string{"device:" + devData.Alias, "alldevices"}
+	if devData.Name != "" {
+		deviceTags = append(deviceTags, "nameddevices")
+	}
+
+	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
+	ns.SetValue(devData.Address, input, ctx.GetID())
+	fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
+
+	return devData
+}
+
 // StopDiscovery stops bluetooth discovery and schedules the next discovery process
 func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 	fbt.discoInitLock.Lock()
@@ -97,6 +171,13 @@ func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 	fbt.log.Infof("Stopping discovery, immediate restart: %v", restartImmediately)
 	fbt.cancel()
 	fbt.cancel = nil
+
+	// remove monitors that have no graphs anymore
+	for w, deviceTags := range btwatcher.getMonitoredTags() {
+		if len(fbt.ge.GetGraphInfoByTagExtended([][]string{{"bluetooth"}, deviceTags})) == 0 {
+			btwatcher.deleteMonitor(w)
+		}
+	}
 	dur := fbt.config.DiscoveryPauseDuration
 	if restartImmediately {
 		dur = time.Second
@@ -127,85 +208,4 @@ func (fbt *FreepsBluetooth) Shutdown() {
 	fbt.deleteAllMonitors()
 
 	api.Exit()
-}
-
-func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
-	a, err := adapter.GetAdapter(adapterID)
-	if err != nil {
-		return err
-	}
-
-	fbt.log.Debug("Flush cached devices")
-	err = a.FlushDevices()
-	if err != nil {
-		return err
-	}
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(fbt.config.ForgetDeviceDuration)
-
-	discovery, cancel, err := api.Discover(a, nil)
-	if err != nil {
-		return err
-	}
-	fbt.cancel = cancel
-
-	go func() {
-		fbt.log.Debug("Started discovery")
-		watchRequests := fbt.ge.GetTagValues("device")
-		for ev := range discovery {
-
-			if ev.Type == adapter.DeviceRemoved {
-				continue
-			}
-
-			dev, err := device.NewDevice1(ev.Path)
-			if err != nil {
-				fbt.log.Errorf("%s: %s", ev.Path, err)
-				continue
-			}
-
-			if dev == nil {
-				fbt.log.Errorf("%s: not found", ev.Path)
-				continue
-			}
-
-			fbt.log.Debugf("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
-
-			go func(ev *adapter.DeviceDiscovered) {
-				devData := fbt.handleDiscovery(dev)
-				if err != nil {
-					fbt.log.Errorf("%s: %s", ev.Path, err)
-				}
-				watch := false
-				for _, reqDev := range watchRequests {
-					if devData.Alias == reqDev || devData.Address == reqDev {
-						watch = true
-						break
-					}
-				}
-				if watch {
-					fbt.addMonitor(dev, devData)
-				}
-			}(ev)
-		}
-		fbt.log.Debug("Stopped discovery")
-	}()
-	return nil
-}
-
-func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData {
-	devData := fbt.parseDeviceProperties(dev.Properties)
-	ctx := base.NewContext(fbt.log)
-	input := freepsgraph.MakeObjectOutput(devData)
-	args := map[string]string{"device": devData.Alias, "RSSI": fmt.Sprint(devData.RSSI)}
-
-	deviceTags := []string{"device:" + devData.Alias, "alldevices"}
-	if devData.Name != "" {
-		deviceTags = append(deviceTags, "nameddevices")
-	}
-
-	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
-	ns.SetValue(devData.Address, input, ctx.GetID())
-	fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
-
-	return devData
 }
