@@ -21,7 +21,7 @@ func (fbt *FreepsBluetooth) StartDiscovery() error {
 }
 
 // StopDiscovery acts as a dummy
-func (fbt *FreepsBluetooth) StopDiscovery() {
+func (fbt *FreepsBluetooth) StopDiscovery(bool) {
 }
 
 // Shutdown acts as a dummy
