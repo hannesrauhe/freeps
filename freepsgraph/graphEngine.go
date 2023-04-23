@@ -150,7 +150,7 @@ func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [
 		return MakeOutputError(http.StatusBadRequest, "No tags given")
 	}
 
-	ctx.GetLogger().Infof("Executing graph by tags: %v", tagGroups)
+	// ctx.GetLogger().Infof("Executing graph by tags: %v", tagGroups)
 
 	tg := ge.GetGraphInfoByTagExtended(tagGroups)
 	if len(tg) <= 1 {
