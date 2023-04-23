@@ -82,18 +82,41 @@ func (fbt *FreepsBluetooth) StartDiscovery() error {
 	return err
 }
 
-func (fbt *FreepsBluetooth) run(adapterID string, onlyBeacon bool) error {
+func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 	a, err := adapter.GetAdapter(adapterID)
 	if err != nil {
 		return err
 	}
 
-	fbt.log.Debug("Flush cached devices")
-	err = a.FlushDevices()
-	if err != nil {
-		return err
+	if flushDevices {
+		fbt.log.Debug("Flush cached devices")
+		err = a.FlushDevices()
+		if err != nil {
+			return err
+		}
+	} else {
+		fbt.log.Debug("Flush cached devices skipped, adding already known devices instead")
+		devices, err := a.GetDevices()
+		if err != nil {
+			return err
+		}
+		for _, dev := range devices {
+			devData := fbt.parseDeviceProperties(dev.Properties)
+			input := freepsgraph.MakeObjectOutput(devData)
+
+			ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_known")
+			ns.SetValue(devData.Address, input, "")
+
+			deviceTags := fbt.getDeviceWatchTags(devData)
+			if len(fbt.ge.GetGraphInfoByTagExtended([][]string{{"bluetooth"}, deviceTags})) > 0 {
+				fbt.addMonitor(dev, devData)
+			}
+		}
+
 	}
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth").DeleteOlder(fbt.config.ForgetDeviceDuration)
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_known").DeleteOlder(fbt.config.ForgetDeviceDuration)
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_monitors").DeleteOlder(fbt.config.ForgetDeviceDuration)
+	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_discovered").DeleteOlder(fbt.config.ForgetDeviceDuration)
 
 	discovery, cancel, err := api.Discover(a, nil)
 	if err != nil {
@@ -149,7 +172,7 @@ func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData 
 		deviceTags = append(deviceTags, "nameddevices")
 	}
 
-	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
+	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_discovered")
 	ns.SetValue(devData.Address, input, ctx.GetID())
 	fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
 

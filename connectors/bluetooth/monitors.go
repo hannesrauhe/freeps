@@ -90,7 +90,7 @@ func (fbt *FreepsBluetooth) deleteAllMonitors() {
 func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *bluez.PropertyChanged) {
 	fbt.log.Infof("Monitoring device \"%v\" for changes", devData.Alias)
 	alias := devData.Alias
-	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth")
+	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_monitors")
 	deviceTags := fbt.getDeviceWatchTags(devData)
 	for change := range ch {
 		if change == nil {
@@ -99,7 +99,8 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		fbt.log.Debugf("Changed properties for \"%s\": %s", alias, change)
 
 		ctx := base.NewContext(fbt.log)
-		ns.SetValue("CHANGED: "+alias, freepsgraph.MakeObjectOutput(change), ctx.GetID())
+
+		ns.SetValue(alias, freepsgraph.MakeObjectOutput(change), ctx.GetID())
 
 		changeTags, err := devData.Update(change.Name, change.Value)
 		if err != nil {
