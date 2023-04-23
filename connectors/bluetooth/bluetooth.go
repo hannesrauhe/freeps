@@ -165,9 +165,9 @@ func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData 
 	devData := fbt.parseDeviceProperties(dev.Properties)
 	ctx := base.NewContext(fbt.log)
 	input := freepsgraph.MakeObjectOutput(devData)
-	args := map[string]string{"device": devData.Alias, "RSSI": fmt.Sprint(devData.RSSI)}
+	args := map[string]string{"device": devData.Alias, "address": devData.Address, "RSSI": fmt.Sprint(devData.RSSI)}
 
-	deviceTags := []string{"device:" + devData.Alias, "alldevices"}
+	deviceTags := []string{"device:" + devData.Alias, "address:" + devData.Address, "alldevices"}
 	if devData.Name != "" {
 		deviceTags = append(deviceTags, "nameddevices")
 	}

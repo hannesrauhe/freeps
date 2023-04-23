@@ -122,19 +122,3 @@ func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties
 
 	return &d
 }
-
-func changedProps(v1, v2 *DiscoveryData, tags []string) []string {
-	if v1.Name != v2.Name {
-		tags = append(tags, "changed.name")
-	}
-	if v1.RSSI != v2.RSSI {
-		tags = append(tags, "changed.rssi")
-	}
-	for s, sv2 := range v2.ServiceData {
-		sv1, ok := v1.ServiceData[s]
-		if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
-			tags = append(tags, "changed.service:"+s)
-		}
-	}
-	return tags
-}
