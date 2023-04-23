@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"encoding/binary"
+
 	"github.com/godbus/dbus/v5"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
@@ -83,25 +85,38 @@ func (d *DiscoveryData) AddServiceData(service string, v interface{}) (string, e
 		return name, nil
 	}
 
+	isUint := false
 	switch service {
 	case "0000180f":
 		{
 			name = "battery"
-			d.ServiceData[name] = int(serviceBytes[0])
+			isUint = true
 		}
 	case "0000183b":
 		{
 			name = "binary"
 			d.ServiceData[name] = serviceBytes[0] != 0
 		}
+	case "0000183a":
+		{
+			name = "magnet"
+			isUint = true
+		}
 	case "00001809":
 		{
 			name = "temperature"
-			d.ServiceData[name] = int(serviceBytes[0])
+			isUint = true
 		}
 	default:
 		{
 			d.ServiceData[name] = serviceBytes
+			d.ServiceData[name+"_hex"] = hex.EncodeToString(serviceBytes)
+		}
+	}
+	if isUint {
+		var n int
+		d.ServiceData[name], n = binary.Uvarint(serviceBytes)
+		if n != len(serviceBytes) {
 			d.ServiceData[name+"_hex"] = hex.EncodeToString(serviceBytes)
 		}
 	}

@@ -1,5 +1,6 @@
 var adv = true;
 var state = true;
+var zero = Puck.mag();
 
 function blinkRed(time) {
   digitalPulse(LED1, 1, time);
@@ -41,9 +42,17 @@ function advertise() {
         blinkRed(200);
       }, 400);
     }
-    NRF.setAdvertising({
+
+  var p = Puck.mag();
+  p.x -= zero.x;
+  p.y -= zero.y;
+  p.z -= zero.z;
+  var magVal = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+
+  NRF.setAdvertising({
       0x1809: [Math.round(E.getTemperature())],
       0x180F: [Math.round(Puck.getBatteryPercentage())],
+      0x183A: [Math.round(magVal)],
       0x183B: [intstate]
     }, { name: "Puck.js 54ee", connectable: false, scannable: false, showName: true, discoverable: true, interval: 500 });
   }
