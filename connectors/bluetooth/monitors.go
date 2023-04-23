@@ -92,6 +92,10 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 	alias := devData.Alias
 	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_monitors")
 	deviceTags := fbt.getDeviceWatchTags(devData)
+
+	debugData := map[string]interface{}{"change": "initial", "devData": devData, "tags": ""}
+	ns.SetValue(devData.Address, freepsgraph.MakeObjectOutput(debugData), "")
+
 	for change := range ch {
 		if change == nil {
 			continue
