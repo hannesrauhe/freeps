@@ -7,12 +7,6 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/mackerelio/go-osstat/cpu"
-	"github.com/mackerelio/go-osstat/disk"
-	"github.com/mackerelio/go-osstat/loadavg"
-	"github.com/mackerelio/go-osstat/memory"
-	"github.com/mackerelio/go-osstat/network"
-	"github.com/mackerelio/go-osstat/uptime"
 )
 
 type OpSystem struct {
@@ -102,28 +96,7 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 		return MakePlainOutput(iCtx.ToDot())
 
 	case "stats":
-		var s interface{}
-		var err error
-		switch args["statType"] {
-		case "cpu":
-			s, err = cpu.Get()
-		case "disk":
-			s, err = disk.Get()
-		case "loadavg":
-			s, err = loadavg.Get()
-		case "memory":
-			s, err = memory.Get()
-		case "network":
-			s, err = network.Get()
-		case "uptime":
-			s, err = uptime.Get()
-		default:
-			return MakeOutputError(http.StatusBadRequest, "unknown statType: "+args["statType"])
-		}
-		if err != nil {
-			MakeOutputError(http.StatusInternalServerError, err.Error())
-		}
-		return MakeObjectOutput(s)
+		return o.Stats(ctx, fn, args, input)
 	}
 	return MakeOutputError(http.StatusBadRequest, "Unknown function: "+fn)
 }
