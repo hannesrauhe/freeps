@@ -88,7 +88,7 @@ func (fbt *FreepsBluetooth) deleteAllMonitors() {
 }
 
 func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *bluez.PropertyChanged) {
-	fbt.log.Infof("Monitoring device \"%v\" for changes", devData.Alias)
+	fbt.log.Infof("Monitoring device \"%v\"(\"%v\") for changes", devData.Alias, devData.Address)
 	alias := devData.Alias
 	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_monitors")
 	deviceTags := fbt.getDeviceWatchTags(devData)
@@ -110,7 +110,7 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		fbt.ge.ExecuteGraphByTagsExtended(ctx, taggroups, args, input)
 
 		debugData := map[string]interface{}{"change": change, "devData": devData, "tags": taggroups}
-		ns.SetValue(alias, freepsgraph.MakeObjectOutput(debugData), ctx.GetID())
+		ns.SetValue(devData.Address, freepsgraph.MakeObjectOutput(debugData), ctx.GetID())
 	}
-	fbt.log.Infof("Stop monitoring \"%s\" for changes", alias)
+	fbt.log.Infof("Stop monitoring \"%s\"(\"%v\") for changes", alias, devData.Address)
 }

@@ -95,25 +95,17 @@ func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 			return err
 		}
 	} else {
-		fbt.log.Debug("Flush cached devices skipped, adding already known devices instead")
-		devices, err := a.GetDevices()
-		if err != nil {
-			return err
-		}
-		for _, dev := range devices {
-			devData := fbt.parseDeviceProperties(dev.Properties)
-			input := freepsgraph.MakeObjectOutput(devData)
-
-			ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_known")
-			ns.SetValue(devData.Address, input, "")
-
-			deviceTags := fbt.getDeviceWatchTags(devData)
-			if len(fbt.ge.GetGraphInfoByTagExtended([][]string{{"bluetooth"}, deviceTags})) > 0 {
-				fbt.addMonitor(dev, devData)
-			}
-		}
-
+		fbt.log.Debug("Flush cached devices skipped")
 	}
+
+	devices, err := a.GetDevices()
+	if err != nil {
+		return err
+	}
+	for _, dev := range devices {
+		go fbt.handleNewDevice(dev, false)
+	}
+
 	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_known").DeleteOlder(fbt.config.ForgetDeviceDuration)
 	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_monitors").DeleteOlder(fbt.config.ForgetDeviceDuration)
 	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_discovered").DeleteOlder(fbt.config.ForgetDeviceDuration)
@@ -145,23 +137,14 @@ func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 
 			fbt.log.Debugf("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
 
-			go func(ev *adapter.DeviceDiscovered) {
-				devData := fbt.handleDiscovery(dev)
-				if err != nil {
-					fbt.log.Errorf("%s: %s", ev.Path, err)
-				}
-				deviceTags := fbt.getDeviceWatchTags(devData)
-				if len(fbt.ge.GetGraphInfoByTagExtended([][]string{{"bluetooth"}, deviceTags})) > 0 {
-					fbt.addMonitor(dev, devData)
-				}
-			}(ev)
+			go fbt.handleNewDevice(dev, true)
 		}
 		fbt.log.Debug("Stopped discovery")
 	}()
 	return nil
 }
 
-func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData {
+func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery bool) *DiscoveryData {
 	devData := fbt.parseDeviceProperties(dev.Properties)
 	ctx := base.NewContext(fbt.log)
 	input := freepsgraph.MakeObjectOutput(devData)
@@ -172,9 +155,20 @@ func (fbt *FreepsBluetooth) handleDiscovery(dev *device.Device1) *DiscoveryData 
 		deviceTags = append(deviceTags, "nameddevices")
 	}
 
-	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_discovered")
-	ns.SetValue(devData.Address, input, ctx.GetID())
-	fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
+	if freshDiscovery {
+		ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_discovered")
+		ns.SetValue(devData.Address, input, ctx.GetID())
+		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
+	} else {
+		ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_known")
+		ns.SetValue(devData.Address, input, ctx.GetID())
+	}
+
+	// start watcher if requested
+	watchDeviceTags := fbt.getDeviceWatchTags(devData)
+	if len(fbt.ge.GetGraphInfoByTagExtended([][]string{{"bluetooth"}, watchDeviceTags})) > 0 {
+		fbt.addMonitor(dev, devData)
+	}
 
 	return devData
 }
