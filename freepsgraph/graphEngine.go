@@ -285,12 +285,16 @@ func (ge *GraphEngine) GetAllGraphDesc() map[string]*GraphDesc {
 	return r
 }
 
-// GetGraphInfoByTag returns the GraphInfo for all Graphs with the given tags
+// GetGraphInfoByTag returns the GraphInfo for all Graphs that cointain all of the given tags
 func (ge *GraphEngine) GetGraphInfoByTag(tags []string) map[string]GraphInfo {
-	return ge.GetGraphInfoByTagExtended([][]string{tags})
+	taggroups := [][]string{}
+	for _, t := range tags {
+		taggroups = append(taggroups, []string{t})
+	}
+	return ge.GetGraphInfoByTagExtended(taggroups)
 }
 
-// GetGraphInfoByTagExtended returns the GraphInfo for all Graphs with the given tags
+// GetGraphInfoByTagExtended returns the GraphInfo for all Graphs that contain at least one tag of each group
 func (ge *GraphEngine) GetGraphInfoByTagExtended(tagGroups [][]string) map[string]GraphInfo {
 	r := make(map[string]GraphInfo)
 	ge.graphLock.Lock()
