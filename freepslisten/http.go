@@ -68,7 +68,7 @@ func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string
 	req.ParseForm() // does nothing if not the correct content type
 
 	// a regular curl call or something alike
-	if req.PostForm == nil {
+	if req.PostForm == nil || len(req.PostForm) == 0 {
 		defer req.Body.Close()
 		byteinput, err = io.ReadAll(req.Body)
 		if ct == "" {
