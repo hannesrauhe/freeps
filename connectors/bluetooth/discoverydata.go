@@ -3,6 +3,7 @@
 package freepsbluetooth
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -101,6 +102,7 @@ func (d *DiscoveryData) AddServiceData(service string, v interface{}) (string, e
 	default:
 		{
 			d.ServiceData[name] = serviceBytes
+			d.ServiceData[name+"_hex"] = hex.EncodeToString(serviceBytes)
 		}
 	}
 
