@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 )
 
 //go:embed embedded_graphs/*
@@ -25,7 +26,7 @@ func (ge *GraphEngine) LoadEmbeddedGraphs() error {
 		}
 		err = ge.AddTemporaryGraph(e.Name()[:len(e.Name())-5], gd, "embedded")
 		if err != nil {
-			return err
+			fmt.Printf("Could not load embeddedd graph \"%v\": %v", e.Name(), err)
 		}
 	}
 	return nil

@@ -1,3 +1,5 @@
+//go:build !noexec && linux
+
 package freepsexec
 
 import (
