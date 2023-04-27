@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
@@ -25,7 +24,7 @@ type OpFritz struct {
 	fc *freepslib.FBconfig
 }
 
-var _ freepsgraph.FreepsOperator = &OpFritz{}
+var _ base.FreepsOperator = &OpFritz{}
 
 // NewOpFritz creates a new operator for Freeps and Freepsflux
 func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
@@ -49,7 +48,7 @@ func (o *OpFritz) GetName() string {
 	return "fritz"
 }
 
-func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	dev := vars["device"]
 	fn := strings.ToLower(mixedCaseFn)
 
@@ -58,65 +57,65 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 		{
 			m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
 			if err == nil {
-				return freepsgraph.MakeObjectOutput(m)
+				return base.MakeObjectOutput(m)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getmetrics":
 		{
 			met, err := m.fl.GetMetrics()
 			if err == nil {
-				return freepsgraph.MakeObjectOutput(&met)
+				return base.MakeObjectOutput(&met)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdevices":
 		{
-			return freepsgraph.MakeObjectOutput(m.GetDevices())
+			return base.MakeObjectOutput(m.GetDevices())
 		}
 	case "gettemplates":
 		{
-			return freepsgraph.MakeObjectOutput(m.GetTemplates())
+			return base.MakeObjectOutput(m.GetTemplates())
 		}
 	case "getdevicelistinfos":
 		{
 			devl, err := m.getDeviceList()
 			if err == nil {
-				return freepsgraph.MakeObjectOutput(devl)
+				return base.MakeObjectOutput(devl)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdevicemap":
 		{
 			devl, err := m.GetDeviceMap()
 			if err == nil {
-				return freepsgraph.MakeObjectOutput(devl)
+				return base.MakeObjectOutput(devl)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdeviceinfos":
 		{
 			devObject, err := m.GetDeviceByAIN(dev)
 			if err == nil {
-				return freepsgraph.MakeObjectOutput(devObject)
+				return base.MakeObjectOutput(devObject)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "gettemplatelistinfos":
 		{
 			tl, err := m.fl.GetTemplateList()
 			if err == nil {
-				return freepsgraph.MakeObjectOutput(tl)
+				return base.MakeObjectOutput(tl)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "getdata":
 		{
 			r, err := m.fl.GetData()
 			if err == nil {
-				return freepsgraph.MakeObjectOutput(r)
+				return base.MakeObjectOutput(r)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	case "wakeup":
 		{
@@ -124,9 +123,9 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 			log.Printf("Waking Up %v", netdev)
 			err := m.fl.WakeUpDevice(netdev)
 			if err == nil {
-				return freepsgraph.MakePlainOutput("Woke up %s", netdev)
+				return base.MakePlainOutput("Woke up %s", netdev)
 			}
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 	}
 
@@ -134,16 +133,16 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 		err := m.fl.HomeAutoSwitch(fn, dev, vars)
 		if err == nil {
 			vars["fn"] = fn
-			return freepsgraph.MakeObjectOutput(vars)
+			return base.MakeObjectOutput(vars)
 		}
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 
 	r, err := m.fl.HomeAutomation(fn, dev, vars)
 	if err == nil {
-		return freepsgraph.MakeByteOutput(r)
+		return base.MakeByteOutput(r)
 	}
-	return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+	return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 }
 
 func (m *OpFritz) GetFunctions() []string {
@@ -320,7 +319,7 @@ func (m *OpFritz) getDeviceList() (*freepslib.AvmDeviceList, error) {
 	}
 	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
 	for _, dev := range devl.Device {
-		devNs.SetValue(dev.AIN, freepsgraph.MakeObjectOutput(dev), "")
+		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), "")
 	}
 	return devl, nil
 }
@@ -334,7 +333,7 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 	}
 	templNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
 	for _, t := range templ.Template {
-		templNs.SetValue(t.ID, freepsgraph.MakeObjectOutput(t), "")
+		templNs.SetValue(t.ID, base.MakeObjectOutput(t), "")
 	}
 	return templ, nil
 }

@@ -12,7 +12,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -22,21 +21,21 @@ type OpWLED struct {
 	config *OpConfig
 }
 
-var _ freepsgraph.FreepsOperator = &OpWLED{}
+var _ base.FreepsOperator = &OpWLED{}
 
 // GetName returns the name of the operator
 func (o *OpWLED) GetName() string {
 	return "wled"
 }
 
-func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	activeConnection := o.config.DefaultConnection
 	if vars["config"] != "" {
 		activeConnection = vars["config"]
 	}
 	w, err := NewWLEDConverter(activeConnection, o.config.Connections)
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
 	}
 	pmName := vars["pixelMatrix"]
 	if pmName == "" {
@@ -47,9 +46,9 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 	case "sendCmd":
 		switch vars["cmd"] {
 		case "on":
-			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: true}), false)
+			return w.SendToWLED(base.MakeObjectOutput(&WLEDState{On: true}), false)
 		case "off":
-			return w.SendToWLED(freepsgraph.MakeObjectOutput(&WLEDState{On: false}), false)
+			return w.SendToWLED(base.MakeObjectOutput(&WLEDState{On: false}), false)
 		}
 		return w.SendToWLED(mainInput, false)
 	case "setImage":
@@ -61,11 +60,11 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 			binput, err = staticContent.ReadFile("font/" + vars["icon"] + ".png")
 			contentType = "image/png"
 		} else if mainInput.IsEmpty() {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
+			return base.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
 		} else {
 			binput, err = mainInput.GetBytes()
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 			contentType = mainInput.ContentType
 		}
@@ -79,7 +78,7 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 			img, _, err = image.Decode(bytes.NewReader(binput))
 		}
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		w.ScaleImage(img)
 	case "setString":
@@ -91,7 +90,7 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 		if colstr, ok := vars["color"]; ok {
 			c, err = utils.ParseHexColor(colstr)
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+				return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
 			}
 		}
 		err = w.WriteString(str, c, utils.ParseBool(vars["alignRight"]))
@@ -101,31 +100,31 @@ func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]str
 		if colstr, ok := vars["color"]; ok {
 			c, err = utils.ParseHexColor(colstr)
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+				return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
 			}
 		}
 		x, err := strconv.Atoi(vars["x"])
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "x not a valid integer")
+			return base.MakeOutputError(http.StatusBadRequest, "x not a valid integer")
 		}
 		y, err := strconv.Atoi(vars["y"])
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
+			return base.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
 		}
 		err = w.SetPixel(x, y, c)
 	case "drawPixelMatrix":
 		animate := AnimationOptions{StepDurationInMillis: 500}
 		err := utils.ArgsMapToObject(vars, &animate)
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusNotFound, "Could not parse Animation Parameters: %v", err)
+			return base.MakeOutputError(http.StatusNotFound, "Could not parse Animation Parameters: %v", err)
 		}
 		return o.SetPixelMatrix(w, pmName, animate)
 	default:
-		return freepsgraph.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
+		return base.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
 	ret := w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
@@ -173,7 +172,7 @@ type AnimationOptions struct {
 	Repeat               int `json:",string"`
 }
 
-func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate AnimationOptions) *freepsgraph.OperatorIO {
+func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate AnimationOptions) *base.OperatorIO {
 	w.SetPixelMatrix(pmName) // ignore error, this will just draw an empty one
 	pm := w.GetPixelMatrix()
 
@@ -209,10 +208,10 @@ func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate Animati
 		default:
 			w.DrawPixelMatrix(pm)
 			w.SendToWLED(nil, false)
-			return freepsgraph.MakeEmptyOutput()
+			return base.MakeEmptyOutput()
 		}
 	}
-	return freepsgraph.MakeEmptyOutput()
+	return base.MakeEmptyOutput()
 }
 
 func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {

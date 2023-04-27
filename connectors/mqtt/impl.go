@@ -39,7 +39,7 @@ type FreepsMqttConfig struct {
 
 var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 
-func (fm *FreepsMqttImpl) publishResult(topic string, ctx *base.Context, out *freepsgraph.OperatorIO) {
+func (fm *FreepsMqttImpl) publishResult(topic string, ctx *base.Context, out *base.OperatorIO) {
 	if fm.Config.ResultTopic == "" {
 		return
 	}
@@ -68,7 +68,7 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 		log.Infof("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
-	input := freepsgraph.MakeObjectOutput(message.Payload())
+	input := base.MakeObjectOutput(message.Payload())
 	ctx := base.NewContext(fm.mqttlogger)
 	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
 	fm.publishResult(message.Topic(), ctx, out)
@@ -121,7 +121,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 		tags := []string{"mqtt", "topic:" + topic}
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
 			ctx := base.NewContext(fm.mqttlogger)
-			input := freepsgraph.MakeByteOutput(message.Payload())
+			input := base.MakeByteOutput(message.Payload())
 			freepsstore.GetGlobalStore().GetNamespace("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
 			out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"topic": message.Topic(), "subscription": tags[1]}, input)
 			fm.publishResult(topic, ctx, out)

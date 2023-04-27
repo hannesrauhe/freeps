@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,7 +38,7 @@ type TopicConfig struct {
 }
 
 func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic string) {
-	input := freepsgraph.MakeByteOutput(message)
+	input := base.MakeByteOutput(message)
 	graphName := tc.GraphToCall
 	if graphName == "" {
 		graphName = tc.TemplateToCall
@@ -74,7 +73,7 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 			fwt := FieldWithType{fconf.Datatype, value}
 			args := JsonArgs{Measurement: measurement, FieldsWithType: map[string]FieldWithType{fieldAlias: fwt}}
 
-			input = freepsgraph.MakeObjectOutput(args)
+			input = base.MakeObjectOutput(args)
 		} else {
 			fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 		}

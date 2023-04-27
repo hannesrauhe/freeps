@@ -13,7 +13,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
@@ -180,20 +179,20 @@ func (w *WLEDConverter) SetPixelMatrix(pmName string) error {
 	return w.DrawPixelMatrix(pm)
 }
 
-func (w *WLEDConverter) GetPNG() *freepsgraph.OperatorIO {
+func (w *WLEDConverter) GetPNG() *base.OperatorIO {
 	var bout []byte
 	contentType := "image/png"
 	writer := bytes.NewBuffer(bout)
 	if err := png.Encode(writer, w.dst); err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
 	}
-	return freepsgraph.MakeByteOutputWithContentType(writer.Bytes(), contentType)
+	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
 }
 
 // SendToWLED sends a command to WLED, if cmd is nil, it sends the stored picture instead
-func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) *freepsgraph.OperatorIO {
-	resp := freepsgraph.MakeEmptyOutput()
-	overallResp := freepsgraph.MakeEmptyOutput()
+func (w *WLEDConverter) SendToWLED(cmd *base.OperatorIO, returnPNG bool) *base.OperatorIO {
+	resp := base.MakeEmptyOutput()
+	overallResp := base.MakeEmptyOutput()
 	for i, s := range w.segments {
 		if cmd == nil {
 			resp = s.SendToWLED(cmd, w.dst)
@@ -204,7 +203,7 @@ func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) 
 			if len(w.segments) == 1 {
 				return resp
 			}
-			overallResp = freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error in segment %v: %v", i, resp.GetString())
+			overallResp = base.MakeOutputError(http.StatusInternalServerError, "Error in segment %v: %v", i, resp.GetString())
 			return overallResp
 		}
 		overallResp = resp
@@ -218,14 +217,14 @@ func (w *WLEDConverter) SendToWLED(cmd *freepsgraph.OperatorIO, returnPNG bool) 
 
 func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error {
 	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
-	return wledNs.SetValue(pmName, freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID())
+	return wledNs.SetValue(pmName, base.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID())
 }
 
 func (w *WLEDConverter) PrepareStore() error {
 	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
-	wledNs.SetValue("last", freepsgraph.MakeObjectOutput(w.GetPixelMatrix()), "startup")
-	wledNs.SetValue("diagonal", freepsgraph.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
-	wledNs.SetValue("zigzag", freepsgraph.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
+	wledNs.SetValue("last", base.MakeObjectOutput(w.GetPixelMatrix()), "startup")
+	wledNs.SetValue("diagonal", base.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
+	wledNs.SetValue("zigzag", base.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
 	files, err := staticContent.ReadDir("pixelart")
 	if err != nil {
 		return err
@@ -245,7 +244,7 @@ func (w *WLEDConverter) PrepareStore() error {
 			continue
 		}
 
-		wledNs.SetValue(key, freepsgraph.MakeObjectOutput(pm), "startup")
+		wledNs.SetValue(key, base.MakeObjectOutput(pm), "startup")
 	}
 	return retErr
 }

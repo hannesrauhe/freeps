@@ -15,10 +15,10 @@ type OpGraphByTag struct {
 	ge *GraphEngine
 }
 
-var _ FreepsOperator = &OpGraph{}
-var _ FreepsOperator = &OpGraphByTag{}
+var _ base.FreepsOperator = &OpGraph{}
+var _ base.FreepsOperator = &OpGraphByTag{}
 
-func (o *OpGraph) Execute(ctx *base.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpGraph) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
@@ -57,7 +57,7 @@ func (o *OpGraph) Shutdown(*base.Context) {
 
 /*** By Tag ****/
 
-func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
@@ -70,7 +70,7 @@ func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]str
 		tags = append(tags, strings.Split(addTstr, ",")...)
 	}
 
-	return o.ge.ExecuteGraphByTags(ctx, tags, make(map[string]string), MakeEmptyOutput())
+	return o.ge.ExecuteGraphByTags(ctx, tags, make(map[string]string), base.MakeEmptyOutput())
 }
 
 // GetName returns the name of the operator

@@ -4,14 +4,13 @@ import (
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 )
 
 type OpMuteMe struct {
 	mm *MuteMe
 }
 
-var _ freepsgraph.FreepsOperator = &OpMuteMe{}
+var _ base.FreepsOperator = &OpMuteMe{}
 
 func NewMuteMeOp(mm *MuteMe) *OpMuteMe {
 	fmqtt := &OpMuteMe{mm: mm}
@@ -23,7 +22,7 @@ func (o *OpMuteMe) GetName() string {
 	return "muteme"
 }
 
-func (o *OpMuteMe) Execute(ctx *base.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpMuteMe) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	switch fn {
 	case "setColor":
 		return o.mm.SetColor(args["color"])
@@ -36,12 +35,12 @@ func (o *OpMuteMe) Execute(ctx *base.Context, fn string, args map[string]string,
 			}
 		}
 	case "getColor":
-		return freepsgraph.MakePlainOutput(o.mm.GetColor())
+		return base.MakePlainOutput(o.mm.GetColor())
 	default:
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
+		return base.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 	}
 
-	return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Unexpected error")
+	return base.MakeOutputError(http.StatusInternalServerError, "Unexpected error")
 }
 
 func (o *OpMuteMe) GetFunctions() []string {

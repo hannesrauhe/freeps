@@ -7,7 +7,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/muka/go-bluetooth/bluez"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
@@ -94,7 +93,7 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 	deviceTags := fbt.getDeviceWatchTags(devData)
 
 	debugData := map[string]interface{}{"change": "initial", "devData": devData, "tags": ""}
-	ns.SetValue(devData.Address, freepsgraph.MakeObjectOutput(debugData), "")
+	ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), "")
 
 	for change := range ch {
 		if change == nil {
@@ -108,13 +107,13 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		if err != nil {
 			fbt.log.Errorf("Cannot update properties for \"%s\": %v", alias, err)
 		}
-		input := freepsgraph.MakeObjectOutput(devData)
+		input := base.MakeObjectOutput(devData)
 		args := map[string]string{"device": alias, "address": devData.Address, "change": change.Name}
 		taggroups := [][]string{{"bluetooth"}, deviceTags, changeTags}
 		fbt.ge.ExecuteGraphByTagsExtended(ctx, taggroups, args, input)
 
 		debugData := map[string]interface{}{"change": change, "devData": devData, "tags": taggroups}
-		ns.SetValue(devData.Address, freepsgraph.MakeObjectOutput(debugData), ctx.GetID())
+		ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), ctx.GetID())
 	}
 	fbt.log.Infof("Stop monitoring \"%s\"(\"%v\") for changes", alias, devData.Address)
 }

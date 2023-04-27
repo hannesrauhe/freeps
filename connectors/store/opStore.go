@@ -9,7 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -17,7 +16,7 @@ type OpStore struct {
 	cr *utils.ConfigReader
 }
 
-var _ freepsgraph.FreepsOperator = &OpStore{}
+var _ base.FreepsOperator = &OpStore{}
 
 // NewOpStore creates a new store operator and re-initializes the store
 func NewOpStore(cr *utils.ConfigReader) *OpStore {
@@ -54,14 +53,14 @@ func (o *OpStore) GetName() string {
 }
 
 // Execute everything in a single spaghetti - needs cleanup
-func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if fn == "getNamespaces" {
-		return freepsgraph.MakeObjectOutput(store.GetNamespaces())
+		return base.MakeObjectOutput(store.GetNamespaces())
 	}
-	result := map[string]map[string]*freepsgraph.OperatorIO{}
+	result := map[string]map[string]*base.OperatorIO{}
 	ns, ok := args["namespace"]
 	if !ok {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "No namespace given")
+		return base.MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
 	multiNs := strings.Split(ns, ",")
 	if len(multiNs) > 1 && fn == "getAll" {
@@ -69,16 +68,16 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			ns = utils.StringToIdentifier(ns)
 			result[ns] = store.GetNamespace(ns).GetAllValues(0)
 		}
-		return freepsgraph.MakeObjectOutput(result)
+		return base.MakeObjectOutput(result)
 	}
 	ns = utils.StringToIdentifier(ns)
 
 	if fn == "createPostgresNamespace" {
 		err := store.createPostgresNamespace(ns)
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-		return freepsgraph.MakePlainOutput("Namespace %v created", ns)
+		return base.MakePlainOutput("Namespace %v created", ns)
 	}
 	nsStore := store.GetNamespace(ns)
 	keyArgName := args["keyArgName"]
@@ -87,7 +86,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 	}
 	key, ok := args[keyArgName]
 	if fn != "getAll" && fn != "setAll" && fn != "deleteOlder" && fn != "search" && !ok {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "No key given")
+		return base.MakeOutputError(http.StatusBadRequest, "No key given")
 	}
 	// overwrite input and function to treat setSimpleValue like set
 	if fn == "setSimpleValue" {
@@ -97,10 +96,10 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		}
 		val, ok := args[valueArgName]
 		if !ok {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "No value given")
+			return base.MakeOutputError(http.StatusBadRequest, "No value given")
 		}
 		fn = "set"
-		input = freepsgraph.MakePlainOutput(val)
+		input = base.MakePlainOutput(val)
 	}
 	output, ok := args["output"]
 	if !ok {
@@ -117,14 +116,14 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		maxAgeRequest = true
 		maxAge, err = time.ParseDuration(maxAgeStr)
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
+			return base.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
 		}
 	}
 	minAgeStr := args["minAge"]
 	if minAgeStr != "" {
 		minAge, err = time.ParseDuration(minAgeStr)
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse minAge \"%v\" because of error: \"%v\"", minAgeStr, err)
+			return base.MakeOutputError(http.StatusBadRequest, "Cannot parse minAge \"%v\" because of error: \"%v\"", minAgeStr, err)
 		}
 	}
 
@@ -133,7 +132,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		{
 			output = "arguments" // just for completenes, will not be read afterwards
 			fullres := nsStore.GetSearchResultWithMetadata(args["key"], args["value"], args["modifiedBy"], minAge, maxAge)
-			return freepsgraph.MakeObjectOutput(fullres)
+			return base.MakeObjectOutput(fullres)
 		}
 	case "getAll":
 		{
@@ -146,15 +145,15 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			m := map[string]interface{}{}
 			err := input.ParseJSON(&m)
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
+				return base.MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
 			}
 			for inputKey, inputValue := range m {
-				nsStore.SetValue(inputKey, freepsgraph.MakeObjectOutput(inputValue), ctx.GetID())
+				nsStore.SetValue(inputKey, base.MakeObjectOutput(inputValue), ctx.GetID())
 			}
 		}
 	case "get", "equals":
 		{
-			var io *freepsgraph.OperatorIO
+			var io *base.OperatorIO
 			if maxAgeRequest {
 				io = nsStore.GetValueBeforeExpiration(key, maxAge)
 			} else {
@@ -170,11 +169,11 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 					val = input.GetString()
 				}
 				if io.GetString() != val {
-					return freepsgraph.MakeOutputError(http.StatusExpectationFailed, "Values do not match")
+					return base.MakeOutputError(http.StatusExpectationFailed, "Values do not match")
 				}
 			}
 
-			result[ns] = map[string]*freepsgraph.OperatorIO{key: io}
+			result[ns] = map[string]*base.OperatorIO{key: io}
 		}
 	case "set":
 		{
@@ -185,34 +184,34 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 				}
 			}
 			nsStore.SetValue(key, input, ctx.GetID())
-			result[ns] = map[string]*freepsgraph.OperatorIO{key: input}
+			result[ns] = map[string]*base.OperatorIO{key: input}
 		}
 	case "compareAndSwap":
 		{
 			val, ok := args["value"]
 			if !ok {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "No expected value given")
+				return base.MakeOutputError(http.StatusBadRequest, "No expected value given")
 			}
 			io := nsStore.CompareAndSwap(key, val, input, ctx.GetID())
 			if io.IsError() {
 				return io
 			}
-			result[ns] = map[string]*freepsgraph.OperatorIO{key: input}
+			result[ns] = map[string]*base.OperatorIO{key: input}
 		}
 	case "del", "delete", "remove":
 		{
 			nsStore.DeleteValue(key)
-			return freepsgraph.MakeEmptyOutput()
+			return base.MakeEmptyOutput()
 		}
 	case "deleteOlder":
 		{
 			if !maxAgeRequest {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "No maxAge given")
+				return base.MakeOutputError(http.StatusBadRequest, "No maxAge given")
 			}
-			return freepsgraph.MakePlainOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
+			return base.MakePlainOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
 		}
 	default:
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function")
+		return base.MakeOutputError(http.StatusBadRequest, "Unknown function")
 	}
 
 	switch output {
@@ -224,7 +223,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 					flatresult[k] = v.GetString()
 				}
 			}
-			return freepsgraph.MakeObjectOutput(flatresult)
+			return base.MakeObjectOutput(flatresult)
 		}
 	case "direct":
 		{
@@ -232,18 +231,18 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		}
 	case "bool":
 		{
-			return freepsgraph.MakePlainOutput("true")
+			return base.MakePlainOutput("true")
 		}
 	case "empty":
 		{
-			return freepsgraph.MakeEmptyOutput()
+			return base.MakeEmptyOutput()
 		}
 	case "hierarchy":
 		{
-			return freepsgraph.MakeObjectOutput(result)
+			return base.MakeObjectOutput(result)
 		}
 	}
-	return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown output type '%v'", output)
+	return base.MakeOutputError(http.StatusBadRequest, "Unknown output type '%v'", output)
 }
 
 // GetFunctions returns the functions of this operator
