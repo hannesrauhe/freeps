@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"os"
 	"path"
+	"sort"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -182,18 +183,24 @@ func TestGraphExecution(t *testing.T) {
 	assert.NilError(t, err)
 	ge := NewGraphEngine(cr, func() {})
 
-	expectByTagExtendedExecution := func(tagsAnd []string, tagsOr []string, expectedOutputKeys []string) {
+	expectByTagExtendedExecution := func(tagGroups [][]string, expectedOutputKeys []string) {
 		expectedCode := 200
 		if expectedOutputKeys == nil {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger()), tagsAnd, tagsOr, make(map[string]string), MakeEmptyOutput()),
+			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger()), tagGroups, make(map[string]string), MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
 	expectByTagExecution := func(tags []string, expectedOutputKeys []string) {
-		expectByTagExtendedExecution(tags, []string{}, expectedOutputKeys)
+		expectedCode := 200
+		if expectedOutputKeys == nil {
+			expectedCode = 404
+		}
+		expectOutput(t,
+			ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), tags, make(map[string]string), MakeEmptyOutput()),
+			expectedCode, expectedOutputKeys)
 	}
 
 	expectByTagExecution([]string{"not"}, nil)
@@ -223,11 +230,32 @@ func TestGraphExecution(t *testing.T) {
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
 	expectByTagExecution([]string{"t1", "t2"}, []string{}) //single graph executed with empty output
 
-	expectByTagExtendedExecution([]string{"t1"}, []string{"t2", "t4"}, []string{"test2", "test3"})
-	expectByTagExtendedExecution([]string{}, []string{"t2", "t4"}, []string{"test2", "test3", "test4"})
+	expectByTagExtendedExecution([][]string{{"t1"}, {"t2", "t4"}}, []string{"test2", "test3"})
+	expectByTagExtendedExecution([][]string{{"t2", "t4"}}, []string{"test2", "test3", "test4"})
 
 	// test the operator once
 	expectOutput(t,
 		ge.ExecuteOperatorByName(base.NewContext(log.StandardLogger()), "graphbytag", "t4", map[string]string{}, MakeEmptyOutput()),
 		200, []string{"test2", "test3", "test4"})
+
+	/* Keytags */
+
+	g5 := validGraph
+	g5.Tags = []string{"keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man"}
+	ge.AddExternalGraph("test5", &g5, "foo.json")
+	g6 := validGraph
+	g6.Tags = []string{"keytag1:bar", "keytag2:bla"}
+	ge.AddExternalGraph("test6", &g6, "foo.json")
+
+	expectByTagExtendedExecution([][]string{{"t2", ":yes:man", "keytag2:bla"}, {"t4", "fadabump", "keytag2:bla"}, {"t2", "keytag2:bla"}}, []string{"test3", "test6"})
+
+	v := ge.GetTagValues("keytag1")
+	sort.Strings(v)
+	assert.DeepEqual(t, v, []string{"bar", "foo"})
+	assert.DeepEqual(t, ge.GetTagValues("keytag2"), []string{"bla"})
+	assert.DeepEqual(t, ge.GetTagValues("footag"), []string{})
+	assert.DeepEqual(t, ge.GetTagValues(""), []string{})
+	assert.DeepEqual(t, ge.GetTagValues(":yes"), []string{"man"})
+	assert.DeepEqual(t, ge.GetTagValues("f"), []string{"a:shiZ:s"})
+	assert.DeepEqual(t, ge.GetTagValues("f:a"), []string{"shiZ:s"})
 }

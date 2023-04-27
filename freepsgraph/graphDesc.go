@@ -49,7 +49,7 @@ func (gd *GraphDesc) HasAllTags(expectedTags []string) bool {
 	return true
 }
 
-// HasAtLeastOneTag return true if the GraphDesc contains at least one of the given tags
+// HasAtLeastOneTag returns true if the GraphDesc contains at least one of the given tags
 func (gd *GraphDesc) HasAtLeastOneTag(expectedTags []string) bool {
 	if expectedTags == nil || len(expectedTags) == 0 {
 		return true
@@ -63,6 +63,20 @@ func (gd *GraphDesc) HasAtLeastOneTag(expectedTags []string) bool {
 		}
 	}
 	return false
+}
+
+// HasAtLeastOneTagPerGroup returns true if the GraphDesc contains at least one tag of each array
+func (gd *GraphDesc) HasAtLeastOneTagPerGroup(tagGroups [][]string) bool {
+	if tagGroups == nil || len(tagGroups) == 0 {
+		return true
+	}
+
+	for _, tags := range tagGroups {
+		if !gd.HasAtLeastOneTag(tags) {
+			return false
+		}
+	}
+	return true
 }
 
 // AddTag adds a Tag to the description and removes duplicates

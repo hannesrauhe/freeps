@@ -67,7 +67,7 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 		if args["tag"] != "" {
 			tags = append(tags, args["tag"])
 		}
-		gim := o.ge.GetGraphInfoByTag(tags, []string{})
+		gim := o.ge.GetGraphInfoByTag(tags)
 		if gim == nil || len(gim) == 0 {
 			return MakeOutputError(http.StatusNotFound, "No graphs with tags %v", strings.Join(tags, ","))
 		}

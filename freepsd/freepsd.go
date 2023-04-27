@@ -12,6 +12,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
@@ -144,6 +145,13 @@ func main() {
 			h, _ := mqtt.NewMQTTHook(cr)
 			ge.AddHook(h)
 		}
+
+		fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
+		if err != nil {
+			logger.Errorf("FreepsBT not started: %v", err)
+		} else if fbt != nil {
+			ge.AddHook(&freepsbluetooth.HookBluetooth{})
+		}
 		telg := telegram.NewTelegramBot(cr, ge, cancel)
 		mm.StartListening()
 
@@ -154,6 +162,9 @@ func main() {
 			telg.Shutdown(context.TODO())
 			http.Shutdown(context.TODO())
 			mm.Shutdown()
+			if fbt != nil {
+				fbt.Shutdown()
+			}
 		}
 		running = ge.ReloadRequested()
 		ge.Shutdown(base.NewContext(logger))
