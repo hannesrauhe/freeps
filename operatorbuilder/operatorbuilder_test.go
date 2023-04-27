@@ -15,7 +15,7 @@ type MyTestFunc struct {
 	OptParam4       *string
 	OptParam5       *bool
 	someinternalvar string
-	OtherVars       map[string]string
+	Vars            map[string]string
 }
 
 func (mf *MyTestFunc) Run(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
@@ -28,7 +28,7 @@ func (mf *MyTestFunc) Run(ctx *base.Context, mainInput *base.OperatorIO) *base.O
 	if mf.OptParam5 != nil {
 		return base.MakePlainOutput("5")
 	}
-	if mf.OtherVars != nil {
+	if mf.Vars != nil && len(mf.Vars) > 0 {
 		return base.MakePlainOutput("other")
 	}
 
@@ -62,7 +62,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Equal(t, fnl[0], "myfavoritefunction")
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
-	assert.Equal(t, len(fal), 1)
+	assert.Equal(t, len(fal), 6)
 	assert.Equal(t, fal[0], "Param1")
 
 	// sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{})
@@ -75,7 +75,7 @@ func TestOpBuilderExecute(t *testing.T) {
 
 	// happy path without optional parameters
 	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12"}, base.MakeEmptyOutput())
-	assert.Assert(t, !output.IsError(), output.GetString())
+	assert.Assert(t, output.IsEmpty(), output.GetString())
 
 	// happy path with optional parameters
 	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam3": "42"}, base.MakeEmptyOutput())

@@ -94,10 +94,6 @@ func (o *GenericOperator) SetOptionalFreepsFunctionParameters(freepsfunc *reflec
 		if !ok {
 			continue
 		}
-		// continue if the field is not a pointer to a primitive type
-		if field.Elem().Kind() != reflect.Int && field.Elem().Kind() != reflect.String && field.Elem().Kind() != reflect.Float64 && field.Elem().Kind() != reflect.Bool {
-			continue
-		}
 
 		// since the field is a pointer, we need to create a new instance of the type of the field
 		// and set the value of the field to the new instance
