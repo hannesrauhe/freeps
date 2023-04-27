@@ -27,7 +27,7 @@ type GraphEngine struct {
 	cr              *utils.ConfigReader
 	externalGraphs  map[string]*GraphInfo
 	temporaryGraphs map[string]*GraphInfo
-	operators       map[string]FreepsOperator
+	operators       map[string]base.FreepsOperator
 	hooks           map[string]FreepsHook
 	executionErrors *CollectedErrors
 	reloadRequested bool
@@ -40,7 +40,7 @@ type GraphEngine struct {
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
 	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]*GraphInfo), temporaryGraphs: make(map[string]*GraphInfo), executionErrors: NewCollectedErrors(100), reloadRequested: false}
 
-	ge.operators = make(map[string]FreepsOperator)
+	ge.operators = make(map[string]base.FreepsOperator)
 	ge.operators["graph"] = &OpGraph{ge: ge}
 	ge.operators["graphbytag"] = &OpGraphByTag{ge: ge}
 	ge.operators["time"] = &OpTime{}
@@ -113,7 +113,7 @@ func (ge *GraphEngine) ReloadRequested() bool {
 }
 
 // ExecuteGraph executes a graph stored in the engine
-func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	g, o := ge.prepareGraphExecution(ctx, graphName, true)
 	if g == nil {
 		return o
@@ -124,11 +124,11 @@ func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArg
 }
 
 // ExecuteOperatorByName executes an operator directly
-func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
 	g, err := NewGraph(ctx, name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
 	if err != nil {
-		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
+		return base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
 	ge.TriggerOnExecuteHooks(ctx, name, mainArgs, mainInput)
 	defer ge.TriggerOnExecutionFinishedHooks(ctx, name, mainArgs, mainInput)
@@ -136,7 +136,7 @@ func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, f
 }
 
 // ExecuteGraphByTags executes graphs with given tags
-func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	taggroups := [][]string{}
 	for _, t := range tags {
 		taggroups = append(taggroups, []string{t})
@@ -145,9 +145,9 @@ func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args
 }
 
 // ExecuteGraphByTagsExtended executes all graphs that at least one tag of each group
-func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [][]string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [][]string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if tagGroups == nil || len(tagGroups) == 0 {
-		return MakeOutputError(http.StatusBadRequest, "No tags given")
+		return base.MakeOutputError(http.StatusBadRequest, "No tags given")
 	}
 
 	// ctx.GetLogger().Infof("Executing graph by tags: %v", tagGroups)
@@ -157,7 +157,7 @@ func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [
 		for n := range tg {
 			return ge.ExecuteGraph(ctx, n, args, input)
 		}
-		return MakeOutputError(404, "No graph with tags found: %v", fmt.Sprint(tagGroups))
+		return base.MakeOutputError(404, "No graph with tags found: %v", fmt.Sprint(tagGroups))
 	}
 
 	// need to build a temporary graph containing all graphs with matching tags
@@ -170,7 +170,7 @@ func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [
 
 	g, err := NewGraph(ctx, name, &gd, ge)
 	if err != nil {
-		return MakeOutputError(500, "Graph preparation failed: "+err.Error())
+		return base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
 
 	ge.TriggerOnExecuteHooks(ctx, name, args, input)
@@ -190,26 +190,26 @@ func (ge *GraphEngine) getGraphInfoUnlocked(graphName string) (*GraphInfo, bool)
 	return nil, false
 }
 
-func (ge *GraphEngine) prepareGraphExecution(ctx *base.Context, graphName string, countExecution bool) (*Graph, *OperatorIO) {
+func (ge *GraphEngine) prepareGraphExecution(ctx *base.Context, graphName string, countExecution bool) (*Graph, *base.OperatorIO) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	gi, exists := ge.getGraphInfoUnlocked(graphName)
 	if !exists {
-		return nil, MakeOutputError(404, "No graph with name \"%s\" found", graphName)
+		return nil, base.MakeOutputError(404, "No graph with name \"%s\" found", graphName)
 	}
 	g, err := NewGraph(ctx, graphName, &gi.Desc, ge)
 	if err != nil {
-		return nil, MakeOutputError(500, "Graph preparation failed: "+err.Error())
+		return nil, base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
 	}
 	if countExecution {
 		gi.LastExecutionTime = time.Now()
 		gi.ExecutionCounter++
 	}
-	return g, MakeEmptyOutput()
+	return g, base.MakeEmptyOutput()
 }
 
 // CheckGraph checks if the graph is valid
-func (ge *GraphEngine) CheckGraph(graphName string) *OperatorIO {
+func (ge *GraphEngine) CheckGraph(graphName string) *base.OperatorIO {
 	_, o := ge.prepareGraphExecution(nil, graphName, false)
 	return o
 }
@@ -314,7 +314,7 @@ func (ge *GraphEngine) GetGraphInfoByTagExtended(tagGroups [][]string) map[strin
 }
 
 // AddOperator adds an operator to the graph engine
-func (ge *GraphEngine) AddOperator(op FreepsOperator) {
+func (ge *GraphEngine) AddOperator(op base.FreepsOperator) {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	ge.operators[op.GetName()] = op
@@ -340,7 +340,7 @@ func (ge *GraphEngine) GetOperators() []string {
 }
 
 // GetOperator returns the operator with the given name
-func (ge *GraphEngine) GetOperator(opName string) FreepsOperator {
+func (ge *GraphEngine) GetOperator(opName string) base.FreepsOperator {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	op, exists := ge.operators[opName]
@@ -358,7 +358,7 @@ func (ge *GraphEngine) AddHook(h FreepsHook) {
 }
 
 // TriggerOnExecuteHooks adds a hook to the graph engine
-func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
 	ge.hookLock.Lock()
 	defer ge.hookLock.Unlock()
 
@@ -374,7 +374,7 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 }
 
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
-func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *OperatorIO) {
+func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
 	ge.hookLock.Lock()
 	defer ge.hookLock.Unlock()
 

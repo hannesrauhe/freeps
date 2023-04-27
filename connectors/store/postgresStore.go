@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 
 	_ "github.com/lib/pq"
@@ -101,27 +101,27 @@ func (p *postgresStoreNamespace) query(projection string, filter string, args ..
 	return db.Query(queryString, args...)
 }
 
-func (p *postgresStoreNamespace) entryToOutput(output *freepsgraph.OperatorIO, valuePlain sql.NullString, valueBytes []byte, valueJSON []byte) {
+func (p *postgresStoreNamespace) entryToOutput(output *base.OperatorIO, valuePlain sql.NullString, valueBytes []byte, valueJSON []byte) {
 	switch output.OutputType {
-	case freepsgraph.Empty:
+	case base.Empty:
 		output.Output = nil
-	case freepsgraph.PlainText:
+	case base.PlainText:
 		if !valuePlain.Valid {
-			*output = *freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: plain value is NULL")
+			*output = *base.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: plain value is NULL")
 		}
 		output.Output = valuePlain.String
-	case freepsgraph.Byte:
+	case base.Byte:
 		output.Output = valueBytes
-	case freepsgraph.Object:
+	case base.Object:
 		output.Output = map[string]interface{}{}
 		json.Unmarshal(valueJSON, &output.Output)
 	default:
-		*output = *freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: OutputType unkown")
+		*output = *base.MakeOutputError(http.StatusInternalServerError, "getValue: invalid object in db: OutputType unkown")
 	}
 }
 
-func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
 func (p *postgresStoreNamespace) DeleteOlder(maxAge time.Duration) int {
@@ -132,8 +132,8 @@ func (p *postgresStoreNamespace) DeleteValue(key string) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*freepsgraph.OperatorIO {
-	result := map[string]*freepsgraph.OperatorIO{}
+func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
+	result := map[string]*base.OperatorIO{}
 	filter := ""
 	filterParts := []any{}
 	if keyPattern != "" {
@@ -170,29 +170,29 @@ func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern 
 
 	rows, err := p.query("key, http_code, output_type, content_type, value_plain, value_bytes, value_json", filter, filterParts...)
 	if err != nil {
-		result["error"] = freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		result["error"] = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 		return result
 	}
 	defer rows.Close()
 	for rows.Next() {
 		key := ""
-		output := freepsgraph.OperatorIO{}
+		output := base.OperatorIO{}
 		var valuePlain sql.NullString
 		var valueBytes, valueJSON []byte
 		if err := rows.Scan(&key, &output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON); err != nil {
-			result["error"] = freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+			result["error"] = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 			return result
 		}
 		p.entryToOutput(&output, valuePlain, valueBytes, valueJSON)
 		result[key] = &output
 	}
 	if err := rows.Err(); err != nil {
-		result["error"] = freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		result["error"] = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 	}
 	return result
 }
 
-func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*freepsgraph.OperatorIO {
+func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -220,37 +220,37 @@ func (p *postgresStoreNamespace) GetSearchResultWithMetadata(keyPattern string, 
 	panic("not implemented") // TODO: Implement
 }
 
-func (p *postgresStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
+func (p *postgresStoreNamespace) GetValue(key string) *base.OperatorIO {
 	rows, err := p.query("http_code, output_type, content_type, value_plain, value_bytes, value_json", "key=$1", key)
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		output := freepsgraph.OperatorIO{}
+		output := base.OperatorIO{}
 		var valuePlain sql.NullString
 		var valueBytes, valueJSON []byte
 		if err := rows.Scan(&output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON); err != nil {
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+			return base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 		}
 		p.entryToOutput(&output, valuePlain, valueBytes, valueJSON)
 		return &output
 	}
 	if err := rows.Err(); err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 	}
-	return freepsgraph.MakeOutputError(http.StatusNotFound, "Key not found")
+	return base.MakeOutputError(http.StatusNotFound, "Key not found")
 }
 
-func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
-func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *freepsgraph.OperatorIO, maxAge time.Duration, modifiedBy string) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
-func (p *postgresStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error {
+func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) error {
 	var execErr error
 	insertStart := fmt.Sprintf("insert into %s.%s", p.schema, p.name)
 	if io.IsEmpty() {

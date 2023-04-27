@@ -14,7 +14,7 @@ import (
 	"github.com/mackerelio/go-osstat/uptime"
 )
 
-func (o *OpSystem) Stats(ctx *base.Context, fn string, args map[string]string, input *OperatorIO) *OperatorIO {
+func (o *OpSystem) Stats(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	var s interface{}
 	var err error
 	switch args["statType"] {
@@ -31,10 +31,10 @@ func (o *OpSystem) Stats(ctx *base.Context, fn string, args map[string]string, i
 	case "uptime":
 		s, err = uptime.Get()
 	default:
-		return MakeOutputError(http.StatusBadRequest, "Stats only available on Linux")
+		return base.MakeOutputError(http.StatusBadRequest, "Stats only available on Linux")
 	}
 	if err != nil {
-		MakeOutputError(http.StatusInternalServerError, err.Error())
+		base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
-	return MakeObjectOutput(s)
+	return base.MakeObjectOutput(s)
 }

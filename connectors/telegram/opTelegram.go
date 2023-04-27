@@ -8,7 +8,6 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -17,7 +16,7 @@ type OpTelegram struct {
 	tgc *TelegramConfig
 }
 
-var _ freepsgraph.FreepsOperator = &OpTelegram{}
+var _ base.FreepsOperator = &OpTelegram{}
 
 // GetName returns the name of the operator
 func (o *OpTelegram) GetName() string {
@@ -35,14 +34,14 @@ func NewTelegramOp(cr *utils.ConfigReader) *OpTelegram {
 	return t
 }
 
-func (m *OpTelegram) sendIOtoChat(chatid int64, io *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (m *OpTelegram) sendIOtoChat(chatid int64, io *base.OperatorIO) *base.OperatorIO {
 	var err error
 	var res tgbotapi.Message
 	if len(io.ContentType) > 7 && io.ContentType[0:5] == "image" {
 		var byt []byte
 		byt, err = io.GetBytes()
 		if err != nil {
-			freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		tphoto := tgbotapi.NewPhoto(chatid, tgbotapi.FileBytes{Name: "picture." + io.ContentType[6:], Bytes: byt})
 		res, err = m.bot.Send(tphoto)
@@ -51,20 +50,20 @@ func (m *OpTelegram) sendIOtoChat(chatid int64, io *freepsgraph.OperatorIO) *fre
 		res, err = m.bot.Send(msg)
 	}
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when sending telegram message: %v", err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "Error when sending telegram message: %v", err.Error())
 	}
-	return freepsgraph.MakeObjectOutput(res)
+	return base.MakeObjectOutput(res)
 }
 
-func (m *OpTelegram) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (m *OpTelegram) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	chatid, err := strconv.ParseInt(vars["ChatID"], 10, 64)
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	output := input
 	text, ok := vars["Text"]
 	if ok {
-		output = freepsgraph.MakePlainOutput(text)
+		output = base.MakePlainOutput(text)
 	}
 	return m.sendIOtoChat(chatid, output)
 }

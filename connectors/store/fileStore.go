@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -37,8 +37,8 @@ func (p *fileStoreNamespace) getFilePath(key string) (string, error) {
 
 var _ StoreNamespace = &fileStoreNamespace{}
 
-func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
 func (p *fileStoreNamespace) DeleteOlder(maxAge time.Duration) int {
@@ -53,7 +53,7 @@ func (p *fileStoreNamespace) DeleteValue(key string) {
 	os.Remove(path)
 }
 
-func (p *fileStoreNamespace) GetAllValues(limit int) map[string]*freepsgraph.OperatorIO {
+func (p *fileStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -97,7 +97,7 @@ func fileMatches(de fs.DirEntry, keyPattern, valuePattern, modifiedByPattern str
 	return &i
 }
 
-func (p *fileStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*freepsgraph.OperatorIO {
+func (p *fileStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -114,32 +114,32 @@ func (p *fileStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valu
 			continue
 		}
 		info := *i
-		res[d.Name()] = StoreEntry{data: freepsgraph.MakePlainOutput("File of size: %v", info.Size()), timestamp: info.ModTime()}
+		res[d.Name()] = StoreEntry{data: base.MakePlainOutput("File of size: %v", info.Size()), timestamp: info.ModTime()}
 	}
 	return res
 }
 
-func (p *fileStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
+func (p *fileStoreNamespace) GetValue(key string) *base.OperatorIO {
 	path, err := p.getFilePath(key)
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return freepsgraph.MakeOutputError(500, "Failed to open file: %v", err.Error())
+		return base.MakeOutputError(500, "Failed to open file: %v", err.Error())
 	}
-	return freepsgraph.MakeByteOutput(b)
+	return base.MakeByteOutput(b)
 }
 
-func (p *fileStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
-func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *freepsgraph.OperatorIO, maxAge time.Duration, modifiedBy string) *freepsgraph.OperatorIO {
-	return freepsgraph.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
-func (p *fileStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error {
+func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) error {
 	path, err := p.getFilePath(key)
 	if err != nil {
 		return err

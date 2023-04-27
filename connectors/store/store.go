@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/base"
 )
 
 // process-global store used by the Hook and the Operator
@@ -13,7 +13,7 @@ var store = Store{namespaces: map[string]StoreNamespace{}}
 
 // StoreEntry contains data and metadata of a single entry
 type StoreEntry struct {
-	data       *freepsgraph.OperatorIO
+	data       *base.OperatorIO
 	timestamp  time.Time
 	modifiedBy string
 }
@@ -30,17 +30,17 @@ func (v StoreEntry) MarshalJSON() ([]byte, error) {
 
 // StoreNamespace defines all functions to retrieve and modify data in the store
 type StoreNamespace interface {
-	CompareAndSwap(key string, expected string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO
+	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO
 	DeleteOlder(maxAge time.Duration) int
 	DeleteValue(key string)
-	GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*freepsgraph.OperatorIO
-	GetAllValues(limit int) map[string]*freepsgraph.OperatorIO
+	GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO
+	GetAllValues(limit int) map[string]*base.OperatorIO
 	GetKeys() []string
 	GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry
-	GetValue(key string) *freepsgraph.OperatorIO
-	GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO
-	OverwriteValueIfOlder(key string, io *freepsgraph.OperatorIO, maxAge time.Duration, modifiedBy string) *freepsgraph.OperatorIO
-	SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error
+	GetValue(key string) *base.OperatorIO
+	GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO
+	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO
+	SetValue(key string, io *base.OperatorIO, modifiedBy string) error
 }
 
 // Store is a collection of different namespaces in which values can be stored

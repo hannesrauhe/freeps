@@ -18,7 +18,7 @@ type Graph struct {
 	context   *base.Context
 	desc      *GraphDesc
 	engine    *GraphEngine
-	opOutputs map[string]*OperatorIO
+	opOutputs map[string]*base.OperatorIO
 }
 
 // NewGraph creates a new graph from a graph description
@@ -80,7 +80,7 @@ func NewGraph(ctx *base.Context, name string, origGraphDesc *GraphDesc, ge *Grap
 	} else if outputNames[origGraphDesc.OutputFrom] != true {
 		return nil, fmt.Errorf("Graph references unknown outputFrom \"%v\"", origGraphDesc.OutputFrom)
 	}
-	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*OperatorIO)}, nil
+	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}, nil
 }
 
 // GetCompleteDesc returns the GraphDesc that was sanitized and completed when creating the graph
@@ -88,7 +88,7 @@ func (g *Graph) GetCompleteDesc() *GraphDesc {
 	return g.desc
 }
 
-func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	ctx.IncreaseNesting()
 	defer ctx.DecreaseNesting()
 	g.opOutputs[ROOT_SYMBOL] = mainInput
@@ -100,24 +100,24 @@ func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput
 		g.opOutputs[operation.Name] = output
 	}
 	if g.desc.OutputFrom == "" {
-		return MakeObjectOutput(g.opOutputs)
+		return base.MakeObjectOutput(g.opOutputs)
 	}
 	if g.opOutputs[g.desc.OutputFrom] == nil {
 		logger.Errorf("Output from \"%s\" not found", g.desc.OutputFrom)
-		return MakeObjectOutput(g.opOutputs)
+		return base.MakeObjectOutput(g.opOutputs)
 	}
 	return g.opOutputs[g.desc.OutputFrom]
 }
 
-func (g *Graph) collectAndReturnOperationError(input *OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *OperatorIO {
-	error := MakeOutputError(code, msg, a...)
+func (g *Graph) collectAndReturnOperationError(input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
+	error := base.MakeOutputError(code, msg, a...)
 	g.engine.executionErrors.AddError(input, error, g.name, opDesc)
 	return error
 }
 
-func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *OperatorIO {
+func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *base.OperatorIO {
 	logger := ctx.GetLogger()
-	input := MakeEmptyOutput()
+	input := base.MakeEmptyOutput()
 	if originalOpDesc.InputFrom != "" {
 		input = g.opOutputs[originalOpDesc.InputFrom]
 		if input.IsError() {
@@ -130,7 +130,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	}
 
 	if originalOpDesc.ExecuteOnFailOf != "" && !g.opOutputs[originalOpDesc.ExecuteOnFailOf].IsError() {
-		return MakeOutputError(http.StatusExpectationFailed, "Operation not executed because \"%v\" did not fail", originalOpDesc.ExecuteOnFailOf)
+		return base.MakeOutputError(http.StatusExpectationFailed, "Operation not executed because \"%v\" did not fail", originalOpDesc.ExecuteOnFailOf)
 	}
 
 	// create a copy of the arguments for collecting possible errors

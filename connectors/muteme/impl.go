@@ -133,7 +133,7 @@ func (m *MuteMeImpl) mainloop() {
 				}
 				args["TouchDuration"] = lastTouchDuration.String()
 			}
-			resultIO := m.ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, freepsgraph.MakeEmptyOutput())
+			resultIO := m.ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
 			ignoreUntil = time.Now().Add(time.Second)
 			m.logger.Debugf("Muteme touched, result: %v", resultIO)
 			resultIndicatorColor := m.config.SuccessColor
