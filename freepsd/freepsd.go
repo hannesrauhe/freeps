@@ -108,7 +108,7 @@ func mainLoop() bool {
 
 	if operator != "" {
 		args, _ := url.ParseQuery(argstring)
-		oio := freepsgraph.MakeEmptyOutput()
+		oio := base.MakeEmptyOutput()
 
 		if input == "-" {
 			scanner := bufio.NewScanner(os.Stdin)
@@ -116,13 +116,13 @@ func mainLoop() bool {
 			for scanner.Scan() {
 				b = append(b, scanner.Bytes()...)
 			}
-			oio = freepsgraph.MakeByteOutput(b)
+			oio = base.MakeByteOutput(b)
 		} else if input != "" {
 			content, err := ioutil.ReadFile(input)
 			if err != nil {
 				log.Fatal(err)
 			}
-			oio = freepsgraph.MakeByteOutput(content)
+			oio = base.MakeByteOutput(content)
 		}
 		output := ge.ExecuteOperatorByName(base.NewContext(logger), operator, fn, utils.URLArgsToMap(args), oio)
 		output.WriteTo(os.Stdout)

@@ -25,7 +25,7 @@ type OpEval struct {
 	lastMessage MessageAndTime
 }
 
-var _ FreepsOperator = &OpEval{}
+var _ base.FreepsOperator = &OpEval{}
 
 type EvalArgs struct {
 	ValueName string
@@ -44,25 +44,25 @@ func (o *OpEval) GetName() string {
 	return "eval"
 }
 
-func (m *OpEval) Execute(ctx *base.Context, fn string, vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	switch fn {
 	case "echo":
 		if m, ok := vars["output"]; ok {
-			return MakePlainOutput(m)
+			return base.MakePlainOutput(m)
 		}
-		return MakeEmptyOutput()
+		return base.MakeEmptyOutput()
 	case "hasInput":
 		if input.IsEmpty() {
-			return MakeOutputError(http.StatusBadRequest, "Expected input")
+			return base.MakeOutputError(http.StatusBadRequest, "Expected input")
 		}
 		return input
 	case "formToJSON":
 		o, err := input.ParseFormData()
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "input not valid form data: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "input not valid form data: %v", err)
 		}
 		o2 := utils.URLArgsToMap(o)
-		return MakeObjectOutput(o2)
+		return base.MakeObjectOutput(o2)
 	case "echoArguments":
 		output := map[string]interface{}{}
 		if !input.IsEmpty() {
@@ -71,7 +71,7 @@ func (m *OpEval) Execute(ctx *base.Context, fn string, vars map[string]string, i
 			} else {
 				iMap, err := input.GetArgsMap()
 				if err != nil {
-					return MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string, assign inputKey")
+					return base.MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string, assign inputKey")
 				}
 				for k, v := range iMap {
 					output[k] = v
@@ -84,7 +84,7 @@ func (m *OpEval) Execute(ctx *base.Context, fn string, vars map[string]string, i
 			}
 			output[k] = v
 		}
-		return MakeObjectOutput(output)
+		return base.MakeObjectOutput(output)
 	case "flatten":
 		return m.Flatten(vars, input)
 	case "eval":
@@ -94,31 +94,31 @@ func (m *OpEval) Execute(ctx *base.Context, fn string, vars map[string]string, i
 	case "regexp":
 		return m.Regexp(vars, input)
 	case "strreplace":
-		return MakePlainOutput(strings.Replace(input.GetString(), vars["search"], vars["replace"], -1))
+		return base.MakePlainOutput(strings.Replace(input.GetString(), vars["search"], vars["replace"], -1))
 	case "dedup":
 		var args DedupArgs
 		err := utils.ArgsMapToObject(vars, &args)
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "request cannot be parsed into a map: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "request cannot be parsed into a map: %v", err)
 		}
 		retDur, err := time.ParseDuration(args.Retention)
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "cannot parse retention time: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "cannot parse retention time: %v", err)
 		}
 		b, err := input.GetBytes()
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "cannot get bytes of message [implementation error?]: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "cannot get bytes of message [implementation error?]: %v", err)
 		}
 		if time.Now().Before(m.lastMessage.expires) && bytes.Compare(m.lastMessage.msg, b) == 0 {
 			m.lastMessage.expires = time.Now().Add(retDur)
 			m.lastMessage.counter++
-			return MakeOutputError(http.StatusConflict, "Msg received %v times", m.lastMessage.counter)
+			return base.MakeOutputError(http.StatusConflict, "Msg received %v times", m.lastMessage.counter)
 		}
 		m.lastMessage = MessageAndTime{msg: b, expires: time.Now().Add(retDur), counter: 1}
 
 		return input
 	}
-	return MakeOutputError(http.StatusBadRequest, "No such function \"%v\"", fn)
+	return base.MakeOutputError(http.StatusBadRequest, "No such function \"%v\"", fn)
 }
 
 func (m *OpEval) GetFunctions() []string {
@@ -154,45 +154,45 @@ func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
-func (m *OpEval) Flatten(vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Flatten(vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	nestedArgsMap := map[string]interface{}{}
 	err := input.ParseJSON(&nestedArgsMap)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
+		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
 	}
 
 	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
+		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
 	}
-	return MakeObjectOutput(argsmap)
+	return base.MakeObjectOutput(argsmap)
 }
 
-func (m *OpEval) Eval(vars map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Eval(vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	var args EvalArgs
 	err := utils.ArgsMapToObject(vars, &args)
 	if err != nil || args.ValueName == "" || args.ValueType == "" {
-		return MakeOutputError(http.StatusBadRequest, "Missing args")
+		return base.MakeOutputError(http.StatusBadRequest, "Missing args")
 	}
 
 	nestedArgsMap := map[string]interface{}{}
 	err = input.ParseJSON(&nestedArgsMap)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
+		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
 	}
 
 	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
+		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
 	}
 
 	vInterface, ok := argsmap[args.ValueName]
 	if !ok {
-		return MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.ValueName)
+		return base.MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.ValueName)
 	}
 
 	if args.Operation == "id" {
-		return MakeObjectOutput(vInterface)
+		return base.MakeObjectOutput(vInterface)
 	}
 
 	result := false
@@ -209,7 +209,7 @@ func (m *OpEval) Eval(vars map[string]string, input *OperatorIO) *OperatorIO {
 		err = fmt.Errorf("No such type %s", args.ValueType)
 	}
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "%v", err)
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err)
 	}
 	if result {
 		switch args.Output {
@@ -217,17 +217,17 @@ func (m *OpEval) Eval(vars map[string]string, input *OperatorIO) *OperatorIO {
 			fallthrough
 		case "args":
 			{
-				return MakeObjectOutput(argsmap)
+				return base.MakeObjectOutput(argsmap)
 			}
 		case "input":
 			{
 				return input
 			}
 		default:
-			return MakeEmptyOutput()
+			return base.MakeEmptyOutput()
 		}
 	}
-	return MakeOutputError(http.StatusExpectationFailed, "Eval %v resulted in false", vars)
+	return base.MakeOutputError(http.StatusExpectationFailed, "Eval %v resulted in false", vars)
 }
 
 func (m *OpEval) EvalInt(vInterface interface{}, op string, v2Interface interface{}) (bool, error) {
@@ -288,47 +288,47 @@ func (m *OpEval) EvalString(vInterface interface{}, op string, v2Interface inter
 	return false, fmt.Errorf("No such operation \"%s\"", op)
 }
 
-func (m *OpEval) Regexp(args map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Regexp(args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	re, err := regexp.Compile(args["regexp"])
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "Invalid regexp: %v", err)
+		return base.MakeOutputError(http.StatusBadRequest, "Invalid regexp: %v", err)
 	}
 	switch args["operation"] {
 	case "find":
 		loc := re.FindStringIndex(input.GetString())
 		if loc == nil {
-			return MakeOutputError(http.StatusExpectationFailed, "No match")
+			return base.MakeOutputError(http.StatusExpectationFailed, "No match")
 		}
-		return MakePlainOutput(input.GetString()[loc[0]:loc[1]])
+		return base.MakePlainOutput(input.GetString()[loc[0]:loc[1]])
 	case "findstringsubmatch":
 		loc := re.FindStringSubmatchIndex(input.GetString())
 		if loc == nil {
-			return MakeOutputError(http.StatusExpectationFailed, "No match")
+			return base.MakeOutputError(http.StatusExpectationFailed, "No match")
 		}
-		return MakePlainOutput(input.GetString()[loc[2]:loc[3]])
+		return base.MakePlainOutput(input.GetString()[loc[2]:loc[3]])
 	}
-	return MakeOutputError(http.StatusBadRequest, "No such op %s", args["op"])
+	return base.MakeOutputError(http.StatusBadRequest, "No such op %s", args["op"])
 }
 
-func (m *OpEval) Split(argsmap map[string]string, input *OperatorIO) *OperatorIO {
+func (m *OpEval) Split(argsmap map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	sep := argsmap["sep"]
 	if sep == "" {
-		return MakeOutputError(http.StatusBadRequest, "Need a separator (sep) to split")
+		return base.MakeOutputError(http.StatusBadRequest, "Need a separator (sep) to split")
 	}
 	strArray := strings.Split(input.GetString(), sep)
 
 	posStr := argsmap["pos"]
 	if posStr == "" {
-		return MakeObjectOutput(strArray)
+		return base.MakeObjectOutput(strArray)
 	}
 	pos, err := parseIntOrReturnDirectly(posStr)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, "%v is not an integer: %v", posStr, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v is not an integer: %v", posStr, err.Error())
 	}
 	if pos >= len(strArray) {
-		return MakeOutputError(http.StatusBadRequest, "Pos %v not available in array %v", pos, strArray)
+		return base.MakeOutputError(http.StatusBadRequest, "Pos %v not available in array %v", pos, strArray)
 	}
-	return MakePlainOutput(strArray[pos])
+	return base.MakePlainOutput(strArray[pos])
 }
 
 // Shutdown (noOp)

@@ -24,7 +24,7 @@ type SunriseOutput struct {
 	Until     time.Duration
 }
 
-var _ FreepsOperator = &OpTime{}
+var _ base.FreepsOperator = &OpTime{}
 
 // GetName returns the name of the operator
 func (o *OpTime) GetName() string {
@@ -57,26 +57,26 @@ func (o *OpTime) sunrise(vars map[string]string) (*SunriseOutput, error) {
 	return &s, nil
 }
 
-func (o *OpTime) sunriseFunctions(function string, vars map[string]string) *OperatorIO {
+func (o *OpTime) sunriseFunctions(function string, vars map[string]string) *base.OperatorIO {
 	res, err := o.sunrise(vars)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	switch function {
 	case "isDay":
 		if res.Phase != "day" {
-			return MakeOutputError(http.StatusExpectationFailed, "It's dark!")
+			return base.MakeOutputError(http.StatusExpectationFailed, "It's dark!")
 		}
 	case "isNight":
 		if res.Phase != "night" {
-			return MakeOutputError(http.StatusExpectationFailed, "It's day!")
+			return base.MakeOutputError(http.StatusExpectationFailed, "It's day!")
 		}
 	}
 
-	return MakeObjectOutput(*res)
+	return base.MakeObjectOutput(*res)
 }
 
-func (o *OpTime) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpTime) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	switch function {
 	case "sunrise":
 		fallthrough
@@ -87,21 +87,21 @@ func (o *OpTime) Execute(ctx *base.Context, function string, vars map[string]str
 	case "sleep":
 		dstr, ok := vars["duration"]
 		if !ok {
-			return MakeOutputError(http.StatusBadRequest, "duration missing")
+			return base.MakeOutputError(http.StatusBadRequest, "duration missing")
 		}
 		d, err := time.ParseDuration(dstr)
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, "duration parsing failed: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "duration parsing failed: %v", err)
 		}
 		time.Sleep(d)
-		return MakeEmptyOutput()
+		return base.MakeEmptyOutput()
 	case "now":
 		if vars["format"] != "" {
-			return MakePlainOutput("%v", time.Now().Format(vars["format"]))
+			return base.MakePlainOutput("%v", time.Now().Format(vars["format"]))
 		}
-		return MakePlainOutput("%v", time.Now())
+		return base.MakePlainOutput("%v", time.Now())
 	default:
-		return MakeOutputError(http.StatusNotFound, "function %v unknown", function)
+		return base.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 }
 

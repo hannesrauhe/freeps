@@ -9,14 +9,13 @@ import (
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpMQTT struct {
 }
 
-var _ freepsgraph.FreepsOperator = &OpMQTT{}
+var _ base.FreepsOperator = &OpMQTT{}
 
 func NewMQTTOp(cr *utils.ConfigReader) *OpMQTT {
 	fmqtt := &OpMQTT{}
@@ -28,12 +27,12 @@ func (o *OpMQTT) GetName() string {
 	return "mqtt"
 }
 
-func (o *OpMQTT) Execute(ctx *base.Context, fn string, args map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpMQTT) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	switch fn {
 	case "publish":
 		topic, ok := args["topic"]
 		if !ok {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "publish: topic not specified")
+			return base.MakeOutputError(http.StatusBadRequest, "publish: topic not specified")
 		}
 		msg, ok := args["msg"]
 		if !ok {
@@ -54,17 +53,17 @@ func (o *OpMQTT) Execute(ctx *base.Context, fn string, args map[string]string, i
 		fm := GetInstance()
 		err = fm.Publish(topic, msg, qos, retain)
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-		return freepsgraph.MakeEmptyOutput()
+		return base.MakeEmptyOutput()
 	case "getSubscriptions":
 		topics, err := GetInstance().GetSubscriptions()
 		if err != nil {
-			return freepsgraph.MakeOutputError(500, "Error when trying to get Subscriptions: %v", err.Error())
+			return base.MakeOutputError(500, "Error when trying to get Subscriptions: %v", err.Error())
 		}
-		return freepsgraph.MakeObjectOutput(topics)
+		return base.MakeObjectOutput(topics)
 	}
-	return freepsgraph.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
+	return base.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 }
 
 func (o *OpMQTT) GetFunctions() []string {
@@ -93,7 +92,7 @@ func (o *OpMQTT) Shutdown(ctx *base.Context) {
 }
 
 // publish on a new connection to a defined server
-func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg interface{}, qos int, retain bool) *freepsgraph.OperatorIO {
+func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg interface{}, qos int, retain bool) *base.OperatorIO {
 	server := args["server"]
 	username := args["username"]
 	password := args["password"]
@@ -115,12 +114,12 @@ func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg int
 
 	client := MQTT.NewClient(connOpts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, token.Error().Error())
+		return base.MakeOutputError(http.StatusInternalServerError, token.Error().Error())
 	}
 
 	if token := client.Publish(topic, byte(qos), retain, msg); token.Wait() && token.Error() != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, token.Error().Error())
+		return base.MakeOutputError(http.StatusInternalServerError, token.Error().Error())
 	}
 	client.Disconnect(250)
-	return freepsgraph.MakeEmptyOutput()
+	return base.MakeEmptyOutput()
 }

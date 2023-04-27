@@ -82,7 +82,7 @@ func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewOneTimeReplyKeyboard(rows...)
 }
 
-func (r *Telegraminator) getCurrentOp(graphName string) (freepsgraph.FreepsOperator, *freepsgraph.GraphOperationDesc) {
+func (r *Telegraminator) getCurrentOp(graphName string) (base.FreepsOperator, *freepsgraph.GraphOperationDesc) {
 	graph, exists := r.ge.GetGraphDesc(graphName)
 	if !exists {
 		return nil, nil
@@ -294,7 +294,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 
 	if tcr.F {
 		ctx := base.NewContext(telelogger)
-		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, freepsgraph.MakeEmptyOutput())
+		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, base.MakeEmptyOutput())
 		byt, err := io.GetBytes()
 		if err != nil {
 			msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)

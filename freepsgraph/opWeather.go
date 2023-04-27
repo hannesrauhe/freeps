@@ -38,51 +38,51 @@ func NewWeatherOp(cr *utils.ConfigReader) *OpWeather {
 	return &OpWeather{cr: cr, conf: conf}
 }
 
-var _ FreepsOperator = OpWeather{}
+var _ base.FreepsOperator = OpWeather{}
 
 // GetName returns the name of the operator
 func (o OpWeather) GetName() string {
 	return "weather"
 }
 
-func (o OpWeather) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o OpWeather) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	err := utils.ArgsMapToObject(vars, &o.conf)
 	if err != nil {
-		return MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	switch function {
 	case "current":
 		wm, err := owm.NewCurrent(o.conf.Units, o.conf.Lang, o.conf.APIKey)
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		wm.CurrentByName(o.conf.Location)
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		if wm.ID == 0 {
-			return MakeOutputError(http.StatusInternalServerError, "ID of response is 0")
+			return base.MakeOutputError(http.StatusInternalServerError, "ID of response is 0")
 		}
-		return MakeObjectOutput(wm)
+		return base.MakeObjectOutput(wm)
 	case "icon":
 		d, _ := utils.GetTempDir()
 		icon := path.Base(vars["icon"])
 		if len(icon) <= 1 {
-			return MakeOutputError(http.StatusBadRequest, "Provide a valid icon name")
+			return base.MakeOutputError(http.StatusBadRequest, "Provide a valid icon name")
 		}
 		icon = icon + ".png"
 		_, err := owm.RetrieveIcon(d, icon)
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		b, err := ioutil.ReadFile(path.Join(d, icon))
 		if err != nil {
-			return MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
-		return MakeByteOutput(b)
+		return base.MakeByteOutput(b)
 	}
 	//
-	return MakeOutputError(http.StatusNotFound, "Function %v not found", function)
+	return base.MakeOutputError(http.StatusNotFound, "Function %v not found", function)
 }
 
 func (o OpWeather) GetFunctions() []string {

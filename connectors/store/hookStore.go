@@ -28,19 +28,19 @@ func (h *HookStore) GetName() string {
 }
 
 // OnExecute gets called when freepsgraph starts executing a Graph
-func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	return nil
 }
 
 // OnExecutionFinished gets called when freepsgraph is finished executing a Graph
-func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	if h.storeNs == nil {
 		return fmt.Errorf("no namespace in hook")
 	}
 	if !ctx.IsRootContext() {
 		return nil
 	}
-	return h.storeNs.SetValue(ctx.GetID(), freepsgraph.MakeObjectOutput(ctx), ctx.GetID())
+	return h.storeNs.SetValue(ctx.GetID(), base.MakeObjectOutput(ctx), ctx.GetID())
 }
 
 // OnGraphChanged does nothing in store

@@ -5,6 +5,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -31,14 +32,14 @@ func (mm *MuteMe) Shutdown() {
 	mm.impl = nil
 }
 
-func (mm *MuteMe) SetColor(color string) *freepsgraph.OperatorIO {
+func (mm *MuteMe) SetColor(color string) *base.OperatorIO {
 	if mm.impl == nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Muteme not initialized")
+		return base.MakeOutputError(http.StatusInternalServerError, "Muteme not initialized")
 	}
 	if err := mm.impl.SetColor(color); err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, "Failed to set color: %v", err)
+		return base.MakeOutputError(http.StatusBadRequest, "Failed to set color: %v", err)
 	}
-	return freepsgraph.MakePlainOutput(mm.impl.GetColor())
+	return base.MakePlainOutput(mm.impl.GetColor())
 }
 
 func (mm *MuteMe) GetColor() string {

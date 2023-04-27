@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -19,7 +18,7 @@ func testOutput(t *testing.T, fn string, output string) {
 	assert.NilError(t, err)
 
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value"}
-	input := freepsgraph.MakePlainOutput("test_value")
+	input := base.MakePlainOutput("test_value")
 	ctx := base.NewContext(logrus.StandardLogger())
 
 	s := NewOpStore(cr)
@@ -47,7 +46,7 @@ func testOutput(t *testing.T, fn string, output string) {
 		assert.NilError(t, err)
 		assert.Equal(t, rmap[vars["key"]], vars["value"])
 	case "hierarchy":
-		rmap := map[string]map[string]*freepsgraph.OperatorIO{}
+		rmap := map[string]map[string]*base.OperatorIO{}
 		assert.NilError(t, out.ParseJSON(&rmap))
 		assert.Equal(t, rmap[vars["namespace"]][vars["key"]].GetString(), vars["value"])
 	case "empty":
@@ -72,7 +71,7 @@ func TestStoreOpOutput(t *testing.T) {
 
 func TestStoreExpiration(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
-	input := freepsgraph.MakePlainOutput("test_value")
+	input := base.MakePlainOutput("test_value")
 	ctx := base.NewContext(logrus.StandardLogger())
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
@@ -129,7 +128,7 @@ func TestStoreExpiration(t *testing.T) {
 
 func TestStoreCompareAndSwap(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
-	input := freepsgraph.MakePlainOutput("a_new_value")
+	input := base.MakePlainOutput("a_new_value")
 	ctx := base.NewContext(logrus.StandardLogger())
 
 	tdir := t.TempDir()
@@ -158,7 +157,7 @@ func TestStoreCompareAndSwap(t *testing.T) {
 
 func TestStoreSetGetAll(t *testing.T) {
 	vars := map[string]string{"namespace": "testing"}
-	input := freepsgraph.MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
+	input := base.MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
 	ctx := base.NewContext(logrus.StandardLogger())
 
 	tdir := t.TempDir()
@@ -169,11 +168,11 @@ func TestStoreSetGetAll(t *testing.T) {
 	outSet := s.Execute(ctx, "setAll", vars, input)
 	assert.Assert(t, !outSet.IsError(), outSet.Output)
 
-	expected := map[string]map[string]*freepsgraph.OperatorIO{"testing": {}}
-	expected["testing"]["v1"] = freepsgraph.MakeObjectOutput("a_new_value")
-	expected["testing"]["v2"] = freepsgraph.MakeObjectOutput("second")
+	expected := map[string]map[string]*base.OperatorIO{"testing": {}}
+	expected["testing"]["v1"] = base.MakeObjectOutput("a_new_value")
+	expected["testing"]["v2"] = base.MakeObjectOutput("second")
 	outGet := s.Execute(ctx, "getAll", vars, input)
-	assert.DeepEqual(t, outGet, freepsgraph.MakeObjectOutput(expected))
+	assert.DeepEqual(t, outGet, base.MakeObjectOutput(expected))
 
 	searchVars := map[string]string{"namespace": "testing", "key": "2", "value": "s", "maxAge": "1h"}
 	outSearch := s.Execute(ctx, "search", searchVars, input)

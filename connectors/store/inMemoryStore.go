@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/base"
 )
 
 type inMemoryStoreNamespace struct {
@@ -18,34 +18,34 @@ type inMemoryStoreNamespace struct {
 var _ StoreNamespace = &inMemoryStoreNamespace{}
 
 // GetValue from the StoreNamespace
-func (s *inMemoryStoreNamespace) GetValue(key string) *freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) GetValue(key string) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	io, ok := s.entries[key]
 	if !ok {
-		return freepsgraph.MakeOutputError(http.StatusNotFound, "Key not found")
+		return base.MakeOutputError(http.StatusNotFound, "Key not found")
 	}
 	return io.data
 }
 
 // GetValueBeforeExpiration gets the value from the StoreNamespace, but returns error if older than maxAge
-func (s *inMemoryStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	ent, ok := s.entries[key]
 	if !ok {
-		return freepsgraph.MakeOutputError(http.StatusNotFound, "Key not found")
+		return base.MakeOutputError(http.StatusNotFound, "Key not found")
 	}
 	ts := ent.timestamp
 	if ts.Add(maxAge).Before(time.Now()) {
-		return freepsgraph.MakeOutputError(http.StatusGone, "key is older than %v", maxAge)
+		return base.MakeOutputError(http.StatusGone, "key is older than %v", maxAge)
 	}
 	return ent.data
 }
 
-func (s *inMemoryStoreNamespace) setValueUnlocked(key string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) setValueUnlocked(key string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	s.entries[key] = StoreEntry{newValue, time.Now(), modifiedBy}
-	return freepsgraph.MakeEmptyOutput()
+	return base.MakeEmptyOutput()
 }
 
 func (s *inMemoryStoreNamespace) deleteValueUnlocked(key string) {
@@ -53,7 +53,7 @@ func (s *inMemoryStoreNamespace) deleteValueUnlocked(key string) {
 }
 
 // SetValue in the StoreNamespace
-func (s *inMemoryStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO, modifiedBy string) error {
+func (s *inMemoryStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) error {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	s.setValueUnlocked(key, io, modifiedBy)
@@ -61,27 +61,27 @@ func (s *inMemoryStoreNamespace) SetValue(key string, io *freepsgraph.OperatorIO
 }
 
 // CompareAndSwap sets the value if the string representation of the already stored value is as expected
-func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *freepsgraph.OperatorIO, modifiedBy string) *freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	oldV, exists := s.entries[key]
 	if !exists {
-		return freepsgraph.MakeOutputError(http.StatusNotFound, "key does not exist yet")
+		return base.MakeOutputError(http.StatusNotFound, "key does not exist yet")
 	}
 	if oldV.data == nil || oldV.data.GetString() != expected {
-		return freepsgraph.MakeOutputError(http.StatusConflict, "old value is different from expectation")
+		return base.MakeOutputError(http.StatusConflict, "old value is different from expectation")
 	}
 	return s.setValueUnlocked(key, newValue, modifiedBy)
 }
 
 // OverwriteValueIfOlder sets the value only if the key does not exist or has been written before maxAge
-func (s *inMemoryStoreNamespace) OverwriteValueIfOlder(key string, io *freepsgraph.OperatorIO, maxAge time.Duration, modifiedBy string) *freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	n := time.Now()
 	md, keyExists := s.entries[key]
 	if keyExists && md.timestamp.Add(maxAge).After(n) {
-		return freepsgraph.MakeOutputError(http.StatusConflict, "%v already exists and is only %v old", key, n.Sub(md.timestamp))
+		return base.MakeOutputError(http.StatusConflict, "%v already exists and is only %v old", key, n.Sub(md.timestamp))
 	}
 	return s.setValueUnlocked(key, io, modifiedBy)
 }
@@ -105,10 +105,10 @@ func (s *inMemoryStoreNamespace) GetKeys() []string {
 }
 
 // GetAllValues from the StoreNamespace
-func (s *inMemoryStoreNamespace) GetAllValues(limit int) map[string]*freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
-	copy := map[string]*freepsgraph.OperatorIO{}
+	copy := map[string]*base.OperatorIO{}
 	counter := 0
 	for k, v := range s.entries {
 		copy[k] = v.data
@@ -140,11 +140,11 @@ func matches(k string, v StoreEntry, keyPattern, valuePattern, modifiedByPattern
 }
 
 // GetAllFiltered searches through all keys, optionally finds substring in key, value and ID, and returns only records younger than maxAge
-func (s *inMemoryStoreNamespace) GetAllFiltered(keyPattern, valuePattern, modifiedByPattern string, minAge, maxAge time.Duration) map[string]*freepsgraph.OperatorIO {
+func (s *inMemoryStoreNamespace) GetAllFiltered(keyPattern, valuePattern, modifiedByPattern string, minAge, maxAge time.Duration) map[string]*base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	tnow := time.Now()
-	copy := map[string]*freepsgraph.OperatorIO{}
+	copy := map[string]*base.OperatorIO{}
 	for k, v := range s.entries {
 		if matches(k, v, keyPattern, valuePattern, modifiedByPattern, minAge, maxAge, tnow) {
 			copy[k] = v.data

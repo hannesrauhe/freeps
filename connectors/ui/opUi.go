@@ -29,7 +29,7 @@ type OpUI struct {
 	cr *utils.ConfigReader
 }
 
-var _ freepsgraph.FreepsOperator = &OpUI{}
+var _ base.FreepsOperator = &OpUI{}
 
 type TemplateData struct {
 	Args                 map[string]string
@@ -154,7 +154,7 @@ func (o *OpUI) createTemplateFuncMap() template.FuncMap {
 			}
 			return ns.GetKeys()
 		},
-		"store_GetAll": func(namespace string) map[string]*freepsgraph.OperatorIO {
+		"store_GetAll": func(namespace string) map[string]*base.OperatorIO {
 			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
 			if ns == nil {
 				return nil
@@ -189,32 +189,32 @@ func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*templ
 	return template.New(templateBaseName).Funcs(o.createTemplateFuncMap()).ParseFS(embeddedFiles, path)
 }
 
-func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *freepsgraph.OperatorIO {
+func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *base.OperatorIO {
 	/* parse as template if basename is html */
 	if filepath.Ext(templateBaseName) == ".html" || filepath.Ext(templateBaseName) == ".htm" {
 		t, err := o.parseTemplate(templateBaseName, logger)
 		if err != nil {
 			// could be any other error code, but I don't want to parse error strings
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error with template \"%v\": \"%v\"", templateBaseName, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, "Error with template \"%v\": \"%v\"", templateBaseName, err.Error())
 		}
 		var w bytes.Buffer
 		styles, err := o.getFileBytes("style.html", logger)
 		if err != nil {
 			logger.Error(err)
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		w.Write(styles)
 		err = t.Execute(&w, templateData)
 		if err != nil {
 			logger.Error(err)
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 
 		if withFooter {
 			tFooter, err := o.parseTemplate("footer.html", logger)
 			if err != nil {
 				logger.Errorf("Problem when opening template footer: %v", err)
-				return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 			}
 
 			var fdata struct {
@@ -226,19 +226,19 @@ func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, l
 			err = tFooter.Execute(&w, &fdata)
 			if err != nil {
 				logger.Error(err)
-				return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 			}
 		}
-		return freepsgraph.MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")
+		return base.MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")
 	}
 
 	// return file directly if not html:
 	b, err := o.getFileBytes(templateBaseName, logger)
 	if err != nil {
 		// could be an internal error, but I don't want to parse error strings
-		return freepsgraph.MakeOutputError(http.StatusNotFound, "Error when reading plain file \"%v\": \"%v\"", templateBaseName, err.Error())
+		return base.MakeOutputError(http.StatusNotFound, "Error when reading plain file \"%v\": \"%v\"", templateBaseName, err.Error())
 	}
-	return freepsgraph.MakeByteOutput(b)
+	return base.MakeByteOutput(b)
 }
 
 func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.GraphDesc {
@@ -328,7 +328,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 	return gd
 }
 
-func (o *OpUI) editGraph(vars map[string]string, input *freepsgraph.OperatorIO, logger *log.Entry, tmpl string) *freepsgraph.OperatorIO {
+func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger *log.Entry, tmpl string) *base.OperatorIO {
 	var gd *freepsgraph.GraphDesc
 	var exists bool
 	targetNum := 0
@@ -341,7 +341,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *freepsgraph.OperatorIO, 
 	if !input.IsEmpty() || !exists {
 		formInputQueryFormat, err := input.ParseFormData()
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
 		gd = o.buildPartialGraph(formInput)
@@ -357,28 +357,28 @@ func (o *OpUI) editGraph(vars map[string]string, input *freepsgraph.OperatorIO, 
 		if _, ok := formInput["SaveGraph"]; ok {
 			td.GraphName = formInput["GraphName"]
 			if td.GraphName == "" {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
+				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
 			err := o.ge.AddExternalGraph(td.GraphName, gd, "")
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 		}
 		if _, ok := formInput["SaveTemp"]; ok {
 			td.GraphName = formInput["GraphName"]
 			if td.GraphName == "" {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
+				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
 			err := o.ge.AddTemporaryGraph(td.GraphName, gd, "temporary")
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
 			err := o.ge.AddTemporaryGraph("UIgraph", gd, "temporary")
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 			td.Output = "/graph/UIgraph"
 		}
@@ -434,18 +434,18 @@ func (o *OpUI) editGraph(vars map[string]string, input *freepsgraph.OperatorIO, 
 	return o.createOutput(tmpl, td, logger, true)
 }
 
-func (o *OpUI) editConfig(vars map[string]string, input *freepsgraph.OperatorIO, logger *log.Entry) *freepsgraph.OperatorIO {
+func (o *OpUI) editConfig(vars map[string]string, input *base.OperatorIO, logger *log.Entry) *base.OperatorIO {
 	var d EditConfigData
 	if !input.IsEmpty() {
 		formInputQueryFormat, err := input.ParseFormData()
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
 		if _, ok := formInput["SaveConfig"]; ok {
 			err = o.cr.SetConfigFileContent(formInput["ConfigText"])
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusInternalServerError, err.Error())
+				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 			}
 		}
 	}
@@ -454,30 +454,30 @@ func (o *OpUI) editConfig(vars map[string]string, input *freepsgraph.OperatorIO,
 	return o.createOutput(`editconfig.html`, &d, logger, true)
 }
 
-func (o *OpUI) editTemplate(vars map[string]string, input *freepsgraph.OperatorIO, logger *log.Entry) *freepsgraph.OperatorIO {
+func (o *OpUI) editTemplate(vars map[string]string, input *base.OperatorIO, logger *log.Entry) *base.OperatorIO {
 	tname := vars["templateName"]
 
 	if !input.IsEmpty() {
 		f, err := input.ParseFormData()
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 		}
 		tname = f.Get("templateName")
 		if tname == "" {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Posted empty templateName")
+			return base.MakeOutputError(http.StatusBadRequest, "Posted empty templateName")
 		}
 
 		if f.Get("templateCode") == "" {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Posted empty templateCode")
+			return base.MakeOutputError(http.StatusBadRequest, "Posted empty templateCode")
 		}
 		tf, err := o.openWritableTemplateFile(tname)
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when trying to open template: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "Error when trying to open template: %v", err)
 		}
 		defer tf.Close()
 		_, err = tf.WriteString(f.Get("templateCode"))
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when trying to write template: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "Error when trying to write template: %v", err)
 		}
 	}
 
@@ -488,7 +488,7 @@ func (o *OpUI) editTemplate(vars map[string]string, input *freepsgraph.OperatorI
 	return o.createOutput(`edittemplate.html`, tdata, logger, true)
 }
 
-func (o *OpUI) simpleTile(vars map[string]string, input *freepsgraph.OperatorIO, ctx *base.Context) *freepsgraph.OperatorIO {
+func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *base.Context) *base.OperatorIO {
 	tdata := make(map[string]interface{})
 
 	buttons := make(map[string]string)
@@ -507,11 +507,11 @@ func (o *OpUI) simpleTile(vars map[string]string, input *freepsgraph.OperatorIO,
 	if !input.IsEmpty() {
 		formdata, err := input.ParseFormData()
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 		}
 		graphName := formdata.Get("ExecuteGraph")
 		if graphName != "" {
-			out := o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), freepsgraph.MakeEmptyOutput())
+			out := o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), base.MakeEmptyOutput())
 			if out.IsError() {
 				tdata["status_error"] = graphName
 			} else {
@@ -527,7 +527,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *freepsgraph.OperatorIO,
 	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
 }
 
-func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	logger := ctx.GetLogger().WithField("component", "UI")
 	withFooter := !utils.ParseBool(vars["noFooter"])
 	delete(vars, "noFooter")
@@ -544,9 +544,9 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 	case "deleteTemplate":
 		err := o.deleteTemplateFile(vars["templateName"])
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when deleting template: %v", err)
+			return base.MakeOutputError(http.StatusBadRequest, "Error when deleting template: %v", err)
 		}
-		return freepsgraph.MakeEmptyOutput()
+		return base.MakeEmptyOutput()
 	case "simpleTile":
 		return o.simpleTile(vars, input, ctx)
 	default:
@@ -558,13 +558,13 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 		if input.IsFormData() {
 			formInput, err := input.ParseFormData()
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 			}
 			opName := formInput.Get("ExecuteOperator")
 			graphName := formInput.Get("ExecuteGraph")
 			argQuery, err := url.ParseQuery(formInput.Get("ExecuteArgs"))
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
+				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
 			}
 			executeWithArgs := utils.URLArgsToMap(argQuery)
 			for k, v := range formInput {
@@ -572,7 +572,7 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 					executeWithArgs[k[11:]] = v[0]
 				}
 			}
-			executeWithInput := freepsgraph.MakeEmptyOutput()
+			executeWithInput := base.MakeEmptyOutput()
 			if graphName != "" {
 				tdata["response"] = o.ge.ExecuteGraph(ctx, graphName, executeWithArgs, executeWithInput)
 			} else if opName != "" {
@@ -589,7 +589,7 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, inp
 			tinput := make(map[string]interface{})
 			err := input.ParseJSON(&tinput)
 			if err != nil {
-				return freepsgraph.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
+				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 			}
 			tdata["input"] = tinput
 		}

@@ -69,7 +69,7 @@ type OpExec struct {
 	bgOutput    bytes.Buffer
 }
 
-var _ freepsgraph.FreepsOperator = &OpExec{}
+var _ base.FreepsOperator = &OpExec{}
 
 // GetName returns the name of the Executable as given by the config
 func (o *OpExec) GetName() string {
@@ -87,22 +87,22 @@ func makeArgs(argsmap map[string]string) []string {
 	return args
 }
 
-func (o *OpExec) execBin(ctx *base.Context, args []string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpExec) execBin(ctx *base.Context, args []string, input *base.OperatorIO) *base.OperatorIO {
 	var err error
 
 	e := exec.Command(o.Path, args...)
 	e.Dir, err = utils.GetTempDir()
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Cannot set working dir: %v", err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot set working dir: %v", err.Error())
 	}
 	if !input.IsEmpty() {
 		stdin, err := e.StdinPipe()
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error attaching stdin pipe: %v", err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, "Error attaching stdin pipe: %v", err.Error())
 		}
 		inputbytes, err := input.GetBytes()
 		if err != nil {
-			return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error getting bytes from input: %v", err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, "Error getting bytes from input: %v", err.Error())
 		}
 
 		go func() {
@@ -115,18 +115,18 @@ func (o *OpExec) execBin(ctx *base.Context, args []string, input *freepsgraph.Op
 	byt, err := e.CombinedOutput()
 
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v\n%q\n", o.name, err.Error(), byt)
+		return base.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v\n%q\n", o.name, err.Error(), byt)
 	}
 
-	return freepsgraph.MakeByteOutputWithContentType(byt, o.OutputContentType)
+	return base.MakeByteOutputWithContentType(byt, o.OutputContentType)
 }
 
-func (o *OpExec) runInBackground(ctx *base.Context, argsmap map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpExec) runInBackground(ctx *base.Context, argsmap map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	o.processLock.Lock()
 	defer o.processLock.Unlock()
 
 	if o.cmd != nil {
-		return freepsgraph.MakeOutputError(http.StatusConflict, "Error executing %v in background, it's already running", o.name)
+		return base.MakeOutputError(http.StatusConflict, "Error executing %v in background, it's already running", o.name)
 	}
 
 	args := makeArgs(argsmap)
@@ -139,7 +139,7 @@ func (o *OpExec) runInBackground(ctx *base.Context, argsmap map[string]string, i
 	o.cmd.Stdout = &o.bgOutput
 
 	if err := o.cmd.Start(); err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v", o.name, err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "Error executing %v: %v", o.name, err.Error())
 	}
 	o.bgChan = make(chan error, 1)
 
@@ -151,31 +151,31 @@ func (o *OpExec) runInBackground(ctx *base.Context, argsmap map[string]string, i
 		close(o.bgChan)
 		o.cmd = nil
 	}()
-	return freepsgraph.MakeEmptyOutput()
+	return base.MakeEmptyOutput()
 }
 
-func (o *OpExec) stopBackground(ctx *base.Context) *freepsgraph.OperatorIO {
+func (o *OpExec) stopBackground(ctx *base.Context) *base.OperatorIO {
 	o.processLock.Lock()
 	defer o.processLock.Unlock()
 
 	if o.cmd == nil {
-		return freepsgraph.MakeOutputError(http.StatusGone, "No process running")
+		return base.MakeOutputError(http.StatusGone, "No process running")
 	}
 
 	pgid, err := syscall.Getpgid(o.cmd.Process.Pid)
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Could not kill process group: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "Could not kill process group: %v", err)
 	}
 
 	if err := syscall.Kill(-pgid, 15); err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "Could not kill process group: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "Could not kill process group: %v", err)
 	}
 
-	return freepsgraph.MakeByteOutput(o.bgOutput.Bytes())
+	return base.MakeByteOutput(o.bgOutput.Bytes())
 }
 
 // Execute executes the binary
-func (o *OpExec) Execute(ctx *base.Context, fn string, vars map[string]string, input *freepsgraph.OperatorIO) *freepsgraph.OperatorIO {
+func (o *OpExec) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 
 	argsmap := map[string]string{}
 	for k, v := range o.DefaultArguments {
@@ -201,7 +201,7 @@ func (o *OpExec) Execute(ctx *base.Context, fn string, vars map[string]string, i
 		return o.stopBackground(ctx)
 	}
 
-	return freepsgraph.MakeOutputError(http.StatusNotFound, "Function %v not found", fn)
+	return base.MakeOutputError(http.StatusNotFound, "Function %v not found", fn)
 }
 
 // GetFunctions returns functions representing how to execute bin

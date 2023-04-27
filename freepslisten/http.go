@@ -28,8 +28,8 @@ type FreepsHttp struct {
 	srv         *http.Server
 }
 
-func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *freepsgraph.OperatorIO, err error) {
-	mainInput = freepsgraph.MakeEmptyOutput()
+func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *base.OperatorIO, err error) {
+	mainInput = base.MakeEmptyOutput()
 	query := req.URL.Query()
 	mainArgs = utils.URLArgsToMap(query)
 	var byteinput []byte
@@ -59,7 +59,7 @@ func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string
 			if err != nil {
 				return
 			}
-			mainInput = freepsgraph.MakeByteOutputWithContentType(byteinput, http.DetectContentType(byteinput))
+			mainInput = base.MakeByteOutputWithContentType(byteinput, http.DetectContentType(byteinput))
 			return
 		}
 		return
@@ -74,12 +74,12 @@ func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string
 		if ct == "" {
 			ct = http.DetectContentType(byteinput)
 		}
-		mainInput = freepsgraph.MakeByteOutputWithContentType(byteinput, ct)
+		mainInput = base.MakeByteOutputWithContentType(byteinput, ct)
 		return
 	}
 
 	// it's an html form without an attached file
-	mainInput = freepsgraph.MakeObjectOutputWithContentType(req.PostForm, "application/x-www-form-urlencoded")
+	mainInput = base.MakeObjectOutputWithContentType(req.PostForm, "application/x-www-form-urlencoded")
 	return
 }
 

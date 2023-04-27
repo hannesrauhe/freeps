@@ -16,14 +16,14 @@ import (
 type OpCurl struct {
 }
 
-var _ FreepsOperator = &OpCurl{}
+var _ base.FreepsOperator = &OpCurl{}
 
 // GetName returns the name of the operator
 func (o *OpCurl) GetName() string {
 	return "curl"
 }
 
-func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	c := http.Client{}
 
 	var resp *http.Response
@@ -45,7 +45,7 @@ func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]str
 		} else {
 			b, err = mainInput.GetBytes()
 			if err != nil {
-				return MakeOutputError(http.StatusBadRequest, err.Error())
+				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 		}
 		breader := bytes.NewReader(b)
@@ -53,11 +53,11 @@ func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]str
 	case "Get":
 		resp, err = c.Get(vars["url"])
 	default:
-		return MakeOutputError(http.StatusNotFound, "function %v unknown", function)
+		return base.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
 
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	defer resp.Body.Close()
 
@@ -65,15 +65,15 @@ func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]str
 	if !WriteToFile {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 		}
-		return &OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: Byte, ContentType: resp.Header.Get("Content-Type")}
+		return &base.OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: base.Byte, ContentType: resp.Header.Get("Content-Type")}
 	}
 	// sanitize outputFile:
 	outputFile = path.Base(outputFile)
 	dir, err := utils.GetTempDir()
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	var dstFile *os.File
 	if outputFile == "" || outputFile == "/" || outputFile == "." {
@@ -87,15 +87,15 @@ func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]str
 		dstFile, err = os.OpenFile(path.Join(dir, outputFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	}
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	r := map[string]interface{}{}
 	r["size"], err = io.Copy(dstFile, resp.Body)
 	if err != nil {
-		return MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	r["name"] = path.Base(dstFile.Name())
-	return MakeObjectOutput(r)
+	return base.MakeObjectOutput(r)
 }
 
 func (o *OpCurl) GetFunctions() []string {

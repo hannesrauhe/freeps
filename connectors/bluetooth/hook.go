@@ -24,12 +24,12 @@ func (h HookBluetooth) GetName() string {
 }
 
 // OnExecute does nothing
-func (h HookBluetooth) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h HookBluetooth) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	return nil
 }
 
 // OnExecutionFinished does nothing
-func (h HookBluetooth) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *freepsgraph.OperatorIO) error {
+func (h HookBluetooth) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	return nil
 }
 

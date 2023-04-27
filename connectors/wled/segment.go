@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/base"
 )
 
 type WLEDSegment struct {
@@ -60,7 +60,7 @@ func (root *WLEDRoot) SetImage(dst *image.RGBA) ([]byte, error) {
 	return json.Marshal(root)
 }
 
-func (root *WLEDRoot) SendToWLED(cmd *freepsgraph.OperatorIO, dst *image.RGBA) *freepsgraph.OperatorIO {
+func (root *WLEDRoot) SendToWLED(cmd *base.OperatorIO, dst *image.RGBA) *base.OperatorIO {
 	c := http.Client{}
 
 	var b []byte
@@ -73,16 +73,16 @@ func (root *WLEDRoot) SendToWLED(cmd *freepsgraph.OperatorIO, dst *image.RGBA) *
 		b, err = cmd.GetBytes()
 	}
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	breader := bytes.NewReader(b)
 	resp, err := c.Post(path, "application/json", breader)
 
 	if err != nil {
-		return freepsgraph.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 
 	defer resp.Body.Close()
 	bout, err := io.ReadAll(resp.Body)
-	return &freepsgraph.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: freepsgraph.Byte, ContentType: resp.Header.Get("Content-Type")}
+	return &base.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: base.Byte, ContentType: resp.Header.Get("Content-Type")}
 }
