@@ -139,3 +139,28 @@ func StringToIdentifier(input string) string {
 func StringStartsWith(input string, prefix string) bool {
 	return len(input) >= len(prefix) && input[0:len(prefix)] == prefix
 }
+
+// StringToLower converts a string to lower case
+func StringToLower(input string) string {
+	return strings.ToLower(input)
+}
+
+// StringCmpIgnoreCase compares two strings ignoring case
+func StringCmpIgnoreCase(a string, b string) bool {
+	return strings.ToLower(a) == strings.ToLower(b)
+}
+
+// StringToBool converts a string to a bool
+func StringToBool(input string) bool {
+	return ParseBool(input)
+}
+
+// StringToFloat64 converts a string to a float64
+func StringToFloat64(input string) (float64, error) {
+	return strconv.ParseFloat(input, 64)
+}
+
+// StringToInt converts a string to an int
+func StringToInt(input string) (int, error) {
+	return strconv.Atoi(input)
+}
