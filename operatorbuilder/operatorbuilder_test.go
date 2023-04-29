@@ -11,14 +11,15 @@ import (
 )
 
 type MyTestFunc struct {
-	papa            *MyTestOperator
-	Param1          string
-	Param2          int
-	OptParam3       *int
-	OptParam4       *string
-	OptParam5       *bool
-	someinternalvar string
-	Vars            map[string]string
+	papa           *MyTestOperator
+	Param1         string
+	Param2         int
+	OptParam3      *int
+	OptParam4      *string
+	OptParam5      *bool
+	neversetvar    string
+	neversetvarptr *string
+	Vars           map[string]string
 }
 
 func (mf *MyTestFunc) Run(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
@@ -99,6 +100,11 @@ func TestOpBuilderExecute(t *testing.T) {
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "5")
 	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "someotheruserparam": "bla"}, base.MakeEmptyOutput())
+	assert.Assert(t, !output.IsError(), output.GetString())
+	assert.Equal(t, output.GetString(), "other")
+
+	// happy path with optional parameters that have names of internal fields
+	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "neversetvar": "bla", "neversetvarptr": "bla"}, base.MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "other")
 

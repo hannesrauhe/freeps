@@ -136,23 +136,23 @@ func (o *GenericOperatorBuilder) createFunctionMap() map[string]reflect.Value {
 	return funcMap
 }
 
-func isSupportedFieldType(field reflect.Value) bool {
+func isSupportedFieldType(field reflect.Type) bool {
 	kind := field.Kind()
 	return kind == reflect.Int || kind == reflect.String || kind == reflect.Float64 || kind == reflect.Bool
 }
 
 // isSupportedField returns true if the field is a primitive type or a pointer to a primitive type
 func isSupportedField(field reflect.Value, mustBePtr bool) bool {
+	if !field.CanSet() {
+		return false
+	}
 	if field.Kind() == reflect.Ptr && mustBePtr {
-		return isSupportedFieldType(field.Elem())
+		return isSupportedFieldType(field.Type().Elem())
 	}
 	if mustBePtr {
 		return false
 	}
-	if !field.CanSet() {
-		return false
-	}
-	return isSupportedFieldType(field)
+	return isSupportedFieldType(field.Type())
 }
 
 // setSupportedField sets the value of the field and converts from string if necessary
