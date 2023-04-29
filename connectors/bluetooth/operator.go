@@ -13,7 +13,7 @@ import (
 type Bluetooth struct {
 }
 
-var _ base.FreepsGenericOperator = &Bluetooth{}
+var _ base.FreepsOperator = &Bluetooth{}
 
 // GetPresentDevices returns a list of present devices
 func (bt *Bluetooth) GetPresentDevices() *GetPresentDevices {
@@ -25,7 +25,7 @@ type GetPresentDevices struct {
 	MaximumAge time.Duration
 }
 
-var _ base.FreepsGenericFunction = &GetPresentDevices{}
+var _ base.FreepsFunction = &GetPresentDevices{}
 
 // Run returns a list of present devices
 func (gpd *GetPresentDevices) Run(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {

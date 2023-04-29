@@ -37,8 +37,8 @@ type FreepsOperatorWithShutdown interface {
 	Shutdown(ctx *Context)
 }
 
-// FreepsGenericFunction is the interface that all functions that can be called by GenericOperatorBuilder.Execute must implement
-type FreepsGenericFunction interface {
+// FreepsFunction is the interface that all functions that can be called by GenericOperatorBuilder.Execute must implement
+type FreepsFunction interface {
 	// Run is called whenever a user requests the function to be executed
 	// when Run is called, all members of the struct that implements FreepsGenericFunction are initialized with the values from the request
 	Run(ctx *Context, mainInput *OperatorIO) *OperatorIO
@@ -150,7 +150,7 @@ func (o *FreepsOperatorWrapper) createFunctionMap() map[string]reflect.Value {
 			continue
 		}
 
-		if !ff.Implements(reflect.TypeOf((*FreepsGenericFunction)(nil)).Elem()) {
+		if !ff.Implements(reflect.TypeOf((*FreepsFunction)(nil)).Elem()) {
 			continue
 		}
 		funcMap[utils.StringToLower(method.Name)] = v.Method(i)
@@ -291,7 +291,7 @@ func (o *FreepsOperatorWrapper) GetName() string {
 }
 
 // createFreepsFunction creates a new instance of the FreepsFunction by name and sets all required parameters based on the vars map
-func (o *FreepsOperatorWrapper) createFreepsFunction(function string, vars map[string]string, failOnError bool) (FreepsGenericFunction, *OperatorIO) {
+func (o *FreepsOperatorWrapper) createFreepsFunction(function string, vars map[string]string, failOnError bool) (FreepsFunction, *OperatorIO) {
 	m := o.getFunction(function)
 	if m == nil {
 		return nil, MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
@@ -321,7 +321,7 @@ func (o *FreepsOperatorWrapper) createFreepsFunction(function string, vars map[s
 		VarsField.Set(reflect.ValueOf(lowercaseVars))
 	}
 
-	return freepsfunc.Interface().(FreepsGenericFunction), nil
+	return freepsfunc.Interface().(FreepsFunction), nil
 }
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the vars map and calls the Run method of the FreepsFunction

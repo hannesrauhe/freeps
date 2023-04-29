@@ -8,6 +8,7 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 type MyTestFunc struct {
@@ -49,7 +50,7 @@ func (mf *MyTestFunc) GetArgSuggestions(argName string) map[string]string {
 	return map[string]string{}
 }
 
-var _ FreepsGenericFunction = &MyTestFunc{}
+var _ FreepsFunction = &MyTestFunc{}
 
 type CounterFn struct {
 	papa *MyTestOperator
@@ -67,7 +68,7 @@ func (mf *CounterFn) GetArgSuggestions(argName string) map[string]string {
 	return map[string]string{}
 }
 
-var _ FreepsGenericFunction = &MyTestFunc{}
+var _ FreepsFunction = &MyTestFunc{}
 
 type MyTestOperator struct {
 	bla     int
@@ -100,11 +101,11 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Equal(t, gop.GetName(), "mytestoperator")
 	fnl := gop.GetFunctions()
 	assert.Equal(t, len(fnl), 2)
-	assert.Equal(t, fnl[1], "myfavoritefunction")
+	assert.Assert(t, cmp.Contains(fnl, "myfavoritefunction"))
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
 	assert.Equal(t, len(fal), 5)
-	assert.Equal(t, fal[0], "Param1")
+	assert.Assert(t, cmp.Contains(fal, "Param1"))
 
 	// sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{})
 }
@@ -202,7 +203,7 @@ func (mf *MyOtherTestFunc) GetArgSuggestions(argName string) map[string]string {
 	return map[string]string{}
 }
 
-var _ FreepsGenericFunction = &MyOtherTestFunc{}
+var _ FreepsFunction = &MyOtherTestFunc{}
 
 func (mt *MyTestOperatorWithConfig) MyFavoriteFunction() *MyOtherTestFunc {
 	return &MyOtherTestFunc{papa: mt}
