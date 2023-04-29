@@ -311,16 +311,14 @@ func (o *GenericOperatorBuilder) GetPossibleArgs(fn string) []string {
 	if m == nil {
 		return list
 	}
-	mt := m.Type()
+	freepsfunc := m.Call([]reflect.Value{})[0]
 
-	ft := mt.Out(0).Elem()
-	fmt.Printf(ft.Name())
+	ft := freepsfunc.Elem()
 	for j := 0; j < ft.NumField(); j++ {
 		arg := ft.Field(j)
-		if !arg.IsExported() {
-			continue
+		if isSupportedField(arg, true) || isSupportedField(arg, false) {
+			list = append(list, ft.Type().Field(j).Name)
 		}
-		list = append(list, arg.Name)
 	}
 
 	return list

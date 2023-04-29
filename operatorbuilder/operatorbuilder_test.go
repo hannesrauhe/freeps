@@ -74,7 +74,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Equal(t, fnl[0], "myfavoritefunction")
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
-	assert.Equal(t, len(fal), 6)
+	assert.Equal(t, len(fal), 5)
 	assert.Equal(t, fal[0], "Param1")
 
 	// sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{})
@@ -147,7 +147,8 @@ func (mt *MyTestOperatorWithConfig) GetConfig() interface{} {
 }
 
 type MyOtherTestFunc struct {
-	papa *MyTestOperatorWithConfig
+	papa   *MyTestOperatorWithConfig
+	Param1 float64
 }
 
 // implement the FreepsGenericFunction interface
@@ -172,6 +173,6 @@ func TestOpBuilderExecuteWithConfig(t *testing.T) {
 	gop := MakeGenericOperator(&MyTestOperatorWithConfig{}, cr)
 
 	// happy path without optional parameters
-	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12"}, base.MakeEmptyOutput())
+	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "3.14", "param2": "12"}, base.MakeEmptyOutput())
 	assert.Assert(t, output.IsEmpty(), output.GetString())
 }
