@@ -317,7 +317,9 @@ func (ge *GraphEngine) GetGraphInfoByTagExtended(tagGroups [][]string) map[strin
 func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
-	ge.operators[op.GetName()] = op
+	if op != nil {
+		ge.operators[op.GetName()] = op
+	}
 }
 
 // HasOperator returns true if this operator is available in the engine

@@ -11,9 +11,21 @@ import (
 
 // Bluetooth is the operator that provides bluetooth functionality and implements the FreepsGenericOperator interface
 type Bluetooth struct {
+	config BluetoothConfig
 }
 
-var _ base.FreepsOperator = &Bluetooth{}
+// GetConfig returns the config for the bluetooth operator
+func (*Bluetooth) GetConfig() interface{} {
+	config := defaultBluetoothConfig
+	return &config
+}
+
+// Init initializes the bluetooth operator
+func (bt *Bluetooth) Init(ctx *base.Context) error {
+	return nil
+}
+
+var _ base.FreepsOperatorWithConfig = &Bluetooth{}
 
 // GetPresentDevices returns a list of present devices
 func (bt *Bluetooth) GetPresentDevices() *GetPresentDevices {

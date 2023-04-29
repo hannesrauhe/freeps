@@ -28,7 +28,7 @@ type FreepsOperatorWithConfig interface {
 	// GetConfig returns the config struct of the operator that is filled wiht the values from the config file
 	GetConfig() interface{}
 	// Init is called after the config is read and the operator is created
-	Init() error
+	Init(ctx *Context) error
 }
 
 // FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
@@ -60,13 +60,13 @@ type FreepsOperatorWrapper struct {
 var _ FreepsBaseOperator = &FreepsOperatorWrapper{}
 
 // MakeFreepsOperator creates a FreepsBaseOperator from any struct that implements FreepsOperator
-func MakeFreepsOperator(anyClass FreepsOperator, cr *utils.ConfigReader) FreepsBaseOperator {
+func MakeFreepsOperator(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *Context) FreepsBaseOperator {
 	if anyClass == nil {
 		return nil
 	}
 
 	op := &FreepsOperatorWrapper{opInstance: anyClass}
-	enabled, err := op.initIfEnabled(cr)
+	enabled, err := op.initIfEnabled(cr, ctx)
 	if err != nil {
 		logrus.Errorf("Initializing operator \"%v\" failed: %v", op.GetName(), err)
 		return nil
@@ -77,7 +77,7 @@ func MakeFreepsOperator(anyClass FreepsOperator, cr *utils.ConfigReader) FreepsB
 	return op
 }
 
-func (o *FreepsOperatorWrapper) initIfEnabled(cr *utils.ConfigReader) (bool, error) {
+func (o *FreepsOperatorWrapper) initIfEnabled(cr *utils.ConfigReader, ctx *Context) (bool, error) {
 	o.functionMetaDataMap = o.createFunctionMap()
 
 	var noFuncsError error // in case the operator is disabled in the config we do not want to return an error
@@ -115,7 +115,7 @@ func (o *FreepsOperatorWrapper) initIfEnabled(cr *utils.ConfigReader) (bool, err
 	if enabledField.IsValid() && enabledField.Kind() == reflect.Bool && !enabledField.Bool() {
 		return false, nil
 	}
-	confOp.Init()
+	confOp.Init(ctx)
 	return true, noFuncsError
 }
 

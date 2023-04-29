@@ -66,6 +66,8 @@ func mainLoop() bool {
 	}
 	configureLogging(cr, logger)
 
+	initCtx := base.NewContext(logger.WithField("phase", "init"))
+
 	_, err = utils.GetTempDir()
 	if err != nil {
 		logger.Fatal("Temp dir creation failed: ", err.Error())
@@ -93,10 +95,7 @@ func mainLoop() bool {
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	ge.AddOperator(fritz.NewOpFritz(cr))
-	fOp := base.MakeFreepsOperator(&freepsbluetooth.Bluetooth{}, cr)
-	if fOp != nil {
-		ge.AddOperator(fOp)
-	}
+	ge.AddOperator(base.MakeFreepsOperator(&freepsbluetooth.Bluetooth{}, cr, initCtx))
 	freepsexec.AddExecOperators(cr, ge)
 
 	sh, err := freepsstore.NewStoreHook(cr)
