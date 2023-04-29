@@ -21,7 +21,7 @@ type OpWLED struct {
 	config *OpConfig
 }
 
-var _ base.FreepsOperator = &OpWLED{}
+var _ base.FreepsBaseOperator = &OpWLED{}
 
 // GetName returns the name of the operator
 func (o *OpWLED) GetName() string {

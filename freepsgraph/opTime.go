@@ -24,7 +24,7 @@ type SunriseOutput struct {
 	Until     time.Duration
 }
 
-var _ base.FreepsOperator = &OpTime{}
+var _ base.FreepsBaseOperator = &OpTime{}
 
 // GetName returns the name of the operator
 func (o *OpTime) GetName() string {

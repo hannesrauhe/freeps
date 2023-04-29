@@ -43,7 +43,7 @@ func (*MockOperator) GetArgSuggestions(fn string, arg string, otherArgs map[stri
 func (*MockOperator) Shutdown(ctx *base.Context) {
 }
 
-var _ base.FreepsOperator = &MockOperator{}
+var _ base.FreepsBaseOperator = &MockOperator{}
 
 var validGraph = GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval", Function: "echo"}}}
 

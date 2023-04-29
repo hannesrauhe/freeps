@@ -24,7 +24,7 @@ type OpFritz struct {
 	fc *freepslib.FBconfig
 }
 
-var _ base.FreepsOperator = &OpFritz{}
+var _ base.FreepsBaseOperator = &OpFritz{}
 
 // NewOpFritz creates a new operator for Freeps and Freepsflux
 func NewOpFritz(cr *utils.ConfigReader) *OpFritz {

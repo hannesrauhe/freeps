@@ -27,7 +27,7 @@ type GraphEngine struct {
 	cr              *utils.ConfigReader
 	externalGraphs  map[string]*GraphInfo
 	temporaryGraphs map[string]*GraphInfo
-	operators       map[string]base.FreepsOperator
+	operators       map[string]base.FreepsBaseOperator
 	hooks           map[string]FreepsHook
 	executionErrors *CollectedErrors
 	reloadRequested bool
@@ -40,7 +40,7 @@ type GraphEngine struct {
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
 	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]*GraphInfo), temporaryGraphs: make(map[string]*GraphInfo), executionErrors: NewCollectedErrors(100), reloadRequested: false}
 
-	ge.operators = make(map[string]base.FreepsOperator)
+	ge.operators = make(map[string]base.FreepsBaseOperator)
 	ge.operators["graph"] = &OpGraph{ge: ge}
 	ge.operators["graphbytag"] = &OpGraphByTag{ge: ge}
 	ge.operators["time"] = &OpTime{}
@@ -314,7 +314,7 @@ func (ge *GraphEngine) GetGraphInfoByTagExtended(tagGroups [][]string) map[strin
 }
 
 // AddOperator adds an operator to the graph engine
-func (ge *GraphEngine) AddOperator(op base.FreepsOperator) {
+func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	ge.operators[op.GetName()] = op
@@ -340,7 +340,7 @@ func (ge *GraphEngine) GetOperators() []string {
 }
 
 // GetOperator returns the operator with the given name
-func (ge *GraphEngine) GetOperator(opName string) base.FreepsOperator {
+func (ge *GraphEngine) GetOperator(opName string) base.FreepsBaseOperator {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	op, exists := ge.operators[opName]

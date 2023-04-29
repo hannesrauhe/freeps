@@ -14,7 +14,7 @@ type OpSystem struct {
 	cancel context.CancelFunc
 }
 
-var _ base.FreepsOperator = &OpSystem{}
+var _ base.FreepsBaseOperator = &OpSystem{}
 
 func NewSytemOp(ge *GraphEngine, cancel context.CancelFunc) *OpSystem {
 	return &OpSystem{ge: ge, cancel: cancel}

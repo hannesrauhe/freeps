@@ -29,7 +29,7 @@ type OpUI struct {
 	cr *utils.ConfigReader
 }
 
-var _ base.FreepsOperator = &OpUI{}
+var _ base.FreepsBaseOperator = &OpUI{}
 
 type TemplateData struct {
 	Args                 map[string]string

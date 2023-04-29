@@ -95,7 +95,7 @@ func (mt *MyTestOperator) AnotherUnusedFunctionWrongArguments(a int, b string) M
 }
 
 func TestOpBuilderSuggestions(t *testing.T) {
-	gop := MakeGenericOperator(&MyTestOperator{}, nil)
+	gop := MakeFreepsOperator(&MyTestOperator{}, nil)
 	assert.Assert(t, gop != nil, "")
 	assert.Equal(t, gop.GetName(), "mytestoperator")
 	fnl := gop.GetFunctions()
@@ -110,7 +110,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 }
 
 func TestOpBuilderExecute(t *testing.T) {
-	gop := MakeGenericOperator(&MyTestOperator{}, nil)
+	gop := MakeFreepsOperator(&MyTestOperator{}, nil)
 
 	// happy path without optional parameters
 	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12"}, MakeEmptyOutput())
@@ -163,7 +163,7 @@ type MyTestOperatorWithConfig struct {
 	bla int
 }
 
-var _ FreepsGenericOperatorWithShutdown = &MyTestOperatorWithConfig{}
+var _ FreepsOperatorWithShutdown = &MyTestOperatorWithConfig{}
 
 // implement the FreepsGenericOperatorWithShutdown interface
 func (mt *MyTestOperatorWithConfig) Init() error {
@@ -212,7 +212,7 @@ func TestOpBuilderExecuteWithConfig(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
-	gop := MakeGenericOperator(&MyTestOperatorWithConfig{}, cr)
+	gop := MakeFreepsOperator(&MyTestOperatorWithConfig{}, cr)
 
 	// happy path without optional parameters
 	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "3.14", "TimeParam": "12m"}, MakeEmptyOutput())
