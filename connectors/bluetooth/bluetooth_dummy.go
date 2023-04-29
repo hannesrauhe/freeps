@@ -40,7 +40,7 @@ type Bluetooth struct {
 
 var _ base.FreepsOperatorWithConfig = &Bluetooth{}
 
-func (bt *Bluetooth) Init(ctx *Context) error {
+func (bt *Bluetooth) Init(ctx *base.Context) error {
 	return nil
 }
 
