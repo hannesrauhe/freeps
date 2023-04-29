@@ -1,10 +1,10 @@
-package operatorbuilder
+package base
 
 import (
 	"path"
 	"testing"
+	"time"
 
-	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -22,35 +22,64 @@ type MyTestFunc struct {
 	Vars           map[string]string
 }
 
-func (mf *MyTestFunc) Run(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
+func (mf *MyTestFunc) Run(ctx *Context, mainInput *OperatorIO) *OperatorIO {
 	if mf.papa == nil {
-		return base.MakeOutputError(500, "The parent object was not passed to the function")
+		return MakeOutputError(500, "The parent object was not passed to the function")
 	}
+
+	mf.papa.counter++
 
 	if mf.OptParam3 != nil {
-		return base.MakePlainOutput("3")
+		return MakePlainOutput("3")
 	}
 	if mf.OptParam4 != nil {
-		return base.MakePlainOutput("4")
+		return MakePlainOutput("4")
 	}
 	if mf.OptParam5 != nil {
-		return base.MakePlainOutput("5")
+		return MakePlainOutput("5")
 	}
 	if mf.Vars != nil && len(mf.Vars) > 0 {
-		return base.MakePlainOutput("other")
+		return MakePlainOutput("other")
 	}
 
-	return base.MakeEmptyOutput()
+	return MakeEmptyOutput()
+}
+
+func (mf *MyTestFunc) GetArgSuggestions(argName string) map[string]string {
+	return map[string]string{}
+}
+
+var _ FreepsGenericFunction = &MyTestFunc{}
+
+type CounterFn struct {
+	papa *MyTestOperator
+}
+
+func (mf *CounterFn) Run(ctx *Context, mainInput *OperatorIO) *OperatorIO {
+	if mf.papa == nil {
+		return MakeOutputError(500, "The parent object was not passed to the function")
+	}
+
+	return MakePlainOutput("%v", mf.papa.counter)
+}
+
+func (mf *CounterFn) GetArgSuggestions(argName string) map[string]string {
+	return map[string]string{}
 }
 
 var _ FreepsGenericFunction = &MyTestFunc{}
 
 type MyTestOperator struct {
-	bla int
+	bla     int
+	counter int
 }
 
 func (mt *MyTestOperator) MyFavoriteFunction() *MyTestFunc {
 	return &MyTestFunc{papa: mt}
+}
+
+func (mt *MyTestOperator) Counter() *CounterFn {
+	return &CounterFn{papa: mt}
 }
 
 func (mt *MyTestOperator) MyFavoriteFunctionReturningAStruct() MyTestFunc {
@@ -70,8 +99,8 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Assert(t, gop != nil, "")
 	assert.Equal(t, gop.GetName(), "mytestoperator")
 	fnl := gop.GetFunctions()
-	assert.Equal(t, len(fnl), 1)
-	assert.Equal(t, fnl[0], "myfavoritefunction")
+	assert.Equal(t, len(fnl), 2)
+	assert.Equal(t, fnl[1], "myfavoritefunction")
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
 	assert.Equal(t, len(fal), 5)
@@ -84,42 +113,45 @@ func TestOpBuilderExecute(t *testing.T) {
 	gop := MakeGenericOperator(&MyTestOperator{}, nil)
 
 	// happy path without optional parameters
-	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12"}, base.MakeEmptyOutput())
+	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsEmpty(), output.GetString())
 
 	// happy path with optional parameters
-	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam3": "42"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam3": "42"}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "3")
 
 	// happy path with optional parameters
-	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam4": "bla"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam4": "bla"}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "4")
-	output = gop.Execute(nil, "myFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam5": "bla"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "myFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam5": "bla"}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "5")
-	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "someotheruserparam": "bla"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "someotheruserparam": "bla"}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "other")
+	output = gop.Execute(nil, "counter", map[string]string{}, MakeEmptyOutput())
+	assert.Assert(t, !output.IsError(), output.GetString())
+	assert.Equal(t, output.GetString(), "5")
 
 	// happy path with optional parameters that have names of internal fields
-	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "neversetvar": "bla", "neversetvarptr": "bla"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "neversetvar": "bla", "neversetvarptr": "bla"}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "other")
 
 	// wrong function name
-	output = gop.Execute(nil, "MyFavoriteFunctionWrong", map[string]string{"Param1": "test"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunctionWrong", map[string]string{"Param1": "test"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 
 	// missing parameter
-	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param2": "12"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param2": "12"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 
 	// wrong type of parameter
-	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "bla"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "bla"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
-	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam3": "notint"}, base.MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam3": "notint"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 }
 
@@ -139,7 +171,7 @@ func (mt *MyTestOperatorWithConfig) Init() error {
 	return nil
 }
 
-func (mt *MyTestOperatorWithConfig) Shutdown(ctx *base.Context) {
+func (mt *MyTestOperatorWithConfig) Shutdown(ctx *Context) {
 }
 
 func (mt *MyTestOperatorWithConfig) GetConfig() interface{} {
@@ -147,20 +179,27 @@ func (mt *MyTestOperatorWithConfig) GetConfig() interface{} {
 }
 
 type MyOtherTestFunc struct {
-	papa   *MyTestOperatorWithConfig
-	Param1 float64
+	papa      *MyTestOperatorWithConfig
+	Param1    float64
+	TimeParam time.Duration
 }
 
 // implement the FreepsGenericFunction interface
-func (mf *MyOtherTestFunc) Run(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
+func (mf *MyOtherTestFunc) Run(ctx *Context, mainInput *OperatorIO) *OperatorIO {
 	if mf.papa == nil {
-		return base.MakeOutputError(500, "The parent object was not passed to the function")
+		return MakeOutputError(500, "The parent object was not passed to the function")
 	}
 	if mf.papa.bla != 42 {
-		return base.MakeOutputError(500, "The parent object was not initialized")
+		return MakeOutputError(500, "The parent object was not initialized")
 	}
-	return base.MakeEmptyOutput()
+	return MakeEmptyOutput()
 }
+
+func (mf *MyOtherTestFunc) GetArgSuggestions(argName string) map[string]string {
+	return map[string]string{}
+}
+
+var _ FreepsGenericFunction = &MyOtherTestFunc{}
 
 func (mt *MyTestOperatorWithConfig) MyFavoriteFunction() *MyOtherTestFunc {
 	return &MyOtherTestFunc{papa: mt}
@@ -173,6 +212,6 @@ func TestOpBuilderExecuteWithConfig(t *testing.T) {
 	gop := MakeGenericOperator(&MyTestOperatorWithConfig{}, cr)
 
 	// happy path without optional parameters
-	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "3.14", "param2": "12"}, base.MakeEmptyOutput())
+	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "3.14", "TimeParam": "12m"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsEmpty(), output.GetString())
 }
