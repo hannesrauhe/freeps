@@ -65,51 +65,57 @@ func MakeGenericOperator(anyClass FreepsGenericOperator, cr *utils.ConfigReader)
 	}
 
 	op := &GenericOperatorBuilder{opInstance: anyClass}
-	err := op.init(cr)
+	enabled, err := op.initIfEnabled(cr)
 	if err != nil {
 		logrus.Errorf("Initializing operator \"%v\" failed: %v", op.GetName(), err)
+		return nil
+	}
+	if !enabled {
 		return nil
 	}
 	return op
 }
 
-func (o *GenericOperatorBuilder) init(cr *utils.ConfigReader) error {
+func (o *GenericOperatorBuilder) initIfEnabled(cr *utils.ConfigReader) (bool, error) {
 	o.functionMetaDataMap = o.createFunctionMap()
+
+	var noFuncsError error // in case the operator is disabled in the config we do not want to return an error
 	if len(o.functionMetaDataMap) == 0 {
-		// this is a fatal error that should be fixed by the developer of the operator
-		panic(fmt.Sprintf("No functions found for operator \"%v\"", o.GetName()))
+		noFuncsError = fmt.Errorf("No functions found for operator \"%v\"", o.GetName())
 	}
 
 	if cr == nil {
 		// no config reader might mean testing, just return
-		return nil
+		return true, noFuncsError
 	}
 
 	confOp, ok := o.opInstance.(FreepsGenericOperatorWithConfig)
 	if !ok {
-		return nil
+		return true, noFuncsError
 	}
 
 	conf := confOp.GetConfig()
 	if conf == nil {
-		return nil
+		return true, noFuncsError
 	}
 	err := cr.ReadSectionWithDefaults(o.GetName(), &conf)
 	if err != nil {
-		return fmt.Errorf("Reading config for operator \"%v\" failed: %v", o.GetName(), err)
+		return true, fmt.Errorf("Reading config for operator \"%v\" failed: %v", o.GetName(), err)
 	}
 
 	err = cr.WriteBackConfigIfChanged()
 	if err != nil {
-		return fmt.Errorf("Writing back config for operator \"%v\" failed: %v", o.GetName(), err)
+		return true, fmt.Errorf("Writing back config for operator \"%v\" failed: %v", o.GetName(), err)
 	}
 
-	initOp, ok := o.opInstance.(FreepsGenericOperatorWithShutdown)
-	if !ok {
-		return nil
+	// check if the config object has a field called "enabled" and if it is set to false
+	// if it is set to false, we do not want to initialize the operator and return nil
+	enabledField := reflect.ValueOf(conf).Elem().FieldByName("Enabled")
+	if enabledField.IsValid() && enabledField.Kind() == reflect.Bool && !enabledField.Bool() {
+		return false, nil
 	}
-	initOp.Init()
-	return nil
+	confOp.Init()
+	return true, noFuncsError
 }
 
 // getFunction returns the function with the given name (case insensitive)

@@ -32,3 +32,6 @@ func (fbt *FreepsBluetooth) Shutdown() {
 func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsBluetooth, error) {
 	return nil, fmt.Errorf("Bluetooth support not available")
 }
+
+type OpBluetooth struct {
+}
