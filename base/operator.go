@@ -10,19 +10,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// FreepsOperator is the interface structs need to implement so GenericOperatorBuilder can create a FreepsOperator from them
+// FreepsOperator is the interface structs need to implement so FreepsOperatorWrapper can create a FreepsOperator from them
 type FreepsOperator interface {
-	// every exported function that returns a FreepsGenericFunction (by pointer) is considered a function that can be executed by the operator
+	// every exported function that returns a FreepsFunction (by pointer) is considered a function that can be executed by the operator
 	// The following rules apply:
 	// * the name of the function is used as the name of the function that can be executed by the operator
 	// * the function must be exported (start with a capital letter)
-	// * the function must return a pointer to a struct that implements FreepsGenericFunction
+	// * the function must return a pointer to a struct that implements FreepsFunction
 	// * the function must not have any parameters
-	// * the function must create the struct that implements FreepsGenericFunction and return it, but it should not call Run() on it
-	// * the function must not have any return values other than the pointer to the struct that implements FreepsGenericFunction
+	// * the function must create the struct that implements FreepsFunction and return it, but it should not call Run() on it
+	// * the function must not have any return values other than the pointer to the struct that implements FreepsFunction
 }
 
-// FreepsOperatorWithConfig adds the GetConfig() method to FreepsGenericOperator
+// FreepsOperatorWithConfig adds the GetConfig() method to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
 	// GetConfig returns the config struct of the operator that is filled wiht the values from the config file
@@ -31,21 +31,21 @@ type FreepsOperatorWithConfig interface {
 	Init() error
 }
 
-// FreepsOperatorWithShutdown adds the Shutdown() method to FreepsGenericOperatorWithConfig
+// FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
 type FreepsOperatorWithShutdown interface {
 	FreepsOperatorWithConfig
 	Shutdown(ctx *Context)
 }
 
-// FreepsFunction is the interface that all functions that can be called by GenericOperatorBuilder.Execute must implement
+// FreepsFunction is the interface that all functions that can be called by FreepsOperatorWrapper.Execute must implement
 type FreepsFunction interface {
 	// Run is called whenever a user requests the function to be executed
-	// when Run is called, all members of the struct that implements FreepsGenericFunction are initialized with the values from the request
+	// when Run is called, all members of the struct that implements FreepsFunction are initialized with the values from the request
 	Run(ctx *Context, mainInput *OperatorIO) *OperatorIO
 
 	// GetArgSuggestions returns a map of possible values for the paramters var based on the set parameters
 	// this is used for the autocomplete feature in the web interface
-	// when GetArgSuggestions is called, all members of the struct that implements FreepsGenericFunction are initialized with the values from the request
+	// when GetArgSuggestions is called, all members of the struct that implements FreepsFunction are initialized with the values from the request
 	GetArgSuggestions(argNanme string) map[string]string
 }
 
@@ -59,8 +59,8 @@ type FreepsOperatorWrapper struct {
 
 var _ FreepsBaseOperator = &FreepsOperatorWrapper{}
 
-// MakeFreepsOperator creates a FreepsOperator from any struct that implements FreepsGenericOperator
-func MakeFreepsOperator(anyClass FreepsOperator, cr *utils.ConfigReader) *FreepsOperatorWrapper {
+// MakeFreepsOperator creates a FreepsBaseOperator from any struct that implements FreepsOperator
+func MakeFreepsOperator(anyClass FreepsOperator, cr *utils.ConfigReader) FreepsBaseOperator {
 	if anyClass == nil {
 		return nil
 	}
@@ -364,6 +364,7 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 	return list
 }
 
+// GetArgSuggestions creates a Freepsfunction by name and returns the suggestions for the argument argName
 func (o *FreepsOperatorWrapper) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
 	actualFunc, err := o.createFreepsFunction(fn, otherArgs, false)
 	if err == nil {
@@ -372,7 +373,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(fn string, argName string, oth
 	return map[string]string{}
 }
 
-// Shutdown calls the shutdown method of the FreepsGenericOperator if it exists
+// Shutdown calls the Shutdown method of the FreepsOperator if it exists
 func (o *FreepsOperatorWrapper) Shutdown(ctx *Context) {
 	opShutdown, ok := o.opInstance.(FreepsOperatorWithShutdown)
 	if ok {
