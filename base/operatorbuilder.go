@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -159,7 +160,7 @@ func (o *GenericOperatorBuilder) createFunctionMap() map[string]reflect.Value {
 
 func isSupportedFieldType(field reflect.Type) bool {
 	kind := field.Kind()
-	return kind == reflect.Int || kind == reflect.String || kind == reflect.Float64 || kind == reflect.Bool
+	return kind == reflect.Int || kind == reflect.Int64 || kind == reflect.String || kind == reflect.Float64 || kind == reflect.Bool
 }
 
 // isSupportedField returns true if the field is a primitive type or a pointer to a primitive type
@@ -192,6 +193,17 @@ func setSupportedField(field reflect.Value, value string) error {
 			return fmt.Errorf("\"%v\" is not convertible to int: %v", value, err)
 		}
 		field.SetInt(int64(v))
+	case reflect.Int64: // this might actually be a time.Duration
+		v, err := utils.StringToInt(value)
+		if err == nil {
+			field.SetInt(int64(v))
+		} else {
+			vTime, err := time.ParseDuration(value)
+			if err != nil {
+				return fmt.Errorf("\"%v\" is not convertible to int and is not a time duration: %v", value, err)
+			}
+			field.SetInt(int64(vTime))
+		}
 	case reflect.String:
 		field.SetString(value)
 	case reflect.Float64:
@@ -215,11 +227,11 @@ func (o *GenericOperatorBuilder) SetRequiredFreepsFunctionParameters(freepsfunc 
 	//make sure all non-pointer fields of the FreepsFunction are set to the values of the vars map
 	for i := 0; i < freepsfunc.Elem().NumField(); i++ {
 		field := freepsfunc.Elem().Field(i)
+
+		fieldName := utils.StringToLower(freepsfunc.Elem().Type().Field(i).Name)
 		if !isSupportedField(field, false) {
 			continue
 		}
-
-		fieldName := utils.StringToLower(freepsfunc.Elem().Type().Field(i).Name)
 
 		//return an error if the field is not set in the vars map
 		v, ok := vars[fieldName]

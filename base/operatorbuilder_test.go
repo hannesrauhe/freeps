@@ -192,6 +192,9 @@ func (mf *MyOtherTestFunc) Run(ctx *Context, mainInput *OperatorIO) *OperatorIO 
 	if mf.papa.bla != 42 {
 		return MakeOutputError(500, "The parent object was not initialized")
 	}
+	if mf.TimeParam != 12*time.Minute {
+		return MakeOutputError(500, "The time parameter was not set correctly")
+	}
 	return MakeEmptyOutput()
 }
 
