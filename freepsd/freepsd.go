@@ -93,6 +93,8 @@ func mainLoop() bool {
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	ge.AddOperator(fritz.NewOpFritz(cr))
+	fOp := base.MakeGenericOperator(&freepsbluetooth.Bluetooth{}, cr)
+	ge.AddOperator(fOp)
 	freepsexec.AddExecOperators(cr, ge)
 
 	sh, err := freepsstore.NewStoreHook(cr)
