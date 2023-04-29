@@ -7,44 +7,98 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/sirupsen/logrus"
 )
 
-// GenericOperator creates all necessary to be a FreepsOperator function by reflection
-type GenericOperator struct {
-	opClass             interface{}
-	functionMetaDataMap map[string]reflect.Value
+// FreepsGenericOperator is the interface structs need to implement so GenericOperatorBuilder can create a FreepsOperator from them
+type FreepsGenericOperator interface {
 }
 
-var _ base.FreepsOperator = &GenericOperator{}
+// FreepsGenericOperatorWithConfig adds the GetConfig() method to FreepsGenericOperator
+type FreepsGenericOperatorWithConfig interface {
+	FreepsGenericOperator
+	//GetConfig returns the config struct of the operator that is filled wiht the values from the config file
+	GetConfig() interface{}
+	//Init is called after the config is read and the operator is created
+	Init() error
+}
 
-// FreepsFunction is the interface that all functions that can be called by GenericOperator.Execute must implement
-type FreepsFunction interface {
+// FreepsGenericOperatorWithShutdown adds the Shutdown() method to FreepsGenericOperatorWithConfig
+type FreepsGenericOperatorWithShutdown interface {
+	FreepsGenericOperatorWithConfig
+	Shutdown(ctx *base.Context)
+}
+
+// FreepsGenericFunction is the interface that all functions that can be called by GenericOperatorBuilder.Execute must implement
+type FreepsGenericFunction interface {
+	// Run is called whenever a user requests the function to be executed
 	Run(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO
 }
 
-// MakeGenericOperator creates a GenericOperator from any struct pointer
-func MakeGenericOperator(anyClass interface{}) *GenericOperator {
-	t := reflect.TypeOf(anyClass)
-	if t.Kind() != reflect.Ptr {
+// GenericOperatorBuilder creates everyt necessary to be a FreepsOperator function by reflection
+type GenericOperatorBuilder struct {
+	opInstance          FreepsGenericOperator
+	functionMetaDataMap map[string]reflect.Value
+}
+
+var _ base.FreepsOperator = &GenericOperatorBuilder{}
+
+// MakeGenericOperator creates a FreepsOperator from any struct that implements FreepsGenericOperator
+func MakeGenericOperator(anyClass FreepsGenericOperator, cr *utils.ConfigReader) *GenericOperatorBuilder {
+	if anyClass == nil {
 		return nil
 	}
-	if t.Elem().Kind() != reflect.Struct {
+
+	op := &GenericOperatorBuilder{opInstance: anyClass}
+	err := op.init(cr)
+	if err != nil {
+		logrus.Errorf("Initializing operator \"%v\" failed: %v", op.GetName(), err)
 		return nil
 	}
-	op := &GenericOperator{opClass: anyClass}
-	op.init()
 	return op
 }
 
-func (o *GenericOperator) init() {
+func (o *GenericOperatorBuilder) init(cr *utils.ConfigReader) error {
 	o.functionMetaDataMap = o.createFunctionMap()
 	if len(o.functionMetaDataMap) == 0 {
+		// this is a fatal error that should be fixed by the developer of the operator
 		panic(fmt.Sprintf("No functions found for operator \"%v\"", o.GetName()))
 	}
+
+	if cr == nil {
+		// no config reader might mean testing, just return
+		return nil
+	}
+
+	confOp, ok := o.opInstance.(FreepsGenericOperatorWithConfig)
+	if !ok {
+		return nil
+	}
+
+	conf := confOp.GetConfig()
+	if conf == nil {
+		return nil
+	}
+	err := cr.ReadSectionWithDefaults(o.GetName(), &conf)
+	if err != nil {
+		return fmt.Errorf("Reading config for operator \"%v\" failed: %v", o.GetName(), err)
+	}
+
+	err = cr.WriteBackConfigIfChanged()
+	if err != nil {
+		return fmt.Errorf("Writing back config for operator \"%v\" failed: %v", o.GetName(), err)
+	}
+
+	initOp, ok := o.opInstance.(FreepsGenericOperatorWithShutdown)
+	if !ok {
+		return nil
+	}
+	initOp.Init()
+	return nil
 }
 
 // getFunction returns the function with the given name (case insensitive)
-func (o *GenericOperator) getFunction(name string) *reflect.Value {
+func (o *GenericOperatorBuilder) getFunction(name string) *reflect.Value {
 	name = utils.StringToLower(name)
 	if f, ok := o.functionMetaDataMap[name]; ok {
 		return &f
@@ -53,10 +107,10 @@ func (o *GenericOperator) getFunction(name string) *reflect.Value {
 }
 
 // createFunctionMap creates a map of all exported functions of the struct that return a struct that implements FreepsFunction
-func (o *GenericOperator) createFunctionMap() map[string]reflect.Value {
+func (o *GenericOperatorBuilder) createFunctionMap() map[string]reflect.Value {
 	funcMap := make(map[string]reflect.Value)
-	t := reflect.TypeOf(o.opClass)
-	v := reflect.ValueOf(o.opClass)
+	t := reflect.TypeOf(o.opInstance)
+	v := reflect.ValueOf(o.opInstance)
 	for i := 0; i < t.NumMethod(); i++ {
 		method := t.Method(i)
 		if method.Type.NumOut() != 1 {
@@ -74,7 +128,7 @@ func (o *GenericOperator) createFunctionMap() map[string]reflect.Value {
 			continue
 		}
 
-		if !ff.Implements(reflect.TypeOf((*FreepsFunction)(nil)).Elem()) {
+		if !ff.Implements(reflect.TypeOf((*FreepsGenericFunction)(nil)).Elem()) {
 			continue
 		}
 		funcMap[utils.StringToLower(method.Name)] = v.Method(i)
@@ -83,7 +137,7 @@ func (o *GenericOperator) createFunctionMap() map[string]reflect.Value {
 }
 
 // SetRequiredFreepsFunctionParameters sets the parameters of the FreepsFunction based on the vars map
-func (o *GenericOperator) SetRequiredFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string) *base.OperatorIO {
+func (o *GenericOperatorBuilder) SetRequiredFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string) *base.OperatorIO {
 	//make sure all non-pointer fields of the FreepsFunction are set to the values of the vars map
 	for i := 0; i < freepsfunc.Elem().NumField(); i++ {
 		field := freepsfunc.Elem().Field(i)
@@ -138,7 +192,7 @@ func (o *GenericOperator) SetRequiredFreepsFunctionParameters(freepsfunc *reflec
 }
 
 // SetOptionalFreepsFunctionParameters sets the parameters of the FreepsFunction based on the vars map
-func (o *GenericOperator) SetOptionalFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string) *base.OperatorIO {
+func (o *GenericOperatorBuilder) SetOptionalFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string) *base.OperatorIO {
 	// set all pointer fields of the FreepsFunction to the values of the vars map
 	for i := 0; i < freepsfunc.Elem().NumField(); i++ {
 		field := freepsfunc.Elem().Field(i)
@@ -188,13 +242,13 @@ func (o *GenericOperator) SetOptionalFreepsFunctionParameters(freepsfunc *reflec
 }
 
 // GetName returns the name of the struct opClass
-func (o *GenericOperator) GetName() string {
-	t := reflect.TypeOf(o.opClass)
+func (o *GenericOperatorBuilder) GetName() string {
+	t := reflect.TypeOf(o.opInstance)
 	return utils.StringToLower(t.Elem().Name())
 }
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the vars map and calls the Run method of the FreepsFunction
-func (o *GenericOperator) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+func (o *GenericOperatorBuilder) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	m := o.getFunction(function)
 	if m == nil {
 		return base.MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
@@ -225,12 +279,12 @@ func (o *GenericOperator) Execute(ctx *base.Context, function string, vars map[s
 	}
 
 	//call the Run method of the FreepsFunction
-	actualFunc := freepsfunc.Interface().(FreepsFunction)
+	actualFunc := freepsfunc.Interface().(FreepsGenericFunction)
 	return actualFunc.Run(ctx, mainInput)
 }
 
 // GetFunctions returns all methods of the opClass
-func (o *GenericOperator) GetFunctions() []string {
+func (o *GenericOperatorBuilder) GetFunctions() []string {
 	list := []string{}
 
 	for n := range o.functionMetaDataMap {
@@ -240,7 +294,7 @@ func (o *GenericOperator) GetFunctions() []string {
 }
 
 // GetPossibleArgs returns all members of the return type of the method called fn
-func (o *GenericOperator) GetPossibleArgs(fn string) []string {
+func (o *GenericOperatorBuilder) GetPossibleArgs(fn string) []string {
 	list := []string{}
 
 	m := o.getFunction(fn)
@@ -262,10 +316,14 @@ func (o *GenericOperator) GetPossibleArgs(fn string) []string {
 	return list
 }
 
-func (o *GenericOperator) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *GenericOperatorBuilder) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return map[string]string{}
 }
 
-// Shutdown (noOp)
-func (o *GenericOperator) Shutdown(ctx *base.Context) {
+// Shutdown calls the shutdown method of the FreepsGenericOperator if it exists
+func (o *GenericOperatorBuilder) Shutdown(ctx *base.Context) {
+	opShutdown, ok := o.opInstance.(FreepsGenericOperatorWithShutdown)
+	if ok {
+		opShutdown.Shutdown(ctx)
+	}
 }

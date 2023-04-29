@@ -1,9 +1,12 @@
 package operatorbuilder
 
 import (
+	"path"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
+	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
 
@@ -39,7 +42,7 @@ func (mf *MyTestFunc) Run(ctx *base.Context, mainInput *base.OperatorIO) *base.O
 	return base.MakeEmptyOutput()
 }
 
-var _ FreepsFunction = &MyTestFunc{}
+var _ FreepsGenericFunction = &MyTestFunc{}
 
 type MyTestOperator struct {
 	bla int
@@ -62,7 +65,7 @@ func (mt *MyTestOperator) AnotherUnusedFunctionWrongArguments(a int, b string) M
 }
 
 func TestOpBuilderSuggestions(t *testing.T) {
-	gop := MakeGenericOperator(&MyTestOperator{})
+	gop := MakeGenericOperator(&MyTestOperator{}, nil)
 	assert.Assert(t, gop != nil, "")
 	assert.Equal(t, gop.GetName(), "mytestoperator")
 	fnl := gop.GetFunctions()
@@ -77,7 +80,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 }
 
 func TestOpBuilderExecute(t *testing.T) {
-	gop := MakeGenericOperator(&MyTestOperator{})
+	gop := MakeGenericOperator(&MyTestOperator{}, nil)
 
 	// happy path without optional parameters
 	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12"}, base.MakeEmptyOutput())
@@ -112,4 +115,57 @@ func TestOpBuilderExecute(t *testing.T) {
 	assert.Assert(t, output.IsError(), "")
 	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam3": "notint"}, base.MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
+}
+
+type MyTestOperatorConfig struct {
+	Enabled bool
+}
+
+type MyTestOperatorWithConfig struct {
+	bla int
+}
+
+var _ FreepsGenericOperatorWithShutdown = &MyTestOperatorWithConfig{}
+
+// implement the FreepsGenericOperatorWithShutdown interface
+func (mt *MyTestOperatorWithConfig) Init() error {
+	mt.bla = 42
+	return nil
+}
+
+func (mt *MyTestOperatorWithConfig) Shutdown(ctx *base.Context) {
+}
+
+func (mt *MyTestOperatorWithConfig) GetConfig() interface{} {
+	return &MyTestOperatorConfig{Enabled: true}
+}
+
+type MyOtherTestFunc struct {
+	papa *MyTestOperatorWithConfig
+}
+
+// implement the FreepsGenericFunction interface
+func (mf *MyOtherTestFunc) Run(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
+	if mf.papa == nil {
+		return base.MakeOutputError(500, "The parent object was not passed to the function")
+	}
+	if mf.papa.bla != 42 {
+		return base.MakeOutputError(500, "The parent object was not initialized")
+	}
+	return base.MakeEmptyOutput()
+}
+
+func (mt *MyTestOperatorWithConfig) MyFavoriteFunction() *MyOtherTestFunc {
+	return &MyOtherTestFunc{papa: mt}
+}
+
+func TestOpBuilderExecuteWithConfig(t *testing.T) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+	gop := MakeGenericOperator(&MyTestOperatorWithConfig{}, cr)
+
+	// happy path without optional parameters
+	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12"}, base.MakeEmptyOutput())
+	assert.Assert(t, output.IsEmpty(), output.GetString())
 }
