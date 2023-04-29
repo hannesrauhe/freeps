@@ -136,105 +136,115 @@ func (o *GenericOperatorBuilder) createFunctionMap() map[string]reflect.Value {
 	return funcMap
 }
 
+func isSupportedFieldType(field reflect.Value) bool {
+	kind := field.Kind()
+	return kind == reflect.Int || kind == reflect.String || kind == reflect.Float64 || kind == reflect.Bool
+}
+
+// isSupportedField returns true if the field is a primitive type or a pointer to a primitive type
+func isSupportedField(field reflect.Value, mustBePtr bool) bool {
+	if field.Kind() == reflect.Ptr && mustBePtr {
+		return isSupportedFieldType(field.Elem())
+	}
+	if mustBePtr {
+		return false
+	}
+	if !field.CanSet() {
+		return false
+	}
+	return isSupportedFieldType(field)
+}
+
+// setSupportedField sets the value of the field and converts from string if necessary
+func setSupportedField(field reflect.Value, value string) error {
+	if field.Type().Kind() == reflect.Ptr {
+		newField := reflect.New(field.Type().Elem())
+		field.Set(newField)
+		field = field.Elem()
+	}
+
+	// convert the value to the type of the field, return an error if the conversion fails
+	switch field.Kind() {
+	case reflect.Int:
+		v, err := utils.StringToInt(value)
+		if err != nil {
+			return fmt.Errorf("\"%v\" is not convertible to int: %v", value, err)
+		}
+		field.SetInt(int64(v))
+	case reflect.String:
+		field.SetString(value)
+	case reflect.Float64:
+		v, err := utils.StringToFloat64(value)
+		if err != nil {
+			return fmt.Errorf("\"%v\" is not convertible to float64: %v", value, err)
+		}
+		field.SetFloat(v)
+	case reflect.Bool:
+		v := utils.ParseBool(value)
+		field.SetBool(v)
+	default:
+		// should never get here
+		return fmt.Errorf("Unsupported field type: %v", field.Kind())
+	}
+	return nil
+}
+
 // SetRequiredFreepsFunctionParameters sets the parameters of the FreepsFunction based on the vars map
-func (o *GenericOperatorBuilder) SetRequiredFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string) *base.OperatorIO {
+func (o *GenericOperatorBuilder) SetRequiredFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string, failOnErr bool) *base.OperatorIO {
 	//make sure all non-pointer fields of the FreepsFunction are set to the values of the vars map
 	for i := 0; i < freepsfunc.Elem().NumField(); i++ {
 		field := freepsfunc.Elem().Field(i)
-		if field.Kind() == reflect.Ptr {
-			continue
-		}
-		// continue if the field is not exported
-		if !field.CanSet() {
-			continue
-		}
-		// continue if the field is not a primitive type
-		if field.Kind() != reflect.Int && field.Kind() != reflect.String && field.Kind() != reflect.Float64 && field.Kind() != reflect.Bool {
+		if !isSupportedField(field, false) {
 			continue
 		}
 
 		fieldName := utils.StringToLower(freepsfunc.Elem().Type().Field(i).Name)
 
 		//return an error if the field is not set in the vars map
-		if _, ok := vars[fieldName]; !ok {
-			return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" not found", fieldName))
-		}
-		//set the value of the field to the value of the vars map
-		if field.CanSet() {
-			// convert the value to the type of the field, return an error if the conversion fails
-			switch field.Kind() {
-			case reflect.Int:
-				v, err := utils.StringToInt(vars[fieldName])
-				if err != nil {
-					return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is not an int", fieldName))
-				}
-				field.SetInt(int64(v))
-			case reflect.String:
-				field.SetString(vars[fieldName])
-			case reflect.Float64:
-				v, err := utils.StringToFloat64(vars[fieldName])
-				if err != nil {
-					return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is not a float", fieldName))
-				}
-				field.SetFloat(v)
-			case reflect.Bool:
-				v := utils.ParseBool(vars[fieldName])
-				field.SetBool(v)
-			default:
-				return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Parameter \"%v\" is not supported", fieldName))
+		v, ok := vars[fieldName]
+		if !ok {
+			if failOnErr {
+				return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" not found", fieldName))
+			} else {
+				continue
 			}
-			delete(vars, fieldName)
-		} else {
-			return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Parameter \"%v\" of FreepsFunction is not settable", fieldName))
 		}
+
+		// set the value of the field
+		err := setSupportedField(field, v)
+		if err != nil {
+			if failOnErr {
+				return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is invalid: %v", fieldName, err))
+			}
+			continue
+		}
+
+		delete(vars, fieldName)
 	}
 	return nil
 }
 
 // SetOptionalFreepsFunctionParameters sets the parameters of the FreepsFunction based on the vars map
-func (o *GenericOperatorBuilder) SetOptionalFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string) *base.OperatorIO {
+func (o *GenericOperatorBuilder) SetOptionalFreepsFunctionParameters(freepsfunc *reflect.Value, vars map[string]string, failOnErr bool) *base.OperatorIO {
 	// set all pointer fields of the FreepsFunction to the values of the vars map
 	for i := 0; i < freepsfunc.Elem().NumField(); i++ {
 		field := freepsfunc.Elem().Field(i)
 
-		if field.Kind() != reflect.Ptr {
-			continue
-		}
-		if !field.CanSet() {
+		fieldName := utils.StringToLower(freepsfunc.Elem().Type().Field(i).Name)
+		if !isSupportedField(field, true) {
 			continue
 		}
 
-		fieldName := utils.StringToLower(freepsfunc.Elem().Type().Field(i).Name)
 		v, ok := vars[fieldName]
 		if !ok {
 			continue
 		}
-
-		// since the field is a pointer, we need to create a new instance of the type of the field
-		// and set the value of the field to the new instance
-		newField := reflect.New(field.Type().Elem())
-		field.Set(newField)
-		// convert the value to the type of the field, return an error if the conversion fails
-		switch field.Elem().Kind() {
-		case reflect.Int:
-			v, err := utils.StringToInt(v)
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is not an int", fieldName))
+		err := setSupportedField(field, v)
+		if err != nil {
+			if failOnErr {
+				return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is invalid: %v", fieldName, err))
 			}
-			field.Elem().SetInt(int64(v))
-		case reflect.String:
-			field.Elem().SetString(v)
-		case reflect.Float64:
-			v, err := utils.StringToFloat64(v)
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is not a float", fieldName))
-			}
-			field.Elem().SetFloat(v)
-		case reflect.Bool:
-			v := utils.ParseBool(v)
-			field.Elem().SetBool(v)
-		default:
-			return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Parameter Type \"%v\" of \"%v\" is not supported", field.Elem().Kind(), fieldName))
+			continue
 		}
 		delete(vars, fieldName)
 	}
@@ -264,11 +274,11 @@ func (o *GenericOperatorBuilder) Execute(ctx *base.Context, function string, var
 	}
 
 	//set all required parameters of the FreepsFunction
-	err := o.SetRequiredFreepsFunctionParameters(&freepsfunc, lowercaseVars)
+	err := o.SetRequiredFreepsFunctionParameters(&freepsfunc, lowercaseVars, true)
 	if err != nil {
 		return err
 	}
-	err = o.SetOptionalFreepsFunctionParameters(&freepsfunc, lowercaseVars)
+	err = o.SetOptionalFreepsFunctionParameters(&freepsfunc, lowercaseVars, true)
 	if err != nil {
 		return err
 	}
