@@ -111,7 +111,7 @@ func (o *FreepsOperatorWrapper) initIfEnabled(cr *utils.ConfigReader, ctx *Conte
 	if conf == nil {
 		return true, noFuncsError
 	}
-	err := cr.ReadSectionWithDefaults(o.GetName(), &conf)
+	err := cr.ReadSectionWithDefaults(utils.StringToLower(o.GetName()), &conf)
 	if err != nil {
 		return true, fmt.Errorf("Reading config for operator \"%v\" failed: %v", o.GetName(), err)
 	}
