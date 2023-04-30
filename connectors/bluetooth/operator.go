@@ -27,20 +27,13 @@ func (bt *Bluetooth) Init(ctx *base.Context) error {
 
 var _ base.FreepsOperatorWithConfig = &Bluetooth{}
 
-// GetPresentDevices returns a list of present devices
-func (bt *Bluetooth) GetPresentDevices() *GetPresentDevices {
-	return &GetPresentDevices{}
-}
-
-// GetPresentDevices implements the FreepsGenericFunction interface
-type GetPresentDevices struct {
+// GetPresentDevicesParams are the parameters for the GetPresentDevices Function
+type GetPresentDevicesParams struct {
 	MaximumAge time.Duration
 }
 
-var _ base.FreepsFunction = &GetPresentDevices{}
-
-// Run returns a list of present devices
-func (gpd *GetPresentDevices) Run(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+// GetPresentDevices is the function that returns the present devices
+func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO, gpd GetPresentDevicesParams, otherArgs map[string]string) *base.OperatorIO {
 	// get the global store
 	store := freepsstore.GetGlobalStore()
 
@@ -58,7 +51,7 @@ func (gpd *GetPresentDevices) Run(ctx *base.Context, input *base.OperatorIO) *ba
 }
 
 // GetArgSuggestions implements the FreepsGenericFunction interface and returns common durations
-func (gpd *GetPresentDevices) GetArgSuggestions(argName string) map[string]string {
+func (gpd *GetPresentDevicesParams) GetArgSuggestions(fn string, argName string) map[string]string {
 	if argName == "maximumage" {
 		return map[string]string{"1m": "1 min", "10m": "10 min", "1h": "1 hour", "1d": "1 day"}
 	}
