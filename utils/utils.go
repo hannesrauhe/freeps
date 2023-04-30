@@ -113,7 +113,7 @@ func GetHexColor(c color.Color) string {
 
 // GetDurationMap returns a map of typical durations for operator argument suggestions
 func GetDurationMap() map[string]string {
-	return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+	return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s", "1m": "1m", "10m": "10m", "100m": "100m", "1h": "1h"}
 }
 
 // DeleteElemFromSlice swaps i-th and last Element and deletes the last

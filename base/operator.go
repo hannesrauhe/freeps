@@ -291,7 +291,8 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 	for i := 0; i < freepsFuncParams.Elem().NumField(); i++ {
 		field := freepsFuncParams.Elem().Field(i)
 
-		fieldName := utils.StringToLower(freepsFuncParams.Elem().Type().Field(i).Name)
+		fieldNameCase := freepsFuncParams.Elem().Type().Field(i).Name
+		fieldName := utils.StringToLower(fieldNameCase)
 		if !isSupportedField(field, false) {
 			continue
 		}
@@ -300,7 +301,7 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 		v, ok := args[fieldName]
 		if !ok {
 			if failOnErr {
-				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" not found", fieldName))
+				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("required Parameter \"%v\" is missing", fieldNameCase))
 			} else {
 				continue
 			}
@@ -310,7 +311,7 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 		err := setSupportedField(field, v)
 		if err != nil {
 			if failOnErr {
-				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is invalid: %v", fieldName, err))
+				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is invalid: %v", fieldNameCase, err))
 			}
 			continue
 		}
