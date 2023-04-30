@@ -33,25 +33,37 @@ type GetPresentDevicesParams struct {
 }
 
 // GetPresentDevices is the function that returns the present devices
-func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO, gpd GetPresentDevicesParams, otherArgs map[string]string) *base.OperatorIO {
-	// get the global store
+func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO, gpd GetPresentDevicesParams) *base.OperatorIO {
 	store := freepsstore.GetGlobalStore()
 
-	// get the keys of the _bluetooth_discovered_devices namespace
-	discoveredKeys := store.GetNamespace("_bluetooth_discovered_devices").GetKeys()
+	res := store.GetNamespace(bt.config.DiscoveredNamespace).GetSearchResultWithMetadata("", "", "", 0, gpd.MaximumAge)
+	m2 := store.GetNamespace(bt.config.KnownNamespace).GetSearchResultWithMetadata("", "", "", 0, gpd.MaximumAge)
+	m3 := store.GetNamespace(bt.config.MonitorsNamespace).GetSearchResultWithMetadata("", "", "", 0, gpd.MaximumAge)
 
-	// get the keys of the _bluetooth_known_devices namespace
-	knownKeys := store.GetNamespace("_bluetooth_known_devices").GetKeys()
-
-	// merge the keys
-	keys := append(discoveredKeys, knownKeys...)
+	// merge the results, on conflict the newer entry wins
+	for k, v2 := range m2 {
+		v1, ok := res[k]
+		if !ok {
+			res[k] = v2
+		} else if v2.GetTimestamp().After(v1.GetTimestamp()) {
+			res[k] = v2
+		}
+	}
+	for k, v3 := range m3 {
+		v1, ok := res[k]
+		if !ok {
+			res[k] = v3
+		} else if v3.GetTimestamp().After(v1.GetTimestamp()) {
+			res[k] = v3
+		}
+	}
 
 	// return the keys
-	return base.MakeObjectOutput(keys)
+	return base.MakeObjectOutput(res)
 }
 
-// GetArgSuggestions implements the FreepsGenericFunction interface and returns common durations
-func (gpd *GetPresentDevicesParams) GetArgSuggestions(fn string, argName string) map[string]string {
+// GetArgSuggestions returns common durations for the maximumage parameter
+func (gpd *GetPresentDevicesParams) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
 	if argName == "maximumage" {
 		return map[string]string{"1m": "1 min", "10m": "10 min", "1h": "1 hour", "1d": "1 day"}
 	}

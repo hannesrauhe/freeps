@@ -106,9 +106,9 @@ func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 		go fbt.handleNewDevice(dev, false)
 	}
 
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_known").DeleteOlder(fbt.config.ForgetDeviceDuration)
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_monitors").DeleteOlder(fbt.config.ForgetDeviceDuration)
-	freepsstore.GetGlobalStore().GetNamespace("_bluetooth_discovered").DeleteOlder(fbt.config.ForgetDeviceDuration)
+	freepsstore.GetGlobalStore().GetNamespace(fbt.config.KnownNamespace).DeleteOlder(fbt.config.ForgetDeviceDuration)
+	freepsstore.GetGlobalStore().GetNamespace(fbt.config.DiscoveredNamespace).DeleteOlder(fbt.config.ForgetDeviceDuration)
+	freepsstore.GetGlobalStore().GetNamespace(fbt.config.MonitorsNamespace).DeleteOlder(fbt.config.ForgetDeviceDuration)
 
 	discovery, cancel, err := api.Discover(a, nil)
 	if err != nil {
@@ -156,11 +156,11 @@ func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery 
 	}
 
 	if freshDiscovery {
-		ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_discovered")
+		ns := freepsstore.GetGlobalStore().GetNamespace(fbt.config.DiscoveredNamespace)
 		ns.SetValue(devData.Address, input, ctx.GetID())
 		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
 	} else {
-		ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_known")
+		ns := freepsstore.GetGlobalStore().GetNamespace(fbt.config.KnownNamespace)
 		ns.SetValue(devData.Address, input, ctx.GetID())
 	}
 

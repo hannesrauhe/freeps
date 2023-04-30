@@ -30,6 +30,14 @@ type FreepsOperatorWithShutdown interface {
 	Shutdown(ctx *Context)
 }
 
+// FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
+type FreepsFunctionParameters interface {
+	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
+	GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string
+}
+
+/* Implentation follows below this line */
+
 // FreepsFunctionType is an enum that indicates how many function parameters a compatible FreepsFunction has
 type FreepsFunctionType int
 
@@ -60,8 +68,6 @@ type FreepsOperatorWrapper struct {
 	opInstance          FreepsOperator
 	functionMetaDataMap map[string]FreepsFunctionMetaData
 }
-
-/* Implentation follows below this line */
 
 var _ FreepsBaseOperator = &FreepsOperatorWrapper{}
 
@@ -315,7 +321,7 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 }
 
 // SetOptionalFreepsFunctionParameters sets the parameters of the FreepsFunction based on the args map
-func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsfunc *reflect.Value, args map[string]string, failOnErr bool) *OperatorIO {
+func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsfunc reflect.Value, args map[string]string, failOnErr bool) *OperatorIO {
 	// set all pointer fields of the FreepsFunction to the values of the args map
 	for i := 0; i < freepsfunc.Elem().NumField(); i++ {
 		field := freepsfunc.Elem().Field(i)
@@ -344,7 +350,7 @@ func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsfunc *
 // GetName returns the name of the struct opClass
 func (o *FreepsOperatorWrapper) GetName() string {
 	t := reflect.TypeOf(o.opInstance)
-	return utils.StringToLower(t.Elem().Name())
+	return t.Elem().Name()
 }
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
@@ -384,7 +390,7 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	if err != nil && failOnError {
 		return err
 	}
-	err = o.SetOptionalFreepsFunctionParameters(&paramStruct, lowercaseArgs, failOnError)
+	err = o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	if err != nil && failOnError {
 		return err
 	}
@@ -405,40 +411,72 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 func (o *FreepsOperatorWrapper) GetFunctions() []string {
 	list := []string{}
 
-	for n := range o.functionMetaDataMap {
-		list = append(list, n)
+	for _, v := range o.functionMetaDataMap {
+		list = append(list, v.Name)
 	}
 	return list
 }
 
-// GetPossibleArgs returns all members of the return type of the method called fn
+// GetPossibleArgs returns all function parameters
 func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 	list := []string{}
 
-	m := o.getFunction(fn)
+	m := o.getFunctionMetaData(fn)
 	if m == nil {
 		return list
 	}
-	// freepsfunc := m.Call([]reflect.Value{})[0]
+	if m.FuncType == FreepsFunctionTypeSimple || m.FuncType == FreepsFunctionTypeContextOnly || m.FuncType == FreepsFunctionTypeContextAndInput {
+		return list
+	}
 
-	// ft := freepsfunc.Elem()
-	// for j := 0; j < ft.NumField(); j++ {
-	// 	arg := ft.Field(j)
-	// 	if isSupportedField(arg, true) || isSupportedField(arg, false) {
-	// 		list = append(list, ft.Type().Field(j).Name)
-	// 	}
-	// }
+	// get the type of the third parameter of the FreepsFunction (the parameter struct) and iterate over all fields
+	paramStructType := m.FuncValue.Type().In(2)
+	paramStruct := reflect.New(paramStructType).Elem()
+	for i := 0; i < paramStruct.NumField(); i++ {
+		arg := paramStruct.Field(i)
+		if isSupportedField(arg, true) || isSupportedField(arg, false) {
+			list = append(list, paramStructType.Field(i).Name)
+		}
+	}
 
 	return list
 }
 
 // GetArgSuggestions creates a Freepsfunction by name and returns the suggestions for the argument argName
-func (o *FreepsOperatorWrapper) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
-	// actualFunc, err := o.createFreepsFunction(fn, otherArgs, false)
-	// if err == nil {
-	// 	return actualFunc.GetArgSuggestions(argName)
-	// }
-	return map[string]string{}
+func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName string, otherArgs map[string]string) map[string]string {
+	res := map[string]string{}
+	m := o.getFunctionMetaData(function)
+	if m == nil {
+		return res
+	}
+
+	switch m.FuncType {
+	case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput:
+		return res
+	}
+
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := map[string]string{}
+	for k, v := range otherArgs {
+		lowercaseArgs[utils.StringToLower(k)] = v
+	}
+
+	// get the type of the third parameter of the FreepsFunction (the parameter struct) and create a new instance of it
+	paramStructType := m.FuncValue.Type().In(2)
+	paramStruct := reflect.New(paramStructType)
+	// check if paramStruct implements the FreepsFunctionParameters interface
+	if !paramStruct.Type().Implements(reflect.TypeOf((*FreepsFunctionParameters)(nil)).Elem()) {
+		return res
+	}
+
+	failOnError := false
+
+	//set all required parameters of the FreepsFunction
+	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
+	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
+
+	ps := paramStruct.Interface().(FreepsFunctionParameters)
+	return ps.GetArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
 }
 
 // Shutdown calls the Shutdown method of the FreepsOperator if it exists

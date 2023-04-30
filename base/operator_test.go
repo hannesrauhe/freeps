@@ -1,6 +1,7 @@
 package base
 
 import (
+	"fmt"
 	"path"
 	"testing"
 	"time"
@@ -70,23 +71,42 @@ func (mt *MyTestOperator) AnotherUnusedFunctionWrongArguments(a int, b string) *
 	return MakeOutputError(500, "This function is invalid and should not be called")
 }
 
-func (mf *MyTestFuncParams) GetArgSuggestions(argName string) map[string]string {
+func (mf *MyTestFuncParams) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
+	switch argName {
+	case "param1":
+		return map[string]string{
+			"function":  fn,
+			"param2":    fmt.Sprint(mf.Param2),
+			"optparam4": *mf.OptParam4,
+		}
+	case "param2":
+		return map[string]string{
+			"function": fn,
+			"param1":   mf.Param1,
+		}
+	}
+
 	return map[string]string{}
 }
 
 func TestOpBuilderSuggestions(t *testing.T) {
 	gop := MakeFreepsOperator(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
 	assert.Assert(t, gop != nil, "")
-	assert.Equal(t, gop.GetName(), "mytestoperator")
+	assert.Equal(t, gop.GetName(), "MyTestOperator")
 	fnl := gop.GetFunctions()
 	assert.Equal(t, len(fnl), 4)
-	assert.Assert(t, cmp.Contains(fnl, "myfavoritefunction"))
+	assert.Assert(t, cmp.Contains(fnl, "MyFavoriteFunction"))
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
 	assert.Equal(t, len(fal), 5)
 	assert.Assert(t, cmp.Contains(fal, "Param1"))
 
-	// sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{})
+	sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{"paRam2": "4", "optparam4": "bla"})
+	assert.Equal(t, len(sug), 3)
+	assert.Equal(t, sug["function"], "myfavoritefunction")
+	assert.Equal(t, sug["param2"], "4")
+	assert.Equal(t, sug["optparam4"], "bla")
+
 }
 
 func TestOpBuilderExecute(t *testing.T) {
