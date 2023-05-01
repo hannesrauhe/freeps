@@ -28,6 +28,15 @@ func (v StoreEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(readable)
 }
 
+// GetData returns the data of the entry
+func (v StoreEntry) GetData() *base.OperatorIO { return v.data }
+
+// GetTimestamp returns the timestamp of the entry
+func (v StoreEntry) GetTimestamp() time.Time { return v.timestamp }
+
+// GetModifiedBy returns the modifiedBy of the entry
+func (v StoreEntry) GetModifiedBy() string { return v.modifiedBy }
+
 // StoreNamespace defines all functions to retrieve and modify data in the store
 type StoreNamespace interface {
 	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO

@@ -113,7 +113,7 @@ func GetHexColor(c color.Color) string {
 
 // GetDurationMap returns a map of typical durations for operator argument suggestions
 func GetDurationMap() map[string]string {
-	return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s"}
+	return map[string]string{"1s": "1s", "10s": "10s", "100s": "100s", "1m": "1m", "10m": "10m", "100m": "100m", "1h": "1h"}
 }
 
 // DeleteElemFromSlice swaps i-th and last Element and deletes the last
@@ -138,4 +138,29 @@ func StringToIdentifier(input string) string {
 
 func StringStartsWith(input string, prefix string) bool {
 	return len(input) >= len(prefix) && input[0:len(prefix)] == prefix
+}
+
+// StringToLower converts a string to lower case
+func StringToLower(input string) string {
+	return strings.ToLower(input)
+}
+
+// StringCmpIgnoreCase compares two strings ignoring case
+func StringCmpIgnoreCase(a string, b string) bool {
+	return strings.ToLower(a) == strings.ToLower(b)
+}
+
+// StringToBool converts a string to a bool
+func StringToBool(input string) bool {
+	return ParseBool(input)
+}
+
+// StringToFloat64 converts a string to a float64
+func StringToFloat64(input string) (float64, error) {
+	return strconv.ParseFloat(input, 64)
+}
+
+// StringToInt converts a string to an int
+func StringToInt(input string) (int, error) {
+	return strconv.Atoi(input)
 }

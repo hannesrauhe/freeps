@@ -15,7 +15,7 @@ import (
 type OpMQTT struct {
 }
 
-var _ base.FreepsOperator = &OpMQTT{}
+var _ base.FreepsBaseOperator = &OpMQTT{}
 
 func NewMQTTOp(cr *utils.ConfigReader) *OpMQTT {
 	fmqtt := &OpMQTT{}

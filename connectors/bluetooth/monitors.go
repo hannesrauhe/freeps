@@ -1,4 +1,4 @@
-//go:build !nobluetooth
+//go:build !nobluetooth && linux
 
 package freepsbluetooth
 
@@ -89,7 +89,7 @@ func (fbt *FreepsBluetooth) deleteAllMonitors() {
 func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *bluez.PropertyChanged) {
 	fbt.log.Infof("Monitoring device \"%v\"(\"%v\") for changes", devData.Alias, devData.Address)
 	alias := devData.Alias
-	ns := freepsstore.GetGlobalStore().GetNamespace("_bluetooth_monitors")
+	ns := freepsstore.GetGlobalStore().GetNamespace(fbt.config.MonitorsNamespace)
 	deviceTags := fbt.getDeviceWatchTags(devData)
 
 	debugData := map[string]interface{}{"change": "initial", "devData": devData, "tags": ""}

@@ -16,7 +16,7 @@ import (
 type OpCurl struct {
 }
 
-var _ base.FreepsOperator = &OpCurl{}
+var _ base.FreepsBaseOperator = &OpCurl{}
 
 // GetName returns the name of the operator
 func (o *OpCurl) GetName() string {

@@ -10,7 +10,7 @@ type OpMuteMe struct {
 	mm *MuteMe
 }
 
-var _ base.FreepsOperator = &OpMuteMe{}
+var _ base.FreepsBaseOperator = &OpMuteMe{}
 
 func NewMuteMeOp(mm *MuteMe) *OpMuteMe {
 	fmqtt := &OpMuteMe{mm: mm}

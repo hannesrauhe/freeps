@@ -82,7 +82,7 @@ func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewOneTimeReplyKeyboard(rows...)
 }
 
-func (r *Telegraminator) getCurrentOp(graphName string) (base.FreepsOperator, *freepsgraph.GraphOperationDesc) {
+func (r *Telegraminator) getCurrentOp(graphName string) (base.FreepsBaseOperator, *freepsgraph.GraphOperationDesc) {
 	graph, exists := r.ge.GetGraphDesc(graphName)
 	if !exists {
 		return nil, nil
