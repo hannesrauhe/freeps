@@ -1,6 +1,7 @@
 var adv = true;
 var state = true;
 var zero = Puck.mag();
+console.log(zero);
 
 function blinkRed(time) {
   digitalPulse(LED1, 1, time);
@@ -47,8 +48,11 @@ function advertise() {
   p.x -= zero.x;
   p.y -= zero.y;
   p.z -= zero.z;
-  var magVal = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
 
+  // divide by 200 to get a value between below 0.5 in experiments
+  var magVal = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z)/200;
+
+  // console.log(magVal);
   NRF.setAdvertising({
       0x1809: [Math.round(E.getTemperature())],
       0x180F: [Math.round(Puck.getBatteryPercentage())],
@@ -67,6 +71,7 @@ function disableAdvertising() {
 }
 
 function toggleState() {
+  zero = Puck.mag();
   state = !state;
   // advertise right away
   advertise();
@@ -79,7 +84,7 @@ function toggleAdvertise() {
   }
 }
 
-setInterval(advertise, 10 * 60 * 1000);
+setInterval(advertise, 2 * 60 * 1000);
 
 setWatch(function () {
   setTimeout(function () {
