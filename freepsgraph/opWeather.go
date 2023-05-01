@@ -38,7 +38,7 @@ func NewWeatherOp(cr *utils.ConfigReader) *OpWeather {
 	return &OpWeather{cr: cr, conf: conf}
 }
 
-var _ base.FreepsOperator = OpWeather{}
+var _ base.FreepsBaseOperator = OpWeather{}
 
 // GetName returns the name of the operator
 func (o OpWeather) GetName() string {

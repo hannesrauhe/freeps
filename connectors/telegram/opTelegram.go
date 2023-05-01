@@ -16,7 +16,7 @@ type OpTelegram struct {
 	tgc *TelegramConfig
 }
 
-var _ base.FreepsOperator = &OpTelegram{}
+var _ base.FreepsBaseOperator = &OpTelegram{}
 
 // GetName returns the name of the operator
 func (o *OpTelegram) GetName() string {

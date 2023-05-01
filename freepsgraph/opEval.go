@@ -25,7 +25,7 @@ type OpEval struct {
 	lastMessage MessageAndTime
 }
 
-var _ base.FreepsOperator = &OpEval{}
+var _ base.FreepsBaseOperator = &OpEval{}
 
 type EvalArgs struct {
 	ValueName string

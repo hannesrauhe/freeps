@@ -16,7 +16,7 @@ type OpStore struct {
 	cr *utils.ConfigReader
 }
 
-var _ base.FreepsOperator = &OpStore{}
+var _ base.FreepsBaseOperator = &OpStore{}
 
 // NewOpStore creates a new store operator and re-initializes the store
 func NewOpStore(cr *utils.ConfigReader) *OpStore {

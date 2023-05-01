@@ -15,7 +15,7 @@ type OpFlux struct {
 	ffc *FreepsFluxConfig
 }
 
-var _ base.FreepsOperator = &OpFlux{}
+var _ base.FreepsBaseOperator = &OpFlux{}
 
 func NewFluxMod(cr *utils.ConfigReader) *OpFlux {
 	ffc := &DefaultConfig

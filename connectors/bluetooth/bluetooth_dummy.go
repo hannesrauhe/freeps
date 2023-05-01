@@ -1,9 +1,11 @@
-//go:build nobluetooth
+//go:build nobluetooth || windows
 
 package freepsbluetooth
 
 import (
 	"fmt"
+
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 
@@ -31,4 +33,17 @@ func (fbt *FreepsBluetooth) Shutdown() {
 // NewBTWatcher acts as a dummy
 func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsBluetooth, error) {
 	return nil, fmt.Errorf("Bluetooth support not available")
+}
+
+type Bluetooth struct {
+}
+
+var _ base.FreepsOperatorWithConfig = &Bluetooth{}
+
+func (bt *Bluetooth) Init(ctx *base.Context) error {
+	return nil
+}
+
+func (bt *Bluetooth) GetConfig() interface{} {
+	return &BluetoothConfig{Enabled: false}
 }

@@ -15,8 +15,8 @@ type OpGraphByTag struct {
 	ge *GraphEngine
 }
 
-var _ base.FreepsOperator = &OpGraph{}
-var _ base.FreepsOperator = &OpGraphByTag{}
+var _ base.FreepsBaseOperator = &OpGraph{}
+var _ base.FreepsBaseOperator = &OpGraphByTag{}
 
 func (o *OpGraph) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
