@@ -17,9 +17,9 @@ type Bluetooth struct {
 }
 
 // GetConfig returns the config for the bluetooth operator
-func (*Bluetooth) GetConfig() interface{} {
-	config := defaultBluetoothConfig
-	return &config
+func (bt *Bluetooth) GetConfig() interface{} {
+	bt.config = defaultBluetoothConfig
+	return &bt.config
 }
 
 // Init initializes the bluetooth operator
@@ -31,15 +31,15 @@ var _ base.FreepsOperatorWithConfig = &Bluetooth{}
 
 // GetPresentDevicesParams are the parameters for the GetPresentDevices Function
 type GetPresentDevicesParams struct {
-	MaximumAge *time.Duration
+	MaxAge *time.Duration
 }
 
 // GetPresentDevices is the function that returns the present devices
 func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO, gpd GetPresentDevicesParams) *base.OperatorIO {
 	store := freepsstore.GetGlobalStore()
 	maxAge := time.Duration(math.MaxInt64)
-	if gpd.MaximumAge != nil {
-		maxAge = *gpd.MaximumAge
+	if gpd.MaxAge != nil {
+		maxAge = *gpd.MaxAge
 	}
 
 	res := store.GetNamespace(bt.config.DiscoveredNamespace).GetSearchResultWithMetadata("", "", "", 0, maxAge)
@@ -58,9 +58,15 @@ func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO
 	return base.MakeObjectOutput(res)
 }
 
+// RestartDiscovery triggers the Discovery process immediately
+func (bt *Bluetooth) RestartDiscovery(ctx *base.Context) *base.OperatorIO {
+	btwatcher.StopDiscovery(true)
+	return base.MakeEmptyOutput()
+}
+
 // GetArgSuggestions returns common durations for the maximumage parameter
 func (gpd *GetPresentDevicesParams) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
-	if argName == "maximumage" {
+	if argName == "max" {
 		return utils.GetDurationMap()
 	}
 	return map[string]string{}

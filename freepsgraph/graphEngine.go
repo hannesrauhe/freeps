@@ -318,7 +318,7 @@ func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	if op != nil {
-		ge.operators[op.GetName()] = op
+		ge.operators[utils.StringToLower(op.GetName())] = op
 	}
 }
 
@@ -326,7 +326,7 @@ func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
 func (ge *GraphEngine) HasOperator(opName string) bool {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
-	_, exists := ge.operators[opName]
+	_, exists := ge.operators[utils.StringToLower(opName)]
 	return exists
 }
 
@@ -335,8 +335,8 @@ func (ge *GraphEngine) GetOperators() []string {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	r := make([]string, 0, len(ge.operators))
-	for n := range ge.operators {
-		r = append(r, n)
+	for _, op := range ge.operators {
+		r = append(r, op.GetName())
 	}
 	return r
 }
@@ -345,7 +345,7 @@ func (ge *GraphEngine) GetOperators() []string {
 func (ge *GraphEngine) GetOperator(opName string) base.FreepsBaseOperator {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
-	op, exists := ge.operators[opName]
+	op, exists := ge.operators[utils.StringToLower(opName)]
 	if !exists {
 		return nil
 	}
