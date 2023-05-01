@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 )
@@ -72,17 +71,6 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 			return base.MakeOutputError(http.StatusNotFound, "No graphs with tags %v", strings.Join(tags, ","))
 		}
 		return base.MakeObjectOutput(gim)
-	case "getCollectedErrors":
-		var err error
-		duration := time.Hour
-		if d, ok := args["duration"]; ok {
-			duration, err = time.ParseDuration(d)
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, "Invalid duration %v", d)
-			}
-		}
-		r := map[string]interface{}{"errors": o.ge.executionErrors.GetErrorsSince(duration)}
-		return base.MakeObjectOutput(r)
 
 	case "contextToDot":
 		var iCtx base.ContextNoTime
@@ -160,15 +148,6 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 		case "tag":
 			tags := o.ge.GetTags()
 			return tags
-		}
-	case "getCollectedErrors":
-		switch arg {
-		case "duration":
-			return map[string]string{
-				"5m":  "5m",
-				"10m": "10m",
-				"1h":  "1h",
-			}
 		}
 	}
 	return map[string]string{}

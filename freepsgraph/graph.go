@@ -109,9 +109,9 @@ func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput
 	return g.opOutputs[g.desc.OutputFrom]
 }
 
-func (g *Graph) collectAndReturnOperationError(input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
+func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
 	error := base.MakeOutputError(code, msg, a...)
-	g.engine.executionErrors.AddError(input, error, g.name, opDesc)
+	g.engine.TriggerOnExecutionErrorHooks(ctx, input, error, g.name, opDesc)
 	return error
 }
 
@@ -154,7 +154,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	if finalOpDesc.ArgumentsFrom != "" {
 		outputToBeArgs, exists := g.opOutputs[finalOpDesc.ArgumentsFrom]
 		if !exists {
-			return g.collectAndReturnOperationError(input, finalOpDesc, 404, "Output of \"%s\" cannot be used as arguments, because there is no such output", finalOpDesc.ArgumentsFrom)
+			return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "Output of \"%s\" cannot be used as arguments, because there is no such output", finalOpDesc.ArgumentsFrom)
 		}
 		if outputToBeArgs.IsError() {
 			// reduce logging of eval-related "errors"
@@ -165,7 +165,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 		}
 		collectedArgs, err := outputToBeArgs.GetArgsMap()
 		if err != nil {
-			return g.collectAndReturnOperationError(input, finalOpDesc, 500, "Output of \"%s\" cannot be used as arguments: %v", finalOpDesc.ArgumentsFrom, err)
+			return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 500, "Output of \"%s\" cannot be used as arguments: %v", finalOpDesc.ArgumentsFrom, err)
 		}
 		for k, v := range collectedArgs {
 			finalOpDesc.Arguments[k] = v
@@ -178,12 +178,12 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 		opI := ctx.RecordOperationStart(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
-			g.engine.executionErrors.AddError(input, output, g.name, finalOpDesc)
+			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.name, finalOpDesc)
 		}
 		ctx.RecordOperationFinish(opI, output.HTTPCode)
 		return output
 	}
-	return g.collectAndReturnOperationError(input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
+	return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
 }
 
 // ToQuicklink returns the URL to call a standalone-operation outside of a Graph
