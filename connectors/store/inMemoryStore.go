@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type inMemoryStoreNamespace struct {
@@ -172,15 +173,43 @@ func (s *inMemoryStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	tnow := time.Now()
-	keys := []string{}
+	deleteKeys := []string{}
 	for k, md := range s.entries {
 		ts := md.timestamp
 		if ts.Add(maxAge).Before(tnow) {
-			keys = append(keys, k)
+			deleteKeys = append(deleteKeys, k)
 		}
 	}
-	for _, k := range keys {
+	for _, k := range deleteKeys {
 		s.deleteValueUnlocked(k)
 	}
-	return len(keys)
+	return len(deleteKeys)
+}
+
+// DeleteOlderThanMaxSize deletes all but the top k records sorted by timestamp
+func (s *inMemoryStoreNamespace) DeleteOlderThanMaxSize(k int) int {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+
+	if k >= len(s.entries) {
+		return 0
+	}
+
+	// create an array of size k to store the top timestamps
+	topK := utils.NewTopKList(k)
+	deleteKeys := make([]string, 0, len(s.entries)-k)
+	// iterate through the map and use insertion sort to find the top k timestamps
+	for key, md := range s.entries {
+		ts := md.timestamp
+		cand := topK.Add(key, ts)
+		if cand != nil {
+			deleteKeys = append(deleteKeys, *cand)
+		}
+	}
+
+	// delete all keys that are not in the top k
+	for _, key := range deleteKeys {
+		s.deleteValueUnlocked(key)
+	}
+	return len(deleteKeys)
 }
