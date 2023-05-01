@@ -29,7 +29,6 @@ type GraphEngine struct {
 	temporaryGraphs map[string]*GraphInfo
 	operators       map[string]base.FreepsBaseOperator
 	hooks           map[string]FreepsHook
-	executionErrors *CollectedErrors
 	reloadRequested bool
 	graphLock       sync.Mutex
 	operatorLock    sync.Mutex
@@ -38,7 +37,7 @@ type GraphEngine struct {
 
 // NewGraphEngine creates the graph engine from the config
 func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
-	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]*GraphInfo), temporaryGraphs: make(map[string]*GraphInfo), executionErrors: NewCollectedErrors(100), reloadRequested: false}
+	ge := &GraphEngine{cr: cr, externalGraphs: make(map[string]*GraphInfo), temporaryGraphs: make(map[string]*GraphInfo), reloadRequested: false}
 
 	ge.operators = make(map[string]base.FreepsBaseOperator)
 	ge.operators["graph"] = &OpGraph{ge: ge}
@@ -387,6 +386,22 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 		err := h.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
 			ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
+		}
+	}
+}
+
+// TriggerOnExecutionErrorHooks executes hooks when Execution of a graph fails
+func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) {
+	ge.hookLock.Lock()
+	defer ge.hookLock.Unlock()
+
+	for name, h := range ge.hooks {
+		if h == nil {
+			continue
+		}
+		err := h.OnExecutionError(ctx, input, err, graphName, od)
+		if err != nil {
+			ctx.GetLogger().Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }

@@ -9,7 +9,8 @@ import (
 )
 
 type HookStore struct {
-	storeNs StoreNamespace
+	storeNs  StoreNamespace
+	errorLog *CollectedErrors
 }
 
 var _ freepsgraph.FreepsHook = &HookStore{}
@@ -19,7 +20,7 @@ func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
 	if store.namespaces == nil || store.config == nil {
 		return nil, fmt.Errorf("Store was not properly initialized")
 	}
-	return &HookStore{store.GetNamespace(store.config.ExecutionLogName)}, nil
+	return &HookStore{storeNs: store.GetNamespace(store.config.ExecutionLogName), errorLog: NewCollectedErrors(store.config)}, nil
 }
 
 // GetName returns the name of the hook
@@ -30,6 +31,11 @@ func (h *HookStore) GetName() string {
 // OnExecute gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	return nil
+}
+
+// OnExecutionError gets called when freepsgraph encounters an error while executing a Graph
+func (h *HookStore) OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *freepsgraph.GraphOperationDesc) error {
+	return h.errorLog.AddError(input, err, ctx, graphName, od)
 }
 
 // OnExecutionFinished gets called when freepsgraph is finished executing a Graph

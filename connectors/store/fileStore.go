@@ -139,6 +139,11 @@ func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *base.Operator
 	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
+// Len returns the number of keys in the namespace
+func (p *fileStoreNamespace) Len() int {
+	return len(p.GetKeys())
+}
+
 func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) error {
 	path, err := p.getFilePath(key)
 	if err != nil {

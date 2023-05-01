@@ -273,3 +273,13 @@ func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 	}
 	return nil
 }
+
+// Len returns the number of entries in the namespace
+func (p *postgresStoreNamespace) Len() int {
+	var count int
+	err := db.QueryRow("select count(*) from " + p.schema + "." + p.name).Scan(&count)
+	if err != nil {
+		return -1
+	}
+	return count
+}

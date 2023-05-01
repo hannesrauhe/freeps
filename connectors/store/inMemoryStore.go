@@ -105,6 +105,13 @@ func (s *inMemoryStoreNamespace) GetKeys() []string {
 	return keys
 }
 
+// Len returns the number of entries in the StoreNamespace
+func (s *inMemoryStoreNamespace) Len() int {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	return len(s.entries)
+}
+
 // GetAllValues from the StoreNamespace
 func (s *inMemoryStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
 	s.nsLock.Lock()

@@ -68,3 +68,7 @@ func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.Oper
 func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) error {
 	panic("postgres support not compiled, method should not be called")
 }
+
+func (p *postgresStoreNamespace) Len() int {
+	panic("postgres support not compiled, method should not be called")
+}
