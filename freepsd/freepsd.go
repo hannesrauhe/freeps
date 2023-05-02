@@ -16,6 +16,7 @@ import (
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
+	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
@@ -23,7 +24,6 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/ui"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/freepslisten"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -133,7 +133,7 @@ func mainLoop() bool {
 	}
 
 	logger.Infof("Starting Listeners")
-	http := freepslisten.NewFreepsHttp(cr, ge)
+	http := freepshttp.NewFreepsHttp(cr, ge)
 	m := mqtt.GetInstance()
 	if err := m.Init(logger, cr, ge); err != nil {
 		logger.Errorf("MQTT not started: %v", err)
