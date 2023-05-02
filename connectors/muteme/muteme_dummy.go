@@ -4,13 +4,20 @@ package muteme
 
 import (
 	"fmt"
-
-	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
-	logrus "github.com/sirupsen/logrus"
+	"github.com/hannesrauhe/freeps/base"
 )
 
+type MuteMeConfig struct {
+	Enabled bool // if false, the muteme button will be ignored
+}
+
+var DefaultConfig = MuteMeConfig{
+	Enabled: false,
+}
+
 type MuteMeImpl struct{}
+
+var impl *MuteMeImpl
 
 func (m *MuteMeImpl) SetColor(color string) error {
 	return fmt.Errorf("Not compiled")
@@ -23,9 +30,9 @@ func (m *MuteMeImpl) GetColor() string {
 func (m *MuteMeImpl) Shutdown() {
 }
 
-func (m *MuteMeImpl) mainloop() {
+func (m *MuteMeImpl) mainloop(interface{}) {
 }
 
-func newMuteMe(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*MuteMeImpl, error) {
+func newMuteMe(ctx *base.Context, mmc *MuteMeConfig) (*MuteMeImpl, error) {
 	return nil, fmt.Errorf("Not compiled")
 }

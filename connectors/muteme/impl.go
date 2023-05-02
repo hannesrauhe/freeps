@@ -10,47 +10,19 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
 	logrus "github.com/sirupsen/logrus"
 	"github.com/sstallion/go-hid"
 )
 
 type MuteMeImpl struct {
 	dev          *hid.Device
-	ge           *freepsgraph.GraphEngine
 	currentColor atomic.Value
 	cmd          chan string
 	config       *MuteMeConfig
 	logger       logrus.FieldLogger
 }
 
-type MuteMeConfig struct {
-	MultiTouchDuration time.Duration // if touched multiple times within that duration, a separate graph will be called with the TouchCount
-	LongTouchDuration  time.Duration // if touched once longer that than this, a separate graph will be called with the TouchDuration
-	VendorID           uint16        // USB Vendor ID
-	ProductID          uint16        // USB Product ID
-	Tag                string        // tag that all graphs must have to be called
-	TouchTag           string        // graphs with this tag will be called on a short single touch
-	MultiTouchTag      string        // graphs with this tag will be called when button was touched multiple times within MultiTouchDuration
-	LongTouchTag       string        // graphs with this tag will be called on a long single touch
-	ProcessColor       string        // color to set while graphs are executed (if button is already in that color, turn light off instead)
-	SuccessColor       string        // color to indicate successful graph execution
-	ErrorColor         string        // colot to indicate error during graph execution
-}
-
-var DefaultConfig = MuteMeConfig{
-	MultiTouchDuration: time.Second,
-	LongTouchDuration:  3 * time.Second,
-	VendorID:           0x20a0,
-	ProductID:          0x42da,
-	Tag:                "muteme",
-	TouchTag:           "Touch",
-	MultiTouchTag:      "MultiTouch",
-	LongTouchTag:       "LongTouch",
-	ProcessColor:       "purple",
-	SuccessColor:       "green",
-	ErrorColor:         "red",
-}
+var impl *MuteMeImpl
 
 func (m *MuteMeImpl) setColor(color string) error {
 	b := make([]byte, 2)
@@ -74,7 +46,7 @@ func (m *MuteMeImpl) setColor(color string) error {
 	return err
 }
 
-func (m *MuteMeImpl) mainloop() {
+func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 	bin := make([]byte, 8)
 	tpress1 := time.Now()
 	tpress2 := time.Now()
@@ -133,7 +105,7 @@ func (m *MuteMeImpl) mainloop() {
 				}
 				args["TouchDuration"] = lastTouchDuration.String()
 			}
-			resultIO := m.ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
+			resultIO := ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
 			ignoreUntil = time.Now().Add(time.Second)
 			m.logger.Debugf("Muteme touched, result: %v", resultIO)
 			resultIndicatorColor := m.config.SuccessColor
@@ -211,17 +183,7 @@ func (m *MuteMeImpl) GetColor() string {
 	return m.currentColor.Load().(string)
 }
 
-func newMuteMe(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*MuteMeImpl, error) {
-	mmc := DefaultConfig
-	err := cr.ReadSectionWithDefaults("muteme", &mmc)
-	if err != nil {
-		return nil, err
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		logrus.Print(err)
-	}
-
+func newMuteMe(ctx *base.Context, mmc *MuteMeConfig) (*MuteMeImpl, error) {
 	// Initialize the hid package.
 	if err := hid.Init(); err != nil {
 		return nil, err
@@ -233,7 +195,7 @@ func newMuteMe(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgrap
 		return nil, err
 	}
 
-	m := &MuteMeImpl{dev: d, cmd: make(chan string, 3), config: &mmc, logger: logrus.StandardLogger(), ge: ge}
+	m := &MuteMeImpl{dev: d, cmd: make(chan string, 3), config: mmc, logger: ctx.GetLogger()}
 	m.currentColor.Store("off")
 
 	return m, nil

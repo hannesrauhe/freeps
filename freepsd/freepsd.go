@@ -54,6 +54,12 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 }
 
 func mainLoop() bool {
+	// keep this here so the operators are re-created on reload
+	availableOperators := []base.FreepsOperator{
+		&freepsbluetooth.Bluetooth{},
+		&muteme.MuteMe{},
+	}
+
 	logger := logrus.StandardLogger()
 	if verbose {
 		logger.SetLevel(logrus.DebugLevel)
@@ -79,23 +85,17 @@ func mainLoop() bool {
 	defer cancel()
 
 	ge := freepsgraph.NewGraphEngine(cr, cancel)
-
-	mm, err := muteme.NewMuteMe(logger, cr, ge)
-	if err != nil {
-		logger.Errorf("MuteMe not started: %v", err)
-	} else {
-		ge.AddOperator(muteme.NewMuteMeOp(mm))
-	}
-
-	//TODO(HR): load operators from config?
 	ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
+	for _, op := range availableOperators {
+		// this will automatically skip operators that are not enabled in the config
+		ge.AddOperator(base.MakeFreepsOperator(op, cr, initCtx))
+	}
 	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(telegram.NewTelegramOp(cr))
 	ge.AddOperator(freepsflux.NewFluxMod(cr))
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	ge.AddOperator(fritz.NewOpFritz(cr))
-	ge.AddOperator(base.MakeFreepsOperator(&freepsbluetooth.Bluetooth{}, cr, initCtx))
 	freepsexec.AddExecOperators(cr, ge)
 
 	sh, err := freepsstore.NewStoreHook(cr)
@@ -133,6 +133,11 @@ func mainLoop() bool {
 	}
 
 	logger.Infof("Starting Listeners")
+	mm, err := muteme.NewMuteMe()
+	if err != nil {
+		logger.Errorf("MuteMe not started: %v", err)
+	}
+
 	http := freepshttp.NewFreepsHttp(cr, ge)
 	m := mqtt.GetInstance()
 	if err := m.Init(logger, cr, ge); err != nil {
@@ -148,7 +153,7 @@ func mainLoop() bool {
 		ge.AddHook(&freepsbluetooth.HookBluetooth{})
 	}
 	telg := telegram.NewTelegramBot(cr, ge, cancel)
-	mm.StartListening()
+	mm.StartListening(ge)
 
 	select {
 	case <-ctx.Done():

@@ -18,7 +18,7 @@ type FreepsOperator interface {
 // FreepsOperatorWithConfig adds the GetConfig() method to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
-	// GetConfig returns the config struct of the operator that is filled wiht the values from the config file
+	// GetConfig returns the config struct of the operator that is filled with the values from the config file
 	GetConfig() interface{}
 	// Init is called after the config is read and the operator is created
 	Init(ctx *Context) error
