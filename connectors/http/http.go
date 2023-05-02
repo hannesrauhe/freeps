@@ -1,4 +1,4 @@
-package freepslisten
+package freepshttp
 
 import (
 	"context"
