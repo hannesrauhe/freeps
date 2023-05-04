@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/sirupsen/logrus"
 )
 
 // FreepsOperator is the interface structs need to implement so FreepsOperatorWrapper can create a FreepsOperator from them
@@ -80,12 +79,15 @@ func MakeFreepsOperator(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *Co
 	op := &FreepsOperatorWrapper{opInstance: anyClass}
 	enabled, err := op.initIfEnabled(cr, ctx)
 	if err != nil {
-		logrus.Errorf("Initializing operator \"%v\" failed: %v", op.GetName(), err)
+		ctx.GetLogger().Errorf("Initializing operator \"%v\" failed: %v", op.GetName(), err)
 		return nil
 	}
 	if !enabled {
+		ctx.GetLogger().Debugf("Operator \"%v\" disabled", op.GetName())
 		return nil
 	}
+
+	ctx.GetLogger().Debugf("Operator \"%v\" initialized", op.GetName())
 	return op
 }
 
@@ -213,7 +215,7 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) map[string]Freep
 	for i := 0; i < t.NumMethod(); i++ {
 		ffType, err := getFreepsFunctionType(t.Method(i).Type)
 		if err != nil {
-			ctx.logger.Debug("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", t.Method(i).Name, o.GetName(), err)
+			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", t.Method(i).Name, o.GetName(), err)
 			continue
 		}
 		funcMap[utils.StringToLower(t.Method(i).Name)] = FreepsFunctionMetaData{Name: t.Method(i).Name, FuncValue: v.Method(i), FuncType: ffType}
