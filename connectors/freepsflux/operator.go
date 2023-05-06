@@ -132,7 +132,7 @@ func (o *OperatorFlux) PushSingleField(ctx *base.Context, input *base.OperatorIO
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
-	return base.MakePlainOutput("Pushed to influx: %v", args, fields)
+	return base.MakePlainOutput("Pushed to influx: %v %v", args, fields)
 }
 
 func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO, args PushArguments, tags map[string]string) *base.OperatorIO {
@@ -152,5 +152,5 @@ func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
-	return base.MakePlainOutput("Pushed to influx: %v %v %v", args, fields)
+	return base.MakePlainOutput("Pushed to influx: %v %v", args, fields)
 }
