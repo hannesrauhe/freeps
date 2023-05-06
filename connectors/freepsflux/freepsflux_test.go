@@ -1,3 +1,5 @@
+//go:build !noinflux
+
 package freepsflux
 
 import (
