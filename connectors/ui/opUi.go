@@ -12,11 +12,9 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
@@ -136,57 +134,13 @@ func (o *OpUI) getFileBytes(templateBaseName string, logger *log.Entry) ([]byte,
 	return embeddedFiles.ReadFile(path)
 }
 
-func (o *OpUI) createTemplateFuncMap() template.FuncMap {
-	funcMap := template.FuncMap{
-		"add": func(a int, b int) int {
-			return a + b
-		},
-		"divisibleBy": func(a int, b int) bool {
-			return a != 0 && a%b == 0
-		},
-		"store_GetNamespaces": func() []string {
-			return freepsstore.GetGlobalStore().GetNamespaces()
-		},
-		"store_GetKeys": func(namespace string) []string {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
-			if ns == nil {
-				return nil
-			}
-			return ns.GetKeys()
-		},
-		"store_GetAll": func(namespace string) map[string]*base.OperatorIO {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
-			if ns == nil {
-				return nil
-			}
-			return ns.GetAllValues(100)
-		},
-		"store_Get": func(namespace string, key string) interface{} {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
-			if ns == nil {
-				return nil
-			}
-			v := ns.GetValue(key)
-			if v == nil {
-				return nil
-			}
-			return v.Output
-		},
-		"graph_GetGraphInfoByTag": func(tagstr string) map[string]freepsgraph.GraphInfo {
-			tags := strings.Split(tagstr, ",")
-			return o.ge.GetGraphInfoByTag(tags)
-		},
-	}
-	return funcMap
-}
-
 func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*template.Template, error) {
 	isCustom, path := o.isCustomTemplate(templateBaseName)
 	if isCustom {
 		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
 		return template.ParseFiles(path)
 	}
-	return template.New(templateBaseName).Funcs(o.createTemplateFuncMap()).ParseFS(embeddedFiles, path)
+	return template.New(templateBaseName).Funcs(o.createTemplateFuncMap(base.NewContext(logger))).ParseFS(embeddedFiles, path)
 }
 
 func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *base.OperatorIO {

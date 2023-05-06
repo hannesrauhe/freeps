@@ -35,8 +35,8 @@
 
 <table>
     <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>
-{{ range $key, $entry := .input.storeHierarchy }}
-<tr><td><a href="/store/del?namespace={{$.namespace}}&key={{$key}}" class="button" target="_blank">x</a></td><td>{{$key}}</td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
+{{ range $key, $entry := .input }}
+<tr><td><a href="/store/del?namespace={{$.arguments.namespace}}&key={{$key}}" class="button" target="_blank">x</a></td><td>{{$key}}</td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
     <td><a href="/graph/executionLog?key={{$entry.ModifiedBy}}&maxAge=&minAge=">{{$entry.ModifiedBy}}</a></td></tr>
 {{ end }}
 </table>
