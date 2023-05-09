@@ -60,6 +60,7 @@ func mainLoop() bool {
 		&muteme.MuteMe{},
 		&freepsgraph.OpUtils{},
 		&freepsgraph.OpRegexp{},
+		&freepsgraph.OpCurl{},
 	}
 
 	logger := logrus.StandardLogger()
