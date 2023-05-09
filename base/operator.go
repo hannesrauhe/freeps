@@ -353,7 +353,14 @@ func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsfunc r
 // GetName returns the name of the struct opClass
 func (o *FreepsOperatorWrapper) GetName() string {
 	t := reflect.TypeOf(o.opInstance)
-	return t.Elem().Name()
+	fullName := t.Elem().Name()
+	if utils.StringStartsWith(fullName, "Operator") {
+		return fullName[8:]
+	}
+	if utils.StringStartsWith(fullName, "Op") {
+		return fullName[2:]
+	}
+	return fullName
 }
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
