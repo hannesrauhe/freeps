@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,6 +32,15 @@ func URLArgsToJSON(args map[string][]string) []byte {
 	retMap := URLArgsToMap(args)
 	byt, _ := json.Marshal(retMap)
 	return byt
+}
+
+// URLParseQuery parses a query string and returns a map of the values
+func URLParseQuery(query string) (map[string]string, error) {
+	v, err := url.ParseQuery(query)
+	if err != nil {
+		return nil, err
+	}
+	return URLArgsToMap(v), nil
 }
 
 // ReadObjectFromURL decodes a JSON object from an http stream

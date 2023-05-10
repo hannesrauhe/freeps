@@ -58,6 +58,8 @@ func mainLoop() bool {
 	availableOperators := []base.FreepsOperator{
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
+		&freepsgraph.OpUtils{},
+		&freepsgraph.OpRegexp{},
 	}
 
 	logger := logrus.StandardLogger()

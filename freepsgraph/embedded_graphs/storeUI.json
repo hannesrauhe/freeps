@@ -4,7 +4,7 @@
     "ui",
     "footer"
   ],
-  "OutputFrom": "#2",
+  "OutputFrom": "#1",
   "Operations": [
     {
       "Operator": "store",
@@ -14,18 +14,9 @@
       }
     },
     {
-      "Operator": "eval",
-      "Function": "echoArguments",
-      "Arguments": {
-        "namespace": "default",
-        "inputKey": "storeHierarchy"
-      },
-      "InputFrom": "#0"
-    },
-    {
       "Operator": "ui",
       "Function": "store.html",
-      "InputFrom": "#1",
+      "InputFrom": "#0",
       "Arguments": {
         "namespace": "default"
       }
