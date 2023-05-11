@@ -33,6 +33,10 @@ type SetColorArgs struct {
 
 var _ base.FreepsFunctionParameters = &SetColorArgs{}
 
+// InitOptionalParameters does nothing beccause there are no optional arguments
+func (mma *SetColorArgs) InitOptionalParameters(fn string) {
+}
+
 // GetArgSuggestions returns suggestions for the color
 func (mma *SetColorArgs) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {

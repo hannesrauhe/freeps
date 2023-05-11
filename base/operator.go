@@ -31,6 +31,9 @@ type FreepsOperatorWithShutdown interface {
 
 // FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
 type FreepsFunctionParameters interface {
+	// InitOptionalParameters initializes the optional (pointer) arguments of the parameters struct with default values
+	InitOptionalParameters(fn string)
+
 	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
 	GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string
 }
@@ -207,6 +210,20 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 	return FreepsFunctionTypeUnknown, fmt.Errorf("Function \"%v\" has an invalid signature", funcSignature)
 }
 
+// getInitializedParamStruct returns the struct that is the third parameter of the function,
+// if the struct implements the FreepsFunctionParameters interface, InitOptionalParameters is called and the struct is returned
+func getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
+	paramStruct := f.In(2)
+
+	paramStructInstance := reflect.New(paramStruct)
+	if !paramStructInstance.Type().Implements(reflect.TypeOf((*FreepsFunctionParameters)(nil)).Elem()) {
+		return paramStructInstance, nil
+	}
+	ps := paramStructInstance.Interface().(FreepsFunctionParameters)
+	ps.InitOptionalParameters(f.Name())
+	return paramStructInstance, ps
+}
+
 // createFunctionMap creates a map of all exported functions of the struct that return a struct that implements FreepsFunction
 func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) map[string]FreepsFunctionMetaData {
 	funcMap := make(map[string]FreepsFunctionMetaData)
@@ -217,6 +234,13 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) map[string]Freep
 		if err != nil {
 			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", t.Method(i).Name, o.GetName(), err)
 			continue
+		}
+		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
+		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
+			paramStruct, ps := getInitializedParamStruct(t.Method(i).Type)
+			if ps == nil && paramStruct.NumMethod() > 0 {
+				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", t.Method(i).Name, o.GetName())
+			}
 		}
 		funcMap[utils.StringToLower(t.Method(i).Name)] = FreepsFunctionMetaData{Name: t.Method(i).Name, FuncValue: v.Method(i), FuncType: ffType}
 	}
@@ -365,21 +389,21 @@ func (o *FreepsOperatorWrapper) GetName() string {
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
-	m := o.getFunctionMetaData(function)
-	if m == nil {
+	ffm := o.getFunctionMetaData(function)
+	if ffm == nil {
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
 	}
 
 	// execute function immediately if the FreepsFunctionType indicates it needs no arguments
-	switch m.FuncType {
+	switch ffm.FuncType {
 	case FreepsFunctionTypeSimple:
-		outValue := m.FuncValue.Call([]reflect.Value{})
+		outValue := ffm.FuncValue.Call([]reflect.Value{})
 		return outValue[0].Interface().(*OperatorIO)
 	case FreepsFunctionTypeContextOnly:
-		outValue := m.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx)})
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx)})
 		return outValue[0].Interface().(*OperatorIO)
 	case FreepsFunctionTypeContextAndInput:
-		outValue := m.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput)})
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput)})
 		return outValue[0].Interface().(*OperatorIO)
 	}
 
@@ -389,9 +413,8 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 		lowercaseArgs[utils.StringToLower(k)] = v
 	}
 
-	// get the type of the third parameter of the FreepsFunction (the parameter struct) and create a new instance of it
-	paramStructType := m.FuncValue.Type().In(2)
-	paramStruct := reflect.New(paramStructType)
+	// create an initialized instance of the parameter struct
+	paramStruct, _ := getInitializedParamStruct(ffm.FuncValue.Type())
 
 	failOnError := true
 
@@ -405,12 +428,12 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 		return err
 	}
 
-	if m.FuncType == FreepsFunctionTypeWithArguments {
-		outValue := m.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem()})
+	if ffm.FuncType == FreepsFunctionTypeWithArguments {
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem()})
 		return outValue[0].Interface().(*OperatorIO)
 	}
-	if m.FuncType == FreepsFunctionTypeFullSignature {
-		outValue := m.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(lowercaseArgs)})
+	if ffm.FuncType == FreepsFunctionTypeFullSignature {
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(lowercaseArgs)})
 		return outValue[0].Interface().(*OperatorIO)
 	}
 
@@ -455,12 +478,12 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 // GetArgSuggestions creates a Freepsfunction by name and returns the suggestions for the argument argName
 func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName string, otherArgs map[string]string) map[string]string {
 	res := map[string]string{}
-	m := o.getFunctionMetaData(function)
-	if m == nil {
+	ffm := o.getFunctionMetaData(function)
+	if ffm == nil {
 		return res
 	}
 
-	switch m.FuncType {
+	switch ffm.FuncType {
 	case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput:
 		return res
 	}
@@ -471,11 +494,10 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		lowercaseArgs[utils.StringToLower(k)] = v
 	}
 
-	// get the type of the third parameter of the FreepsFunction (the parameter struct) and create a new instance of it
-	paramStructType := m.FuncValue.Type().In(2)
-	paramStruct := reflect.New(paramStructType)
-	// check if paramStruct implements the FreepsFunctionParameters interface
-	if !paramStruct.Type().Implements(reflect.TypeOf((*FreepsFunctionParameters)(nil)).Elem()) {
+	// create an initialized instance of the parameter struct
+	paramStruct, ps := getInitializedParamStruct(ffm.FuncValue.Type())
+	if ps == nil {
+		// no arg suggestions if the parameter struct does not implement the FreepsFunctionParameters interface
 		return res
 	}
 
@@ -485,7 +507,6 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 
-	ps := paramStruct.Interface().(FreepsFunctionParameters)
 	return ps.GetArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
 }
 
