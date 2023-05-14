@@ -4,159 +4,244 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"image/jpeg"
 	"image/png"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/sirupsen/logrus"
 )
 
+// OpWLED is the operator for the WLED connector
 type OpWLED struct {
-	cr     *utils.ConfigReader
-	config *OpConfig
+	config       OpConfig
+	defaultColor color.Color
 }
 
-var _ base.FreepsBaseOperator = &OpWLED{}
+var _ base.FreepsOperatorWithConfig = &OpWLED{}
 
-// GetName returns the name of the operator
-func (o *OpWLED) GetName() string {
-	return "wled"
+// GetConfig returns the default config for the WLED connector
+func (o *OpWLED) GetConfig() interface{} {
+	o.config = DefaultConfig
+	return &o.config
 }
 
-func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+// Init initializes the WLED connector
+func (o *OpWLED) Init(ctx *base.Context) error {
+	o.defaultColor = image.White
 	activeConnection := o.config.DefaultConnection
-	if vars["config"] != "" {
-		activeConnection = vars["config"]
-	}
 	w, err := NewWLEDConverter(activeConnection, o.config.Connections)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "Invalid parameters: %v", err.Error())
+		return err
 	}
-	pmName := vars["pixelMatrix"]
-	if pmName == "" {
-		pmName = "last"
+	return w.PrepareStore()
+}
+
+// CommonArgs are common arguments for all WLED functions
+type CommonArgs struct {
+	Config      *string
+	PixelMatrix *string
+	ShowImage   *bool
+
+	activeConnection string
+	w                *WLEDConverter
+}
+
+func (args *CommonArgs) setUpConnection(config *OpConfig) *base.OperatorIO {
+	args.activeConnection = config.DefaultConnection
+	if args.Config != nil {
+		args.activeConnection = *args.Config
 	}
-
-	switch function {
-	case "sendCmd":
-		switch vars["cmd"] {
-		case "on":
-			return w.SendToWLED(base.MakeObjectOutput(&WLEDState{On: true}), false)
-		case "off":
-			return w.SendToWLED(base.MakeObjectOutput(&WLEDState{On: false}), false)
-		}
-		return w.SendToWLED(mainInput, false)
-	case "setImage":
-		var binput []byte
-		var contentType string
-		var img image.Image
-
-		if vars["icon"] != "" {
-			binput, err = staticContent.ReadFile("font/" + vars["icon"] + ".png")
-			contentType = "image/png"
-		} else if mainInput.IsEmpty() {
-			return base.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
-		} else {
-			binput, err = mainInput.GetBytes()
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, err.Error())
-			}
-			contentType = mainInput.ContentType
-		}
-
-		ctx.GetLogger().Debugf("Decoding image of type: %v", contentType)
-		if contentType == "image/png" {
-			img, err = png.Decode(bytes.NewReader(binput))
-		} else if contentType == "image/jpeg" {
-			img, err = jpeg.Decode(bytes.NewReader(binput))
-		} else {
-			img, _, err = image.Decode(bytes.NewReader(binput))
-		}
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, err.Error())
-		}
-		w.ScaleImage(img)
-	case "setString":
-		c := image.White.C
-		str, ok := vars["string"]
-		if !ok {
-			str = mainInput.GetString()
-		}
-		if colstr, ok := vars["color"]; ok {
-			c, err = utils.ParseHexColor(colstr)
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
-			}
-		}
-		err = w.WriteString(str, c, utils.ParseBool(vars["alignRight"]))
-	case "drawPixel":
-		c := image.White.C
-		w.SetPixelMatrix(pmName)
-		if colstr, ok := vars["color"]; ok {
-			c, err = utils.ParseHexColor(colstr)
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
-			}
-		}
-		x, err := strconv.Atoi(vars["x"])
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "x not a valid integer")
-		}
-		y, err := strconv.Atoi(vars["y"])
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "y not a valid integer")
-		}
-		err = w.SetPixel(x, y, c)
-	case "drawPixelMatrix":
-		animate := AnimationOptions{StepDurationInMillis: 500}
-		err := utils.ArgsMapToObject(vars, &animate)
-		if err != nil {
-			return base.MakeOutputError(http.StatusNotFound, "Could not parse Animation Parameters: %v", err)
-		}
-		return o.SetPixelMatrix(w, pmName, animate)
-	default:
-		return base.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
-	}
-
+	var err error
+	args.w, err = NewWLEDConverter(args.activeConnection, config.Connections)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "Creating Connection to WLED failed: %v", err.Error())
 	}
+	return nil
+}
 
-	ret := w.SendToWLED(nil, utils.ParseBool(vars["showImage"]))
-	w.StorePixelMatrix(ctx, pmName)
-	w.StorePixelMatrix(ctx, activeConnection)
+func (args *CommonArgs) finish(ctx *base.Context) *base.OperatorIO {
+	showImage := false
+	if args.ShowImage != nil {
+		showImage = *args.ShowImage
+	}
+	ret := args.w.SendToWLED(nil, showImage)
+	if args.PixelMatrix != nil {
+		args.w.StorePixelMatrix(ctx, *args.PixelMatrix)
+	}
+	args.w.StorePixelMatrix(ctx, args.activeConnection)
+	args.w.StorePixelMatrix(ctx, "last")
 	return ret
 }
 
-func (o *OpWLED) GetFunctions() []string {
-	return []string{"setString", "setImage", "drawPixel", "drawPixelMatrix", "sendCmd"}
+// CmdArgs are arguments for the sendCmd function
+type CmdArgs struct {
+	CommonArgs
+	Cmd string
 }
 
-func (o *OpWLED) GetPossibleArgs(fn string) []string {
-	return []string{"address", "string", "x", "y", "segid", "icon", "color", "bgcolor", "alignRight", "showImage", "pixelMatrix", "height", "width", "animationType", "cmd", "config"}
+// SendCMD sends a command to WLED
+func (o *OpWLED) SendCMD(ctx *base.Context, mainInput *base.OperatorIO, args CmdArgs) *base.OperatorIO {
+	err := args.setUpConnection(&o.config)
+	if err != nil {
+		return err
+	}
+
+	switch args.Cmd {
+	case "on":
+		return args.w.SendToWLED(base.MakeObjectOutput(&WLEDState{On: true}), false)
+	case "off":
+		return args.w.SendToWLED(base.MakeObjectOutput(&WLEDState{On: false}), false)
+	}
+	return base.MakeOutputError(http.StatusBadRequest, "Unknown command: %v", args.Cmd)
 }
 
-func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+// SetImageArgs are arguments for the setImage function
+type SetImageArgs struct {
+	CommonArgs
+	Icon *string
+}
+
+// SetImage sets an image on the WLED
+func (o *OpWLED) SetImage(ctx *base.Context, mainInput *base.OperatorIO, args SetImageArgs) *base.OperatorIO {
+	setupErr := args.setUpConnection(&o.config)
+	if setupErr != nil {
+		return setupErr
+	}
+
+	var binput []byte
+	var contentType string
+	var img image.Image
+	var err error
+
+	if args.Icon != nil {
+		binput, err = staticContent.ReadFile("font/" + *args.Icon + ".png")
+		contentType = "image/png"
+	} else if mainInput.IsEmpty() {
+		return base.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
+	} else {
+		binput, err = mainInput.GetBytes()
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		}
+		contentType = mainInput.ContentType
+	}
+
+	ctx.GetLogger().Debugf("Decoding image of type: %v", contentType)
+	if contentType == "image/png" {
+		img, err = png.Decode(bytes.NewReader(binput))
+	} else if contentType == "image/jpeg" {
+		img, err = jpeg.Decode(bytes.NewReader(binput))
+	} else {
+		img, _, err = image.Decode(bytes.NewReader(binput))
+	}
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+	args.w.ScaleImage(img)
+	return args.finish(ctx)
+}
+
+// SetStringArgs are arguments for the setString function
+type SetStringArgs struct {
+	CommonArgs
+	String     *string
+	AlignRight *bool
+	Color      *string
+}
+
+// SetString sets a string on the WLED
+func (o *OpWLED) SetString(ctx *base.Context, mainInput *base.OperatorIO, args SetStringArgs) *base.OperatorIO {
+	setUpErr := args.setUpConnection(&o.config)
+	if setUpErr != nil {
+		return setUpErr
+	}
+	var err error
+	c := o.defaultColor
+	str := mainInput.GetString()
+	if args.String != nil {
+		str = *args.String
+	}
+	if args.Color != nil {
+		c, err = utils.ParseHexColor(*args.Color)
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "color \"%s\" not a valid hex color", *args.Color)
+		}
+	}
+	alignRight := false
+	if args.AlignRight != nil {
+		alignRight = *args.AlignRight
+	}
+	err = args.w.WriteString(str, c, alignRight)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+	return args.finish(ctx)
+}
+
+// DrawPixelArgs are arguments for the drawPixel function
+type DrawPixelArgs struct {
+	CommonArgs
+	X     int
+	Y     int
+	Color *string
+}
+
+// DrawPixel draws a pixel on the WLED
+func (o *OpWLED) DrawPixel(ctx *base.Context, mainInput *base.OperatorIO, args DrawPixelArgs) *base.OperatorIO {
+	setUpErr := args.setUpConnection(&o.config)
+	if setUpErr != nil {
+		return setUpErr
+	}
+	var err error
+	c := o.defaultColor
+	if args.Color != nil {
+		c, err = utils.ParseHexColor(*args.Color)
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "color \"%s\" not a valid hex color", *args.Color)
+		}
+	}
+	err = args.w.SetPixel(args.X, args.Y, c)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+	return args.finish(ctx)
+}
+
+// DrawPixelMatrixArgs are arguments for the drawPixelMatrix function
+type DrawPixelMatrixArgs struct {
+	CommonArgs
+	AnimationType        *string
+	StepDurationInMillis *int `json:",string"`
+	Repeat               *int `json:",string"`
+}
+
+var _ base.FreepsFunctionParameters = &DrawPixelMatrixArgs{}
+
+// InitOptionalParameters initializes the optional parameters
+func (args *DrawPixelMatrixArgs) InitOptionalParameters(fn string) {
+	args.Repeat = new(int)
+	*args.Repeat = 0
+	args.StepDurationInMillis = new(int)
+	*args.StepDurationInMillis = 500
+	args.AnimationType = new(string)
+	*args.AnimationType = "static"
+}
+
+// GetArgSuggestions returns suggestions for the color
+func (args *DrawPixelMatrixArgs) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {
-	case "animationType":
-		return map[string]string{"move": "move", "shift": "shift", "moveLeft": "moveLeft", "shiftLeft": "shiftLeft", "squence": "sequence"}
-	case "showImage", "alignRight":
+	case "animationtype":
+		return map[string]string{"move": "move", "shift": "shift", "moveLeft": "moveLeft", "shiftLeft": "shiftLeft", "squence": "sequence", "static": "static"}
+	case "showimage", "alignright":
 		return map[string]string{"true": "true", "false": "false"}
-	case "pixelMatrix":
+	case "pixelmatrix":
 		m := map[string]string{}
 		wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
 		for _, k := range wledNs.GetKeys() {
-			m[k] = k
-		}
-		return m
-	case "config":
-		m := map[string]string{}
-		for k, _ := range o.config.Connections {
 			m[k] = k
 		}
 		return m
@@ -166,18 +251,17 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
-type AnimationOptions struct {
-	AnimationType        string
-	StepDurationInMillis int `json:",string"`
-	Repeat               int `json:",string"`
-}
+// DrawPixelMatrix draws a pixelmatrix on the WLED
+func (o *OpWLED) DrawPixelMatrix(ctx *base.Context, mainInput *base.OperatorIO, animate DrawPixelMatrixArgs) *base.OperatorIO {
+	setupErr := animate.setUpConnection(&o.config)
+	if setupErr != nil {
+		return setupErr
+	}
+	animate.w.SetPixelMatrix(pmName) // if error, this will just draw an empty one
+	pm := animate.w.GetPixelMatrix()
 
-func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate AnimationOptions) *base.OperatorIO {
-	w.SetPixelMatrix(pmName) // ignore error, this will just draw an empty one
-	pm := w.GetPixelMatrix()
-
-	for r := 0; r <= animate.Repeat; r++ {
-		switch animate.AnimationType {
+	for r := 0; r <= *animate.Repeat; r++ {
+		switch *animate.AnimationType {
 		case "move", "moveLeft":
 			for i := -1 * len(pm[0]); i < len(pm[0]); i++ {
 				if animate.AnimationType == "moveLeft" {
@@ -214,29 +298,30 @@ func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate Animati
 	return base.MakeEmptyOutput()
 }
 
-func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
-	conf := DefaultConfig
-	err := cr.ReadSectionWithDefaults("wled", &conf)
-	if err != nil {
-		logrus.Errorf("Reading wled config failed: %v", err)
-	} else {
-		err = cr.WriteBackConfigIfChanged()
-		if err != nil {
-			logrus.Error(err)
+func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	switch arg {
+	case "animationType":
+		return map[string]string{"move": "move", "shift": "shift", "moveLeft": "moveLeft", "shiftLeft": "shiftLeft", "squence": "sequence"}
+	case "showImage", "alignRight":
+		return map[string]string{"true": "true", "false": "false"}
+	case "pixelMatrix":
+		m := map[string]string{}
+		wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+		for _, k := range wledNs.GetKeys() {
+			m[k] = k
 		}
-	}
-
-	activeConnection := conf.DefaultConnection
-	w, err := NewWLEDConverter(activeConnection, conf.Connections)
-	if err == nil {
-		err = w.PrepareStore()
-		if err != nil {
-			logrus.Error(err)
+		return m
+	case "config":
+		m := map[string]string{}
+		for k, _ := range o.config.Connections {
+			m[k] = k
 		}
+		return m
+	case "cmd":
+		return map[string]string{"on": "on", "off": "off"}
 	}
-	return &OpWLED{cr: cr, config: &conf}
+	return map[string]string{}
 }
 
-// Shutdown (noOp)
-func (o *OpWLED) Shutdown(ctx *base.Context) {
+func (o *OpWLED) SetPixelMatrix(w *WLEDConverter, pmName string, animate DrawPixelMatrixArgs) *base.OperatorIO {
 }

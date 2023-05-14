@@ -169,7 +169,7 @@ func (w *WLEDConverter) SetPixelMatrix(pmName string) error {
 	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
 	io := wledNs.GetValue(pmName)
 	if io.IsError() {
-		return fmt.Errorf("No pixelmatrix stored")
+		return fmt.Errorf("No pixelmatrix with name \"%s\" stored", pmName)
 	}
 	var pm PixelMatrix
 	err := io.ParseJSON(&pm)
