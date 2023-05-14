@@ -59,6 +59,9 @@ func mainLoop() bool {
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
 		&freepsflux.OperatorFlux{},
+		&freepsgraph.OpUtils{},
+		&freepsgraph.OpRegexp{},
+		&freepsgraph.OpCurl{},
 	}
 
 	logger := logrus.StandardLogger()

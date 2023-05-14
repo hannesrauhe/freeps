@@ -13,15 +13,18 @@ import (
 )
 
 type MyTestFuncParams struct {
-	Param1         string
-	Param2         int
-	OptParam3      *int
-	OptParam4      *string
-	OptParam5      *bool
-	neversetvar    string
-	neversetvarptr *string
-	Vars           map[string]string
+	Param1              string
+	Param2              int
+	OptParam3           *int
+	OptParam4           *string
+	OptParam5           *bool
+	OptParamWithDefault *int
+	neversetvar         string
+	neversetvarptr      *string
+	Vars                map[string]string
 }
+
+var _ FreepsFunctionParameters = &MyTestFuncParams{}
 
 type MyTestOperator struct {
 	bla     int
@@ -31,6 +34,17 @@ type MyTestOperator struct {
 func (mt *MyTestOperator) MyFavoriteFunction(ctx *Context, mainInput *OperatorIO, mf MyTestFuncParams, args map[string]string) *OperatorIO {
 	if mt == nil {
 		return MakeOutputError(500, "The parent object was not passed to the function")
+	}
+
+	if mf.OptParamWithDefault == nil {
+		return MakeOutputError(500, "The optional parameter with default value was not set")
+	}
+
+	if mf.neversetvar != "" {
+		return MakeOutputError(500, "The parameter neversetvar was set")
+	}
+	if mf.neversetvarptr != nil {
+		return MakeOutputError(500, "The parameter neversetvarptr was set")
 	}
 
 	mt.counter++
@@ -44,6 +58,10 @@ func (mt *MyTestOperator) MyFavoriteFunction(ctx *Context, mainInput *OperatorIO
 	if mf.OptParam5 != nil {
 		return MakePlainOutput("5")
 	}
+	if *mf.OptParamWithDefault != 42 {
+		return MakePlainOutput("42!")
+	}
+
 	if args != nil && len(args) > 0 {
 		return MakePlainOutput("other")
 	}
@@ -89,6 +107,11 @@ func (mf *MyTestFuncParams) GetArgSuggestions(fn string, argName string, otherAr
 	return map[string]string{}
 }
 
+func (mf *MyTestFuncParams) InitOptionalParameters(fn string) {
+	mf.OptParamWithDefault = new(int)
+	*mf.OptParamWithDefault = 42
+}
+
 func TestOpBuilderSuggestions(t *testing.T) {
 	gop := MakeFreepsOperator(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
 	assert.Assert(t, gop != nil, "")
@@ -98,7 +121,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Assert(t, cmp.Contains(fnl, "MyFavoriteFunction"))
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
-	assert.Equal(t, len(fal), 5)
+	assert.Equal(t, len(fal), 6)
 	assert.Assert(t, cmp.Contains(fal, "Param1"))
 
 	sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{"paRam2": "4", "optparam4": "bla"})
@@ -147,6 +170,10 @@ func TestOpBuilderExecute(t *testing.T) {
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "other")
 
+	// happy path with overwritten default value
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "12"}, MakeEmptyOutput())
+	assert.Equal(t, output.GetString(), "42!")
+
 	// wrong function name
 	output = gop.Execute(nil, "MyFavoriteFunctionWrong", map[string]string{"Param1": "test"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
@@ -159,6 +186,8 @@ func TestOpBuilderExecute(t *testing.T) {
 	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "bla"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam3": "notint"}, MakeEmptyOutput())
+	assert.Assert(t, output.IsError(), "")
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "blub"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 }
 
