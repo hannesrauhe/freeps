@@ -43,7 +43,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.operators["graph"] = &OpGraph{ge: ge}
 	ge.operators["graphbytag"] = &OpGraphByTag{ge: ge}
 	ge.operators["time"] = &OpTime{}
-	ge.operators["curl"] = &OpCurl{}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
 

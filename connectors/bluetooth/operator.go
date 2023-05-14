@@ -8,7 +8,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 // Bluetooth is the operator that provides bluetooth functionality and implements the FreepsGenericOperator interface
@@ -62,12 +61,4 @@ func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO
 func (bt *Bluetooth) RestartDiscovery(ctx *base.Context) *base.OperatorIO {
 	btwatcher.StopDiscovery(true)
 	return base.MakeEmptyOutput()
-}
-
-// GetArgSuggestions returns common durations for the maximumage parameter
-func (gpd *GetPresentDevicesParams) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
-	if argName == "max" {
-		return utils.GetDurationMap()
-	}
-	return map[string]string{}
 }

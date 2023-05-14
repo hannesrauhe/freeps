@@ -60,6 +60,8 @@ func mainLoop() bool {
 		&muteme.MuteMe{},
 		&freepsgraph.OpUtils{},
 		&freepsgraph.OpRegexp{},
+		&freepsgraph.OpCurl{},
+		&wled.OpWLED{},
 	}
 
 	logger := logrus.StandardLogger()
@@ -95,7 +97,6 @@ func mainLoop() bool {
 	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(telegram.NewTelegramOp(cr))
 	ge.AddOperator(freepsflux.NewFluxMod(cr))
-	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	ge.AddOperator(fritz.NewOpFritz(cr))
 	freepsexec.AddExecOperators(cr, ge)
