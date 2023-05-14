@@ -338,8 +338,8 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	// create an initialized instance of the parameter struct
 	paramStruct, ps := getInitializedParamStruct(ffm.FuncValue.Type())
 	if ps == nil {
-		// no arg suggestions if the parameter struct does not implement the FreepsFunctionParameters interface
-		return res
+		// common arg suggestions if the parameter struct does not implement the FreepsFunctionParameters interface
+		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
 	}
 
 	failOnError := false
@@ -348,7 +348,11 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 
-	return ps.GetArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
+	res = ps.GetArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
+	if res == nil || len(res) == 0 {
+		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
+	}
+	return res
 }
 
 // Shutdown calls the Shutdown method of the FreepsOperator if it exists

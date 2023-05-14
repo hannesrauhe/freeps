@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -134,4 +135,49 @@ func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsfunc r
 		delete(args, fieldName)
 	}
 	return nil
+}
+
+// ParamListToParamMap is a helper function that converts a list of strings to a map of strings (key==value)
+func ParamListToParamMap(args []string) map[string]string {
+	argMap := map[string]string{}
+	for _, arg := range args {
+		argMap[arg] = arg
+	}
+	return argMap
+}
+
+// GetCommonParameterSuggestions returns the default suggestions for the argument argName of type argType
+func (o *FreepsOperatorWrapper) GetCommonParameterSuggestions(parmStruct reflect.Value, paramName string) []string {
+	paramKind := reflect.Invalid
+	for i := 0; i < parmStruct.Elem().NumField(); i++ {
+		field := parmStruct.Elem().Field(i)
+		fieldName := utils.StringToLower(parmStruct.Elem().Type().Field(i).Name)
+		if fieldName != paramName {
+			continue
+		}
+		if isSupportedField(field, false) {
+			paramKind = field.Kind()
+			break
+		}
+		if isSupportedField(field, true) {
+			paramKind = field.Type().Elem().Kind()
+			break
+		}
+	}
+
+	switch paramKind {
+	case reflect.Bool:
+		return []string{"true", "false"}
+	case reflect.Float32, reflect.Float64:
+		return []string{"0.0", "0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0"}
+	case reflect.Int64:
+		if strings.Contains(paramName, "duration") || strings.Contains(paramName, "time") {
+			return []string{"100ms", "200ms", "500ms", "1s", "2s", "5s", "10s", "20s", "50s", "100s", "1m", "10m", "1h"}
+		}
+		return []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "100", "1000"}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "100", "1000"}
+	default:
+		return []string{}
+	}
 }
