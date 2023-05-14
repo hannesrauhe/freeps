@@ -171,7 +171,7 @@ func (o *FreepsOperatorWrapper) GetCommonParameterSuggestions(parmStruct reflect
 	case reflect.Float32, reflect.Float64:
 		return []string{"0.0", "0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0"}
 	case reflect.Int64:
-		if strings.Contains(paramName, "duration") || strings.Contains(paramName, "time") {
+		if strings.Contains(paramName, "duration") || strings.Contains(paramName, "time") || strings.Contains(paramName, "age") {
 			return []string{"100ms", "200ms", "500ms", "1s", "2s", "5s", "10s", "20s", "50s", "100s", "1m", "10m", "1h"}
 		}
 		return []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "100", "1000"}
