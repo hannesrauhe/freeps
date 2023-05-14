@@ -16,53 +16,64 @@ import (
 type OpCurl struct {
 }
 
-var _ base.FreepsBaseOperator = &OpCurl{}
+var _ base.FreepsOperator = &OpCurl{}
 
-// GetName returns the name of the operator
-func (o *OpCurl) GetName() string {
-	return "curl"
+// CurlArgs are the common arguments for all curl functions
+type CurlArgs struct {
+	URL         string  `json:"url"`
+	Body        *string `json:"body"`
+	ContentType *string `json:"content-type"`
+	OutputFile  *string `json:"file"`
 }
 
-func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+// PostForm executes a POST request to the given URL with the given form fields and returns either the response body or information about the downloaded file if an output file is specified
+func (o *OpCurl) PostForm(ctx *base.Context, mainInput *base.OperatorIO, args CurlArgs, formFields map[string]string) *base.OperatorIO {
+	c := http.Client{}
+	data := url.Values{}
+	for k, v := range formFields {
+		data.Set(k, v)
+	}
+	resp, err := c.PostForm(args.URL, data)
+	return o.handleResponse(resp, err, ctx, args)
+}
+
+// Post executes a POST request to the given URL and returns either the response body or information about the downloaded file if an output file is specified
+func (o *OpCurl) Post(ctx *base.Context, mainInput *base.OperatorIO, args CurlArgs) *base.OperatorIO {
 	c := http.Client{}
 
-	var resp *http.Response
-	var err error
-	switch function {
-	case "PostForm":
-		data := url.Values{}
-		for k, v := range vars {
-			if k == "url" {
-				continue
-			}
-			data.Set(k, v)
+	var b []byte
+	if args.Body != nil {
+		b = []byte(*args.Body)
+	} else {
+		var err error
+		b, err = mainInput.GetBytes()
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
-		resp, err = c.PostForm(vars["url"], data)
-	case "Post":
-		var b []byte
-		if vars["body"] != "" {
-			b = []byte(vars["body"])
-		} else {
-			b, err = mainInput.GetBytes()
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, err.Error())
-			}
-		}
-		breader := bytes.NewReader(b)
-		resp, err = c.Post(vars["url"], vars["content-type"], breader)
-	case "Get":
-		resp, err = c.Get(vars["url"])
-	default:
-		return base.MakeOutputError(http.StatusNotFound, "function %v unknown", function)
 	}
+	breader := bytes.NewReader(b)
+	contentType := "application/octet-stream"
+	if args.ContentType != nil {
+		contentType = *args.ContentType
+	}
+	resp, err := c.Post(args.URL, contentType, breader)
+	return o.handleResponse(resp, err, ctx, args)
+}
 
+// Get executes a GET request to the given URL and returns either the response body or information about the downloaded file if an output file is specified
+func (o *OpCurl) Get(ctx *base.Context, mainInput *base.OperatorIO, args CurlArgs) *base.OperatorIO {
+	c := http.Client{}
+	resp, err := c.Get(args.URL)
+	return o.handleResponse(resp, err, ctx, args)
+}
+
+func (o *OpCurl) handleResponse(resp *http.Response, err error, ctx *base.Context, args CurlArgs) *base.OperatorIO {
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	defer resp.Body.Close()
 
-	outputFile, WriteToFile := vars["file"]
-	if !WriteToFile {
+	if args.OutputFile == nil {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
@@ -70,7 +81,7 @@ func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]str
 		return &base.OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: base.Byte, ContentType: resp.Header.Get("Content-Type")}
 	}
 	// sanitize outputFile:
-	outputFile = path.Base(outputFile)
+	outputFile := path.Base(*args.OutputFile)
 	dir, err := utils.GetTempDir()
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
@@ -96,20 +107,4 @@ func (o *OpCurl) Execute(ctx *base.Context, function string, vars map[string]str
 	}
 	r["name"] = path.Base(dstFile.Name())
 	return base.MakeObjectOutput(r)
-}
-
-func (o *OpCurl) GetFunctions() []string {
-	return []string{"PostForm", "Post", "Get"}
-}
-
-func (o *OpCurl) GetPossibleArgs(fn string) []string {
-	return []string{"url", "body", "content-type"}
-}
-
-func (o *OpCurl) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
-	return map[string]string{}
-}
-
-// Shutdown (noOp)
-func (o *OpCurl) Shutdown(ctx *base.Context) {
 }
