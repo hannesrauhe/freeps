@@ -40,7 +40,7 @@ func (h *HookStore) GetName() string {
 type GraphInfo struct {
 	ExecutionCounter uint64
 	Arguments        map[string]string `json:",omitempty"`
-	Input            []byte            `json:",omitempty"`
+	Input            string            `json:",omitempty"`
 }
 
 // OnExecute gets called when freepsgraph starts executing a Graph
@@ -58,7 +58,7 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 			newGraphInfo.Arguments = mainArgs
 		}
 		if mainInput != nil && !mainInput.IsEmpty() {
-			newGraphInfo.Input, _ = mainInput.GetBytes()
+			newGraphInfo.Input = mainInput.GetString()
 		}
 		if oldValue != nil {
 			oldValue.ParseJSON(&oldGraphInfo)
