@@ -165,8 +165,11 @@ func (io *OperatorIO) GetString() string {
 	case Error:
 		return io.Output.(error).Error()
 	default:
-		byt, _ := json.MarshalIndent(io.Output, "", "  ")
-		return string(byt)
+		b, _ := json.MarshalIndent(io.Output, "", "  ")
+		if len(b) > 1024*10 {
+			return fmt.Sprintf("%s...", b[:1024*10-3])
+		}
+		return fmt.Sprintf("%s", b)
 	}
 }
 
