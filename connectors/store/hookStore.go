@@ -39,8 +39,8 @@ func (h *HookStore) GetName() string {
 // GraphInfo keeps information about a graph execution
 type GraphInfo struct {
 	ExecutionCounter uint64
-	Arguments        map[string]string
-	Input            []byte
+	Arguments        map[string]string `json:",omitempty"`
+	Input            []byte            `json:",omitempty"`
 }
 
 // OnExecute gets called when freepsgraph starts executing a Graph
@@ -53,8 +53,13 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 	}
 	out := h.graphInfoLogNs.UpdateTransaction(graphName, func(oldValue *base.OperatorIO) *base.OperatorIO {
 		oldGraphInfo := GraphInfo{}
-		newGraphInfo := GraphInfo{ExecutionCounter: 1, Arguments: mainArgs}
-		newGraphInfo.Input, _ = mainInput.GetBytes()
+		newGraphInfo := GraphInfo{ExecutionCounter: 1}
+		if mainArgs != nil && len(mainArgs) > 0 {
+			newGraphInfo.Arguments = mainArgs
+		}
+		if mainInput != nil && !mainInput.IsEmpty() {
+			newGraphInfo.Input, _ = mainInput.GetBytes()
+		}
 		if oldValue != nil {
 			oldValue.ParseJSON(&oldGraphInfo)
 			newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
