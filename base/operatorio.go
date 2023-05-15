@@ -157,9 +157,9 @@ func (io *OperatorIO) GetString() string {
 	case Byte:
 		b := io.Output.([]byte)
 		if len(b) > 1024*10 {
-			return string(b[:1024*10]) + "..."
+			return fmt.Sprintf("%s...", b[:1024*10-3])
 		}
-		return string(b)
+		return fmt.Sprintf("%s", b)
 	case PlainText:
 		return io.Output.(string)
 	case Error:
