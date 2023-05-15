@@ -80,7 +80,7 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 	for i := 0; i < freepsFuncParams.Elem().NumField(); i++ {
 		field := freepsFuncParams.Elem().Field(i)
 
-		fieldNameCase := freepsFuncParams.Elem().Type().Field(i).Name
+		fieldNameCase := field.Name
 		fieldName := utils.StringToLower(fieldNameCase)
 		if !isSupportedField(field, false) {
 			continue
@@ -89,10 +89,27 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 		//return an error if the field is not set in the args map
 		v, ok := args[fieldName]
 		if !ok {
-			if failOnErr {
-				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("required Parameter \"%v\" is missing", fieldNameCase))
-			} else {
-				continue
+			jsonFieldName := ""
+			// check if the caller used the JSON represantation of the field:
+			switch jsonTag := field.Tag.Get("json"); jsonTag {
+			case "-":
+			case "":
+				jsonFieldName = ""
+			default:
+				parts := strings.Split(jsonTag, ",")
+				jsonFieldName := parts[0]
+			}
+
+			if jsonFieldName!="" {
+				v = args[jsonFieldName]
+			}
+
+			if v=="" {
+				if failOnErr {
+					return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("required Parameter \"%v\" is missing", fieldNameCase))
+				} else {
+					continue
+				}
 			}
 		}
 
