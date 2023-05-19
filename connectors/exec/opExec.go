@@ -22,6 +22,7 @@ type ExecutableConfig struct {
 	OutputContentType  string
 	DefaultArguments   map[string]string
 	AvailableArguments map[string]map[string]string
+	DefaultEnv         map[string]string
 }
 
 type OpExecConfig struct {
@@ -87,10 +88,15 @@ func makeArgs(argsmap map[string]string) []string {
 	return args
 }
 
-func (o *OpExec) execBin(ctx *base.Context, args []string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpExec) execBin(ctx *base.Context, args []string, env map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	var err error
 
 	e := exec.Command(o.Path, args...)
+	envArr := []string{}
+	for k, v := range env {
+		envArr = append(envArr, fmt.Sprintf("%v=%v", k, v))
+	}
+	e.Env = envArr
 	e.Dir, err = utils.GetTempDir()
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Cannot set working dir: %v", err.Error())
@@ -176,7 +182,6 @@ func (o *OpExec) stopBackground(ctx *base.Context) *base.OperatorIO {
 
 // Execute executes the binary
 func (o *OpExec) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
-
 	argsmap := map[string]string{}
 	for k, v := range o.DefaultArguments {
 		argsmap[k] = v
@@ -185,16 +190,27 @@ func (o *OpExec) Execute(ctx *base.Context, fn string, vars map[string]string, i
 		argsmap[k] = v
 	}
 
+	env := map[string]string{}
+	for k, v := range o.DefaultEnv {
+		env[k] = v
+	}
+
 	switch fn {
 	case "do", "run":
 		args := makeArgs(argsmap)
-		return o.execBin(ctx, args, input)
+		return o.execBin(ctx, args, env, input)
 	case "doNoDefaultArgs", "runWithoutDefaultArgs":
 		args := makeArgs(vars)
-		return o.execBin(ctx, args, input)
+		return o.execBin(ctx, args, env, input)
 	case "runSingleArgString":
 		args := strings.Split(vars["argString"], " ")
-		return o.execBin(ctx, args, input)
+		for k, v := range vars {
+			if k == "argString" {
+				continue
+			}
+			env[k] = v
+		}
+		return o.execBin(ctx, args, env, input)
 	case "runInBackground":
 		return o.runInBackground(ctx, argsmap, input)
 	case "stopBackgroundProcess":
@@ -214,7 +230,10 @@ func (o *OpExec) GetFunctions() []string {
 func (o *OpExec) GetPossibleArgs(fn string) []string {
 	ret := []string{}
 	if fn == "runSingleArgString" {
-		return []string{"argString"}
+		ret = append(ret, "argString")
+		for k := range o.DefaultEnv {
+			ret = append(ret, k)
+		}
 	}
 	for k := range o.AvailableArguments {
 		ret = append(ret, k)
@@ -227,6 +246,16 @@ func (o *OpExec) GetPossibleArgs(fn string) []string {
 
 // GetArgSuggestions returns suggestions for command line arguments
 func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+	if fn == "runSingleArgString" {
+		if arg == "argString" {
+			return map[string]string{"argString": ""}
+		}
+		if r, exists := o.DefaultEnv[arg]; exists {
+			return map[string]string{r + " (default)": r}
+		}
+		return map[string]string{}
+	}
+
 	if r, exists := o.AvailableArguments[arg]; exists {
 		return r
 	}
@@ -256,6 +285,15 @@ func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngi
 		if graphEngine.HasOperator(name) {
 			log.Errorf("Cannot add executable Operator %v, an operator with that name already exists", name)
 			continue
+		}
+		if config.AvailableArguments == nil {
+			config.AvailableArguments = map[string]map[string]string{}
+		}
+		if config.DefaultArguments == nil {
+			config.DefaultArguments = map[string]string{}
+		}
+		if config.DefaultEnv == nil {
+			config.DefaultEnv = map[string]string{}
 		}
 		o := &OpExec{config, name, make(chan error), nil, sync.Mutex{}, bytes.Buffer{}}
 		graphEngine.AddOperator(o)
