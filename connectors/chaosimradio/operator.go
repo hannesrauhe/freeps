@@ -155,9 +155,28 @@ func getMarkdownContentBySection(padURL string) (map[string][]string, error) {
 }
 
 type CiROperatorParams struct {
-	// URL of the pad to parse
-	PadURL              *string `json:"pad_url"`
-	AppendToContentFile *bool   `json:"append_to_content_file"`
+	ForkRepo            string
+	GHToken             string
+	OverviewURL         *string
+	PadURL              *string
+	AppendToContentFile *bool
+}
+
+func executeInDir(dir string, env map[string]string, cmd string, args ...string) *base.OperatorIO {
+	c := exec.Command(cmd, args...)
+	c.Dir = dir
+	if env != nil {
+		envArr := []string{}
+		for k, v := range env {
+			envArr = append(envArr, fmt.Sprintf("%v=%v", k, v))
+		}
+		c.Env = envArr
+	}
+	out, err := c.CombinedOutput()
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Failed to execute \"%s\" \"%v \"\n\n Out: %s \n Err: %v", cmd, args, out, err.Error())
+	}
+	return base.MakeByteOutput(out)
 }
 
 // Pad2ChaosEntry is the main function of the operator
@@ -168,11 +187,11 @@ func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, 
 
 	if args.PadURL != nil {
 		padURL = *args.PadURL
-		if !strings.HasPrefix(padURL, "https://pad.ccc-p.org/") {
-			return base.MakeOutputError(http.StatusBadRequest, "pad url must start with https://pad.ccc-p.org/")
-		}
 	} else {
-		padURL, err = getFirstLink("https://pad.ccc-p.org/Radio")
+		if args.OverviewURL == nil {
+			return base.MakeOutputError(http.StatusBadRequest, "either padURL or overviewURL must be set")
+		}
+		padURL, err = getFirstLink(*args.OverviewURL)
 		if err != nil {
 			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
@@ -255,12 +274,44 @@ func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, 
 	if args.AppendToContentFile != nil && *args.AppendToContentFile {
 		tDir, err := utils.GetTempDir()
 		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Cannot set working dir: %v", err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, "Cannot get temp dir: %v", err.Error())
 		}
-		yappsPath := tDir + "/yaspp"
+		yasppPath := tDir + "/yaspp"
+		ghEnv := map[string]string{
+			"GH_TOKEN": args.GHToken,
+			"PATH":     "/usr/bin",
+		}
+		if _, err := os.Stat(yasppPath); os.IsNotExist(err) {
+			if err := executeInDir(tDir, ghEnv, "gh", "repo", "clone", args.ForkRepo); err.IsError() {
+				return err
+			}
+		}
+		// switch to the main branch
+		if err := executeInDir(yasppPath, nil, "git", "checkout", "master"); err.IsError() {
+			return err
+		}
+		// run git clean -fdx in the yaspp dir
+		if err := executeInDir(yasppPath, nil, "git", "clean", "-fdx"); err.IsError() {
+			return err
+		}
+		// run git pull in the yaspp dir
+		if err := executeInDir(yasppPath, nil, "git", "fetch"); err.IsError() {
+			return err
+		}
+		if err := executeInDir(yasppPath, nil, "git", "reset", "--hard", "upstream/master"); err.IsError() {
+			return err
+		}
+		branchName := fmt.Sprintf("hr/add-%s-%s-%s", year, month, day)
+		// delete the branch if it exists and ignore the error
+		executeInDir(yasppPath, nil, "git", "branch", "-D", branchName)
+		// create a new branch
+		if err := executeInDir(yasppPath, nil, "git", "checkout", "-b", branchName); err.IsError() {
+			return err
+		}
+
 		contentFilePath := tDir + "/yaspp/content.yaml"
 		if _, err := os.Stat(contentFilePath); os.IsNotExist(err) {
-			return base.MakeOutputError(http.StatusInternalServerError, "Cannot find yaspp dir: %v", err.Error())
+			return base.MakeOutputError(http.StatusInternalServerError, "Cannot find content file: %v", err.Error())
 		}
 		// append the serialized entry to the content file
 		f, err := os.OpenFile(contentFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -284,7 +335,7 @@ func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, 
 				commitMsg = commitMsg + "\n\n" + strings.Join(prComments, "\n")
 			}
 			// write the commit message to a file, overwrite the commit-msg file if it exists, create it otherwise
-			commitMsgFile, err := os.OpenFile(yappsPath+"/commit-msg", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			commitMsgFile, err := os.OpenFile(yasppPath+"/commit-msg", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
 				return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to create commit-msg file: %s", err.Error())
 			}
@@ -294,16 +345,14 @@ func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, 
 				return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to write commit-msg file: %s", err.Error())
 			}
 		}
-		err = os.Chdir(yappsPath)
-		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to chdir: %s", err.Error())
-		}
-		cmd := exec.Command("git", "commit", "-a", "-F", "commit-msg")
-		err = cmd.Run()
-		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to git add: %s", err.Error())
-		}
 
+		// execute the git commit in the yaspp dir, return if error occurs
+		if err := executeInDir(yasppPath, nil, "git", "commit", "-a", "-F", "commit-msg"); err.IsError() {
+			return err
+		}
+		if err := executeInDir(yasppPath, nil, "git", "push", "-f", "origin", branchName); err.IsError() {
+			return err
+		}
 	}
 
 	return base.MakeByteOutput(b)
