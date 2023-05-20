@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -92,11 +93,13 @@ func (o *OpExec) execBin(ctx *base.Context, args []string, env map[string]string
 	var err error
 
 	e := exec.Command(o.Path, args...)
-	envArr := []string{}
-	for k, v := range env {
-		envArr = append(envArr, fmt.Sprintf("%v=%v", k, v))
+	if env != nil {
+		envArr := os.Environ()
+		for k, v := range env {
+			envArr = append(envArr, fmt.Sprintf("%v=%v", k, v))
+		}
+		e.Env = envArr
 	}
-	e.Env = envArr
 	e.Dir, err = utils.GetTempDir()
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Cannot set working dir: %v", err.Error())
