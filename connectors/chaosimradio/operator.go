@@ -43,6 +43,8 @@ type CiREntry struct {
 	Audio           CiRaudio     `yaml:"audio"`
 	Chapters        []CiRChapter `yaml:"chapters"`
 	LongSummaryMD   string       `yaml:"long_summary_md"`
+	padURL          string
+	prComments      []string
 }
 
 func getPadContent(padURL string) (io.ReadCloser, error) {
@@ -154,14 +156,6 @@ func getMarkdownContentBySection(padURL string) (map[string][]string, error) {
 	return contentBySection, nil
 }
 
-type CiROperatorParams struct {
-	ForkRepo            string
-	GHToken             string
-	OverviewURL         *string
-	PadURL              *string
-	AppendToContentFile *bool
-}
-
 func executeInDir(dir string, env map[string]string, cmd string, args ...string) *base.OperatorIO {
 	c := exec.Command(cmd, args...)
 	c.Dir = dir
@@ -179,34 +173,37 @@ func executeInDir(dir string, env map[string]string, cmd string, args ...string)
 	return base.MakeByteOutput(out)
 }
 
-// Pad2ChaosEntry is the main function of the operator
-func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, args CiROperatorParams) *base.OperatorIO {
-	padURL := ""
-	prComments := []string{}
+type PadParams struct {
+	OverviewURL *string
+	PadURL      *string
+}
+
+func (cir *OpCiR) pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, args PadParams) (*CiREntry, *base.OperatorIO) {
+	var entry CiREntry
 	var err error
 
 	if args.PadURL != nil {
-		padURL = *args.PadURL
+		entry.padURL = *args.PadURL
 	} else {
 		if args.OverviewURL == nil {
-			return base.MakeOutputError(http.StatusBadRequest, "either padURL or overviewURL must be set")
+			return nil, base.MakeOutputError(http.StatusBadRequest, "either padURL or overviewURL must be set")
 		}
-		padURL, err = getFirstLink(*args.OverviewURL)
+		entry.padURL, err = getFirstLink(*args.OverviewURL)
 		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, err.Error())
+			return nil, base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 	}
-	contentBySection, err := getMarkdownContentBySection(padURL)
+	contentBySection, err := getMarkdownContentBySection(entry.padURL)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return nil, base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	if len(strings.Split(padURL, "_")) < 2 {
-		return base.MakeOutputError(http.StatusBadRequest, "pad url must contain a date in the format YYYY-MM-DD_")
+	if len(strings.Split(entry.padURL, "_")) < 2 {
+		return nil, base.MakeOutputError(http.StatusBadRequest, "pad url must contain a date in the format YYYY-MM-DD_")
 	}
-	entryDate := strings.Split(padURL, "_")[1]
+	entryDate := strings.Split(entry.padURL, "_")[1]
 	if len(entryDate) < 10 {
-		return base.MakeOutputError(http.StatusBadRequest, "pad url must contain a date in the format YYYY-MM-DD_")
+		return nil, base.MakeOutputError(http.StatusBadRequest, "pad url must contain a date in the format YYYY-MM-DD_")
 	}
 	year := entryDate[0:4]
 	month := entryDate[5:7]
@@ -216,14 +213,13 @@ func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, 
 		longSummary, exists = contentBySection["long summary"]
 	}
 	if !exists {
-		return base.MakeOutputError(http.StatusBadRequest, "no shownotes Section in Pad")
+		return nil, base.MakeOutputError(http.StatusBadRequest, "no shownotes Section in Pad")
 	}
 	shortSummary, exists := contentBySection["summary"]
 	if !exists {
-		return base.MakeOutputError(http.StatusBadRequest, "no Summary Section in Pad")
+		return nil, base.MakeOutputError(http.StatusBadRequest, "no Summary Section in Pad")
 	}
 
-	var entry CiREntry
 	entry.UUID = fmt.Sprintf("nt-%s-%s-%s", year, month, day)
 	entry.Title = fmt.Sprintf("CiR am %s.%s.%s", day, month, year)
 	entry.Subtitle = "Der Chaostreff im Freien Radio Potsdam"
@@ -244,116 +240,136 @@ func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, 
 			entry.Chapters = append(entry.Chapters, CiRChapter{Start: chapter[0], Title: strings.Join(chapter[1:], " ")})
 		}
 	} else {
-		prComments = append(prComments, "no chapters Section in Pad")
+		entry.prComments = append(entry.prComments, "no chapters Section in Pad")
 	}
 
 	mukke, exists := contentBySection["mukke"]
 	if exists {
 		for _, m := range mukke {
+			if strings.TrimSpace(m) == "" {
+				continue
+			}
 			link := findFirstLink(m)
 			if link == "" {
-				prComments = append(prComments, fmt.Sprintf("no link found in mukke line: %s", m))
+				entry.prComments = append(entry.prComments, fmt.Sprintf("no link found in mukke line: %s", m))
 				continue
 			}
 			title, err := getTitleFromFMA(link)
 			if err != nil {
-				prComments = append(prComments, fmt.Sprintf("error getting title from fma: %s", err.Error()))
+				entry.prComments = append(entry.prComments, fmt.Sprintf("error getting title from fma: %s", err.Error()))
 				title = link
 			}
 			entry.LongSummaryMD = entry.LongSummaryMD + fmt.Sprintf("\n&#x1f3b6;&nbsp;[%s](%s)", title, link)
 		}
 	} else {
-		prComments = append(prComments, "no mukke Section in Pad")
+		entry.prComments = append(entry.prComments, "no mukke Section in Pad")
 	}
 
 	b, err := yaml.Marshal(entry)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return nil, base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	if args.AppendToContentFile != nil && *args.AppendToContentFile {
-		tDir, err := utils.GetTempDir()
-		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Cannot get temp dir: %v", err.Error())
-		}
-		yasppPath := tDir + "/yaspp"
-		ghEnv := map[string]string{
-			"GH_TOKEN": args.GHToken,
-			"PATH":     "/usr/bin",
-		}
-		if _, err := os.Stat(yasppPath); os.IsNotExist(err) {
-			if err := executeInDir(tDir, ghEnv, "gh", "repo", "clone", args.ForkRepo); err.IsError() {
-				return err
-			}
-		}
-		// switch to the main branch
-		if err := executeInDir(yasppPath, nil, "git", "checkout", "master"); err.IsError() {
-			return err
-		}
-		// run git clean -fdx in the yaspp dir
-		if err := executeInDir(yasppPath, nil, "git", "clean", "-fdx"); err.IsError() {
-			return err
-		}
-		// run git pull in the yaspp dir
-		if err := executeInDir(yasppPath, nil, "git", "fetch"); err.IsError() {
-			return err
-		}
-		if err := executeInDir(yasppPath, nil, "git", "reset", "--hard", "upstream/master"); err.IsError() {
-			return err
-		}
-		branchName := fmt.Sprintf("hr/add-%s-%s-%s", year, month, day)
-		// delete the branch if it exists and ignore the error
-		executeInDir(yasppPath, nil, "git", "branch", "-D", branchName)
-		// create a new branch
-		if err := executeInDir(yasppPath, nil, "git", "checkout", "-b", branchName); err.IsError() {
-			return err
-		}
+	return &entry, base.MakeByteOutput(b)
+}
 
-		contentFilePath := tDir + "/yaspp/content.yaml"
-		if _, err := os.Stat(contentFilePath); os.IsNotExist(err) {
-			return base.MakeOutputError(http.StatusInternalServerError, "Cannot find content file: %v", err.Error())
+func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, args PadParams) *base.OperatorIO {
+	_, OpIO := cir.pad2ChaosEntry(ctx, mainInput, args)
+	return OpIO
+}
+
+type GithubParams struct {
+	PadParams
+	ForkRepo string
+	GHToken  string
+}
+
+func (cir *OpCiR) Pad2GitHub(ctx *base.Context, mainInput *base.OperatorIO, args GithubParams) *base.OperatorIO {
+	entry, entryOpIO := cir.pad2ChaosEntry(ctx, mainInput, args.PadParams)
+	if entryOpIO.IsError() {
+		return entryOpIO
+	}
+	tDir, err := utils.GetTempDir()
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot get temp dir: %v", err.Error())
+	}
+	yasppPath := tDir + "/yaspp"
+	ghEnv := map[string]string{
+		"GH_TOKEN": args.GHToken,
+		"PATH":     "/usr/bin",
+	}
+	if _, err := os.Stat(yasppPath); os.IsNotExist(err) {
+		if out := executeInDir(tDir, ghEnv, "gh", "repo", "clone", args.ForkRepo); out.IsError() {
+			return out
 		}
-		// append the serialized entry to the content file
-		f, err := os.OpenFile(contentFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
+	}
+	// switch to the main branch
+	if out := executeInDir(yasppPath, nil, "git", "checkout", "master"); out.IsError() {
+		return out
+	}
+	// run git clean -fdx in the yaspp dir
+	if out := executeInDir(yasppPath, nil, "git", "clean", "-fdx"); out.IsError() {
+		return out
+	}
+	// run git pull in the yaspp dir
+	if out := executeInDir(yasppPath, nil, "git", "fetch"); out.IsError() {
+		return out
+	}
+	if out := executeInDir(yasppPath, nil, "git", "reset", "--hard", "upstream/master"); out.IsError() {
+		return out
+	}
+	branchName := fmt.Sprintf("hr/add-%s", entry.UUID)
+	// delete the branch if it exists and ignore the error
+	executeInDir(yasppPath, nil, "git", "branch", "-D", branchName)
+	// create a new branch
+	if out := executeInDir(yasppPath, nil, "git", "checkout", "-b", branchName); out.IsError() {
+		return out
+	}
+
+	contentFilePath := tDir + "/yaspp/content.yaml"
+	if _, err := os.Stat(contentFilePath); os.IsNotExist(err) {
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot find content file: %v", err.Error())
+	}
+	// append the serialized entry to the content file
+	f, err := os.OpenFile(contentFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	{ // block so the file gets properly closed
+		defer f.Close()
+		if _, err := f.WriteString("---\n"); err != nil {
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-		{ // block so the file gets properly closed
-			defer f.Close()
-			if _, err := f.WriteString("---\n"); err != nil {
-				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-			}
-			if _, err := f.Write(b); err != nil {
-				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-			}
+		b, _ := entryOpIO.GetBytes()
+		if _, err := f.Write(b); err != nil {
+			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-		// prepare the git commit and the PR comment
-		{
-			// get the git commit message
-			commitMsg := entry.Title
-			if len(prComments) > 0 {
-				commitMsg = commitMsg + "\n\n" + strings.Join(prComments, "\n")
-			}
-			// write the commit message to a file, overwrite the commit-msg file if it exists, create it otherwise
-			commitMsgFile, err := os.OpenFile(yasppPath+"/commit-msg", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-			if err != nil {
-				return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to create commit-msg file: %s", err.Error())
-			}
-			defer commitMsgFile.Close()
-			_, err = commitMsgFile.WriteString(commitMsg)
-			if err != nil {
-				return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to write commit-msg file: %s", err.Error())
-			}
+	}
+	// prepare the git commit and the PR comment
+	{
+		// get the git commit message
+		commitMsg := entry.Title
+		if len(entry.prComments) > 0 {
+			commitMsg = commitMsg + "\n\n" + strings.Join(entry.prComments, "\n")
 		}
-
-		// execute the git commit in the yaspp dir, return if error occurs
-		if err := executeInDir(yasppPath, nil, "git", "commit", "-a", "-F", "commit-msg"); err.IsError() {
-			return err
+		// write the commit message to a file, overwrite the commit-msg file if it exists, create it otherwise
+		commitMsgFile, err := os.OpenFile(yasppPath+"/commit-msg", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to create commit-msg file: %s", err.Error())
 		}
-		if err := executeInDir(yasppPath, nil, "git", "push", "-f", "origin", branchName); err.IsError() {
-			return err
+		defer commitMsgFile.Close()
+		_, err = commitMsgFile.WriteString(commitMsg)
+		if err != nil {
+			return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to write commit-msg file: %s", err.Error())
 		}
 	}
 
-	return base.MakeByteOutput(b)
+	// execute the git commit in the yaspp dir, return if error occurs
+	if out := executeInDir(yasppPath, nil, "git", "commit", "-a", "-F", "commit-msg"); out.IsError() {
+		return out
+	}
+	if out := executeInDir(yasppPath, nil, "git", "push", "-f", "origin", branchName); out.IsError() {
+		return out
+	}
+	return entryOpIO
 }
