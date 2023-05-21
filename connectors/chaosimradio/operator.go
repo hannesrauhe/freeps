@@ -369,7 +369,8 @@ func (cir *OpCiR) Pad2GitHub(ctx *base.Context, mainInput *base.OperatorIO, args
 	if out := executeInDir(yasppPath, nil, "git", "commit", "-a", "-F", "commit-msg"); out.IsError() {
 		return out
 	}
-	if out := executeInDir(yasppPath, nil, "git", "push", "-f", "origin", branchName); out.IsError() {
+	remote := fmt.Sprintf("https://%s@github.com/%s.git", args.GHToken, args.ForkRepo)
+	if out := executeInDir(yasppPath, nil, "git", "push", "-f", remote, branchName); out.IsError() {
 		return out
 	}
 	return entryOpIO
