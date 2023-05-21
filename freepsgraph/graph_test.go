@@ -50,11 +50,11 @@ var validGraph = GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval", F
 func TestOperatorErrorChain(t *testing.T) {
 	ctx := base.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
-	ge.temporaryGraphs["test"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
-	}, OutputFrom: "echook"}}
+	}, OutputFrom: "echook"}
 	oError := ge.ExecuteGraph(ctx, "test", make(map[string]string), base.MakeEmptyOutput())
 	assert.Assert(t, oError.IsError(), "unexpected output: %v", oError)
 
@@ -70,26 +70,26 @@ func TestOperatorErrorChain(t *testing.T) {
 func TestCheckGraph(t *testing.T) {
 	ctx := base.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
-	ge.temporaryGraphs["test_noinput"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test_noinput"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
-	}}}
+	}}
 	opIO := ge.CheckGraph("test_noinput")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.temporaryGraphs["test_noargs"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test_noargs"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", ArgumentsFrom: "NOTEXISTING"},
-	}}}
+	}}
 	opIO = ge.CheckGraph("test_noargs")
 
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
-	ge.temporaryGraphs["test_noop"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.temporaryGraphs["test_noop"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "NOTHERE"},
-	}}}
+	}}
 
 	opIO = ge.CheckGraph("test_noargs")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.temporaryGraphs["test_valid"] = &GraphInfo{Desc: validGraph}
+	ge.temporaryGraphs["test_valid"] = &validGraph
 	opIO = ge.CheckGraph("test_valid")
 	assert.Assert(t, !opIO.IsError(), "unexpected output: %v", opIO)
 

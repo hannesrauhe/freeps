@@ -7,6 +7,10 @@
     "OutputFrom": "#0",
     "Operations": [
       {
+        "Operator": "system",
+        "Function": "GetGraphDescByTag"
+      },
+      {
         "Operator": "ui",
         "Function": "graphInfo.html"
       }

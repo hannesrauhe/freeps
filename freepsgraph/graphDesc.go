@@ -1,14 +1,5 @@
 package freepsgraph
 
-import "time"
-
-// GraphInfo holds the GraphDesc and some runtime info about the graph execution
-type GraphInfo struct {
-	Desc              GraphDesc
-	LastExecutionTime time.Time
-	ExecutionCounter  int64
-}
-
 // GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
 	Name            string `json:",omitempty"`

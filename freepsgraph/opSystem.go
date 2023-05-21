@@ -47,19 +47,19 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		return base.MakeEmptyOutput()
-	case "getGraphInfo":
-		gi, ok := o.ge.GetGraphInfo(args["name"])
+	case "GetGraphDesc":
+		gi, ok := o.ge.GetGraphDesc(args["name"])
 		if !ok {
 			return base.MakeOutputError(http.StatusNotFound, "Unknown graph %v", args["name"])
 		}
 		return base.MakeObjectOutput(gi)
 	case "toDot":
-		g, out := o.ge.prepareGraphExecution(ctx, args["name"], false)
+		g, out := o.ge.prepareGraphExecution(ctx, args["name"])
 		if out.IsError() {
 			return out
 		}
 		return base.MakeByteOutput(g.ToDot(ctx))
-	case "getGraphInfoByTag":
+	case "GetGraphDescByTag":
 		tags := []string{}
 		if _, ok := args["tags"]; ok {
 			tags = strings.Split(args["tags"], ",")
@@ -67,7 +67,7 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 		if args["tag"] != "" {
 			tags = append(tags, args["tag"])
 		}
-		gim := o.ge.GetGraphInfoByTag(tags)
+		gim := o.ge.GetGraphDescByTag(tags)
 		if gim == nil || len(gim) == 0 {
 			return base.MakeOutputError(http.StatusNotFound, "No graphs with tags %v", strings.Join(tags, ","))
 		}
@@ -115,7 +115,7 @@ func (o *OpSystem) GraphStats(ctx *base.Context, fn string, args map[string]stri
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph", "version"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphDescByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph", "version"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
@@ -124,9 +124,9 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 		return []string{"statType"}
 	case "getGraphDesc":
 		return []string{"name"}
-	case "getGraphInfo":
+	case "GetGraphDesc":
 		return []string{"name"}
-	case "getGraphInfoByTag":
+	case "GetGraphDescByTag":
 		return []string{"tags", "tag"}
 	case "getCollectedErrors":
 		return []string{"duration"}
@@ -166,7 +166,7 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 		}
 	case "getGraphDesc":
 		fallthrough
-	case "getGraphInfo":
+	case "GetGraphDesc":
 		switch arg {
 		case "name":
 			agd := o.ge.GetAllGraphDesc()
@@ -176,7 +176,7 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 			}
 			return graphs
 		}
-	case "getGraphInfoByTag":
+	case "GetGraphDescByTag":
 		switch arg {
 		case "tag":
 			tags := o.ge.GetTags()

@@ -52,7 +52,7 @@
 	{{ end}}
 {{ end}}
 
-{{ range $key, $value := graph_GetGraphInfoByTag "ui,tile" }}
+{{ range $key, $value := graph_GetGraphDescByTag "ui,tile" }}
 	{{ if ne $key "devicelist" }}
 	{{ if divisibleBy $i $gridSize }}</div><div class="row">{{ end }}{{$i = add $i 1}}
 		<iframe name="tile-{{$key}}" class="col" src="/graph/{{$key}}"></iframe>
