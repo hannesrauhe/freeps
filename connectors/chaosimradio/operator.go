@@ -279,13 +279,14 @@ func (cir *OpCiR) Pad2ChaosEntry(ctx *base.Context, mainInput *base.OperatorIO, 
 }
 
 type GithubParams struct {
-	PadParams
-	ForkRepo string
-	GHToken  string
+	OverviewURL *string
+	PadURL      *string
+	ForkRepo    string
+	GHToken     string
 }
 
 func (cir *OpCiR) Pad2GitHub(ctx *base.Context, mainInput *base.OperatorIO, args GithubParams) *base.OperatorIO {
-	entry, entryOpIO := cir.pad2ChaosEntry(ctx, mainInput, args.PadParams)
+	entry, entryOpIO := cir.pad2ChaosEntry(ctx, mainInput, PadParams{OverviewURL: args.OverviewURL, PadURL: args.PadURL})
 	if entryOpIO.IsError() {
 		return entryOpIO
 	}
