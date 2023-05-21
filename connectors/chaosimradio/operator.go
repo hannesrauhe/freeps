@@ -160,7 +160,7 @@ func executeInDir(dir string, env map[string]string, cmd string, args ...string)
 	c := exec.Command(cmd, args...)
 	c.Dir = dir
 	if env != nil {
-		envArr := []string{}
+		envArr := os.Environ()
 		for k, v := range env {
 			envArr = append(envArr, fmt.Sprintf("%v=%v", k, v))
 		}
