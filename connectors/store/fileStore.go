@@ -144,20 +144,27 @@ func (p *fileStoreNamespace) Len() int {
 	return len(p.GetKeys())
 }
 
-func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) error {
+func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	path, err := p.getFilePath(key)
 	if err != nil {
-		return err
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		return err
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 	b, err := io.GetBytes()
 	if err != nil {
-		return err
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 	_, err = f.Write(b)
-	return err
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	return io
+}
+
+func (p *fileStoreNamespace) UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }

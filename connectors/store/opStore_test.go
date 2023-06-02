@@ -178,3 +178,37 @@ func TestStoreSetGetAll(t *testing.T) {
 	outSearch := s.Execute(ctx, "search", searchVars, input)
 	assert.Assert(t, !outSearch.IsError())
 }
+
+func TestStoreUpdateTransaction(t *testing.T) {
+	ctx := base.NewContext(logrus.StandardLogger())
+
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+
+	NewOpStore(cr)
+
+	ns := store.GetNamespace("testing")
+	ns.SetValue("v1", base.MakePlainOutput("old_value"), ctx.GetID())
+	o := ns.UpdateTransaction("v1", func(oldV *base.OperatorIO) *base.OperatorIO {
+		if oldV.GetString() != "old_value" {
+			t.Errorf("old value is not old_value but %v", oldV.GetString())
+			return base.MakeOutputError(500, "old value is not old_value")
+		}
+		return base.MakePlainOutput("new_value")
+	}, ctx.GetID())
+	if o.IsError() {
+		t.Errorf("Error while updating value: %v", o)
+	}
+	assert.Equal(t, o.GetString(), "new_value")
+	o = ns.GetValue("v1")
+	assert.Equal(t, o.GetString(), "new_value")
+	o = ns.UpdateTransaction("v2", func(oldV *base.OperatorIO) *base.OperatorIO {
+		if !oldV.IsEmpty() {
+			t.Errorf("old value is not empty but %v", oldV.GetString())
+			return base.MakeOutputError(500, "old value is not empty")
+		}
+		return base.MakePlainOutput("new_value_2")
+	}, ctx.GetID())
+	assert.Equal(t, o.GetString(), "new_value_2")
+}

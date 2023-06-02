@@ -35,18 +35,18 @@ func (ce *CollectedErrors) AddError(input *base.OperatorIO, err *base.OperatorIO
 	e := &CollectedError{Input: input, Error: err.GetString(), GraphName: graphName, Operation: od}
 	id := ce.errorCounter.Add(1)
 	storeErr := ce.ns.SetValue(fmt.Sprint(id), base.MakeObjectOutput(e), ctx.GetID())
-	if storeErr != nil {
-		return storeErr
+	if storeErr.IsError() {
+		return storeErr.GetError()
 	}
 	storeErr = ce.ns.SetValue(fmt.Sprintf("%d-input", id), input, ctx.GetID())
-	if storeErr != nil {
-		return storeErr
+	if storeErr.IsError() {
+		return storeErr.GetError()
 	}
 
 	if ce.ns.Len() > ce.maxLen*2 {
 		ce.ns.DeleteValue(fmt.Sprint(id - uint64(ce.maxLen)))
 	}
-	return storeErr
+	return nil
 }
 
 // GetErrorsSince returns the error that occured in the given duration
