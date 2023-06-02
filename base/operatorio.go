@@ -151,23 +151,24 @@ func (io *OperatorIO) GetSize() (int, error) {
 }
 
 func (io *OperatorIO) GetString() string {
+	var b []byte
 	switch io.OutputType {
 	case Empty:
 		return ""
 	case Byte:
-		b := io.Output.([]byte)
-		if len(b) > 1024*10 {
-			return string(b[:1024*10]) + "..."
-		}
-		return string(b)
+		b = io.Output.([]byte)
 	case PlainText:
 		return io.Output.(string)
 	case Error:
 		return io.Output.(error).Error()
 	default:
-		byt, _ := json.MarshalIndent(io.Output, "", "  ")
-		return string(byt)
+		b, _ = json.MarshalIndent(io.Output, "", "  ")
 	}
+
+	if len(b) > 1024*10 {
+		return fmt.Sprintf("%s...", b[:1024*10-3])
+	}
+	return fmt.Sprintf("%s", b)
 }
 
 func (io *OperatorIO) GetError() error {
