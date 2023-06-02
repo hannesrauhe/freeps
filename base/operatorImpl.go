@@ -274,7 +274,14 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 		return outValue[0].Interface().(*OperatorIO)
 	}
 	if ffm.FuncType == FreepsFunctionTypeFullSignature {
-		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(lowercaseArgs)})
+		// pass on case sensitive arguments to function, but only the ones left in the lowercaseArgs map
+		caseArgs := map[string]string{}
+		for k, v := range args {
+			if _, ok := lowercaseArgs[utils.StringToLower(k)]; ok {
+				caseArgs[k] = v
+			}
+		}
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(caseArgs)})
 		return outValue[0].Interface().(*OperatorIO)
 	}
 
