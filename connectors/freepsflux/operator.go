@@ -73,10 +73,11 @@ type FieldWithType struct {
 	FieldValue string
 }
 type JsonArgs struct {
-	Measurement    string
-	Tags           map[string]string
-	Fields         map[string]interface{}
-	FieldsWithType map[string]FieldWithType
+	Measurement       string
+	Tags              map[string]string
+	Fields            map[string]interface{}
+	FieldsWithType    map[string]FieldWithType
+	PushNumericFields bool
 }
 
 func (o *OperatorFlux) PushFields(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -89,7 +90,26 @@ func (o *OperatorFlux) PushFields(ctx *base.Context, input *base.OperatorIO) *ba
 		return base.MakeOutputError(http.StatusBadRequest, "Name of measurement is empty")
 	}
 	for k, v := range args.Fields {
-		fields[k] = v
+		if args.PushNumericFields {
+			var value float64
+			switch v.(type) {
+			case float64:
+				value = v.(float64)
+			case int:
+				value = float64(v.(int))
+			case bool:
+				if v.(bool) {
+					value = 1
+				} else {
+					value = 0
+				}
+			case string:
+				value, err = strconv.ParseFloat(v.(string), 64)
+			}
+			fields[k] = value
+		} else {
+			fields[k] = v
+		}
 	}
 	for k, fwt := range args.FieldsWithType {
 		var value interface{}
