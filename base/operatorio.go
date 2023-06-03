@@ -180,6 +180,15 @@ func (io *OperatorIO) GetError() error {
 	}
 }
 
+func (io *OperatorIO) GetObject() interface{} {
+	switch io.OutputType {
+	case Object:
+		return io.Output
+	default:
+		return nil
+	}
+}
+
 func (io *OperatorIO) GetStatusCode() int {
 	return io.HTTPCode
 }

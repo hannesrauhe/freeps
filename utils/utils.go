@@ -174,3 +174,8 @@ func StringToFloat64(input string) (float64, error) {
 func StringToInt(input string) (int, error) {
 	return strconv.Atoi(input)
 }
+
+// StringPtr returns a pointer to a string
+func StringPtr(input string) *string {
+	return &input
+}
