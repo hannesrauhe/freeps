@@ -119,9 +119,8 @@ func (o *OperatorFlux) PushFields(ctx *base.Context, input *base.OperatorIO) *ba
 	err = o.ff.PushFields(args.Measurement, args.Tags, fields)
 	if err == nil {
 		return base.MakePlainOutput("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
-	} else {
-		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
+	return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 }
 
 type PushArguments struct {
