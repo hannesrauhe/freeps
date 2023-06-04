@@ -3,10 +3,11 @@
 package freepsflux
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
 
@@ -73,11 +74,30 @@ type FieldWithType struct {
 	FieldValue string
 }
 type JsonArgs struct {
-	Measurement       string
-	Tags              map[string]string
-	Fields            map[string]interface{}
-	FieldsWithType    map[string]FieldWithType
-	PushNumericFields bool
+	Measurement      string
+	Tags             map[string]string
+	Fields           map[string]interface{}
+	FieldsWithType   map[string]FieldWithType
+	DefaultFieldType string
+}
+
+func changeFieldType(fieldValue interface{}, fieldType string) (interface{}, error) {
+	var value interface{}
+	var err error
+	switch fieldType {
+	case "float", "float64":
+		value, err = utils.ConvertToFloat(fieldValue)
+	case "int", "int64":
+		value, err = utils.ConvertToInt64(fieldValue)
+	case "bool":
+		value, err = utils.ConvertToBool(fieldValue)
+	default:
+		value = fieldValue
+	}
+	if err != nil {
+		return value, fmt.Errorf("Error when converting: \"%v\" does not seem to be of type \"%v\": %v", fieldValue, fieldType, err)
+	}
+	return value, nil
 }
 
 func (o *OperatorFlux) PushFields(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -90,43 +110,10 @@ func (o *OperatorFlux) PushFields(ctx *base.Context, input *base.OperatorIO) *ba
 		return base.MakeOutputError(http.StatusBadRequest, "Name of measurement is empty")
 	}
 	for k, v := range args.Fields {
-		if args.PushNumericFields {
-			var value float64
-			switch v.(type) {
-			case float64:
-				value = v.(float64)
-			case int:
-				value = float64(v.(int))
-			case bool:
-				if v.(bool) {
-					value = 1
-				} else {
-					value = 0
-				}
-			case string:
-				value, err = strconv.ParseFloat(v.(string), 64)
-			}
-			fields[k] = value
-		} else {
-			fields[k] = v
-		}
+		fields[k], err = changeFieldType(v, args.DefaultFieldType)
 	}
-	for k, fwt := range args.FieldsWithType {
-		var value interface{}
-		switch fwt.FieldType {
-		case "float":
-			value, err = strconv.ParseFloat(fwt.FieldValue, 64)
-		case "int":
-			value, err = strconv.Atoi(fwt.FieldValue)
-		case "bool":
-			value, err = strconv.ParseBool(fwt.FieldValue)
-		default:
-			value = fwt.FieldValue
-		}
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "Error when converting: \"%v\" does not seem to be of type \"%v\": %v", fwt.FieldValue, fwt.FieldType, err)
-		}
-		fields[k] = value
+	for k, v := range args.FieldsWithType {
+		fields[k], err = changeFieldType(v.FieldValue, v.FieldType)
 	}
 
 	err = o.ff.PushFields(args.Measurement, args.Tags, fields)

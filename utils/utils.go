@@ -80,21 +80,6 @@ func ClearString(str string) string {
 	return nonAlphanumericRegex.ReplaceAllString(str, "")
 }
 
-// ParseBool returns the bool value represented by string
-func ParseBool(str string) bool {
-	v, err := strconv.ParseBool(str)
-	if err != nil {
-		str = strings.ToLower(str)
-		switch str {
-		case "on", "yes":
-			return true
-		default:
-			return false
-		}
-	}
-	return v
-}
-
 func ParseHexColor(s string) (c color.RGBA, err error) {
 	c.A = 0xff
 	switch len(s) {
