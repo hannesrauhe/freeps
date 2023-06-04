@@ -59,6 +59,7 @@ func mainLoop() bool {
 	availableOperators := []base.FreepsOperator{
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
+		&freepsflux.OperatorFlux{},
 		&freepsgraph.OpUtils{},
 		&freepsgraph.OpRegexp{},
 		&freepsgraph.OpCurl{},
@@ -97,7 +98,6 @@ func mainLoop() bool {
 	}
 	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(telegram.NewTelegramOp(cr))
-	ge.AddOperator(freepsflux.NewFluxMod(cr))
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	ge.AddOperator(fritz.NewOpFritz(cr))

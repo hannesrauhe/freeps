@@ -1,3 +1,5 @@
+//go:build !noinflux
+
 package freepsflux
 
 import (
@@ -13,26 +15,12 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
 
-type InfluxdbConfig struct {
-	URL    string
-	Token  string
-	Org    string
-	Bucket string
-}
-
-type FreepsFluxConfig struct {
-	InfluxdbConnections []InfluxdbConfig
-	IgnoreNotPresent    bool
-}
-
 type FreepsFlux struct {
 	f         *freepslib.Freeps
 	config    FreepsFluxConfig
 	Verbose   bool
 	writeApis []api.WriteAPI
 }
-
-var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, false}
 
 func NewFreepsFlux(conf *FreepsFluxConfig, f *freepslib.Freeps) (*FreepsFlux, error) {
 	return &FreepsFlux{f, *conf, false, []api.WriteAPI{}}, nil

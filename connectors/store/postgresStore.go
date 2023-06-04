@@ -274,6 +274,10 @@ func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 	return io
 }
 
+func (p *postgresStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+}
+
 func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }

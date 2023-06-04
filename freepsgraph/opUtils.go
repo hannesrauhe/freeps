@@ -2,6 +2,7 @@ package freepsgraph
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -15,8 +16,14 @@ type OpUtils struct {
 
 var _ base.FreepsOperator = &OpUtils{}
 
+// FlattenArgs are the arguments for the Echo function
+type FlattenArgs struct {
+	IncludeRegexp *string
+	ExcludeRegexp *string
+}
+
 // Flatten flattens the input from a nested map to a flat map
-func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args FlattenArgs) *base.OperatorIO {
 	nestedArgsMap := map[string]interface{}{}
 	err := input.ParseJSON(&nestedArgsMap)
 	if err != nil {
@@ -27,6 +34,42 @@ func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO) *base.Opera
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
 	}
+
+	if args.IncludeRegexp != nil {
+		re, err := regexp.Compile(*args.IncludeRegexp)
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "include regexp cannot be compiled: %v", err)
+		}
+		// store keys that match the regexp
+		keysToRemove := []string{}
+		for k := range argsmap {
+			if !re.MatchString(k) {
+				keysToRemove = append(keysToRemove, k)
+			}
+		}
+		// remove keys that do not match the regexp
+		for _, k := range keysToRemove {
+			delete(argsmap, k)
+		}
+	}
+	if args.ExcludeRegexp != nil {
+		re, err := regexp.Compile(*args.ExcludeRegexp)
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "exclude regexp cannot be compiled: %v", err)
+		}
+		// store keys that match the regexp
+		keysToRemove := []string{}
+		for k := range argsmap {
+			if re.MatchString(k) {
+				keysToRemove = append(keysToRemove, k)
+			}
+		}
+		// remove keys that do not match the regexp
+		for _, k := range keysToRemove {
+			delete(argsmap, k)
+		}
+	}
+
 	return base.MakeObjectOutput(argsmap)
 }
 

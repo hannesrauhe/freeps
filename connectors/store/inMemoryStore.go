@@ -60,6 +60,16 @@ func (s *inMemoryStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 	return s.setValueUnlocked(key, io, modifiedBy)
 }
 
+// SetAll sets all values in the StoreNamespace
+func (s *inMemoryStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+	s.nsLock.Lock()
+	defer s.nsLock.Unlock()
+	for k, v := range valueMap {
+		s.setValueUnlocked(k, base.MakeObjectOutput(v), modifiedBy)
+	}
+	return base.MakeEmptyOutput()
+}
+
 // CompareAndSwap sets the value if the string representation of the already stored value is as expected
 func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	s.nsLock.Lock()

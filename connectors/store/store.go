@@ -51,6 +51,7 @@ type StoreNamespace interface {
 	GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO
 	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO
 	SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO
 	UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
 }
 
