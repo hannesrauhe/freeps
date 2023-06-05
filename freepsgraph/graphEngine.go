@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -237,7 +239,7 @@ func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	return nil, exists
 }
 
-// GetTags returns a map of all used tags
+// GetTags returns a map of all used tags TODO(HR): deprecate
 func (ge *GraphEngine) GetTags() map[string]string {
 	r := map[string]string{}
 	for _, d := range ge.GetAllGraphDesc() {
@@ -249,6 +251,20 @@ func (ge *GraphEngine) GetTags() map[string]string {
 		}
 	}
 	return r
+}
+
+func SplitTag(tag string) (string, string) {
+	tmp := strings.Split(tag, ":")
+	if len(tmp) == 1 {
+		return tmp[0], ""
+	}
+	if len(tmp) == 2 {
+		return tmp[0], tmp[1]
+	}
+	if len(tmp) > 2 {
+		return tmp[0], strings.Join(tmp[1:], ":")
+	}
+	return "", ""
 }
 
 // GetTagValues returns a slice of all used values for the given tag
@@ -263,11 +279,47 @@ func (ge *GraphEngine) GetTagValues(keytag string) []string {
 			continue
 		}
 		for _, t := range d.Tags {
-			if len(t) > l+1 && t[:l] == keytag && t[l] == ':' {
-				r = append(r, t[l+1:])
+			k, v := SplitTag(t)
+			if k == keytag {
+				r = append(r, v)
 			}
 		}
 	}
+	return r
+}
+
+// GetTagMap returns a map of all used tags and their values (empty array if no value)
+func (ge *GraphEngine) GetTagMap() map[string][]string {
+	r := map[string][]string{}
+	for _, d := range ge.GetAllGraphDesc() {
+		if d.Tags == nil {
+			continue
+		}
+		for _, t := range d.Tags {
+			k, v := SplitTag(t)
+			if k == "" {
+				continue
+			}
+			if _, exists := r[k]; !exists {
+				r[k] = []string{}
+			}
+			if v == "" {
+				continue
+			}
+			//only append if not yet in list
+			for _, e := range r[k] {
+				if e == v {
+					continue
+				}
+			}
+			r[k] = append(r[k], v)
+		}
+	}
+	// sort arrays in map
+	for k := range r {
+		sort.Strings(r[k])
+	}
+
 	return r
 }
 

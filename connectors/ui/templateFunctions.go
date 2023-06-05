@@ -2,6 +2,7 @@ package ui
 
 import (
 	"html/template"
+	"sort"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -19,14 +20,18 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return a != 0 && a%b == 0
 		},
 		"store_GetNamespaces": func() []string {
-			return freepsstore.GetGlobalStore().GetNamespaces()
+			ns := freepsstore.GetGlobalStore().GetNamespaces()
+			sort.Strings(ns)
+			return ns
 		},
 		"store_GetKeys": func(namespace string) []string {
 			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
 			if ns == nil {
 				return nil
 			}
-			return ns.GetKeys()
+			keys := ns.GetKeys()
+			sort.Strings(keys)
+			return keys
 		},
 		"store_GetAll": func(namespace string) map[string]*base.OperatorIO {
 			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
@@ -46,6 +51,17 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			}
 			return v.Output
 		},
+		"store_GetString": func(namespace string, key string) string {
+			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			if ns == nil {
+				return ""
+			}
+			v := ns.GetValue(key)
+			if v == nil {
+				return ""
+			}
+			return v.GetString()
+		},
 		"graph_GetGraphInfoByTag": func(tagstr string) map[string]freepsgraph.GraphInfo {
 			tags := strings.Split(tagstr, ",")
 			return o.ge.GetGraphInfoByTag(tags)
@@ -63,6 +79,9 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 				return base.MakeOutputError(400, "Could not parse mainArgs: %v", err)
 			}
 			return o.ge.ExecuteOperatorByName(ctx, op, fn, mainArgs, base.MakeEmptyOutput())
+		},
+		"graph_GetTagMap": func() map[string][]string {
+			return o.ge.GetTagMap()
 		},
 	}
 	return funcMap
