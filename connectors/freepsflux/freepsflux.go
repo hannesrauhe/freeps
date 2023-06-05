@@ -50,6 +50,10 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 		return err
 	}
 
+	if fields == nil || len(fields)==0 {
+		return nil
+	}
+
 	for _, writeAPI := range ff.writeApis {
 		p := influxdb2.NewPoint(measurement, tags, fields, time.Now())
 		writeAPI.WritePoint(p)
