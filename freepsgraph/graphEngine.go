@@ -254,6 +254,9 @@ func (ge *GraphEngine) GetTags() map[string]string {
 }
 
 func SplitTag(tag string) (string, string) {
+	if utils.StringStartsWith(tag, ":") {
+		return tag, ""
+	}
 	tmp := strings.Split(tag, ":")
 	if len(tmp) == 1 {
 		return tmp[0], ""
@@ -280,7 +283,7 @@ func (ge *GraphEngine) GetTagValues(keytag string) []string {
 		}
 		for _, t := range d.Tags {
 			k, v := SplitTag(t)
-			if k == keytag {
+			if k == keytag && v != "" {
 				r = append(r, v)
 			}
 		}
