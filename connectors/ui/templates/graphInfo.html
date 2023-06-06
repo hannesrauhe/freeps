@@ -1,34 +1,5 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<<<<<<< HEAD
-<a href="/graph/graphInfo">All Graphs</a>
-<br>
-<table style="float: left">
-<tr><th>Graph</th><th>Actions</th><th>Tags</th></tr>
-		{{ range $value, $info := .input }}
-				<tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
-                    <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}" target="outputframe">Delete</a></td>
-                    <td>{{ range $index, $t := $info.Desc.Tags }} <a href="/graph/graphInfo?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
-		{{ end }}
-</table>
-
-<div style="float: left">
-<ul>
-    {{ range $tag, $array := graph_GetTagMap }}
-    <li><a href="/graph/graphInfo?tag={{ $tag }}">{{ $tag }}</a></li>
-        {{ if gt (len $array) 0 }}
-        <ul>
-            {{ range $i, $value := $array }}
-            <li><a href="/graph/graphInfo?tag={{ $tag }}:{{ $value }}">{{ $value }}</a></li>
-            {{ end }}
-        </ul>
-        {{ end }}
-    {{ end }}
-</ul>    
-</div>
-<div style="float: left">
-<iframe name="outputframe" style="min-width: 500px; height:500px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
-=======
 
 <div class="container">
     <div class="row">
@@ -61,5 +32,4 @@
     <iframe name="outputframe" style="min-width: 500px; height:500px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
     </div>
 
->>>>>>> c315225... feat: new UIs for store and graphInfo
 </div>
