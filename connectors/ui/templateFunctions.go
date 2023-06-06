@@ -63,7 +63,10 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return v.GetString()
 		},
 		"graph_GetGraphInfoByTag": func(tagstr string) map[string]freepsgraph.GraphInfo {
-			tags := strings.Split(tagstr, ",")
+			tags := []string{}
+			if tagstr != "" {
+				tags = strings.Split(tagstr, ",")
+			}
 			return o.ge.GetGraphInfoByTag(tags)
 		},
 		"graph_ExecuteGraph": func(graphName string, mainArgsStr string) *base.OperatorIO {
