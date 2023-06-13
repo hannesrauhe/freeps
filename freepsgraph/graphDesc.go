@@ -35,10 +35,12 @@ func (gd *GraphDesc) HasAllTags(expectedTags []string) bool {
 		return true
 	}
 
-	for _, exexpectedTag := range expectedTags {
+	for _, expectedTag := range expectedTags {
+		expectedTagKey, expectedTagValue := SplitTag(expectedTag)
 		found := false
 		for _, tag := range gd.Tags {
-			if tag == exexpectedTag {
+			tagKey, tagValue := SplitTag(tag)
+			if tagKey == expectedTagKey && (tagValue == expectedTagValue || expectedTagValue == "") {
 				found = true
 			}
 		}
@@ -55,9 +57,11 @@ func (gd *GraphDesc) HasAtLeastOneTag(expectedTags []string) bool {
 		return true
 	}
 
-	for _, exexpectedTag := range expectedTags {
+	for _, expectedTag := range expectedTags {
+		expectedTagKey, expectedTagValue := SplitTag(expectedTag)
 		for _, tag := range gd.Tags {
-			if tag == exexpectedTag {
+			tagKey, tagValue := SplitTag(tag)
+			if tagKey == expectedTagKey && (tagValue == expectedTagValue || expectedTagValue == "") {
 				return true
 			}
 		}

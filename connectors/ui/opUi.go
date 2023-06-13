@@ -136,11 +136,12 @@ func (o *OpUI) getFileBytes(templateBaseName string, logger *log.Entry) ([]byte,
 
 func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*template.Template, error) {
 	isCustom, path := o.isCustomTemplate(templateBaseName)
+	t := template.New(templateBaseName).Funcs(o.createTemplateFuncMap(base.NewContext(logger)))
 	if isCustom {
 		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
-		return template.ParseFiles(path)
+		return t.ParseFiles(path)
 	}
-	return template.New(templateBaseName).Funcs(o.createTemplateFuncMap(base.NewContext(logger))).ParseFS(embeddedFiles, path)
+	return t.ParseFS(embeddedFiles, path)
 }
 
 func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *base.OperatorIO {
