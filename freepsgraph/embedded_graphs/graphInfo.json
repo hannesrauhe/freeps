@@ -4,16 +4,11 @@
         "system",
         "footer"
     ],
-    "OutputFrom": "#1",
+    "OutputFrom": "#0",
     "Operations": [
       {
-        "Operator": "system",
-        "Function": "getGraphInfoByTag"
-      },
-      {
         "Operator": "ui",
-        "Function": "graphInfo.html",
-        "InputFrom": "#0"
+        "Function": "graphInfo.html"
       }
     ]
   }

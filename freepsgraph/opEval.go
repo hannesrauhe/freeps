@@ -3,10 +3,8 @@ package freepsgraph
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -204,7 +202,7 @@ func (m *OpEval) Eval(vars map[string]string, input *base.OperatorIO) *base.Oper
 	case "string":
 		result, err = m.EvalString(vInterface, args.Operation, args.Operand)
 	case "bool":
-		result, err = parseBoolOrReturnDirectly(vInterface)
+		result, err = utils.ConvertToBool(vInterface)
 	default:
 		err = fmt.Errorf("No such type %s", args.ValueType)
 	}
@@ -231,11 +229,11 @@ func (m *OpEval) Eval(vars map[string]string, input *base.OperatorIO) *base.Oper
 }
 
 func (m *OpEval) EvalInt(vInterface interface{}, op string, v2Interface interface{}) (bool, error) {
-	v, err := parseIntOrReturnDirectly(vInterface)
+	v, err := utils.ConvertToInt64(vInterface)
 	if err != nil {
 		return false, err
 	}
-	v2, err := parseIntOrReturnDirectly(v2Interface)
+	v2, err := utils.ConvertToInt64(v2Interface)
 	if err != nil {
 		return false, err
 	}
@@ -251,11 +249,11 @@ func (m *OpEval) EvalInt(vInterface interface{}, op string, v2Interface interfac
 }
 
 func (m *OpEval) EvalFloat(vInterface interface{}, op string, v2Interface interface{}) (bool, error) {
-	v, err := parseFloatOrReturnDirectly(vInterface)
+	v, err := utils.ConvertToFloat(vInterface)
 	if err != nil {
 		return false, err
 	}
-	v2, err := parseFloatOrReturnDirectly(v2Interface)
+	v2, err := utils.ConvertToFloat(v2Interface)
 	if err != nil {
 		return false, err
 	}
@@ -269,11 +267,11 @@ func (m *OpEval) EvalFloat(vInterface interface{}, op string, v2Interface interf
 }
 
 func (m *OpEval) EvalString(vInterface interface{}, op string, v2Interface interface{}) (bool, error) {
-	v, err := parseStringOrReturnDirectly(vInterface)
+	v, err := utils.ConvertToString(vInterface)
 	if err != nil {
 		return false, err
 	}
-	v2, err := parseStringOrReturnDirectly(v2Interface)
+	v2, err := utils.ConvertToString(v2Interface)
 	if err != nil {
 		return false, err
 	}
@@ -321,11 +319,11 @@ func (m *OpEval) Split(argsmap map[string]string, input *base.OperatorIO) *base.
 	if posStr == "" {
 		return base.MakeObjectOutput(strArray)
 	}
-	pos, err := parseIntOrReturnDirectly(posStr)
+	pos, err := utils.ConvertToInt64(posStr)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v is not an integer: %v", posStr, err.Error())
 	}
-	if pos >= len(strArray) {
+	if pos >= int64(len(strArray)) {
 		return base.MakeOutputError(http.StatusBadRequest, "Pos %v not available in array %v", pos, strArray)
 	}
 	return base.MakePlainOutput(strArray[pos])
@@ -333,88 +331,4 @@ func (m *OpEval) Split(argsmap map[string]string, input *base.OperatorIO) *base.
 
 // Shutdown (noOp)
 func (o *OpEval) Shutdown(ctx *base.Context) {
-}
-
-func parseIntOrReturnDirectly(v interface{}) (int, error) {
-	switch v.(type) {
-	case int:
-		return v.(int), nil
-	case int64:
-		return int(v.(int64)), nil
-	case int32:
-		return int(v.(int32)), nil
-	case float64:
-		return int(math.Round(v.(float64))), nil
-	case []byte:
-		b := v.([]byte)
-		if len(b) == 0 {
-			return 0, fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as Int, array is empty", v, v)
-		}
-		return int(b[0]), nil
-	case string:
-		vInt, err := strconv.Atoi(v.(string))
-		if err != nil {
-			return 0, err
-		}
-		return vInt, nil
-	}
-	return 0, fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as Int", v, v)
-}
-
-func parseFloatOrReturnDirectly(v interface{}) (float64, error) {
-	switch v.(type) {
-	case int:
-		return float64(v.(int)), nil
-	case int64:
-		return float64(v.(int64)), nil
-	case int32:
-		return float64(v.(int32)), nil
-	case float64:
-		return v.(float64), nil
-	case string:
-		vF, err := strconv.ParseFloat(v.(string), 64)
-		if err != nil {
-			return 0, err
-		}
-		return vF, nil
-	}
-	return 0, fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as Float64", v, v)
-}
-
-func parseBoolOrReturnDirectly(v interface{}) (bool, error) {
-	switch v.(type) {
-	case bool:
-		return v.(bool), nil
-	case []byte:
-		b := v.([]byte)
-		if len(b) == 0 {
-			return false, fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as bool, array is empty", v, v)
-		}
-		return b[0] != 0, nil
-	case string:
-		vB, err := strconv.ParseBool(v.(string))
-		if err != nil {
-			return false, err
-		}
-		return vB, nil
-	}
-	return false, fmt.Errorf("Cannot parse \"%v\" of type \"%T\"  as Bool", v, v)
-}
-
-func parseStringOrReturnDirectly(v interface{}) (string, error) {
-	switch v.(type) {
-	case string:
-		return v.(string), nil
-	case bool:
-		return strconv.FormatBool(v.(bool)), nil
-	case int:
-		return strconv.Itoa(v.(int)), nil
-	case int64:
-		return strconv.FormatInt(v.(int64), 10), nil
-	case int32:
-		return strconv.FormatInt(int64(v.(int32)), 10), nil
-	case float64:
-		return strconv.FormatFloat(v.(float64), 'f', -1, 64), nil
-	}
-	return "", fmt.Errorf("Cannot parse \"%v\" of type \"%T\" as String", v, v)
 }

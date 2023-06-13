@@ -1,0 +1,33 @@
+<link rel="stylesheet" href="/chota.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<div class="container">
+    <form method="GET" class="row">
+        <div class="col">
+        Namespace: <select name="namespace" onChange="this.form.submit()">
+                <option value=""></option>
+                {{ range $i, $ns_opt := store_GetNamespaces }}
+                <option value="{{$ns_opt}}" {{if eq $ns_opt $.arguments.namespace}}selected{{end}}>{{$ns_opt}}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="col">
+        Key: <select name="key" onChange="this.form.submit()">
+                {{ range $i, $key_opt := store_GetKeys $.arguments.namespace }}
+                <option value="{{$key_opt}}" {{if eq $key_opt $.arguments.key}}selected{{end}}>{{$key_opt}}</option>
+                {{ end }}
+            </select>
+        </div>
+    </form>
+    <form method="post" action="/store/set">
+        <input type="hidden" name="namespace" value="{{$.arguments.namespace}}">
+        <input type="hidden" name="key" value="{{$.arguments.key}}">
+        <div>
+            <textarea name="value" rows="50">{{ store_GetString $.arguments.namespace $.arguments.key}}</textarea>
+        </div>
+        <button formaction="/store/delete" formtarget="_blank">Delete</button>
+        <button>Set</button>
+
+    </form>
+</div>
+

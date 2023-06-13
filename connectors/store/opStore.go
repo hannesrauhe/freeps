@@ -147,9 +147,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
 			}
-			for inputKey, inputValue := range m {
-				nsStore.SetValue(inputKey, base.MakeObjectOutput(inputValue), ctx.GetID())
-			}
+			nsStore.SetAll(m, ctx.GetID())
 		}
 	case "get", "equals":
 		{
@@ -183,7 +181,10 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 					return io
 				}
 			}
-			nsStore.SetValue(key, input, ctx.GetID())
+			io := nsStore.SetValue(key, input, ctx.GetID())
+			if io.IsError() {
+				return io
+			}
 			result[ns] = map[string]*base.OperatorIO{key: input}
 		}
 	case "compareAndSwap":

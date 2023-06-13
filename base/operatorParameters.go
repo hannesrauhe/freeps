@@ -29,6 +29,15 @@ func isSupportedField(field reflect.Value, mustBePtr bool) bool {
 	return isSupportedFieldType(field.Type())
 }
 
+func getJSONFieldName(field reflect.StructField) string {
+	jsonTag := field.Tag.Get("json")
+	if jsonTag == "-" || jsonTag == "" {
+		return ""
+	}
+	parts := strings.Split(jsonTag, ",")
+	return parts[0]
+}
+
 // setSupportedField sets the value of the field and converts from string if necessary
 func setSupportedField(field reflect.Value, value string) error {
 	if field.Type().Kind() == reflect.Ptr {
@@ -79,8 +88,8 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 	//make sure all non-pointer fields of the FreepsFunction are set to the values of the args map
 	for i := 0; i < freepsFuncParams.Elem().NumField(); i++ {
 		field := freepsFuncParams.Elem().Field(i)
-
-		fieldNameCase := freepsFuncParams.Elem().Type().Field(i).Name
+		fieldType := freepsFuncParams.Elem().Type().Field(i)
+		fieldNameCase := fieldType.Name
 		fieldName := utils.StringToLower(fieldNameCase)
 		if !isSupportedField(field, false) {
 			continue
@@ -89,10 +98,18 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 		//return an error if the field is not set in the args map
 		v, ok := args[fieldName]
 		if !ok {
-			if failOnErr {
-				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("required Parameter \"%v\" is missing", fieldNameCase))
-			} else {
-				continue
+			jsonFieldName := getJSONFieldName(fieldType)
+
+			if jsonFieldName != "" {
+				v, ok = args[jsonFieldName]
+			}
+
+			if !ok {
+				if failOnErr {
+					return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("required Parameter \"%v\" is missing", fieldNameCase))
+				} else {
+					continue
+				}
 			}
 		}
 
@@ -111,19 +128,28 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 }
 
 // SetOptionalFreepsFunctionParameters sets the parameters of the FreepsFunction based on the args map
-func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsfunc reflect.Value, args map[string]string, failOnErr bool) *OperatorIO {
+func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsFuncParams reflect.Value, args map[string]string, failOnErr bool) *OperatorIO {
 	// set all pointer fields of the FreepsFunction to the values of the args map
-	for i := 0; i < freepsfunc.Elem().NumField(); i++ {
-		field := freepsfunc.Elem().Field(i)
+	for i := 0; i < freepsFuncParams.Elem().NumField(); i++ {
+		field := freepsFuncParams.Elem().Field(i)
+		fieldType := freepsFuncParams.Elem().Type().Field(i)
 
-		fieldName := utils.StringToLower(freepsfunc.Elem().Type().Field(i).Name)
+		fieldName := utils.StringToLower(fieldType.Name)
 		if !isSupportedField(field, true) {
 			continue
 		}
 
 		v, ok := args[fieldName]
 		if !ok {
-			continue
+			jsonFieldName := getJSONFieldName(fieldType)
+
+			if jsonFieldName != "" {
+				v, ok = args[jsonFieldName]
+			}
+
+			if !ok {
+				continue
+			}
 		}
 		err := setSupportedField(field, v)
 		if err != nil {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
+	"github.com/hannesrauhe/freeps/connectors/chaosimradio"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
@@ -58,10 +59,12 @@ func mainLoop() bool {
 	availableOperators := []base.FreepsOperator{
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
+		&freepsflux.OperatorFlux{},
 		&freepsgraph.OpUtils{},
 		&freepsgraph.OpRegexp{},
 		&freepsgraph.OpCurl{},
 		&wled.OpWLED{},
+		&chaosimradio.OpCiR{},
 	}
 
 	logger := logrus.StandardLogger()
@@ -96,7 +99,11 @@ func mainLoop() bool {
 	}
 	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(telegram.NewTelegramOp(cr))
+<<<<<<< HEAD
 	ge.AddOperator(freepsflux.NewFluxMod(cr))
+=======
+	ge.AddOperator(wled.NewWLEDOp(cr))
+>>>>>>> main
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	ge.AddOperator(fritz.NewOpFritz(cr))
 	freepsexec.AddExecOperators(cr, ge)

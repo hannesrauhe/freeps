@@ -255,7 +255,7 @@ func TestGraphExecution(t *testing.T) {
 	assert.DeepEqual(t, ge.GetTagValues("keytag2"), []string{"bla"})
 	assert.DeepEqual(t, ge.GetTagValues("footag"), []string{})
 	assert.DeepEqual(t, ge.GetTagValues(""), []string{})
-	assert.DeepEqual(t, ge.GetTagValues(":yes"), []string{"man"})
+	assert.DeepEqual(t, ge.GetTagValues(":yes"), []string{})
 	assert.DeepEqual(t, ge.GetTagValues("f"), []string{"a:shiZ:s"})
-	assert.DeepEqual(t, ge.GetTagValues("f:a"), []string{"shiZ:s"})
+	assert.DeepEqual(t, ge.GetTagValues("f:a"), []string{})
 }

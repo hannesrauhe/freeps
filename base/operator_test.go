@@ -13,9 +13,9 @@ import (
 )
 
 type MyTestFuncParams struct {
-	Param1              string
+	Param1              string `json:"param_1"`
 	Param2              int
-	OptParam3           *int
+	OptParam3           *int `json:"opt_param_3"`
 	OptParam4           *string
 	OptParam5           *bool
 	OptParamWithDefault *int
@@ -151,6 +151,11 @@ func TestOpBuilderExecute(t *testing.T) {
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "3")
 
+	// happy path with optional parameters with JSON names
+	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"param_1": "test", "param2": "12", "opt_param_3": "42"}, MakeEmptyOutput())
+	assert.Assert(t, !output.IsError(), output.GetString())
+	assert.Equal(t, output.GetString(), "3")
+
 	// happy path with optional parameters
 	output = gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "test", "param2": "12", "optparam4": "bla"}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
@@ -163,7 +168,7 @@ func TestOpBuilderExecute(t *testing.T) {
 	assert.Equal(t, output.GetString(), "other")
 	output = gop.Execute(nil, "counter", map[string]string{}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
-	assert.Equal(t, output.GetString(), "5")
+	assert.Equal(t, output.GetString(), "6")
 
 	// happy path with optional parameters that have names of internal fields
 	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "neversetvar": "bla", "neversetvarptr": "bla"}, MakeEmptyOutput())

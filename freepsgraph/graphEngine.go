@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,7 +34,7 @@ type GraphEngine struct {
 	reloadRequested bool
 	graphLock       sync.Mutex
 	operatorLock    sync.Mutex
-	hookLock        sync.Mutex
+	hookMapLock     sync.Mutex
 }
 
 // NewGraphEngine creates the graph engine from the config
@@ -87,6 +89,20 @@ func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, src
 		v.Source = srcName
 		ge.externalGraphs[k] = &GraphInfo{Desc: v}
 	}
+}
+
+// getHookMapCopy returns a copy of the hook-map to run locking time (hook map does not need to be locked while hook is executed)
+func (ge *GraphEngine) getHookMapCopy() map[string]FreepsHook {
+	ge.hookMapLock.Lock()
+	defer ge.hookMapLock.Unlock()
+	r := make(map[string]FreepsHook)
+	for k, v := range ge.hooks {
+		if v == nil {
+			continue
+		}
+		r[k] = v
+	}
+	return r
 }
 
 // ReadConfig reads the config from the config reader
@@ -223,7 +239,7 @@ func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
 	return nil, exists
 }
 
-// GetTags returns a map of all used tags
+// GetTags returns a map of all used tags TODO(HR): deprecate
 func (ge *GraphEngine) GetTags() map[string]string {
 	r := map[string]string{}
 	for _, d := range ge.GetAllGraphDesc() {
@@ -235,6 +251,23 @@ func (ge *GraphEngine) GetTags() map[string]string {
 		}
 	}
 	return r
+}
+
+func SplitTag(tag string) (string, string) {
+	if utils.StringStartsWith(tag, ":") {
+		return tag, ""
+	}
+	tmp := strings.Split(tag, ":")
+	if len(tmp) == 1 {
+		return tmp[0], ""
+	}
+	if len(tmp) == 2 {
+		return tmp[0], tmp[1]
+	}
+	if len(tmp) > 2 {
+		return tmp[0], strings.Join(tmp[1:], ":")
+	}
+	return "", ""
 }
 
 // GetTagValues returns a slice of all used values for the given tag
@@ -249,11 +282,47 @@ func (ge *GraphEngine) GetTagValues(keytag string) []string {
 			continue
 		}
 		for _, t := range d.Tags {
-			if len(t) > l+1 && t[:l] == keytag && t[l] == ':' {
-				r = append(r, t[l+1:])
+			k, v := SplitTag(t)
+			if k == keytag && v != "" {
+				r = append(r, v)
 			}
 		}
 	}
+	return r
+}
+
+// GetTagMap returns a map of all used tags and their values (empty array if no value)
+func (ge *GraphEngine) GetTagMap() map[string][]string {
+	r := map[string][]string{}
+	for _, d := range ge.GetAllGraphDesc() {
+		if d.Tags == nil {
+			continue
+		}
+		for _, t := range d.Tags {
+			k, v := SplitTag(t)
+			if k == "" {
+				continue
+			}
+			if _, exists := r[k]; !exists {
+				r[k] = []string{}
+			}
+			if v == "" {
+				continue
+			}
+			//only append if not yet in list
+			for _, e := range r[k] {
+				if e == v {
+					continue
+				}
+			}
+			r[k] = append(r[k], v)
+		}
+	}
+	// sort arrays in map
+	for k := range r {
+		sort.Strings(r[k])
+	}
+
 	return r
 }
 
@@ -352,20 +421,16 @@ func (ge *GraphEngine) GetOperator(opName string) base.FreepsBaseOperator {
 
 // AddHook adds a hook to the graph engine
 func (ge *GraphEngine) AddHook(h FreepsHook) {
-	ge.hookLock.Lock()
-	defer ge.hookLock.Unlock()
+	ge.hookMapLock.Lock()
+	defer ge.hookMapLock.Unlock()
 	ge.hooks[h.GetName()] = h
 }
 
 // TriggerOnExecuteHooks adds a hook to the graph engine
 func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
-	ge.hookLock.Lock()
-	defer ge.hookLock.Unlock()
+	hooks := ge.getHookMapCopy()
 
-	for name, h := range ge.hooks {
-		if h == nil {
-			continue
-		}
+	for name, h := range hooks {
 		err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
 			ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
@@ -375,13 +440,9 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
 func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
-	ge.hookLock.Lock()
-	defer ge.hookLock.Unlock()
+	hooks := ge.getHookMapCopy()
 
-	for name, h := range ge.hooks {
-		if h == nil {
-			continue
-		}
+	for name, h := range hooks {
 		err := h.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
 			ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
@@ -391,13 +452,9 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 
 // TriggerOnExecutionErrorHooks executes hooks when Execution of a graph fails
 func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) {
-	ge.hookLock.Lock()
-	defer ge.hookLock.Unlock()
+	hooks := ge.getHookMapCopy()
 
-	for name, h := range ge.hooks {
-		if h == nil {
-			continue
-		}
+	for name, h := range hooks {
 		err := h.OnExecutionError(ctx, input, err, graphName, od)
 		if err != nil {
 			ctx.GetLogger().Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
@@ -407,13 +464,9 @@ func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *ba
 
 // TriggerGraphChangedHooks triggers hooks whenever a graph was added or removed
 func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, removedGraphNames []string) {
-	ge.hookLock.Lock()
-	defer ge.hookLock.Unlock()
+	hooks := ge.getHookMapCopy()
 
-	for _, h := range ge.hooks {
-		if h == nil {
-			continue
-		}
+	for _, h := range hooks {
 		err := h.OnGraphChanged(addedGraphNames, removedGraphNames)
 		if err != nil {
 			// ctx.GetLogger().Errorf("Execution of GraphChangedHook \"%v\" failed with error: %v", name, err.Error())
@@ -577,6 +630,9 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 
 // Shutdown should be called for graceful shutdown
 func (ge *GraphEngine) Shutdown(ctx *base.Context) {
+	ge.hookMapLock.Lock()
+	defer ge.hookMapLock.Unlock()
+
 	for _, h := range ge.hooks {
 		if h != nil {
 			h.Shutdown()
