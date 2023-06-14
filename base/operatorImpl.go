@@ -100,7 +100,10 @@ func (o *FreepsOperatorWrapper) initIfEnabled(cr *utils.ConfigReader, ctx *Conte
 	if enabledField.IsValid() && enabledField.Kind() == reflect.Bool && !enabledField.Bool() {
 		return false, nil
 	}
-	confOp.Init(ctx)
+	err = confOp.Init(ctx)
+	if err != nil {
+		return true, fmt.Errorf("Initializing operator \"%v\" failed: %v", o.GetName(), err)
+	}
 	return true, noFuncsError
 }
 

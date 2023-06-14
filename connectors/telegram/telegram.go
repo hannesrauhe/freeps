@@ -13,6 +13,9 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
+var bot *tgbotapi.BotAPI
+var tgc *TelegramConfig
+
 type TelegramConfig struct {
 	Token         string
 	AllowedUsers  []string
@@ -23,8 +26,6 @@ var DefaultTelegramConfig = TelegramConfig{Token: ""}
 
 type Telegraminator struct {
 	ge          *freepsgraph.GraphEngine
-	bot         *tgbotapi.BotAPI
-	tgc         *TelegramConfig
 	lastMessage int
 	chatState   map[int64]TelegramCallbackResponse
 	closeChan   chan int
@@ -39,10 +40,10 @@ type TelegramCallbackResponse struct {
 }
 
 func (r *Telegraminator) Shutdown(ctx context.Context) {
-	if r.bot != nil {
-		r.bot.StopReceivingUpdates()
+	if bot != nil {
+		bot.StopReceivingUpdates()
 		<-r.closeChan
-		r.bot = nil
+		bot = nil
 	}
 }
 
@@ -182,10 +183,10 @@ func (r *Telegraminator) getArgsKeyboard(arg string, tcr *TelegramCallbackRespon
 func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
 	if r.lastMessage > 0 {
 		d := tgbotapi.NewDeleteMessage(msg.ChatID, r.lastMessage)
-		r.bot.Send(d)
+		bot.Send(d)
 		r.lastMessage = 0
 	}
-	m, err := r.bot.Send(*msg)
+	m, err := bot.Send(*msg)
 	if err != nil {
 		log.Println(err)
 		return
@@ -203,7 +204,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	telelogger := log.WithField("telegram", chat.ID)
 	msg := tgbotapi.NewMessage(chat.ID, "Hello "+chat.FirstName+".")
 	allowed := false
-	for _, v := range r.tgc.AllowedUsers {
+	for _, v := range tgc.AllowedUsers {
 		if v == chat.UserName {
 			allowed = true
 			break
@@ -211,7 +212,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	}
 	if !allowed {
 		msg.Text += " I'm not allowed to talk to you."
-		if _, err := r.bot.Send(msg); err != nil {
+		if _, err := bot.Send(msg); err != nil {
 			log.Println(err)
 		}
 		return
@@ -286,7 +287,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 				msg.ReplyMarkup, addVals = r.getArgsKeyboard(args[tcr.P], &tcr)
 				if len(addVals) > 0 {
 					// do not use SendMessage, because that message gets deleted.... yeah, I need to clean this up
-					r.bot.Send(tgbotapi.NewMessage(chat.ID, "More values:"+addVals+"."))
+					bot.Send(tgbotapi.NewMessage(chat.ID, "More values:"+addVals+"."))
 				}
 			}
 		}
@@ -295,22 +296,24 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 	if tcr.F {
 		ctx := base.NewContext(telelogger)
 		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, base.MakeEmptyOutput())
-		byt, err := io.GetBytes()
-		if err != nil {
-			msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)
-		} else {
-			if len(io.ContentType) > 7 && io.ContentType[0:5] == "image" {
+		if io.IsError() {
+			msg.Text = fmt.Sprintf("Error when executing operation: %v", io.GetError())
+		} else if utils.StringStartsWith(io.ContentType, "image") {
+			byt, err := io.GetBytes()
+			if err != nil {
+				msg.Text = fmt.Sprintf("Error when decoding output of operation: %v", err)
+			} else {
 				msg.Text = "Here is a picture for you"
 				m := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "picture." + io.ContentType[6:], Bytes: byt})
-				if _, err := r.bot.Send(m); err != nil {
+				if _, err := bot.Send(m); err != nil {
 					telelogger.Error(err)
 				}
-			} else {
-				msg.Text = fmt.Sprintf("%v: %q", io.HTTPCode, byt)
 			}
-			r.ge.DeleteTemporaryGraph(tcr.T)
-			msg.ReplyMarkup = r.getReplyKeyboard()
+		} else {
+			msg.Text = io.GetString()
 		}
+		r.ge.DeleteTemporaryGraph(tcr.T)
+		msg.ReplyMarkup = r.getReplyKeyboard()
 	}
 	r.sendMessage(&msg)
 }
@@ -319,7 +322,7 @@ func (r *Telegraminator) MainLoop() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates := r.bot.GetUpdatesChan(u)
+	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
@@ -335,36 +338,11 @@ func (r *Telegraminator) MainLoop() {
 	r.closeChan <- 1
 }
 
-func newTgbotFromConfig(cr *utils.ConfigReader) (*tgbotapi.BotAPI, *TelegramConfig, error) {
-	tgc := DefaultTelegramConfig
-	err := cr.ReadSectionWithDefaults("telegrambot", &tgc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
-	}
-
-	if tgc.Token == "" {
-		return nil, &tgc, fmt.Errorf("No token")
-	}
-
-	bot, err := tgbotapi.NewBotAPI(tgc.Token)
-	if err != nil {
-		return nil, &tgc, err
-	}
-	bot.Debug = tgc.DebugMessages
-	return bot, &tgc, nil
-}
-
 func NewTelegramBot(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine, cancel context.CancelFunc) *Telegraminator {
-	bot, tgc, err := newTgbotFromConfig(cr)
-	t := &Telegraminator{ge: ge, bot: bot, tgc: tgc, chatState: make(map[int64]TelegramCallbackResponse), closeChan: make(chan int)}
-	if err != nil {
-		log.Printf("Error on Telegram registration: %v", err)
-		return t
+	if tgc == nil || bot == nil {
+		return nil
 	}
+	t := &Telegraminator{ge: ge, chatState: make(map[int64]TelegramCallbackResponse), closeChan: make(chan int)}
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
