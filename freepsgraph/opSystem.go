@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpSystem struct {
@@ -86,6 +87,9 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 	case "stats":
 		return o.Stats(ctx, fn, args, input)
 
+	case "version":
+		return base.MakePlainOutput(utils.BuildFullVersion())
+
 	case "graphStats":
 		return o.GraphStats(ctx, fn, args, input)
 	}
@@ -111,7 +115,7 @@ func (o *OpSystem) GraphStats(ctx *base.Context, fn string, args map[string]stri
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph", "version"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
