@@ -57,7 +57,24 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 	}
 
 	ns := freepsstore.GetGlobalStore().GetNamespace(ff.config.Namespace)
-	ns.SetValue(measurement, base.MakeObjectOutput(fields), ctx.GetID())
+	ns.UpdateTransaction(measurement,
+		func(oi *base.OperatorIO) *base.OperatorIO {
+			updatedFields := make(map[string]interface{})
+			oldFields, ok := oi.GetObject().(map[string]interface{})
+			if !ok {
+				return base.MakeObjectOutput(fields)
+			}
+
+			for k, v := range oldFields {
+				updatedFields[k] = v
+			}
+			for k, v := range fields {
+				updatedFields[k] = v
+			}
+
+			return base.MakeObjectOutput(updatedFields)
+		},
+		ctx.GetID())
 
 	for _, writeAPI := range ff.writeApis {
 		p := influxdb2.NewPoint(measurement, tags, fields, time.Now())
