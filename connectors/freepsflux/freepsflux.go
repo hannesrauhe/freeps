@@ -59,11 +59,14 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 	ns := freepsstore.GetGlobalStore().GetNamespace(ff.config.Namespace)
 	ns.UpdateTransaction(measurement,
 		func(oi *base.OperatorIO) *base.OperatorIO {
-			updatedFields := make(map[string]interface{})
+			if oi.IsEmpty() {
+				return base.MakeObjectOutput(fields)
+			}
 			oldFields, ok := oi.GetObject().(map[string]interface{})
 			if !ok {
 				return base.MakeObjectOutput(fields)
 			}
+			updatedFields := make(map[string]interface{})
 
 			for k, v := range oldFields {
 				updatedFields[k] = v
