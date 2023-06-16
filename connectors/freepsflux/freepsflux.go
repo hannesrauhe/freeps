@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freepslib"
@@ -44,15 +46,18 @@ func (ff *FreepsFlux) InitInflux(reinit bool) error {
 	return nil
 }
 
-func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fields map[string]interface{}) error {
+func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fields map[string]interface{}, ctx *base.Context) error {
 	err := ff.InitInflux(false)
 	if err != nil {
 		return err
 	}
 
-	if fields == nil || len(fields)==0 {
+	if fields == nil || len(fields) == 0 {
 		return nil
 	}
+
+	ns := freepsstore.GetGlobalStore().GetNamespace(ff.config.Namespace)
+	ns.SetValue(measurement, base.MakeObjectOutput(fields), ctx.GetID())
 
 	for _, writeAPI := range ff.writeApis {
 		p := influxdb2.NewPoint(measurement, tags, fields, time.Now())
