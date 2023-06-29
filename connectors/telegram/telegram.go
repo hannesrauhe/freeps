@@ -311,6 +311,9 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			}
 		} else {
 			msg.Text = io.GetString()
+			if msg.Text == "" {
+				msg.Text = "Empty Result, HTTP code:" + fmt.Sprint(io.GetStatusCode())
+			}
 		}
 		r.ge.DeleteTemporaryGraph(tcr.T)
 		msg.ReplyMarkup = r.getReplyKeyboard()

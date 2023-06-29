@@ -11,6 +11,7 @@ type FreepsFluxConfig struct {
 	InfluxdbConnections []InfluxdbConfig
 	IgnoreNotPresent    bool
 	Enabled             bool
+	Namespace           string
 }
 
-var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, false, true}
+var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, false, true, "_influx"}

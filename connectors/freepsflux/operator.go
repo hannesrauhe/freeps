@@ -116,7 +116,7 @@ func (o *OperatorFlux) PushFields(ctx *base.Context, input *base.OperatorIO) *ba
 		fields[k], err = changeFieldType(v.FieldValue, v.FieldType)
 	}
 
-	err = o.ff.PushFields(args.Measurement, args.Tags, fields)
+	err = o.ff.PushFields(args.Measurement, args.Tags, fields, ctx)
 	if err == nil {
 		return base.MakePlainOutput("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
 	}
@@ -134,7 +134,7 @@ func (o *OperatorFlux) PushSingleField(ctx *base.Context, input *base.OperatorIO
 	}
 	fields := map[string]interface{}{*args.Field: input.Output}
 
-	err := o.ff.PushFields(args.Measurement, tags, fields)
+	err := o.ff.PushFields(args.Measurement, tags, fields, ctx)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
@@ -154,7 +154,7 @@ func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO
 		return base.MakeOutputError(http.StatusBadRequest, "empty fields map")
 	}
 
-	err = o.ff.PushFields(args.Measurement, tags, fields)
+	err = o.ff.PushFields(args.Measurement, tags, fields, ctx)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}

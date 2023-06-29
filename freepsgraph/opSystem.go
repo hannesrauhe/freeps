@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpSystem struct {
@@ -85,12 +86,36 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 
 	case "stats":
 		return o.Stats(ctx, fn, args, input)
+
+	case "version":
+		return base.MakePlainOutput(utils.BuildFullVersion())
+
+	case "graphStats":
+		return o.GraphStats(ctx, fn, args, input)
 	}
 	return base.MakeOutputError(http.StatusBadRequest, "Unknown function: "+fn)
 }
 
+type GraphStats struct {
+	OperatorCount  map[string]int
+	FunctionsCount map[string]int
+}
+
+func (o *OpSystem) GraphStats(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+	stats := GraphStats{OperatorCount: make(map[string]int), FunctionsCount: make(map[string]int)}
+	g := o.ge.GetAllGraphDesc()
+	for _, gd := range g {
+		for _, op := range gd.Operations {
+			stats.OperatorCount[op.Operator]++
+			fn := op.Operator + "." + op.Function
+			stats.FunctionsCount[fn]++
+		}
+	}
+	return base.MakeObjectOutput(stats)
+}
+
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphInfoByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph", "version"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
@@ -105,6 +130,14 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 		return []string{"tags", "tag"}
 	case "getCollectedErrors":
 		return []string{"duration"}
+	case "toDot":
+		return []string{"name"}
+	case "contextToDot":
+		return []string{}
+	case "deleteGraph":
+		return []string{"name"}
+	case "graphStats":
+		return []string{}
 	}
 	return []string{"name"}
 }

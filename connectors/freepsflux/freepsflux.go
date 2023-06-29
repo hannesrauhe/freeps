@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freepslib"
@@ -44,15 +46,38 @@ func (ff *FreepsFlux) InitInflux(reinit bool) error {
 	return nil
 }
 
-func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fields map[string]interface{}) error {
+func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fields map[string]interface{}, ctx *base.Context) error {
 	err := ff.InitInflux(false)
 	if err != nil {
 		return err
 	}
 
-	if fields == nil || len(fields)==0 {
+	if fields == nil || len(fields) == 0 {
 		return nil
 	}
+
+	ns := freepsstore.GetGlobalStore().GetNamespace(ff.config.Namespace)
+	ns.UpdateTransaction(measurement,
+		func(oi *base.OperatorIO) *base.OperatorIO {
+			if oi.IsEmpty() {
+				return base.MakeObjectOutput(fields)
+			}
+			oldFields, ok := oi.GetObject().(map[string]interface{})
+			if !ok {
+				return base.MakeObjectOutput(fields)
+			}
+			updatedFields := make(map[string]interface{})
+
+			for k, v := range oldFields {
+				updatedFields[k] = v
+			}
+			for k, v := range fields {
+				updatedFields[k] = v
+			}
+
+			return base.MakeObjectOutput(updatedFields)
+		},
+		ctx.GetID())
 
 	for _, writeAPI := range ff.writeApis {
 		p := influxdb2.NewPoint(measurement, tags, fields, time.Now())

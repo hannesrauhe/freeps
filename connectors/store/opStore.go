@@ -226,6 +226,16 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			}
 			return base.MakeObjectOutput(flatresult)
 		}
+	case "flat":
+		{
+			flatresult := map[string]interface{}{}
+			for k, v := range result[ns] {
+				if key == "" || key == k {
+					flatresult[k] = v.Output
+				}
+			}
+			return base.MakeObjectOutput(flatresult)
+		}
 	case "direct":
 		{
 			return result[ns][key]
@@ -323,7 +333,7 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	case "output":
 		{
-			return map[string]string{"direct": "direct", "arguments/simple dict": "arguments", "hierarchy/complete tree": "hierarchy", "empty": "empty", "boolean value": "bool"}
+			return map[string]string{"direct": "direct", "arguments/string dict": "arguments", "hierarchy/complete tree": "hierarchy", "empty": "empty", "boolean value": "bool", "flat/simple dict": "flat"}
 		}
 	case "minAge":
 		{

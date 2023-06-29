@@ -25,9 +25,15 @@
         <div>
             <textarea name="value" rows="50">{{ store_GetString $.arguments.namespace $.arguments.key}}</textarea>
         </div>
-        <button formaction="/store/delete" formtarget="_blank">Delete</button>
         <button>Set</button>
+    </form>
 
+    <form method="get" action="/store/get">
+        <input type="hidden" name="namespace" value="{{$.arguments.namespace}}">
+        <input type="hidden" name="key" value="{{$.arguments.key}}">
+        <input type="hidden" name="output" value="direct">
+        <button>Show</button>
+        <button formaction="/store/delete" formtarget="_blank">Delete</button>
     </form>
 </div>
 
