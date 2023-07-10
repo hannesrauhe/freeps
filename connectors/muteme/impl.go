@@ -123,9 +123,9 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 			ignoreUntil = time.Now().Add(time.Second)
 			m.logger.Debugf("Muteme touched, result: %v", resultIO)
 			if resultIO.IsError() {
-				blink(m.config.ErrorColor, color)
+				m.blink(m.config.ErrorColor, color)
 			} else {
-				blink(m.config.SuccessColor, color)
+				m.blink(m.config.SuccessColor, color)
 			}
 
 			// reset state variables
