@@ -46,7 +46,7 @@ func (m *MuteMeImpl) setColor(color string) error {
 	return err
 }
 
-func (m *MuteMeImpl) blink(blinkColor string, afterColor string) error {
+func (m *MuteMeImpl) blink(blinkColor string, afterColor string) {
 	for range []int{0, 1, 2, 3} {
 		m.setColor("off")
 		time.Sleep(100 * time.Millisecond)
