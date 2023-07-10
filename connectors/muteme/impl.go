@@ -53,7 +53,7 @@ func (m *MuteMeImpl) blink(blinkColor string, afterColor string) error {
 		m.setColor(blinkColor)
 		time.Sleep(100 * time.Millisecond)
 	}
-	m.setColor(afterColorcolor)
+	m.setColor(afterColor)
 }
 
 func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
