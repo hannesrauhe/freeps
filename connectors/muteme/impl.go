@@ -46,6 +46,16 @@ func (m *MuteMeImpl) setColor(color string) error {
 	return err
 }
 
+func (m *MuteMeImpl) blink(blinkColor string, afterColor string) error {
+	for range []int{0, 1, 2, 3} {
+		m.setColor("off")
+		time.Sleep(100 * time.Millisecond)
+		m.setColor(blinkColor)
+		time.Sleep(100 * time.Millisecond)
+	}
+	m.setColor(afterColorcolor)
+}
+
 func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 	bin := make([]byte, 8)
 	tpress1 := time.Now()
@@ -56,6 +66,10 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 	lastTouchCounter := 0
 	running := true
 	color := "off"
+
+	// indicate startup by blinking:
+	blink(m.config.SuccessColor, color)
+
 	for running {
 		if !indicatorLightActive {
 			select {
@@ -108,22 +122,16 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 			resultIO := ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
 			ignoreUntil = time.Now().Add(time.Second)
 			m.logger.Debugf("Muteme touched, result: %v", resultIO)
-			resultIndicatorColor := m.config.SuccessColor
 			if resultIO.IsError() {
-				resultIndicatorColor = m.config.ErrorColor
-			}
-			for range []int{0, 1, 2, 3} {
-				m.setColor("off")
-				time.Sleep(100 * time.Millisecond)
-				m.setColor(resultIndicatorColor)
-				time.Sleep(100 * time.Millisecond)
+				blink(m.config.ErrorColor, color)
+			} else {
+				blink(m.config.SuccessColor, color)
 			}
 
 			// reset state variables
 			lastTouchDuration = time.Microsecond
 			lastTouchCounter = 0
 			indicatorLightActive = false
-			m.setColor(color)
 		}
 		if bin[3] == 4 { // press
 			lastTouchCounter++
