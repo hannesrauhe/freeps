@@ -68,7 +68,7 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 	color := "off"
 
 	// indicate startup by blinking:
-	blink(m.config.SuccessColor, color)
+	m.blink(m.config.SuccessColor, color)
 
 	for running {
 		if !indicatorLightActive {
