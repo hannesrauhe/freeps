@@ -156,7 +156,7 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 		}
 
 		if bin[3] == 1 { // pressed down
-			if lastTouchDuration > m.config.LongTouchDuration && !longTouchLightActive {
+			if time.Now().Sub(tpress2) > m.config.LongTouchDuration && !longTouchLightActive {
 				longTouchLightActive = true
 				m.setColor(m.config.LongTouchColor)
 			}
