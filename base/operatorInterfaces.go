@@ -20,10 +20,10 @@ type FreepsOperator interface {
 // FreepsOperatorWithConfig adds the ResetConfigToDefault() method to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
-	// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
-	ResetConfigToDefault() interface{}
-	// Init is called after the config is read and the operator is created
-	Init(ctx *Context) error
+	// GetDefaultConfig returns a copy of the default config
+	GetDefaultConfig() interface{}
+	// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
+	InitCopyOfOperator(config interface{}, ctx *Context) (FreepsOperatorWithConfig, error)
 }
 
 // FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig

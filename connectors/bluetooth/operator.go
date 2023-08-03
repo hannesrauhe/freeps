@@ -15,15 +15,14 @@ type Bluetooth struct {
 	config BluetoothConfig
 }
 
-// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
-func (bt *Bluetooth) ResetConfigToDefault() interface{} {
-	bt.config = defaultBluetoothConfig
-	return &bt.config
+// GetDefaultConfig returns a copy of the default config
+func (bt *Bluetooth) GetDefaultConfig() interface{} {
+	return &defaultBluetoothConfig
 }
 
-// Init initializes the bluetooth operator
-func (bt *Bluetooth) Init(ctx *base.Context) error {
-	return nil
+// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
+func (bt *Bluetooth) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+	return bt, nil
 }
 
 var _ base.FreepsOperatorWithConfig = &Bluetooth{}
