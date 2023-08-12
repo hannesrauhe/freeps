@@ -112,6 +112,10 @@ func (mf *MyTestFuncParams) InitOptionalParameters(op FreepsOperator, fn string)
 	*mf.OptParamWithDefault = 42
 }
 
+func (mf *MyTestFuncParams) VerifyParameters(op FreepsOperator) *OperatorIO {
+	return MakeEmptyOutput()
+}
+
 func TestOpBuilderSuggestions(t *testing.T) {
 	gop := MakeFreepsOperator(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
 	assert.Assert(t, gop != nil, "")
