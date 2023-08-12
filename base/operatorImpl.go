@@ -183,7 +183,7 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 
 // getInitializedParamStruct returns the struct that is the third parameter of the function,
 // if the struct implements the FreepsFunctionParameters interface, InitOptionalParameters is called and the struct is returned
-func getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
+func (o *FreepsOperatorWrapper) getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
 	paramStruct := f.In(2)
 
 	paramStructInstance := reflect.New(paramStruct)
@@ -191,7 +191,7 @@ func getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionPar
 		return paramStructInstance, nil
 	}
 	ps := paramStructInstance.Interface().(FreepsFunctionParameters)
-	ps.InitOptionalParameters(f.Name())
+	ps.InitOptionalParameters(o.opInstance, f.Name())
 	return paramStructInstance, ps
 }
 
@@ -208,7 +208,7 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) map[string]Freep
 		}
 		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
 		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
-			paramStruct, ps := getInitializedParamStruct(t.Method(i).Type)
+			paramStruct, ps := o.getInitializedParamStruct(t.Method(i).Type)
 			if ps == nil && paramStruct.NumMethod() > 0 {
 				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", t.Method(i).Name, o.GetName())
 			}
@@ -258,7 +258,7 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	}
 
 	// create an initialized instance of the parameter struct
-	paramStruct, _ := getInitializedParamStruct(ffm.FuncValue.Type())
+	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
 
 	failOnError := true
 
@@ -270,6 +270,14 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	err = o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	if err != nil && failOnError {
 		return err
+	}
+
+	if ps != nil {
+		// verify parameters before executing the function
+		res := ps.VerifyParameters(o.opInstance)
+		if res != nil && res.IsError() {
+			return res
+		}
 	}
 
 	if ffm.FuncType == FreepsFunctionTypeWithArguments {
@@ -346,7 +354,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	}
 
 	// create an initialized instance of the parameter struct
-	paramStruct, ps := getInitializedParamStruct(ffm.FuncValue.Type())
+	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
 	if ps == nil {
 		// common arg suggestions if the parameter struct does not implement the FreepsFunctionParameters interface
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
@@ -358,7 +366,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 
-	res = ps.GetArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
+	res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
 	if res == nil || len(res) == 0 {
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
 	}

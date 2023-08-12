@@ -89,7 +89,7 @@ func (mt *MyTestOperator) AnotherUnusedFunctionWrongArguments(a int, b string) *
 	return MakeOutputError(500, "This function is invalid and should not be called")
 }
 
-func (mf *MyTestFuncParams) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
+func (mf *MyTestFuncParams) GetArgSuggestions(op FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string {
 	switch argName {
 	case "param1":
 		return map[string]string{
@@ -107,7 +107,7 @@ func (mf *MyTestFuncParams) GetArgSuggestions(fn string, argName string, otherAr
 	return map[string]string{}
 }
 
-func (mf *MyTestFuncParams) InitOptionalParameters(fn string) {
+func (mf *MyTestFuncParams) InitOptionalParameters(op FreepsOperator, fn string) {
 	mf.OptParamWithDefault = new(int)
 	*mf.OptParamWithDefault = 42
 }

@@ -34,11 +34,11 @@ type SetColorArgs struct {
 var _ base.FreepsFunctionParameters = &SetColorArgs{}
 
 // InitOptionalParameters does nothing beccause there are no optional arguments
-func (mma *SetColorArgs) InitOptionalParameters(fn string) {
+func (mma *SetColorArgs) InitOptionalParameters(op base.FreepsOperator, fn string) {
 }
 
 // GetArgSuggestions returns suggestions for the color
-func (mma *SetColorArgs) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (mma *SetColorArgs) GetArgSuggestions(op base.FreepsOperator, fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {
 	case "color":
 		r := map[string]string{}
@@ -49,6 +49,17 @@ func (mma *SetColorArgs) GetArgSuggestions(fn string, arg string, otherArgs map[
 	}
 
 	return map[string]string{}
+}
+
+// VerifyParameters checks if the given parameters are valid
+func (mma *SetColorArgs) VerifyParameters(op base.FreepsOperator) *base.OperatorIO {
+	if mma.Color == "" {
+		return base.MakeOutputError(http.StatusBadRequest, "Missing color")
+	}
+	if _, ok := colors[mma.Color]; !ok {
+		return base.MakeOutputError(http.StatusBadRequest, "Invalid color")
+	}
+	return nil
 }
 
 // SetColor sets the color of the MuteMe button

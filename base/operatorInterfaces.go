@@ -35,8 +35,11 @@ type FreepsOperatorWithShutdown interface {
 // FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
 type FreepsFunctionParameters interface {
 	// InitOptionalParameters initializes the optional (pointer) arguments of the parameters struct with default values
-	InitOptionalParameters(fn string)
+	InitOptionalParameters(operator FreepsOperator, fn string)
 
 	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
-	GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string
+	GetArgSuggestions(operator FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string
+
+	// VerifyParameters checks if the given parameters are valid
+	VerifyParameters(operator FreepsOperator) *OperatorIO
 }
