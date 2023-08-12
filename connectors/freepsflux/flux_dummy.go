@@ -15,6 +15,6 @@ func (o *OperatorFlux) Init(ctx *base.Context) error {
 	return nil
 }
 
-func (o *OperatorFlux) GetConfig() interface{} {
+func (o *OperatorFlux) ResetConfigToDefault() interface{} {
 	return &FreepsFluxConfig{Enabled: false}
 }

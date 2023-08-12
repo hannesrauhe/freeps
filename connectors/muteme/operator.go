@@ -13,8 +13,8 @@ type MuteMe struct {
 
 var _ base.FreepsOperatorWithConfig = &MuteMe{}
 
-// GetConfig returns the config struct of the operator that is filled with the values from the config file
-func (mm *MuteMe) GetConfig() interface{} {
+// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
+func (mm *MuteMe) ResetConfigToDefault() interface{} {
 	mm.config = DefaultConfig
 	return &mm.config
 }

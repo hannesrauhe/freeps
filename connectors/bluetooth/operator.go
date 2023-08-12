@@ -15,8 +15,8 @@ type Bluetooth struct {
 	config BluetoothConfig
 }
 
-// GetConfig returns the config for the bluetooth operator
-func (bt *Bluetooth) GetConfig() interface{} {
+// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
+func (bt *Bluetooth) ResetConfigToDefault() interface{} {
 	bt.config = defaultBluetoothConfig
 	return &bt.config
 }

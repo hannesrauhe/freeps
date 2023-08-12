@@ -17,11 +17,11 @@ type FreepsOperator interface {
 	// every exported function that follows the rules given in FreepsFunctionType is a FreepsFunction
 }
 
-// FreepsOperatorWithConfig adds the GetConfig() method to FreepsOperator
+// FreepsOperatorWithConfig adds the ResetConfigToDefault() method to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
-	// GetConfig returns the config struct of the operator that is filled with the values from the config file
-	GetConfig() interface{}
+	// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
+	ResetConfigToDefault() interface{}
 	// Init is called after the config is read and the operator is created
 	Init(ctx *Context) error
 }

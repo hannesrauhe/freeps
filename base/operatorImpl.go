@@ -80,7 +80,7 @@ func (o *FreepsOperatorWrapper) initIfEnabled(cr *utils.ConfigReader, ctx *Conte
 		return true, noFuncsError
 	}
 
-	conf := confOp.GetConfig()
+	conf := confOp.ResetConfigToDefault()
 	if conf == nil {
 		return true, noFuncsError
 	}

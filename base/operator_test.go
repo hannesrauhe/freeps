@@ -215,7 +215,7 @@ func (mt *MyTestOperatorWithConfig) Init(ctx *Context) error {
 func (mt *MyTestOperatorWithConfig) Shutdown(ctx *Context) {
 }
 
-func (mt *MyTestOperatorWithConfig) GetConfig() interface{} {
+func (mt *MyTestOperatorWithConfig) ResetConfigToDefault() interface{} {
 	return &MyTestOperatorConfig{Enabled: true}
 }
 
