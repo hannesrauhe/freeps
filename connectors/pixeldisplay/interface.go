@@ -22,10 +22,12 @@ type Pixeldisplay interface {
 	SetBrightness(brightness int) *base.OperatorIO
 
 	// SetPicture sets the picture of the display
-	DrawImage(image *image.RGBA) *base.OperatorIO
+	DrawImage(image image.Image, returnPNG bool) *base.OperatorIO
 	// DrawPixel sets a pixel of the display
 	DrawPixel(x, y int, color color.Color) *base.OperatorIO
 
+	// GetMaxPictureSize returns the maximum size of a picture that can be displayed
+	GetMaxPictureSize() image.Point
 	// GetDimensions returns the dimensions of the display
 	GetDimensions() image.Point
 	// GetColor returns the color set for active pixels on the display

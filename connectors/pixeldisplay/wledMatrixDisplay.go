@@ -4,16 +4,20 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 )
 
 type WLEDMatrixDisplayConfig struct {
-	Segments []WLEDSegmentConfig
-	Address  string
+	Segments              []WLEDSegmentConfig
+	Address               string
+	MinDisplayDuration    time.Duration
+	MaxPictureWidthFactor int
 }
 
 type WLEDMatrixDisplay struct {
@@ -22,6 +26,7 @@ type WLEDMatrixDisplay struct {
 	height   int
 	width    int
 	lastImg  *image.RGBA
+	imgChan  chan image.RGBA
 }
 
 var _ Pixeldisplay = &WLEDMatrixDisplay{}
@@ -42,6 +47,8 @@ func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, erro
 			disp.width = segCfg.Width + segCfg.OffsetX
 		}
 	}
+	disp.imgChan = make(chan image.RGBA, cfg.MaxPictureWidthFactor*disp.width)
+	go disp.drawLoop(disp.imgChan, cfg.MinDisplayDuration)
 	return disp, nil
 }
 
@@ -68,27 +75,33 @@ func (d *WLEDMatrixDisplay) sendCmd(cmd *base.OperatorIO) *base.OperatorIO {
 }
 
 func (d *WLEDMatrixDisplay) Shutdown() {
+	close(d.imgChan)
 }
 
-func (d *WLEDMatrixDisplay) Width() int {
-	return d.width
-}
-
-func (d *WLEDMatrixDisplay) Height() int {
-	return d.height
-}
-
-func (d *WLEDMatrixDisplay) DrawImage(dst *image.RGBA) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.OperatorIO {
 	for _, seg := range d.segments {
 		err := seg.SendToWLEDSegment(d.conf.Address, *dst)
 		if err.IsError() {
 			return err
 		}
 	}
+	return base.MakeEmptyOutput()
+}
+
+func (d *WLEDMatrixDisplay) DrawImage(img image.Image, returnPNG bool) *base.OperatorIO {
+	b := image.Rect(0, 0, d.width, d.height)
+	converted := image.NewRGBA(b)
+	draw.Draw(converted, b, img, b.Min, draw.Src)
+	d.lastImg = converted
+
+	d.imgChan <- *converted
+	if !returnPNG {
+		return base.MakeEmptyOutput()
+	}
 	var bout []byte
 	contentType := "image/png"
 	writer := bytes.NewBuffer(bout)
-	if err := png.Encode(writer, dst); err != nil {
+	if err := png.Encode(writer, converted); err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
 	}
 	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
@@ -122,6 +135,10 @@ func (d *WLEDMatrixDisplay) GetDimensions() image.Point {
 	return image.Point{X: d.width, Y: d.height}
 }
 
+func (d *WLEDMatrixDisplay) GetMaxPictureSize() image.Point {
+	return image.Point{X: d.width * d.conf.MaxPictureWidthFactor, Y: d.height}
+}
+
 func (d *WLEDMatrixDisplay) GetColor() color.Color {
 	return color.White
 }
@@ -140,4 +157,16 @@ func (d *WLEDMatrixDisplay) GetImage() *image.RGBA {
 
 func (d *WLEDMatrixDisplay) IsOn() bool {
 	return true
+}
+
+// drawLoop starts a loop that draws an image from a channel to the display and then sleeps for the given duration
+func (d *WLEDMatrixDisplay) drawLoop(c <-chan image.RGBA, duration time.Duration) {
+	for {
+		img, ok := <-c
+		if !ok {
+			return
+		}
+		d.drawImageImmediately(&img)
+		time.Sleep(duration)
+	}
 }

@@ -24,14 +24,13 @@ func NewText2Pixeldisplay(display Pixeldisplay) *text2pixeldisplay {
 
 func (t *text2pixeldisplay) DrawText(text string) *base.OperatorIO {
 	const (
-		width        = 16
-		height       = 8
 		startingDotX = 1
 		startingDotY = 7
 	)
 
 	dim := t.display.GetDimensions()
-	r := image.Rect(0, 0, dim.X, dim.Y)
+	maxDim := t.display.GetMaxPictureSize()
+	r := image.Rect(0, 0, maxDim.X, maxDim.Y) // crop the picture later
 	dst := image.NewRGBA(r)
 
 	fontBytes, err := staticContent.ReadFile("font/Grand9K Pixel.ttf")
@@ -65,5 +64,23 @@ func (t *text2pixeldisplay) DrawText(text string) *base.OperatorIO {
 	//		}
 	//	}
 	drawer.DrawString(text)
-	return t.display.DrawImage(dst)
+	dst.Rect.Max.X = startingDotX + drawer.Dot.X.Ceil() // crop the picture
+	first := t.display.DrawImage(dst, true)
+	for dst.Rect.Max.X >= dim.X {
+		shiftPixelsLeft(dst)
+		t.display.DrawImage(dst, false)
+	}
+
+	return first
+}
+
+func shiftPixelsLeft(img *image.RGBA) {
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X-1; x++ {
+			img.Set(x, y, img.At(x+1, y))
+		}
+	}
+
+	img.Rect.Max.X--
 }

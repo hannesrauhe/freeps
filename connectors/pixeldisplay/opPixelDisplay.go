@@ -7,11 +7,11 @@ import (
 	"image/jpeg"
 	"image/png"
 	"net/http"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
-	"golang.org/x/image/draw"
 )
 
 // OpConfig contains all parameters to initialize the available displays
@@ -31,6 +31,8 @@ var defaultConfig = OpConfig{DefaultDisplay: "default", WLEDMatrixDisplays: map[
 				SegID:  0,
 			},
 		},
+		MinDisplayDuration:    200 * time.Millisecond,
+		MaxPictureWidthFactor: 50,
 	},
 }}
 
@@ -209,9 +211,9 @@ func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, a
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	dim := d.GetDimensions()
-	r := image.Rect(0, 0, dim.X, dim.Y)
-	dst := image.NewRGBA(r)
-	draw.NearestNeighbor.Scale(dst, r, img, img.Bounds(), draw.Over, nil)
-	return d.DrawImage(dst)
+	// dim := d.GetDimensions()
+	// r := image.Rect(0, 0, dim.X, dim.Y)
+	// dst := image.NewRGBA(r)
+	// draw.NearestNeighbor.Scale(dst, r, img, img.Bounds(), draw.Over, nil)
+	return d.DrawImage(img, true)
 }
