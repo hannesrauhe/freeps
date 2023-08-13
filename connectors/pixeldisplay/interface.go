@@ -2,6 +2,7 @@ package pixeldisplay
 
 import (
 	"image"
+	"image/color"
 
 	"github.com/hannesrauhe/freeps/base"
 )
@@ -14,25 +15,23 @@ type Pixeldisplay interface {
 	TurnOff() *base.OperatorIO
 
 	// SetColor sets the color of active pixels on the display
-	SetColor(color string) *base.OperatorIO
+	SetColor(color color.Color) *base.OperatorIO
 	// SetBackground sets the color of inactive pixels on the display
-	SetBackground(color string) *base.OperatorIO
+	SetBackgroundColor(color color.Color) *base.OperatorIO
 	// SetBrightness sets the brightness of the display
 	SetBrightness(brightness int) *base.OperatorIO
 
-	// SetText sets the text of the display
-	SetText(text string) *base.OperatorIO
 	// SetPicture sets the picture of the display
-	SetImage(image *image.RGBA) *base.OperatorIO
-	// SetPixel sets a pixel of the display
-	SetPixel(x, y int, color string) *base.OperatorIO
+	DrawImage(image *image.RGBA) *base.OperatorIO
+	// DrawPixel sets a pixel of the display
+	DrawPixel(x, y int, color color.Color) *base.OperatorIO
 
 	// GetDimensions returns the dimensions of the display
-	GetDimensions() (width, height int)
+	GetDimensions() image.Point
 	// GetColor returns the color set for active pixels on the display
-	GetColor() string
+	GetColor() color.Color
 	// GetBackground returns the color set for inactive pixels on the display
-	GetBackground() string
+	GetBackgroundColor() color.Color
 	// GetText returns the current text of the display
 	GetText() string
 	// GetImage returns the current image of the display

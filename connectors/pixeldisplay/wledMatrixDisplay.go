@@ -3,17 +3,13 @@ package pixeldisplay
 import (
 	"bytes"
 	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
 )
-
-type WLEDSegmentConfig struct {
-	Width  int `json:",string"`
-	Height int `json:",string"`
-	SegID  int `json:",string"`
-}
 
 type WLEDMatrixDisplayConfig struct {
 	Segments []WLEDSegmentConfig
@@ -21,8 +17,11 @@ type WLEDMatrixDisplayConfig struct {
 }
 
 type WLEDMatrixDisplay struct {
-	segments []WLEDSegment
+	segments []*WLEDSegmentRoot
 	conf     *WLEDMatrixDisplayConfig
+	height   int
+	width    int
+	lastImg  *image.RGBA
 }
 
 var _ Pixeldisplay = &WLEDMatrixDisplay{}
@@ -30,13 +29,19 @@ var _ Pixeldisplay = &WLEDMatrixDisplay{}
 // NewWLEDMatrixDisplay creates a connection to a WLED instance with multiple segments
 func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, error) {
 	disp := &WLEDMatrixDisplay{conf: &cfg}
-	// for _, segCfg := range cfg.segments {
-	// 	seg, err := NewWLEDSegment(segCfg)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	disp.segments = append(disp.segments, seg)
-	// }
+	for _, segCfg := range cfg.Segments {
+		seg, err := newWLEDSegmentRoot(segCfg)
+		if err != nil {
+			return nil, err
+		}
+		disp.segments = append(disp.segments, seg)
+		if disp.height < segCfg.Height+segCfg.OffsetY {
+			disp.height = segCfg.Height + segCfg.OffsetY
+		}
+		if disp.width < segCfg.Width+segCfg.OffsetX {
+			disp.width = segCfg.Width + segCfg.OffsetX
+		}
+	}
 	return disp, nil
 }
 
@@ -66,35 +71,42 @@ func (d *WLEDMatrixDisplay) Shutdown() {
 }
 
 func (d *WLEDMatrixDisplay) Width() int {
-	return d.conf.Segments[0].Width
+	return d.width
 }
 
 func (d *WLEDMatrixDisplay) Height() int {
-	return d.conf.Segments[0].Height
+	return d.height
 }
 
-func (d *WLEDMatrixDisplay) SetImage(dst *image.RGBA) *base.OperatorIO {
-	return d.sendCmd(nil)
+func (d *WLEDMatrixDisplay) DrawImage(dst *image.RGBA) *base.OperatorIO {
+	for _, seg := range d.segments {
+		err := seg.SendToWLEDSegment(d.conf.Address, *dst)
+		if err.IsError() {
+			return err
+		}
+	}
+	var bout []byte
+	contentType := "image/png"
+	writer := bytes.NewBuffer(bout)
+	if err := png.Encode(writer, dst); err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
+	}
+	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
 }
 
 func (d *WLEDMatrixDisplay) SetBrightness(brightness int) *base.OperatorIO {
 	return d.sendCmd(nil)
 }
 
-func (d *WLEDMatrixDisplay) SetText(text string) *base.OperatorIO {
-	return d.sendCmd(nil)
+func (d *WLEDMatrixDisplay) SetColor(color color.Color) *base.OperatorIO {
+	return base.MakeEmptyOutput()
 }
 
-func (d *WLEDMatrixDisplay) SetColor(color string) *base.OperatorIO {
-
-	return d.sendCmd(nil)
+func (d *WLEDMatrixDisplay) SetBackgroundColor(color color.Color) *base.OperatorIO {
+	return base.MakeEmptyOutput()
 }
 
-func (d *WLEDMatrixDisplay) SetBackground(color string) *base.OperatorIO {
-	return d.sendCmd(nil)
-}
-
-func (d *WLEDMatrixDisplay) SetPixel(x, y int, color string) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) DrawPixel(x, y int, color color.Color) *base.OperatorIO {
 	return d.sendCmd(nil)
 }
 
@@ -106,16 +118,16 @@ func (d *WLEDMatrixDisplay) TurnOff() *base.OperatorIO {
 	return d.sendCmd(base.MakeObjectOutput(&WLEDState{On: false}))
 }
 
-func (d *WLEDMatrixDisplay) GetDimensions() (width, height int) {
-	return d.conf.Segments[0].Width, d.conf.Segments[0].Height
+func (d *WLEDMatrixDisplay) GetDimensions() image.Point {
+	return image.Point{X: d.width, Y: d.height}
 }
 
-func (d *WLEDMatrixDisplay) GetColor() string {
-	return ""
+func (d *WLEDMatrixDisplay) GetColor() color.Color {
+	return color.White
 }
 
-func (d *WLEDMatrixDisplay) GetBackground() string {
-	return ""
+func (d *WLEDMatrixDisplay) GetBackgroundColor() color.Color {
+	return color.Black
 }
 
 func (d *WLEDMatrixDisplay) GetText() string {
@@ -123,7 +135,7 @@ func (d *WLEDMatrixDisplay) GetText() string {
 }
 
 func (d *WLEDMatrixDisplay) GetImage() *image.RGBA {
-	return nil
+	return d.lastImg
 }
 
 func (d *WLEDMatrixDisplay) IsOn() bool {

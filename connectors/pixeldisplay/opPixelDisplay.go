@@ -1,10 +1,17 @@
 package pixeldisplay
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	"github.com/hannesrauhe/freeps/utils"
+	"golang.org/x/image/draw"
 )
 
 // OpConfig contains all parameters to initialize the available displays
@@ -111,4 +118,100 @@ func (op *OpPixelDisplay) TurnOn(ctx *base.Context, input *base.OperatorIO, args
 func (op *OpPixelDisplay) TurnOff(ctx *base.Context, input *base.OperatorIO, args PixeldisplayArgs) *base.OperatorIO {
 	d := op.GetDisplay(args)
 	return d.TurnOff()
+}
+
+func (op *OpPixelDisplay) GetDimensions(ctx *base.Context, input *base.OperatorIO, args PixeldisplayArgs) *base.OperatorIO {
+	d := op.GetDisplay(args)
+	return base.MakeObjectOutput(d.GetDimensions())
+}
+
+type ColorArgs struct {
+	PixeldisplayArgs
+	Color string
+}
+
+func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
+	d := op.GetDisplay(args.PixeldisplayArgs)
+	c, err := utils.ParseHexColor(args.Color)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+	}
+	return d.SetColor(c)
+}
+
+func (op *OpPixelDisplay) SetBackgroundColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
+	d := op.GetDisplay(args.PixeldisplayArgs)
+	c, err := utils.ParseHexColor(args.Color)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+	}
+	return d.SetBackgroundColor(c)
+}
+
+type BrightnessArgs struct {
+	PixeldisplayArgs
+	Brightness int
+}
+
+func (op *OpPixelDisplay) SetBrightness(ctx *base.Context, input *base.OperatorIO, args BrightnessArgs) *base.OperatorIO {
+	d := op.GetDisplay(args.PixeldisplayArgs)
+	return d.SetBrightness(args.Brightness)
+}
+
+type TextArgs struct {
+	PixeldisplayArgs
+	Text string
+}
+
+func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, args TextArgs) *base.OperatorIO {
+	d := op.GetDisplay(args.PixeldisplayArgs)
+	t := NewText2Pixeldisplay(d)
+	return t.DrawText(args.Text)
+}
+
+type ImageArgs struct {
+	PixeldisplayArgs
+	Icon *string
+}
+
+func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, args ImageArgs) *base.OperatorIO {
+	d := op.GetDisplay(args.PixeldisplayArgs)
+	var binput []byte
+	var contentType string
+	var img image.Image
+	var err error
+
+	if args.Icon != nil {
+		binput, err = freepsstore.GetFileStore().GetValue(*args.Icon).GetBytes()
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "Icon %v is not accssible: %v", err.Error())
+		}
+		contentType = "image/png"
+	} else if input.IsEmpty() {
+		return base.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
+	} else {
+		binput, err = input.GetBytes()
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "Could not read input: %v", err.Error())
+		}
+		contentType = input.ContentType
+	}
+
+	ctx.GetLogger().Debugf("Decoding image of type: %v", contentType)
+	if contentType == "image/png" {
+		img, err = png.Decode(bytes.NewReader(binput))
+	} else if contentType == "image/jpeg" {
+		img, err = jpeg.Decode(bytes.NewReader(binput))
+	} else {
+		img, _, err = image.Decode(bytes.NewReader(binput))
+	}
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+
+	dim := d.GetDimensions()
+	r := image.Rect(0, 0, dim.X, dim.Y)
+	dst := image.NewRGBA(r)
+	draw.NearestNeighbor.Scale(dst, r, img, img.Bounds(), draw.Over, nil)
+	return d.DrawImage(dst)
 }
