@@ -34,8 +34,9 @@ type Pixeldisplay interface {
 	GetColor() color.Color
 	// GetBackground returns the color set for inactive pixels on the display
 	GetBackgroundColor() color.Color
-	// GetText returns the current text of the display
-	GetText() string
+	// GetBrightness returns the brightness of the display
+	GetBrightness() int
+
 	// GetImage returns the current image of the display
 	GetImage() *image.RGBA
 	// IsOn returns true if the display is on

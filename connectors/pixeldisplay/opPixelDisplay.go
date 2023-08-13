@@ -127,6 +127,31 @@ func (op *OpPixelDisplay) GetDimensions(ctx *base.Context, input *base.OperatorI
 	return base.MakeObjectOutput(d.GetDimensions())
 }
 
+func (op *OpPixelDisplay) GetMaxPictureSize(ctx *base.Context, input *base.OperatorIO, args PixeldisplayArgs) *base.OperatorIO {
+	d := op.GetDisplay(args)
+	return base.MakeObjectOutput(d.GetMaxPictureSize())
+}
+
+func (op *OpPixelDisplay) GetColor(ctx *base.Context, input *base.OperatorIO, args PixeldisplayArgs) *base.OperatorIO {
+	d := op.GetDisplay(args)
+	return base.MakeObjectOutput(d.GetColor())
+}
+
+func (op *OpPixelDisplay) GetBackgroundColor(ctx *base.Context, input *base.OperatorIO, args PixeldisplayArgs) *base.OperatorIO {
+	d := op.GetDisplay(args)
+	return base.MakeObjectOutput(d.GetBackgroundColor())
+}
+
+func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorIO, args PixeldisplayArgs) *base.OperatorIO {
+	d := op.GetDisplay(args)
+	return base.MakeObjectOutput(d.GetBrightness())
+}
+
+func (op *OpPixelDisplay) IsOn(ctx *base.Context, input *base.OperatorIO, args PixeldisplayArgs) *base.OperatorIO {
+	d := op.GetDisplay(args)
+	return base.MakeObjectOutput(d.IsOn())
+}
+
 type ColorArgs struct {
 	PixeldisplayArgs
 	Color string
@@ -136,7 +161,7 @@ func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, ar
 	d := op.GetDisplay(args.PixeldisplayArgs)
 	c, err := utils.ParseHexColor(args.Color)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
 	return d.SetColor(c)
 }
@@ -145,7 +170,7 @@ func (op *OpPixelDisplay) SetBackgroundColor(ctx *base.Context, input *base.Oper
 	d := op.GetDisplay(args.PixeldisplayArgs)
 	c, err := utils.ParseHexColor(args.Color)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "color not a valid hex color")
+		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
 	return d.SetBackgroundColor(c)
 }

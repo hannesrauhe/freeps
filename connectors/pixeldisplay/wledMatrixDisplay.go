@@ -27,13 +27,20 @@ type WLEDMatrixDisplay struct {
 	width    int
 	lastImg  *image.RGBA
 	imgChan  chan image.RGBA
+	color    color.Color
+	bgColor  color.Color
+}
+
+type WLEDState struct {
+	On         bool `json:"on"`
+	Brightness int  `json:"bri"`
 }
 
 var _ Pixeldisplay = &WLEDMatrixDisplay{}
 
 // NewWLEDMatrixDisplay creates a connection to a WLED instance with multiple segments
 func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, error) {
-	disp := &WLEDMatrixDisplay{conf: &cfg}
+	disp := &WLEDMatrixDisplay{conf: &cfg, color: color.White, bgColor: color.Black}
 	for _, segCfg := range cfg.Segments {
 		seg, err := newWLEDSegmentRoot(segCfg)
 		if err != nil {
@@ -50,6 +57,31 @@ func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, erro
 	disp.imgChan = make(chan image.RGBA, cfg.MaxPictureWidthFactor*disp.width)
 	go disp.drawLoop(disp.imgChan, cfg.MinDisplayDuration)
 	return disp, nil
+}
+
+func (d *WLEDMatrixDisplay) getState() (WLEDState, *base.OperatorIO) {
+	var state WLEDState
+	c := http.Client{}
+
+	var err error
+	path := d.conf.Address + "/json/state"
+	resp, err := c.Get(path)
+
+	if err != nil {
+		return state, base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+	}
+
+	defer resp.Body.Close()
+	bout, err := io.ReadAll(resp.Body)
+	res := base.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: base.Byte, ContentType: resp.Header.Get("Content-Type")}
+	if res.IsError() {
+		return state, &res
+	}
+	err = res.ParseJSON(&state)
+	if err != nil {
+		return state, base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+	}
+	return state, &res
 }
 
 func (d *WLEDMatrixDisplay) sendCmd(cmd *base.OperatorIO) *base.OperatorIO {
@@ -112,11 +144,13 @@ func (d *WLEDMatrixDisplay) SetBrightness(brightness int) *base.OperatorIO {
 }
 
 func (d *WLEDMatrixDisplay) SetColor(color color.Color) *base.OperatorIO {
-	return base.MakeEmptyOutput()
+	d.color = color
+	return base.MakeObjectOutput(color)
 }
 
 func (d *WLEDMatrixDisplay) SetBackgroundColor(color color.Color) *base.OperatorIO {
-	return base.MakeEmptyOutput()
+	d.bgColor = color
+	return base.MakeObjectOutput(color)
 }
 
 func (d *WLEDMatrixDisplay) DrawPixel(x, y int, color color.Color) *base.OperatorIO {
@@ -140,23 +174,31 @@ func (d *WLEDMatrixDisplay) GetMaxPictureSize() image.Point {
 }
 
 func (d *WLEDMatrixDisplay) GetColor() color.Color {
-	return color.White
+	return d.color
 }
 
 func (d *WLEDMatrixDisplay) GetBackgroundColor() color.Color {
-	return color.Black
-}
-
-func (d *WLEDMatrixDisplay) GetText() string {
-	return ""
+	return d.bgColor
 }
 
 func (d *WLEDMatrixDisplay) GetImage() *image.RGBA {
 	return d.lastImg
 }
 
+func (d *WLEDMatrixDisplay) GetBrightness() int {
+	state, res := d.getState()
+	if res.IsError() {
+		return -1
+	}
+	return state.Brightness
+}
+
 func (d *WLEDMatrixDisplay) IsOn() bool {
-	return true
+	state, res := d.getState()
+	if res.IsError() {
+		return false
+	}
+	return state.On
 }
 
 // drawLoop starts a loop that draws an image from a channel to the display and then sleeps for the given duration

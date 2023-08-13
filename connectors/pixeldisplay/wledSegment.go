@@ -15,11 +15,6 @@ type WLEDSegment struct {
 	I  [][3]uint32 `json:"i"`
 }
 
-type WLEDState struct {
-	On bool `json:"on"`
-	V  bool `json:"v"`
-}
-
 type WLEDSegmentConfig struct {
 	Width   int
 	Height  int

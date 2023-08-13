@@ -3,6 +3,7 @@ package pixeldisplay
 import (
 	"embed"
 	"image"
+	"image/draw"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -32,6 +33,7 @@ func (t *text2pixeldisplay) DrawText(text string) *base.OperatorIO {
 	maxDim := t.display.GetMaxPictureSize()
 	r := image.Rect(0, 0, maxDim.X, maxDim.Y) // crop the picture later
 	dst := image.NewRGBA(r)
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(t.display.GetBackgroundColor()), image.Point{}, draw.Src)
 
 	fontBytes, err := staticContent.ReadFile("font/Grand9K Pixel.ttf")
 	if err != nil {
