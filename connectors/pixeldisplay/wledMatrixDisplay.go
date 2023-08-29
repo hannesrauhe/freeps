@@ -2,6 +2,7 @@ package pixeldisplay
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -21,7 +22,7 @@ type WLEDMatrixDisplayConfig struct {
 }
 
 type WLEDMatrixDisplay struct {
-	segments []*WLEDSegmentRoot
+	segments map[int]*WLEDSegmentHolder
 	conf     *WLEDMatrixDisplayConfig
 	height   int
 	width    int
@@ -31,22 +32,23 @@ type WLEDMatrixDisplay struct {
 	bgColor  color.Color
 }
 
-type WLEDState struct {
-	On         bool `json:"on"`
-	Brightness int  `json:"bri"`
+type WLEDResponse struct {
+	Seg        []WLEDSegment `json:"seg,omitempty"`
+	On         bool          `json:"on"`
+	Brightness int           `json:"bri"`
 }
 
 var _ Pixeldisplay = &WLEDMatrixDisplay{}
 
 // NewWLEDMatrixDisplay creates a connection to a WLED instance with multiple segments
 func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, error) {
-	disp := &WLEDMatrixDisplay{conf: &cfg, color: color.White, bgColor: color.Black}
+	disp := &WLEDMatrixDisplay{conf: &cfg, color: color.White, bgColor: color.Black, segments: map[int]*WLEDSegmentHolder{}}
 	for _, segCfg := range cfg.Segments {
 		seg, err := newWLEDSegmentRoot(segCfg)
 		if err != nil {
 			return nil, err
 		}
-		disp.segments = append(disp.segments, seg)
+		disp.segments[segCfg.SegID] = seg
 		if disp.height < segCfg.Height+segCfg.OffsetY {
 			disp.height = segCfg.Height + segCfg.OffsetY
 		}
@@ -59,8 +61,8 @@ func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, erro
 	return disp, nil
 }
 
-func (d *WLEDMatrixDisplay) getState() (WLEDState, *base.OperatorIO) {
-	var state WLEDState
+func (d *WLEDMatrixDisplay) getState() (WLEDResponse, *base.OperatorIO) {
+	var state WLEDResponse
 	c := http.Client{}
 
 	var err error
@@ -158,11 +160,31 @@ func (d *WLEDMatrixDisplay) DrawPixel(x, y int, color color.Color) *base.Operato
 }
 
 func (d *WLEDMatrixDisplay) TurnOn() *base.OperatorIO {
-	return d.sendCmd(base.MakeObjectOutput(&WLEDState{On: true}))
+	s, err := d.getState()
+	if err.IsError() {
+		return err
+	}
+	cmdOutput := d.sendCmd(base.MakeObjectOutput(&WLEDResponse{On: true}))
+	if cmdOutput.IsError() {
+		return cmdOutput
+	}
+	/* validation */
+	notes := []string{}
+	for _, actualSeg := range s.Seg {
+		expectedSeg, exists := d.segments[actualSeg.ID]
+		if !exists {
+			notes = append(notes, fmt.Sprintf("Segment %v is not configured", actualSeg.ID))
+			continue
+		}
+		if expectedSeg.conf.Height*expectedSeg.conf.Width != actualSeg.Len {
+			notes = append(notes, fmt.Sprintf("Segment %v has a length of %v, but expected dimensions are %vx%v (length %v)", expectedSeg.conf.SegID, actualSeg.Len, expectedSeg.conf.Width, expectedSeg.conf.Height, expectedSeg.conf.Height*expectedSeg.conf.Width))
+		}
+	}
+	return base.MakeObjectOutput(notes)
 }
 
 func (d *WLEDMatrixDisplay) TurnOff() *base.OperatorIO {
-	return d.sendCmd(base.MakeObjectOutput(&WLEDState{On: false}))
+	return d.sendCmd(base.MakeObjectOutput(&WLEDResponse{On: false}))
 }
 
 func (d *WLEDMatrixDisplay) GetDimensions() image.Point {
@@ -208,7 +230,11 @@ func (d *WLEDMatrixDisplay) drawLoop(c <-chan image.RGBA, duration time.Duration
 		if !ok {
 			return
 		}
-		d.drawImageImmediately(&img)
+		err := d.drawImageImmediately(&img)
+		if err.IsError() {
+			// TODO(HR): log and/or return to sender
+			fmt.Printf("%v\n", err)
+		}
 		time.Sleep(duration)
 	}
 }
