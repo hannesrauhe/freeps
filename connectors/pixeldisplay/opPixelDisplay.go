@@ -187,13 +187,20 @@ func (op *OpPixelDisplay) SetBrightness(ctx *base.Context, input *base.OperatorI
 
 type TextArgs struct {
 	PixeldisplayArgs
-	Text string
+	Text *string
 }
 
 func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, args TextArgs) *base.OperatorIO {
 	d := op.GetDisplay(args.PixeldisplayArgs)
 	t := NewText2Pixeldisplay(d)
-	return t.DrawText(args.Text)
+	text := ""
+	if !input.IsEmpty() {
+		text = input.GetString()
+	}
+	if args.Text != nil {
+		text = *args.Text
+	}
+	return t.DrawText(text)
 }
 
 type ImageArgs struct {
