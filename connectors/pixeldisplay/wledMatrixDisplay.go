@@ -169,18 +169,23 @@ func (d *WLEDMatrixDisplay) TurnOn() *base.OperatorIO {
 		return cmdOutput
 	}
 	/* validation */
-	notes := []string{}
+	returnMap := map[string][]string{}
+	returnMap["warnings"] = []string{}
 	for _, actualSeg := range s.Seg {
 		expectedSeg, exists := d.segments[actualSeg.ID]
 		if !exists {
-			notes = append(notes, fmt.Sprintf("Segment %v is not configured", actualSeg.ID))
+			returnMap["warnings"] = append(returnMap["warnings"], fmt.Sprintf("Segment %v is not configured", actualSeg.ID))
 			continue
 		}
-		if expectedSeg.conf.Height*expectedSeg.conf.Width != actualSeg.Len {
-			notes = append(notes, fmt.Sprintf("Segment %v has a length of %v, but expected dimensions are %vx%v (length %v)", expectedSeg.conf.SegID, actualSeg.Len, expectedSeg.conf.Width, expectedSeg.conf.Height, expectedSeg.conf.Height*expectedSeg.conf.Width))
+		if actualSeg.Len != nil && expectedSeg.conf.Height*expectedSeg.conf.Width != *actualSeg.Len {
+			returnMap["warnings"] = append(returnMap["warnings"], fmt.Sprintf("Segment %v has a length of %v, but expected dimensions are %vx%v (length %v)", expectedSeg.conf.SegID, *actualSeg.Len, expectedSeg.conf.Width, expectedSeg.conf.Height, expectedSeg.conf.Height*expectedSeg.conf.Width))
 		}
+		d.segments[actualSeg.ID].actualLen = *actualSeg.Len
 	}
-	return base.MakeObjectOutput(notes)
+	if len(returnMap["warnings"]) > 0 {
+		return base.MakeObjectOutput(returnMap)
+	}
+	return cmdOutput
 }
 
 func (d *WLEDMatrixDisplay) TurnOff() *base.OperatorIO {

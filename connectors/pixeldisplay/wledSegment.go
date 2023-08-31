@@ -14,9 +14,9 @@ import (
 type WLEDSegment struct {
 	ID    int         `json:"id"`
 	I     [][3]uint32 `json:"i,omitempty"`
-	Start int         `json:"start"`
-	Stop  int         `json:"stop"`
-	Len   int         `json:"len"`
+	Start *int        `json:"start,omitempty"`
+	Stop  *int        `json:"stop,omitempty"`
+	Len   *int        `json:"len,omitempty"`
 }
 
 type WLEDSegmentConfig struct {
@@ -28,7 +28,8 @@ type WLEDSegmentConfig struct {
 }
 
 type WLEDSegmentHolder struct {
-	conf WLEDSegmentConfig
+	conf      WLEDSegmentConfig
+	actualLen int
 }
 
 type WLEDRequest struct {
@@ -36,7 +37,7 @@ type WLEDRequest struct {
 }
 
 func newWLEDSegmentRoot(conf WLEDSegmentConfig) (*WLEDSegmentHolder, error) {
-	return &WLEDSegmentHolder{conf: conf}, nil
+	return &WLEDSegmentHolder{conf: conf, actualLen: 0}, nil
 }
 
 func (h *WLEDSegmentHolder) SetImage(dst image.RGBA) ([]byte, error) {
@@ -53,6 +54,9 @@ func (h *WLEDSegmentHolder) SetImage(dst image.RGBA) ([]byte, error) {
 			p := [3]uint32{r >> 8, g >> 8, b >> 8}
 			jsonob.Seg.I = append(jsonob.Seg.I, p)
 		}
+	}
+	if h.actualLen > 0 && len(jsonob.Seg.I) > h.actualLen {
+		return nil, fmt.Errorf("Array of length %v for Segment %v longer than expected the %v pixels", len(jsonob.Seg.I), h.conf.SegID, h.actualLen)
 	}
 	return json.Marshal(jsonob)
 }
