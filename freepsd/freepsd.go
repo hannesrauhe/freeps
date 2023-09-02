@@ -20,7 +20,6 @@ import (
 	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
-	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/ui"
@@ -66,7 +65,6 @@ func mainLoop() bool {
 		&freepsgraph.OpCurl{},
 		&chaosimradio.OpCiR{},
 		&telegram.OpTelegram{},
-		&pixeldisplay.OpPixelDisplay{},
 	}
 
 	logger := logrus.StandardLogger()
