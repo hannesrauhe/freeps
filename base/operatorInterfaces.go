@@ -17,11 +17,11 @@ type FreepsOperator interface {
 	// every exported function that follows the rules given in FreepsFunctionType is a FreepsFunction
 }
 
-// FreepsOperatorWithConfig adds the GetConfig() method to FreepsOperator
+// FreepsOperatorWithConfig adds the ResetConfigToDefault() method to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
-	// GetConfig returns the config struct of the operator that is filled with the values from the config file
-	GetConfig() interface{}
+	// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
+	ResetConfigToDefault() interface{}
 	// Init is called after the config is read and the operator is created
 	Init(ctx *Context) error
 }
@@ -35,8 +35,11 @@ type FreepsOperatorWithShutdown interface {
 // FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
 type FreepsFunctionParameters interface {
 	// InitOptionalParameters initializes the optional (pointer) arguments of the parameters struct with default values
-	InitOptionalParameters(fn string)
+	InitOptionalParameters(operator FreepsOperator, fn string)
 
 	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
-	GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string
+	GetArgSuggestions(operator FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string
+
+	// VerifyParameters checks if the given parameters are valid
+	VerifyParameters(operator FreepsOperator) *OperatorIO
 }

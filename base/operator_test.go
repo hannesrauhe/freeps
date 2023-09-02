@@ -89,7 +89,7 @@ func (mt *MyTestOperator) AnotherUnusedFunctionWrongArguments(a int, b string) *
 	return MakeOutputError(500, "This function is invalid and should not be called")
 }
 
-func (mf *MyTestFuncParams) GetArgSuggestions(fn string, argName string, otherArgs map[string]string) map[string]string {
+func (mf *MyTestFuncParams) GetArgSuggestions(op FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string {
 	switch argName {
 	case "param1":
 		return map[string]string{
@@ -107,9 +107,13 @@ func (mf *MyTestFuncParams) GetArgSuggestions(fn string, argName string, otherAr
 	return map[string]string{}
 }
 
-func (mf *MyTestFuncParams) InitOptionalParameters(fn string) {
+func (mf *MyTestFuncParams) InitOptionalParameters(op FreepsOperator, fn string) {
 	mf.OptParamWithDefault = new(int)
 	*mf.OptParamWithDefault = 42
+}
+
+func (mf *MyTestFuncParams) VerifyParameters(op FreepsOperator) *OperatorIO {
+	return MakeEmptyOutput()
 }
 
 func TestOpBuilderSuggestions(t *testing.T) {
@@ -215,7 +219,7 @@ func (mt *MyTestOperatorWithConfig) Init(ctx *Context) error {
 func (mt *MyTestOperatorWithConfig) Shutdown(ctx *Context) {
 }
 
-func (mt *MyTestOperatorWithConfig) GetConfig() interface{} {
+func (mt *MyTestOperatorWithConfig) ResetConfigToDefault() interface{} {
 	return &MyTestOperatorConfig{Enabled: true}
 }
 

@@ -16,6 +16,7 @@ import (
 )
 
 const deviceNamespace = "_fritz_devices"
+const netDeviceNamespace = "_fritz_network_devices"
 const templateNamespace = "_fritz_templates"
 const maxAge = time.Second * 100
 
@@ -109,13 +110,17 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 			}
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	case "getdata":
+	case "getdata", "getnetdevices":
 		{
 			r, err := m.fl.GetData()
-			if err == nil {
-				return base.MakeObjectOutput(r)
+			if err != nil {
+				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			netDevNs := freepsstore.GetGlobalStore().GetNamespace(netDeviceNamespace)
+			for active := range r.Data.Active {
+				netDevNs.SetValue(r.Data.Active[active].UID, base.MakeObjectOutput(r.Data.Active[active]), ctx.GetID())
+			}
+			return base.MakeObjectOutput(r)
 		}
 	case "wakeup":
 		{

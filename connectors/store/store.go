@@ -89,3 +89,8 @@ func (s *Store) GetNamespaces() []string {
 func GetGlobalStore() *Store {
 	return &store
 }
+
+// GetFileStore returns the store for files
+func GetFileStore() StoreNamespace {
+	return store.namespaces["_files"]
+}

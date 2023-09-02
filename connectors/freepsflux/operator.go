@@ -17,8 +17,8 @@ type OperatorFlux struct {
 	ff     *FreepsFlux
 }
 
-// GetConfig returns the config struct o the operator that is filled with the values from the config file
-func (o *OperatorFlux) GetConfig() interface{} {
+// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
+func (o *OperatorFlux) ResetConfigToDefault() interface{} {
 	o.config = &DefaultConfig
 	return o.config
 }

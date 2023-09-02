@@ -44,6 +44,6 @@ func (bt *Bluetooth) Init(ctx *base.Context) error {
 	return nil
 }
 
-func (bt *Bluetooth) GetConfig() interface{} {
+func (bt *Bluetooth) ResetConfigToDefault() interface{} {
 	return &BluetoothConfig{Enabled: false}
 }

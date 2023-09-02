@@ -15,8 +15,8 @@ type OpTelegram struct {
 
 var _ base.FreepsOperatorWithConfig = &OpTelegram{}
 
-// GetConfig returns the config struct of the operator that is filled with the default values
-func (m *OpTelegram) GetConfig() interface{} {
+// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
+func (m *OpTelegram) ResetConfigToDefault() interface{} {
 	m.tgc = DefaultTelegramConfig
 	return &m.tgc
 }
