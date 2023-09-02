@@ -11,12 +11,9 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 )
 
-type WLEDSegment struct {
-	ID    int         `json:"id"`
-	I     [][3]uint32 `json:"i,omitempty"`
-	Start *int        `json:"start,omitempty"`
-	Stop  *int        `json:"stop,omitempty"`
-	Len   *int        `json:"len,omitempty"`
+type WLEDSegmentReqeust struct {
+	ID int         `json:"id"`
+	I  [][3]uint32 `json:"i,omitempty"`
 }
 
 type WLEDSegmentConfig struct {
@@ -33,7 +30,7 @@ type WLEDSegmentHolder struct {
 }
 
 type WLEDRequest struct {
-	Seg WLEDSegment `json:"seg,omitempty"`
+	Seg WLEDSegmentReqeust `json:"seg,omitempty"`
 }
 
 func newWLEDSegmentRoot(conf WLEDSegmentConfig) (*WLEDSegmentHolder, error) {

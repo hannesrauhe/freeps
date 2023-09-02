@@ -32,10 +32,17 @@ type WLEDMatrixDisplay struct {
 	bgColor  color.Color
 }
 
+type WLEDSegmentResponse struct {
+	ID    int `json:"id"`
+	Start int `json:"start,omitempty"`
+	Stop  int `json:"stop,omitempty"`
+	Len   int `json:"len,omitempty"`
+}
+
 type WLEDResponse struct {
-	Seg        []WLEDSegment `json:"seg,omitempty"`
-	On         bool          `json:"on"`
-	Brightness int           `json:"bri"`
+	Seg        []WLEDSegmentResponse `json:"seg,omitempty"`
+	On         bool                  `json:"on"`
+	Brightness int                   `json:"bri"`
 }
 
 var _ Pixeldisplay = &WLEDMatrixDisplay{}
@@ -177,10 +184,10 @@ func (d *WLEDMatrixDisplay) TurnOn() *base.OperatorIO {
 			returnMap["warnings"] = append(returnMap["warnings"], fmt.Sprintf("Segment %v is not configured", actualSeg.ID))
 			continue
 		}
-		if actualSeg.Len != nil && expectedSeg.conf.Height*expectedSeg.conf.Width != *actualSeg.Len {
-			returnMap["warnings"] = append(returnMap["warnings"], fmt.Sprintf("Segment %v has a length of %v, but expected dimensions are %vx%v (length %v)", expectedSeg.conf.SegID, *actualSeg.Len, expectedSeg.conf.Width, expectedSeg.conf.Height, expectedSeg.conf.Height*expectedSeg.conf.Width))
+		if expectedSeg.conf.Height*expectedSeg.conf.Width != actualSeg.Len {
+			returnMap["warnings"] = append(returnMap["warnings"], fmt.Sprintf("Segment %v has a length of %v, but expected dimensions are %vx%v (length %v)", expectedSeg.conf.SegID, actualSeg.Len, expectedSeg.conf.Width, expectedSeg.conf.Height, expectedSeg.conf.Height*expectedSeg.conf.Width))
 		}
-		d.segments[actualSeg.ID].actualLen = *actualSeg.Len
+		d.segments[actualSeg.ID].actualLen = actualSeg.Len
 	}
 	if len(returnMap["warnings"]) > 0 {
 		return base.MakeObjectOutput(returnMap)
