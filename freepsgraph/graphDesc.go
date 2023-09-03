@@ -16,6 +16,7 @@ type GraphOperationDesc struct {
 type GraphDesc struct {
 	Tags       []string
 	Source     string
+	sourceFile string
 	OutputFrom string
 	Operations []GraphOperationDesc
 }
@@ -74,19 +75,16 @@ func (gd *GraphDesc) HasAtLeastOneTagPerGroup(tagGroups [][]string) bool {
 	return true
 }
 
-// AddTag adds a Tag to the description and removes duplicates
-func (gd *GraphDesc) AddTag(tag string) {
-	if gd.Tags == nil || len(gd.Tags) == 0 {
-		gd.Tags = []string{tag}
-	}
-	if tag == "" {
-		return
-	}
+// AddTags adds a Tag to the description and removes duplicates
+func (gd *GraphDesc) AddTags(tags ...string) {
 	fakeSet := map[string]bool{}
 	for _, t := range gd.Tags {
 		fakeSet[t] = true
 	}
-	fakeSet[tag] = true
+	for _, t := range tags {
+		fakeSet[t] = true
+	}
+
 	gd.Tags = make([]string, 0, len(fakeSet))
 	for k := range fakeSet {
 		gd.Tags = append(gd.Tags, k)

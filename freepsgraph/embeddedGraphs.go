@@ -9,6 +9,7 @@ import (
 //go:embed embedded_graphs/*
 var embeddedGraphs embed.FS
 
+// LoadEmbeddedGraphs adds the graphs pre-shipped with freeps from the embedded file system
 func (ge *GraphEngine) LoadEmbeddedGraphs() error {
 	ftlist, _ := embeddedGraphs.ReadDir("embedded_graphs")
 	for _, e := range ftlist {
@@ -19,8 +20,8 @@ func (ge *GraphEngine) LoadEmbeddedGraphs() error {
 		if err != nil {
 			return err
 		}
-		gd := &GraphDesc{}
-		err = json.Unmarshal(gb, gd)
+		gd := GraphDesc{}
+		err = json.Unmarshal(gb, &gd)
 		if err != nil {
 			return err
 		}
