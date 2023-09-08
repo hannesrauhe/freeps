@@ -230,6 +230,24 @@ func (c *ConfigReader) GetSectionNames() ([]string, error) {
 	return keys, nil
 }
 
+// GetSectionNamesWithPrefix returns the names of all sections in the config file that start with prefix
+func (c *ConfigReader) GetSectionNamesWithPrefix(prefix string) ([]string, error) {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
+	sectionsMap, err := GetSectionsMap(c.configFileContent)
+	if err != nil {
+		return []string{}, err
+	}
+	keys := make([]string, 0, len(sectionsMap))
+	for k := range sectionsMap {
+		if StringStartsWith(k, prefix) {
+			keys = append(keys, k)
+		}
+	}
+	return keys, nil
+}
+
 func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct interface{}) error {
 	c.lck.Lock()
 	defer c.lck.Unlock()

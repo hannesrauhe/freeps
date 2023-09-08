@@ -17,6 +17,8 @@ type OperatorFlux struct {
 	ff     *FreepsFlux
 }
 
+var _ base.FreepsOperatorWithConfig = &OperatorFlux{}
+
 // ResetConfigToDefault set the config to the default values and returns a reference to the configuration
 func (o *OperatorFlux) ResetConfigToDefault() interface{} {
 	o.config = &DefaultConfig
