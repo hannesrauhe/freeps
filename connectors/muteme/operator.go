@@ -1,6 +1,7 @@
 package muteme
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -13,17 +14,24 @@ type MuteMe struct {
 
 var _ base.FreepsOperatorWithConfig = &MuteMe{}
 
-// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
-func (mm *MuteMe) ResetConfigToDefault() interface{} {
-	mm.config = DefaultConfig
-	return &mm.config
+// GetDefaultConfig returns a copy of the default config
+func (mm *MuteMe) GetDefaultConfig() interface{} {
+	newConfig := DefaultConfig
+	return &newConfig
 }
 
-// Init is called after the config is read and the operator is created
-func (mm *MuteMe) Init(ctx *base.Context) error {
+// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
+func (mm *MuteMe) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
 	var err error
-	impl, err = newMuteMe(ctx, &mm.config)
-	return err
+	if impl != nil {
+		return nil, fmt.Errorf("Only one instance of muteme is allowed")
+	}
+	newMM := MuteMe{config: *config.(*MuteMeConfig)}
+	impl, err = newMuteMe(ctx, &newMM.config)
+	if err != nil {
+		return nil, err
+	}
+	return &newMM, nil
 }
 
 // SetColorArgs are the arguments for the MuteMe-SetColor function
@@ -33,7 +41,7 @@ type SetColorArgs struct {
 
 var _ base.FreepsFunctionParameters = &SetColorArgs{}
 
-// InitOptionalParameters does nothing beccause there are no optional arguments
+// InitOptionalParameters does nothing because there are no optional arguments
 func (mma *SetColorArgs) InitOptionalParameters(op base.FreepsOperator, fn string) {
 }
 

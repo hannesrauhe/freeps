@@ -22,8 +22,6 @@ type TelegramConfig struct {
 	DebugMessages bool
 }
 
-var DefaultTelegramConfig = TelegramConfig{Token: ""}
-
 type Telegraminator struct {
 	ge          *freepsgraph.GraphEngine
 	lastMessage int

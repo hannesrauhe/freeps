@@ -13,8 +13,10 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+var testConfig = FreepsFluxConfig{[]InfluxdbConfig{}, false, true, "_influx"}
+
 func TestMetricsToPoints(t *testing.T) {
-	ff, err := NewFreepsFlux(&DefaultConfig, nil)
+	ff, err := NewFreepsFlux(&testConfig, nil)
 	assert.NilError(t, err)
 
 	met := freepslib.FritzBoxMetrics{DeviceModelName: "7777",
@@ -53,15 +55,15 @@ func fileToPoint(t *testing.T, fileName string, expectedString string, conf Free
 }
 
 func TestSteckdoseToPoint(t *testing.T) {
-	fileToPoint(t, "./_testdata/steckdose.xml", "Steckdose\\ Salon, energy=123841,offset=0,power=0,switch_state_bool=false,temp=22,voltage=229.756 1", DefaultConfig)
+	fileToPoint(t, "./_testdata/steckdose.xml", "Steckdose\\ Salon, energy=123841,offset=0,power=0,switch_state_bool=false,temp=22,voltage=229.756 1", testConfig)
 }
 
 func TestHKRToPoint(t *testing.T) {
-	fileToPoint(t, "./_testdata/hkr.xml", "Salon, offset=0,temp=24,temp_set=23,window_open=false 1", DefaultConfig)
+	fileToPoint(t, "./_testdata/hkr.xml", "Salon, offset=0,temp=24,temp_set=23,window_open=false 1", testConfig)
 }
 
 func TestLampeToPoint(t *testing.T) {
-	fileToPoint(t, "./_testdata/lampe.xml", "Wohnzimmer\\ Lampe, color_hue=0i,color_saturation=0i,color_temp=2700i,level=135 1", DefaultConfig)
+	fileToPoint(t, "./_testdata/lampe.xml", "Wohnzimmer\\ Lampe, color_hue=0i,color_saturation=0i,color_temp=2700i,level=135 1", testConfig)
 }
 
 func TestExampleDeviceList(t *testing.T) {
@@ -74,9 +76,9 @@ Kinderzimmer\ rechts, offset=0,temp=20.5,temp_set=20,window_open=false 1
 unused, offset=0,temp=0,temp_set=0,window_open=false 1
 Wohnzimmer\ rechts, offset=0,temp=24,temp_set=23,window_open=true 1
 Wohnzimmer\ Lampe, color_hue=0i,color_saturation=0i,color_temp=2700i,level=135 1
-Steckdose\ Salon, energy=123841,offset=0,power=0,switch_state_bool=false,temp=22,voltage=229.756 1`, DefaultConfig)
+Steckdose\ Salon, energy=123841,offset=0,power=0,switch_state_bool=false,temp=22,voltage=229.756 1`, testConfig)
 
-	conf := DefaultConfig
+	conf := testConfig
 	conf.IgnoreNotPresent = true
 	fileToPoint(t, "./_testdata/devicelist.xml", `Salon, offset=0,temp=24,temp_set=23,window_open=false 1
 Badezimmer, offset=0,temp=23.5,temp_set=23,window_open=false 1

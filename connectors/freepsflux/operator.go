@@ -19,17 +19,17 @@ type OperatorFlux struct {
 
 var _ base.FreepsOperatorWithConfig = &OperatorFlux{}
 
-// ResetConfigToDefault set the config to the default values and returns a reference to the configuration
-func (o *OperatorFlux) ResetConfigToDefault() interface{} {
-	o.config = &DefaultConfig
-	return o.config
+// GetDefaultConfig returns a copy of the default config
+func (o *OperatorFlux) GetDefaultConfig() interface{} {
+	return &FreepsFluxConfig{[]InfluxdbConfig{}, false, true, "_influx"}
 }
 
-// Init is called after the config is read and the operator is created
-func (o *OperatorFlux) Init(ctx *base.Context) error {
+// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
+func (o *OperatorFlux) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
 	var err error
-	o.ff, err = NewFreepsFlux(o.config, nil)
-	return err
+	newO := OperatorFlux{config: config.(*FreepsFluxConfig)}
+	newO.ff, err = NewFreepsFlux(o.config, nil)
+	return &newO, err
 }
 
 func (o *OperatorFlux) PushFreepsDeviceList(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
