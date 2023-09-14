@@ -28,7 +28,7 @@ func (o *OperatorFlux) GetDefaultConfig() interface{} {
 func (o *OperatorFlux) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
 	var err error
 	newO := OperatorFlux{config: config.(*FreepsFluxConfig)}
-	newO.ff, err = NewFreepsFlux(o.config, nil)
+	newO.ff, err = NewFreepsFlux(newO.config, nil)
 	return &newO, err
 }
 

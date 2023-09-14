@@ -391,7 +391,7 @@ func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
 
 // AddOperators adds multiple operators to the graph engine
 func (ge *GraphEngine) AddOperators(ops []base.FreepsBaseOperator) {
-	if ops != nil {
+	if ops == nil {
 		return
 	}
 	ge.operatorLock.Lock()

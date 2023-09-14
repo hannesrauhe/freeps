@@ -16,12 +16,12 @@ import (
 // OpConfig contains all parameters to initialize the available displays
 type OpConfig struct {
 	Enabled           bool                    `json:"enabled"`
-	WLEDMatrixDisplay WLEDMatrixDisplayConfig `json:"wledMatrixDisplays"`
+	WLEDMatrixDisplay WLEDMatrixDisplayConfig `json:"wledMatrixDisplay"`
 }
 
 // OpPixelDisplay implements base.FreepsOperatorWithShutdown, wraps all functions of the Pixeldisplay interface and calls them on the default display
 type OpPixelDisplay struct {
-	config  *OpConfig
+	config  OpConfig
 	display Pixeldisplay
 }
 
@@ -49,7 +49,7 @@ func (op *OpPixelDisplay) InitCopyOfOperator(config interface{}, ctx *base.Conte
 	if err != nil {
 		return nil, err
 	}
-	newOp := &OpPixelDisplay{config: config.(*OpConfig), display: disp}
+	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp}
 	return newOp, nil
 }
 

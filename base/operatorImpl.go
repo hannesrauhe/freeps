@@ -42,7 +42,7 @@ type FreepsOperatorWrapper struct {
 
 var _ FreepsBaseOperator = &FreepsOperatorWrapper{}
 
-// MakeFreepsOperators creates a FreepsBaseOperator Variations from any struct that implements FreepsOperator
+// MakeFreepsOperators creates FreepsBaseOperator variations from any struct that implements FreepsOperator
 func MakeFreepsOperators(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *Context) []FreepsBaseOperator {
 	if anyClass == nil {
 		return nil
@@ -89,7 +89,7 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			ops = append(ops, &FreepsOperatorWrapper{opInstance: opVariation0})
 			continue
 		}
-		err := cr.ReadSectionWithDefaults(opVariationSectionName, &conf)
+		err := cr.ReadSectionWithDefaults(opVariationSectionName, conf)
 		if err != nil {
 			ctx.logger.Errorf("Reading config for operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
