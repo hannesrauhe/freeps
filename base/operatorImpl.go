@@ -33,78 +33,90 @@ type FreepsFunctionMetaData struct {
 	FuncType  FreepsFunctionType
 }
 
-// FreepsOperatorWrapper creates everything necessary to be a FreepsOperator from any struct that implements FreepsOperator
+// FreepsOperatorWrapper creates everything necessary to be a FreepsBaseOperator from any struct that implements FreepsOperator
 type FreepsOperatorWrapper struct {
 	opInstance          FreepsOperator
+	opName              string // the name of the operator, if empty, the name is extracted from the type of opInstance
 	functionMetaDataMap map[string]FreepsFunctionMetaData
 }
 
 var _ FreepsBaseOperator = &FreepsOperatorWrapper{}
 
-// MakeFreepsOperator creates a FreepsBaseOperator from any struct that implements FreepsOperator
-func MakeFreepsOperator(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *Context) FreepsBaseOperator {
+// MakeFreepsOperators creates FreepsBaseOperator variations from any struct that implements FreepsOperator
+func MakeFreepsOperators(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *Context) []FreepsBaseOperator {
 	if anyClass == nil {
 		return nil
 	}
 
-	op := &FreepsOperatorWrapper{opInstance: anyClass}
-	enabled, err := op.initIfEnabled(cr, ctx)
-	if err != nil {
-		ctx.GetLogger().Errorf("Initializing operator \"%v\" failed: %v", op.GetName(), err)
-		return nil
-	}
-	if !enabled {
-		ctx.GetLogger().Debugf("Operator \"%v\" disabled", op.GetName())
-		return nil
-	}
+	o := FreepsOperatorWrapper{opInstance: anyClass}
+	o.createFunctionMap(ctx)
 
-	ctx.GetLogger().Debugf("Operator \"%v\" initialized", op.GetName())
-	return op
-}
-
-func (o *FreepsOperatorWrapper) initIfEnabled(cr *utils.ConfigReader, ctx *Context) (bool, error) {
-	o.functionMetaDataMap = o.createFunctionMap(ctx)
-
-	var noFuncsError error // in case the operator is disabled in the config we do not want to return an error
 	if len(o.functionMetaDataMap) == 0 {
-		noFuncsError = fmt.Errorf("No functions found for operator \"%v\"", o.GetName())
+		ctx.logger.Panicf("No compatible freeps functions found for operator \"%v\"", o.GetName())
 	}
 
 	if cr == nil {
 		// no config reader might mean testing, just return
-		return true, noFuncsError
+		return []FreepsBaseOperator{&o}
 	}
 
-	confOp, ok := o.opInstance.(FreepsOperatorWithConfig)
+	_, ok := o.opInstance.(FreepsOperatorWithConfig)
 	if !ok {
-		return true, noFuncsError
+		// operator does not implement FreepsOperatorWithConfig, so there cannot be any variations
+		return []FreepsBaseOperator{&o}
 	}
 
-	conf := confOp.GetConfig()
-	if conf == nil {
-		return true, noFuncsError
-	}
-	err := cr.ReadSectionWithDefaults(utils.StringToLower(o.GetName()), &conf)
-	if err != nil {
-		return true, fmt.Errorf("Reading config for operator \"%v\" failed: %v", o.GetName(), err)
+	ops := initOperatorVariations(o, cr, ctx)
+	if len(ops) == 0 {
+		return nil
 	}
 
-	err = cr.WriteBackConfigIfChanged()
-	if err != nil {
-		return true, fmt.Errorf("Writing back config for operator \"%v\" failed: %v", o.GetName(), err)
-	}
+	return ops
+}
 
-	// check if the config object has a field called "enabled" and if it is set to false
-	// if it is set to false, we do not want to initialize the operator and return nil
-	enabledField := reflect.ValueOf(conf).Elem().FieldByName("Enabled")
-	if enabledField.IsValid() && enabledField.Kind() == reflect.Bool && !enabledField.Bool() {
-		return false, nil
-	}
-	err = confOp.Init(ctx)
+func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils.ConfigReader, ctx *Context) []FreepsBaseOperator {
+	ops := []FreepsBaseOperator{}
+	opVariation0 := opVariationWrapper0.opInstance.(FreepsOperatorWithConfig)
+	opVariationSectionNames, err := cr.GetSectionNamesWithPrefix(opVariationWrapper0.GetName() + ".")
 	if err != nil {
-		return true, fmt.Errorf("Initializing operator \"%v\" failed: %v", o.GetName(), err)
+		ctx.logger.Errorf("Reading config for operator \"%v\" failed: %v", opVariationWrapper0.GetName(), err)
+		return nil
 	}
-	return true, noFuncsError
+	opVariationSectionNames = append(opVariationSectionNames, opVariationWrapper0.GetName())
+	for _, opVariationSectionName := range opVariationSectionNames {
+		conf := opVariation0.GetDefaultConfig()
+		if conf == nil {
+			ops = append(ops, &FreepsOperatorWrapper{opInstance: opVariation0})
+			continue
+		}
+		err := cr.ReadSectionWithDefaults(opVariationSectionName, conf)
+		if err != nil {
+			ctx.logger.Errorf("Reading config for operator \"%v\" failed: %v", opVariationSectionName, err)
+			continue
+		}
+
+		err = cr.WriteBackConfigIfChanged()
+		if err != nil {
+			ctx.logger.Errorf("Writing back config for operator \"%v\" failed: %v", opVariationSectionName, err)
+		}
+
+		// check if the config object has a field called "enabled" and if it is set to false
+		// if it is set to false, we do not want to initialize the operator and return nil
+		enabledField := reflect.ValueOf(conf).Elem().FieldByName("Enabled")
+		if enabledField.IsValid() && enabledField.Kind() == reflect.Bool && !enabledField.Bool() {
+			ctx.GetLogger().Debugf("Operator \"%v\" disabled", opVariationSectionName)
+			continue
+		}
+		opVariation, err := opVariation0.InitCopyOfOperator(conf, ctx)
+		if err != nil {
+			ctx.logger.Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
+			continue
+		}
+		opVariationWrapper := FreepsOperatorWrapper{opInstance: opVariation, opName: opVariationSectionName}
+		opVariationWrapper.createFunctionMap(ctx)
+		ops = append(ops, &opVariationWrapper)
+	}
+	return ops
 }
 
 // getFunction returns the function with the given name (case insensitive)
@@ -183,7 +195,7 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 
 // getInitializedParamStruct returns the struct that is the third parameter of the function,
 // if the struct implements the FreepsFunctionParameters interface, InitOptionalParameters is called and the struct is returned
-func getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
+func (o *FreepsOperatorWrapper) getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
 	paramStruct := f.In(2)
 
 	paramStructInstance := reflect.New(paramStruct)
@@ -191,13 +203,13 @@ func getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionPar
 		return paramStructInstance, nil
 	}
 	ps := paramStructInstance.Interface().(FreepsFunctionParameters)
-	ps.InitOptionalParameters(f.Name())
+	ps.InitOptionalParameters(o.opInstance, f.Name())
 	return paramStructInstance, ps
 }
 
 // createFunctionMap creates a map of all exported functions of the struct that return a struct that implements FreepsFunction
-func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) map[string]FreepsFunctionMetaData {
-	funcMap := make(map[string]FreepsFunctionMetaData)
+func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
+	o.functionMetaDataMap = make(map[string]FreepsFunctionMetaData)
 	t := reflect.TypeOf(o.opInstance)
 	v := reflect.ValueOf(o.opInstance)
 	for i := 0; i < t.NumMethod(); i++ {
@@ -208,18 +220,21 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) map[string]Freep
 		}
 		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
 		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
-			paramStruct, ps := getInitializedParamStruct(t.Method(i).Type)
+			paramStruct, ps := o.getInitializedParamStruct(t.Method(i).Type)
 			if ps == nil && paramStruct.NumMethod() > 0 {
 				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", t.Method(i).Name, o.GetName())
 			}
 		}
-		funcMap[utils.StringToLower(t.Method(i).Name)] = FreepsFunctionMetaData{Name: t.Method(i).Name, FuncValue: v.Method(i), FuncType: ffType}
+		o.functionMetaDataMap[utils.StringToLower(t.Method(i).Name)] = FreepsFunctionMetaData{Name: t.Method(i).Name, FuncValue: v.Method(i), FuncType: ffType}
 	}
-	return funcMap
 }
 
 // GetName returns the name of the struct opClass
 func (o *FreepsOperatorWrapper) GetName() string {
+	if o.opName != "" {
+		return o.opName
+	}
+
 	t := reflect.TypeOf(o.opInstance)
 	fullName := t.Elem().Name()
 	if utils.StringStartsWith(fullName, "Operator") {
@@ -258,7 +273,7 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	}
 
 	// create an initialized instance of the parameter struct
-	paramStruct, _ := getInitializedParamStruct(ffm.FuncValue.Type())
+	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
 
 	failOnError := true
 
@@ -270,6 +285,14 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	err = o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	if err != nil && failOnError {
 		return err
+	}
+
+	if ps != nil {
+		// verify parameters before executing the function
+		res := ps.VerifyParameters(o.opInstance)
+		if res != nil && res.IsError() {
+			return res
+		}
 	}
 
 	if ffm.FuncType == FreepsFunctionTypeWithArguments {
@@ -346,7 +369,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	}
 
 	// create an initialized instance of the parameter struct
-	paramStruct, ps := getInitializedParamStruct(ffm.FuncValue.Type())
+	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
 	if ps == nil {
 		// common arg suggestions if the parameter struct does not implement the FreepsFunctionParameters interface
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
@@ -358,7 +381,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 
-	res = ps.GetArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
+	res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
 	if res == nil || len(res) == 0 {
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
 	}

@@ -62,6 +62,7 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 	tpress2 := time.Now()
 	ignoreUntil := time.Now()
 	indicatorLightActive := false
+	longTouchLightActive := false
 	lastTouchDuration := time.Microsecond
 	lastTouchCounter := 0
 	running := true
@@ -71,6 +72,7 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 	m.blink(m.config.SuccessColor, color)
 
 	for running {
+		// set the user-requested color unless the indicator light is active
 		if !indicatorLightActive {
 			select {
 			case str, open := <-m.cmd:
@@ -132,6 +134,7 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 			lastTouchDuration = time.Microsecond
 			lastTouchCounter = 0
 			indicatorLightActive = false
+			longTouchLightActive = false
 		}
 		if bin[3] == 4 { // press
 			lastTouchCounter++
@@ -152,8 +155,12 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 			lastTouchDuration = time.Now().Sub(tpress2)
 		}
 
-		if bin[3] == 1 {
-		} // pressed down
+		if bin[3] == 1 { // pressed down
+			if time.Now().Sub(tpress2) > m.config.LongTouchDuration && !longTouchLightActive {
+				longTouchLightActive = true
+				m.setColor(m.config.LongTouchColor)
+			}
+		}
 		if bin[3] == 0 {
 		} // no touch
 	}

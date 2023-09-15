@@ -15,25 +15,29 @@ type OpTelegram struct {
 
 var _ base.FreepsOperatorWithConfig = &OpTelegram{}
 
-// GetConfig returns the config struct of the operator that is filled with the default values
-func (m *OpTelegram) GetConfig() interface{} {
-	m.tgc = DefaultTelegramConfig
-	return &m.tgc
+// GetDefaultConfig returns a copy of the default config
+func (m *OpTelegram) GetDefaultConfig() interface{} {
+	return &TelegramConfig{Token: ""}
 }
 
-// Init is called after the config is read and the operator is created
-func (m *OpTelegram) Init(ctx *base.Context) error {
-	if m.tgc.Token == "" {
-		return fmt.Errorf("Telegram token is empty")
+// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
+func (m *OpTelegram) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+	if bot != nil {
+		return nil, fmt.Errorf("Only one instance of telegram is allowed")
+	}
+
+	newM := OpTelegram{tgc: *config.(*TelegramConfig)}
+	if newM.tgc.Token == "" {
+		return nil, fmt.Errorf("Telegram token is empty")
 	}
 	var err error
-	bot, err = tgbotapi.NewBotAPI(m.tgc.Token)
+	bot, err = tgbotapi.NewBotAPI(newM.tgc.Token)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	tgc = &m.tgc
+	tgc = &newM.tgc
 	bot.Debug = m.tgc.DebugMessages
-	return nil
+	return &newM, nil
 }
 
 // PostArgs are the arguments for the Post function

@@ -15,6 +15,7 @@ type MuteMeConfig struct {
 	MultiTouchTag      string        // graphs with this tag will be called when button was touched multiple times within MultiTouchDuration
 	LongTouchTag       string        // graphs with this tag will be called on a long single touch
 	ProcessColor       string        // color to set while graphs are executed (if button is already in that color, turn light off instead)
+	LongTouchColor     string        // color to set when the button has been touched longer that LongTouchDuration
 	SuccessColor       string        // color to indicate successful graph execution
 	ErrorColor         string        // colot to indicate error during graph execution
 }
@@ -32,4 +33,5 @@ var DefaultConfig = MuteMeConfig{
 	ProcessColor:       "purple",
 	SuccessColor:       "green",
 	ErrorColor:         "red",
+	LongTouchColor:     "cyan",
 }

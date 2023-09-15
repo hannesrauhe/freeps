@@ -13,5 +13,3 @@ type FreepsFluxConfig struct {
 	Enabled             bool
 	Namespace           string
 }
-
-var DefaultConfig = FreepsFluxConfig{[]InfluxdbConfig{}, false, true, "_influx"}

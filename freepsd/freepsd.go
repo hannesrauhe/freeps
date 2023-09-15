@@ -20,6 +20,7 @@ import (
 	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
+	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	"github.com/hannesrauhe/freeps/connectors/ui"
@@ -65,6 +66,7 @@ func mainLoop() bool {
 		&freepsgraph.OpCurl{},
 		&chaosimradio.OpCiR{},
 		&telegram.OpTelegram{},
+		&pixeldisplay.OpPixelDisplay{},
 	}
 
 	logger := logrus.StandardLogger()
@@ -95,7 +97,7 @@ func mainLoop() bool {
 	ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
 	for _, op := range availableOperators {
 		// this will automatically skip operators that are not enabled in the config
-		ge.AddOperator(base.MakeFreepsOperator(op, cr, initCtx))
+		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
 	}
 	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(wled.NewWLEDOp(cr))

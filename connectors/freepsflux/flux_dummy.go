@@ -11,10 +11,12 @@ type OperatorFlux struct {
 
 var _ base.FreepsOperatorWithConfig = &OperatorFlux{}
 
-func (o *OperatorFlux) Init(ctx *base.Context) error {
-	return nil
+// GetDefaultConfig returns a copy of the default config
+func (o *OperatorFlux) GetDefaultConfig() interface{} {
+	return &FreepsFluxConfig{Enabled: false}
 }
 
-func (o *OperatorFlux) GetConfig() interface{} {
-	return &FreepsFluxConfig{Enabled: false}
+// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
+func (o *OperatorFlux) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+	return nil, nil
 }

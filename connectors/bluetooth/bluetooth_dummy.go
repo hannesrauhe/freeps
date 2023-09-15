@@ -40,10 +40,12 @@ type Bluetooth struct {
 
 var _ base.FreepsOperatorWithConfig = &Bluetooth{}
 
-func (bt *Bluetooth) Init(ctx *base.Context) error {
-	return nil
+// GetDefaultConfig returns a copy of the default config
+func (bt *Bluetooth) GetDefaultConfig() interface{} {
+	return &BluetoothConfig{Enabled: false}
 }
 
-func (bt *Bluetooth) GetConfig() interface{} {
-	return &BluetoothConfig{Enabled: false}
+// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
+func (bt *Bluetooth) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+	return nil, nil
 }
