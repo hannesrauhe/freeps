@@ -241,8 +241,8 @@ func (c *ConfigReader) GetSectionNamesWithPrefix(prefix string) ([]string, error
 	}
 	keys := make([]string, 0, len(sectionsMap))
 	for k := range sectionsMap {
-		if StringStartsWith(k, prefix) {
-			keys = append(keys, k)
+		if StringStartsWith(k, StringToLower(prefix)) {
+			keys = append(keys, prefix+k[len(prefix):])
 		}
 	}
 	return keys, nil
