@@ -389,6 +389,19 @@ func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
 	}
 }
 
+// AddOperators adds multiple operators to the graph engine
+func (ge *GraphEngine) AddOperators(ops []base.FreepsBaseOperator) {
+	if ops == nil {
+		return
+	}
+	ge.operatorLock.Lock()
+	defer ge.operatorLock.Unlock()
+
+	for _, op := range ops {
+		ge.operators[utils.StringToLower(op.GetName())] = op
+	}
+}
+
 // HasOperator returns true if this operator is available in the engine
 func (ge *GraphEngine) HasOperator(opName string) bool {
 	ge.operatorLock.Lock()

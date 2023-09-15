@@ -117,7 +117,8 @@ func (mf *MyTestFuncParams) VerifyParameters(op FreepsOperator) *OperatorIO {
 }
 
 func TestOpBuilderSuggestions(t *testing.T) {
-	gop := MakeFreepsOperator(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
+	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
+	gop := gops[0]
 	assert.Assert(t, gop != nil, "")
 	assert.Equal(t, gop.GetName(), "MyTestOperator")
 	fnl := gop.GetFunctions()
@@ -137,8 +138,8 @@ func TestOpBuilderSuggestions(t *testing.T) {
 }
 
 func TestOpBuilderExecute(t *testing.T) {
-	gop := MakeFreepsOperator(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
-
+	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
+	gop := gops[0]
 	// happy path without any parameters
 	output := gop.Execute(nil, "simple1", map[string]string{}, MakeEmptyOutput())
 	assert.Equal(t, output.GetString(), "simple1")
@@ -210,17 +211,17 @@ type MyTestOperatorWithConfig struct {
 
 var _ FreepsOperatorWithShutdown = &MyTestOperatorWithConfig{}
 
-// implement the FreepsGenericOperatorWithShutdown interface
-func (mt *MyTestOperatorWithConfig) Init(ctx *Context) error {
-	mt.bla = 42
-	return nil
+func (mt *MyTestOperatorWithConfig) InitCopyOfOperator(config interface{}, ctx *Context) (FreepsOperatorWithConfig, error) {
+	newMt := MyTestOperatorWithConfig{bla: 42}
+	return &newMt, nil
 }
 
 func (mt *MyTestOperatorWithConfig) Shutdown(ctx *Context) {
 }
 
-func (mt *MyTestOperatorWithConfig) ResetConfigToDefault() interface{} {
-	return &MyTestOperatorConfig{Enabled: true}
+func (mt *MyTestOperatorWithConfig) GetDefaultConfig() interface{} {
+	newC := MyTestOperatorConfig{Enabled: true}
+	return &newC
 }
 
 type MyOtherTestFuncParameters struct {
@@ -244,8 +245,8 @@ func TestOpBuilderExecuteWithConfig(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
-	gop := MakeFreepsOperator(&MyTestOperatorWithConfig{}, cr, NewContext(logrus.StandardLogger()))
-
+	gops := MakeFreepsOperators(&MyTestOperatorWithConfig{}, cr, NewContext(logrus.StandardLogger()))
+	gop := gops[0]
 	// happy path without optional parameters
 	output := gop.Execute(nil, "MyFavoriteFunction", map[string]string{"Param1": "3.14", "TimeParam": "12m"}, MakeEmptyOutput())
 	assert.Assert(t, output.IsEmpty(), output.GetString())
