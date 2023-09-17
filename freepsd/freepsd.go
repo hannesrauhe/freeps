@@ -24,6 +24,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
+	optime "github.com/hannesrauhe/freeps/connectors/time"
 	"github.com/hannesrauhe/freeps/connectors/ui"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -96,6 +97,7 @@ func mainLoop() bool {
 		&telegram.OpTelegram{},
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
+		&optime.OpTime{},
 	}
 
 	ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
