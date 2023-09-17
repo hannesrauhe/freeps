@@ -9,9 +9,10 @@ import (
 )
 
 type HookStore struct {
-	executionLogNs StoreNamespace
-	graphInfoLogNs StoreNamespace
-	errorLog       *CollectedErrors
+	executionLogNs    StoreNamespace
+	graphInfoLogNs    StoreNamespace
+	operatorInfoLogNs StoreNamespace
+	errorLog          *CollectedErrors
 }
 
 var _ freepsgraph.FreepsHook = &HookStore{}
@@ -21,14 +22,17 @@ func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
 	if store.namespaces == nil || store.config == nil {
 		return nil, fmt.Errorf("Store was not properly initialized")
 	}
-	var eLog, glog StoreNamespace
+	var eLog, glog, olog StoreNamespace
 	if store.config.ExecutionLogName != "" {
 		eLog = store.GetNamespace(store.config.ExecutionLogName)
 	}
 	if store.config.GraphInfoName != "" {
 		glog = store.GetNamespace(store.config.GraphInfoName)
 	}
-	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, errorLog: NewCollectedErrors(store.config)}, nil
+	if store.config.OperatorInfoName != "" {
+		olog = store.GetNamespace(store.config.OperatorInfoName)
+	}
+	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, operatorInfoLogNs: olog, errorLog: NewCollectedErrors(store.config)}, nil
 }
 
 // GetName returns the name of the hook
@@ -60,6 +64,32 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 		if mainInput != nil && !mainInput.IsEmpty() {
 			newGraphInfo.Input = mainInput.GetString()
 		}
+		if oldValue != nil {
+			oldValue.ParseJSON(&oldGraphInfo)
+			newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
+		}
+		return base.MakeObjectOutput(newGraphInfo)
+	}, ctx.GetID())
+	if out.IsError() {
+		return out.GetError()
+	}
+	return nil
+}
+
+// OperatorInfo keeps information about an operator execution
+type OperatorInfo struct {
+	ExecutionCounter uint64
+}
+
+// OnExecuteOperation gets called when freepsgraph starts executing an Operation
+func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
+	if h.operatorInfoLogNs == nil {
+		return fmt.Errorf("no operator info namespace in hook")
+	}
+	opDetails := ctx.GetOperation(operationIndexInContext)
+	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
+		oldGraphInfo := GraphInfo{}
+		newGraphInfo := GraphInfo{ExecutionCounter: 1}
 		if oldValue != nil {
 			oldValue.ParseJSON(&oldGraphInfo)
 			newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1

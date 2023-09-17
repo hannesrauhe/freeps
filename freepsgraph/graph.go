@@ -176,6 +176,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
 		opI := ctx.RecordOperationStart(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
+		g.engine.TriggerOnExecuteOperationHooks(ctx, opI)
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
 			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.name, finalOpDesc)

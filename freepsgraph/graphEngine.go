@@ -427,6 +427,18 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 	}
 }
 
+// TriggerOnExecuteOperationHooks executes hooks when an operation is executed
+func (ge *GraphEngine) TriggerOnExecuteOperationHooks(ctx *base.Context, operationIndexInContext int) {
+	hooks := ge.getHookMapCopy()
+
+	for name, h := range hooks {
+		err := h.OnExecuteOperation(ctx, operationIndexInContext)
+		if err != nil {
+			ctx.GetLogger().Errorf("Execution of OperationHook \"%v\" failed with error: %v", name, err.Error())
+		}
+	}
+}
+
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
 func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
 	hooks := ge.getHookMapCopy()
