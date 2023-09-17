@@ -25,10 +25,10 @@
 
         <table class="col-9">
         <tr><th>Graph</th><th>Actions</th><th>Tags</th></tr>
-                {{ range $value, $info := graph_GetGraphInfoByTag $requestedTag }}
+                {{ range $value, $info := graph_GetGraphDescByTag $requestedTag }}
                         <tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
                             <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}" target="outputframe">Delete</a></td>
-                            <td>{{ range $index, $t := $info.Desc.Tags }} <a href="/ui/graphInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
+                            <td>{{ range $index, $t := $info.Tags }} <a href="/ui/graphInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
                 {{ end }}
         </table>
 
