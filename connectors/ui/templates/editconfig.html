@@ -1,11 +1,57 @@
+<link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<form action="#" method="POST">
-<p>
-<textarea name="ConfigText" cols="200" rows="50">
-{{ .ConfigText }}
-</textarea>
-</p>
 
-<button type="submit" name="SaveConfig">Save Config</button>
-</form>
-<iframe name="outputframe" style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe" src="{{ .Output }}"></iframe>
+{{ $requestedSection := "" }}
+{{ $requestedOperator := "" }}
+{{ if .arguments.sectionname }}
+    {{ $requestedSection = .arguments.sectionname }}
+    {{ $requestedOperator = .arguments.sectionname }}
+{{ end }}
+{{ if .arguments.operatorname }}
+    {{ $requestedOperator = .arguments.operatorname }}
+{{ end }}
+<div class="container">
+    <form method="get" class="row">
+        <div class="col">
+        Section: <select name="SectionName" onChange="this.form.submit()">
+                <option value=""></option>
+                {{ range $i, $section_name := operator_GetArgSuggestions "config" "GetSection" "SectionName" }}
+                <option value="{{$section_name}}" {{if eq $section_name $requestedSection}}selected{{end}}>{{$section_name}}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="col">
+        Operator: <select name="OperatorName" onChange="this.form.submit()">
+                <option value=""></option>
+                {{ range $i, $operator_name := operator_GetArgSuggestions "config" "GetOperatorConfig" "OperatorName" }}
+                <option value="{{$operator_name}}" {{if eq $operator_name $requestedOperator}}selected{{end}}>{{$operator_name}}</option>
+                {{ end }}
+            </select>
+        </div>
+    </form>    
+    
+    <form method="post" action="/config/WriteSection" class="row" target="outputframe">               
+{{ if .arguments.sectionname }}
+        <div class="col">
+            {{ $sectionBytes := printf "sectionname=%s" $requestedSection |graph_ExecuteOperator "config" "GetSection" }}
+            <textarea name="sectionBytes" rows="35">{{ printf "%s" $sectionBytes.Output }} </textarea>
+            <input type="text" name="sectionName" value="{{$requestedSection}}"> 
+            <button type="submit" name="WriteSection">WriteSection</button>
+            <button type="submit" class="button error" formaction="/config/RemoveSection" formmethod="get" >DeleteSection</button>
+        </div>
+{{ end }}
+{{ if .arguments.operatorname }}
+        <div class="col">
+            {{ $sectionBytes := printf "operatorname=%s" $requestedOperator |graph_ExecuteOperator "config" "GetOperatorConfig" }}
+            <textarea name="operatorConfigBytes" rows="40">{{ $sectionBytes.GetString }} </textarea>
+        </div>
+{{ end }}
+    </form>
+    <form class="row" method="get" target="outputframe">        
+        <button type="submit" formaction="/systemm/reload">Reload Freeps</button>
+        <button type="submit" class="button error" formaction="/system/stop">Stop Freeps</button>
+    </form>
+    
+    <iframe name="outputframe"></iframe>
+</div>
+
