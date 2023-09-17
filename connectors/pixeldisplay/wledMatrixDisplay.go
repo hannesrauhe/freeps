@@ -93,12 +93,12 @@ func (d *WLEDMatrixDisplay) getState() (WLEDResponse, *base.OperatorIO) {
 	return state, &res
 }
 
-func (d *WLEDMatrixDisplay) sendCmd(cmd *base.OperatorIO) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) sendCmd(file string, cmd *base.OperatorIO) *base.OperatorIO {
 	c := http.Client{}
 
 	var b []byte
 	var err error
-	path := d.conf.Address + "/json/state"
+	path := d.conf.Address + "/json/" + file
 	b, err = cmd.GetBytes()
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
@@ -148,8 +148,13 @@ func (d *WLEDMatrixDisplay) DrawImage(img image.Image, returnPNG bool) *base.Ope
 	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
 }
 
+func (d *WLEDMatrixDisplay) SetEffect(fx int) *base.OperatorIO {
+	cmd := fmt.Sprintf("{\"seg\":{\"fx\":%d},\"v\":true}", fx)
+	return d.sendCmd("si", base.MakeByteOutput([]byte(cmd)))
+}
+
 func (d *WLEDMatrixDisplay) SetBrightness(brightness int) *base.OperatorIO {
-	return d.sendCmd(nil)
+	return d.sendCmd("state", nil)
 }
 
 func (d *WLEDMatrixDisplay) SetColor(color color.Color) *base.OperatorIO {
@@ -163,7 +168,7 @@ func (d *WLEDMatrixDisplay) SetBackgroundColor(color color.Color) *base.Operator
 }
 
 func (d *WLEDMatrixDisplay) DrawPixel(x, y int, color color.Color) *base.OperatorIO {
-	return d.sendCmd(nil)
+	return d.sendCmd("state", nil)
 }
 
 func (d *WLEDMatrixDisplay) TurnOn() *base.OperatorIO {
@@ -171,7 +176,7 @@ func (d *WLEDMatrixDisplay) TurnOn() *base.OperatorIO {
 	if err.IsError() {
 		return err
 	}
-	cmdOutput := d.sendCmd(base.MakeObjectOutput(&WLEDResponse{On: true}))
+	cmdOutput := d.sendCmd("state", base.MakeObjectOutput(&WLEDResponse{On: true}))
 	if cmdOutput.IsError() {
 		return cmdOutput
 	}
@@ -196,7 +201,7 @@ func (d *WLEDMatrixDisplay) TurnOn() *base.OperatorIO {
 }
 
 func (d *WLEDMatrixDisplay) TurnOff() *base.OperatorIO {
-	return d.sendCmd(base.MakeObjectOutput(&WLEDResponse{On: false}))
+	return d.sendCmd("state", base.MakeObjectOutput(&WLEDResponse{On: false}))
 }
 
 func (d *WLEDMatrixDisplay) GetDimensions() image.Point {

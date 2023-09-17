@@ -195,3 +195,14 @@ func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, a
 	// draw.NearestNeighbor.Scale(dst, r, img, img.Bounds(), draw.Over, nil)
 	return d.DrawImage(img, true)
 }
+
+// EffectArgs is a struct to hold the effect to set
+type EffectArgs struct {
+	Fx int
+}
+
+// SetEffect sets the effect
+func (op *OpPixelDisplay) SetEffect(ctx *base.Context, input *base.OperatorIO, args EffectArgs) *base.OperatorIO {
+	d := op.GetDisplay()
+	return d.SetEffect(args.Fx)
+}

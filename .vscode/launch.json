@@ -27,7 +27,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "wled", "-f", "sendCmd", "-a", "on=1"]
+      "args": ["-m", "pixeldisplay.albert", "-f", "seteffect", "-a", "fx=90"]
     },
     {
       "name": "weather",
