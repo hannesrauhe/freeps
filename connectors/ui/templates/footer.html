@@ -1,5 +1,8 @@
 <footer style="clear: both" class="text-center">
-  <a href="/ui">Home</a> <a href="/ui/edit">New Graph</a> <a href="/ui/editconfig.html">Edit Config</a><a href="/ui/graphInfo.html">Graph Info</a>
+  <a href="/ui">Home</a> 
+  <a href="/ui/edit">New Graph</a> 
+  <a href="/ui/editconfig.html">Edit Config</a> 
+  <a href="/ui/graphInfo.html">Graph Info</a>
   {{ range $name, $info := graph_GetGraphDescByTag "ui,footer" }}
   <a href="/graph/{{ $name }}">{{ $name }}</a>
   {{ end }}
