@@ -14,6 +14,7 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	"github.com/hannesrauhe/freeps/connectors/chaosimradio"
+	opconfig "github.com/hannesrauhe/freeps/connectors/config"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
@@ -56,18 +57,6 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 }
 
 func mainLoop() bool {
-	// keep this here so the operators are re-created on reload
-	availableOperators := []base.FreepsOperator{
-		&freepsbluetooth.Bluetooth{},
-		&muteme.MuteMe{},
-		&freepsflux.OperatorFlux{},
-		&freepsgraph.OpUtils{},
-		&freepsgraph.OpRegexp{},
-		&freepsgraph.OpCurl{},
-		&chaosimradio.OpCiR{},
-		&telegram.OpTelegram{},
-		&pixeldisplay.OpPixelDisplay{},
-	}
 
 	logger := logrus.StandardLogger()
 	if verbose {
@@ -94,6 +83,21 @@ func mainLoop() bool {
 	defer cancel()
 
 	ge := freepsgraph.NewGraphEngine(cr, cancel)
+
+	// keep this here so the operators are re-created on reload
+	availableOperators := []base.FreepsOperator{
+		&freepsbluetooth.Bluetooth{},
+		&muteme.MuteMe{},
+		&freepsflux.OperatorFlux{},
+		&freepsgraph.OpUtils{},
+		&freepsgraph.OpRegexp{},
+		&freepsgraph.OpCurl{},
+		&chaosimradio.OpCiR{},
+		&telegram.OpTelegram{},
+		&pixeldisplay.OpPixelDisplay{},
+		&opconfig.OpConfig{CR: cr, GE: ge},
+	}
+
 	ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
 	for _, op := range availableOperators {
 		// this will automatically skip operators that are not enabled in the config
