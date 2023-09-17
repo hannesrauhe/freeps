@@ -20,6 +20,8 @@ type Pixeldisplay interface {
 	SetBackgroundColor(color color.Color) *base.OperatorIO
 	// SetBrightness sets the brightness of the display
 	SetBrightness(brightness int) *base.OperatorIO
+	// SetEffect sets a pre-defined effect on the display
+	SetEffect(fx int) *base.OperatorIO
 
 	// SetPicture sets the picture of the display
 	DrawImage(image image.Image, returnPNG bool) *base.OperatorIO
