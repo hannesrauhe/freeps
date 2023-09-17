@@ -389,26 +389,6 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 	return o.createOutput(tmpl, td, logger, true)
 }
 
-func (o *OpUI) editConfig(vars map[string]string, input *base.OperatorIO, logger *log.Entry) *base.OperatorIO {
-	var d EditConfigData
-	if !input.IsEmpty() {
-		formInputQueryFormat, err := input.ParseFormData()
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, err.Error())
-		}
-		formInput := utils.URLArgsToMap(formInputQueryFormat)
-		if _, ok := formInput["SaveConfig"]; ok {
-			err = o.cr.SetConfigFileContent(formInput["ConfigText"])
-			if err != nil {
-				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-			}
-		}
-	}
-	d.ConfigText = o.cr.GetConfigFileContent()
-
-	return o.createOutput(`editconfig.html`, &d, logger, true)
-}
-
 func (o *OpUI) editTemplate(vars map[string]string, input *base.OperatorIO, logger *log.Entry) *base.OperatorIO {
 	tname := vars["templateName"]
 
@@ -482,34 +462,37 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
 }
 
-func (o *OpUI) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	logger := ctx.GetLogger().WithField("component", "UI")
-	withFooter := !utils.ParseBool(vars["noFooter"])
-	delete(vars, "noFooter")
+	withFooter := !utils.ParseBool(args["noFooter"])
+	delete(args, "noFooter")
+
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := map[string]string{}
+	for k, v := range args {
+		lowercaseArgs[utils.StringToLower(k)] = v
+	}
 
 	switch fn {
 	case "", "home":
-		return o.editGraph(vars, input, logger, "home.html")
+		return o.editGraph(args, input, logger, "home.html")
 	case "edit", "editGraph":
-		return o.editGraph(vars, input, logger, "editgraph.html")
-	case "config":
-		return o.editConfig(vars, input, logger)
+		return o.editGraph(args, input, logger, "editgraph.html")
 	case "editTemplate":
-		return o.editTemplate(vars, input, logger)
+		return o.editTemplate(args, input, logger)
 	case "deleteTemplate":
-		err := o.deleteTemplateFile(vars["templateName"])
+		err := o.deleteTemplateFile(args["templateName"])
 		if err != nil {
 			return base.MakeOutputError(http.StatusBadRequest, "Error when deleting template: %v", err)
 		}
 		return base.MakeEmptyOutput()
 	case "simpleTile":
-		return o.simpleTile(vars, input, ctx)
+		return o.simpleTile(args, input, ctx)
 	default:
 		tdata := make(map[string]interface{})
 
-		if vars != nil && len(vars) > 0 {
-			tdata["arguments"] = vars
-		}
+		tdata["arguments"] = lowercaseArgs
+
 		if input.IsFormData() {
 			formInput, err := input.ParseFormData()
 			if err != nil {

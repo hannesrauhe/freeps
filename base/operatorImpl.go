@@ -37,6 +37,7 @@ type FreepsFunctionMetaData struct {
 type FreepsOperatorWrapper struct {
 	opInstance          FreepsOperator
 	opName              string // the name of the operator, if empty, the name is extracted from the type of opInstance
+	config              interface{}
 	functionMetaDataMap map[string]FreepsFunctionMetaData
 }
 
@@ -112,7 +113,7 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			ctx.logger.Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
 		}
-		opVariationWrapper := FreepsOperatorWrapper{opInstance: opVariation, opName: opVariationSectionName}
+		opVariationWrapper := FreepsOperatorWrapper{opInstance: opVariation, opName: opVariationSectionName, config: conf}
 		opVariationWrapper.createFunctionMap(ctx)
 		ops = append(ops, &opVariationWrapper)
 	}
@@ -386,6 +387,11 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
 	}
 	return res
+}
+
+// GetConfig returns the config of the operator
+func (o *FreepsOperatorWrapper) GetConfig() interface{} {
+	return o.config
 }
 
 // Shutdown calls the Shutdown method of the FreepsOperator if it exists

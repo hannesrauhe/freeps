@@ -121,6 +121,40 @@ func ReadSectionWithDefaults(jsonBytes []byte, sectionName string, configStruct 
 	return []byte{}, json.Unmarshal(sectionBytes, configStruct)
 }
 
+// RemoveSection removes the given section from the config file, returns a byte-slice with the new content, empty byte slice if nothing was removed
+func RemoveSection(jsonBytes []byte, sectionName string) ([]byte, error) {
+	sectionName = StringToLower(sectionName)
+	sectionsMap, err := GetSectionsMap(jsonBytes)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	sectionsToRemove := make([]string, 0)
+	for k := range sectionsMap {
+		lk := StringToLower(k)
+		if lk == sectionName {
+			sectionsToRemove = append(sectionsToRemove, k)
+		}
+	}
+
+	if len(sectionsToRemove) == 0 {
+		return []byte{}, nil
+	}
+
+	for _, k := range sectionsToRemove {
+		delete(sectionsMap, k)
+	}
+
+	return json.MarshalIndent(sectionsMap, "", "  ")
+}
+
+// WriteSectionBytes puts the given bytes into the section of the config file
+func WriteSectionBytes(jsonBytes []byte, sectionName string, sectionBytes []byte) ([]byte, error) {
+	genStruct := make(map[string]interface{})
+	json.Unmarshal(sectionBytes, &genStruct)
+	return WriteSection(jsonBytes, sectionName, genStruct)
+}
+
 // WriteSection puts the ConfigStruct object in the config file by preserving everything that is part of the section
 func WriteSection(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
 	sectionName = StringToLower(sectionName)
@@ -211,7 +245,7 @@ func (c *ConfigReader) GetSectionBytes(sectionName string) ([]byte, error) {
 	if sectionsMap[sectionName] == nil {
 		return []byte{}, nil
 	}
-	return json.Marshal(sectionsMap[sectionName])
+	return json.MarshalIndent(sectionsMap[sectionName], "", "  ")
 }
 
 // GetSectionNames returns the names of all sections in the config file
@@ -253,6 +287,30 @@ func (c *ConfigReader) ReadSectionWithDefaults(sectionName string, configStruct 
 	defer c.lck.Unlock()
 
 	newb, err := ReadSectionWithDefaults(c.configFileContent, sectionName, configStruct, c.GetConfigDir())
+	if len(newb) > 0 {
+		c.configChanged = true
+		c.configFileContent = newb
+	}
+	return err
+}
+
+func (c *ConfigReader) RemoveSection(sectionName string) error {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
+	newb, err := RemoveSection(c.configFileContent, sectionName)
+	if len(newb) > 0 {
+		c.configChanged = true
+		c.configFileContent = newb
+	}
+	return err
+}
+
+func (c *ConfigReader) WriteSectionBytes(sectionName string, sectionBytes []byte) error {
+	c.lck.Lock()
+	defer c.lck.Unlock()
+
+	newb, err := WriteSectionBytes(c.configFileContent, sectionName, sectionBytes)
 	if len(newb) > 0 {
 		c.configChanged = true
 		c.configFileContent = newb

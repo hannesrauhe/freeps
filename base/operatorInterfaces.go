@@ -17,7 +17,7 @@ type FreepsOperator interface {
 	// every exported function that follows the rules given in FreepsFunctionType is a FreepsFunction
 }
 
-// FreepsOperatorWithConfig adds the ResetConfigToDefault() method to FreepsOperator
+// FreepsOperatorWithConfig adds methods to support multiple configurations to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
 	// GetDefaultConfig returns a copy of the default config
@@ -28,7 +28,8 @@ type FreepsOperatorWithConfig interface {
 
 // FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
 type FreepsOperatorWithShutdown interface {
-	FreepsOperatorWithConfig
+	FreepsOperator
+	// Shutdown is called when the graph engine is shutting down
 	Shutdown(ctx *Context)
 }
 

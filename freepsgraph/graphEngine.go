@@ -94,7 +94,7 @@ func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, src
 	}
 }
 
-// getHookMapCopy returns a copy of the hook-map to run locking time (hook map does not need to be locked while hook is executed)
+// getHookMapCopy returns a copy of the hook-map to reduce locking time (hook map does not need to be locked while hook is executed)
 func (ge *GraphEngine) getHookMapCopy() map[string]FreepsHook {
 	ge.hookMapLock.Lock()
 	defer ge.hookMapLock.Unlock()
