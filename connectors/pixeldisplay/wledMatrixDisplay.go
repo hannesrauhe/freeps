@@ -154,7 +154,8 @@ func (d *WLEDMatrixDisplay) SetEffect(fx int) *base.OperatorIO {
 }
 
 func (d *WLEDMatrixDisplay) SetBrightness(brightness int) *base.OperatorIO {
-	return d.sendCmd("state", nil)
+	cmd := fmt.Sprintf("{\"bri\":%d,\"v\":true}", brightness)
+	return d.sendCmd("si", base.MakeByteOutput([]byte(cmd)))
 }
 
 func (d *WLEDMatrixDisplay) SetColor(color color.Color) *base.OperatorIO {
