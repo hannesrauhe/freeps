@@ -18,6 +18,8 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
+
+	"net/http/pprof"
 )
 
 //go:embed static_server_content/*
@@ -144,6 +146,7 @@ func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsH
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", rest.handleStaticContent)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	r.HandleFunc("/{file}", rest.handleStaticContent)
 	r.Handle("/{mod}/", rest)
 	r.Handle("/{mod}/{function}", rest)
