@@ -40,7 +40,7 @@ func (g *Graph) toDot(ctx *base.Context, G *graphviz.Graph, nameIDMap map[string
 			G.AddEdge(mainInputID, nameIDMap[nodename], "args")
 		}
 		if v.Operator == "graph" {
-			sg, _ := g.engine.prepareGraphExecution(ctx, v.Function, false)
+			sg, _ := g.engine.prepareGraphExecution(ctx, v.Function)
 			if sg != nil {
 				sg.toDot(ctx, G, nameIDMap, nameIDMap[nodename])
 			}

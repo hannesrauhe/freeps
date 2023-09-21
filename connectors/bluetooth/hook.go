@@ -28,6 +28,11 @@ func (h HookBluetooth) OnExecute(ctx *base.Context, graphName string, mainArgs m
 	return nil
 }
 
+// OnExecuteOperation does nothing
+func (h HookBluetooth) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
+	return nil
+}
+
 // OnExecutionError does nothing
 func (h HookBluetooth) OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *freepsgraph.GraphOperationDesc) error {
 	return nil

@@ -45,16 +45,18 @@ func (*MockOperator) Shutdown(ctx *base.Context) {
 
 var _ base.FreepsBaseOperator = &MockOperator{}
 
-var validGraph = GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval", Function: "echo"}}}
+func createValidGraph() GraphDesc {
+	return GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval", Function: "echo"}}}
+}
 
 func TestOperatorErrorChain(t *testing.T) {
 	ctx := base.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
-	ge.temporaryGraphs["test"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.graphs["test"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
-	}, OutputFrom: "echook"}}
+	}, OutputFrom: "echook"}
 	oError := ge.ExecuteGraph(ctx, "test", make(map[string]string), base.MakeEmptyOutput())
 	assert.Assert(t, oError.IsError(), "unexpected output: %v", oError)
 
@@ -70,26 +72,27 @@ func TestOperatorErrorChain(t *testing.T) {
 func TestCheckGraph(t *testing.T) {
 	ctx := base.NewContext(log.StandardLogger())
 	ge := NewGraphEngine(nil, func() {})
-	ge.temporaryGraphs["test_noinput"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.graphs["test_noinput"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
-	}}}
+	}}
 	opIO := ge.CheckGraph("test_noinput")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.temporaryGraphs["test_noargs"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.graphs["test_noargs"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", ArgumentsFrom: "NOTEXISTING"},
-	}}}
+	}}
 	opIO = ge.CheckGraph("test_noargs")
 
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
-	ge.temporaryGraphs["test_noop"] = &GraphInfo{Desc: GraphDesc{Operations: []GraphOperationDesc{
+	ge.graphs["test_noop"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "NOTHERE"},
-	}}}
+	}}
 
 	opIO = ge.CheckGraph("test_noargs")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.temporaryGraphs["test_valid"] = &GraphInfo{Desc: validGraph}
+	gv := createValidGraph()
+	ge.graphs["test_valid"] = &gv
 	opIO = ge.CheckGraph("test_valid")
 	assert.Assert(t, !opIO.IsError(), "unexpected output: %v", opIO)
 
@@ -120,22 +123,35 @@ func TestGraphStorage(t *testing.T) {
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 	ge := NewGraphEngine(cr, func() {})
-	ge.AddExternalGraph("test1", &validGraph, "")
+	err = ge.AddExternalGraph("test1", createValidGraph())
+	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test1.json"))
 	assert.NilError(t, err)
 	assert.Assert(t, fileIsInList(cr, "externalGraph_test1.json"))
 
-	ge.AddExternalGraph("test2", &validGraph, "")
+	err = ge.AddExternalGraph("test2", createValidGraph())
+	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
 	assert.NilError(t, err)
 	assert.Assert(t, fileIsInList(cr, "externalGraph_test2.json"))
 
-	ge.AddExternalGraph("test3", &validGraph, "foo.json")
+	g := createValidGraph()
+	g.sourceFile = "foo.json"
+	err = ge.AddExternalGraph("test3", g)
+	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
 	assert.Assert(t, fileIsInList(cr, "foo.json"))
 
-	ge.AddExternalGraph("test4", &validGraph, "foo.json")
+	g = createValidGraph()
+	g.sourceFile = "foo-should-no-work.json"
+	err = ge.AddExternalGraph("test3", g)
+	assert.ErrorContains(t, err, "delete")
+
+	g = createValidGraph()
+	g.sourceFile = "foo.json"
+	err = ge.AddExternalGraph("test4", createValidGraph())
+	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
@@ -205,27 +221,32 @@ func TestGraphExecution(t *testing.T) {
 
 	expectByTagExecution([]string{"not"}, nil)
 
-	g0 := validGraph
-	ge.AddExternalGraph("test0", &g0, "")
+	g0 := createValidGraph()
+	err = ge.AddExternalGraph("test0", g0)
+	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, nil)
 
-	g1 := validGraph
-	g1.AddTag("t1")
-	ge.AddExternalGraph("test1", &g1, "")
+	g1 := createValidGraph()
+	g1.AddTags("t1")
+	err = ge.AddExternalGraph("test1", g1)
+	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{}) //single graph executed with empty output
 
-	g2 := validGraph
-	g2.Tags = []string{"t1", "t4"}
-	ge.AddExternalGraph("test2", &g2, "")
+	g2 := createValidGraph()
+	g2.AddTags("t1", "t4")
+	err = ge.AddExternalGraph("test2", g2)
+	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2"})
 
-	g3 := validGraph
-	g3.Tags = []string{"t1", "t2", "t4"}
-	ge.AddExternalGraph("test3", &g3, "foo.json")
+	g3 := createValidGraph()
+	g3.AddTags("t1", "t2", "t4")
+	err = ge.AddExternalGraph("test3", g3)
+	assert.NilError(t, err)
 
-	g4 := validGraph
-	g4.Tags = []string{"t4"}
-	ge.AddExternalGraph("test4", &g4, "foo.json")
+	g4 := createValidGraph()
+	g4.AddTags("t4")
+	err = ge.AddExternalGraph("test4", g4)
+	assert.NilError(t, err)
 
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
 	expectByTagExecution([]string{"t1", "t2"}, []string{}) //single graph executed with empty output
@@ -240,12 +261,12 @@ func TestGraphExecution(t *testing.T) {
 
 	/* Keytags */
 
-	g5 := validGraph
-	g5.Tags = []string{"keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man"}
-	ge.AddExternalGraph("test5", &g5, "foo.json")
-	g6 := validGraph
-	g6.Tags = []string{"keytag1:bar", "keytag2:bla"}
-	ge.AddExternalGraph("test6", &g6, "foo.json")
+	g5 := createValidGraph()
+	g5.AddTags("keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man")
+	ge.AddTemporaryGraph("test5", g5, "testing")
+	g6 := createValidGraph()
+	g6.AddTags("keytag1:bar", "keytag2:bla")
+	ge.AddTemporaryGraph("test6", g6, "testing")
 
 	expectByTagExtendedExecution([][]string{{"t2", ":yes:man", "keytag2:bla"}, {"t4", "fadabump", "keytag2:bla"}, {"t2", "keytag2:bla"}}, []string{"test3", "test6"})
 

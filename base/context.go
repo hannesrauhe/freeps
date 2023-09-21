@@ -129,6 +129,11 @@ func (c *Context) RecordOperationStart(graphName string, opDesc string, opName s
 	return len(c.Operations) - 1
 }
 
+// GetOperation returns the OperationLog for the given index
+func (c *Context) GetOperation(opIndex int) OperationLog {
+	return c.Operations[opIndex]
+}
+
 // RecordOperationFinish marks the operation at opIndex finished with code responseCode
 func (c *Context) RecordOperationFinish(opIndex int, responseCode int) {
 	c.Operations[opIndex].HTTPResponseCode = responseCode

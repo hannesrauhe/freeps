@@ -1,14 +1,5 @@
 package freepsgraph
 
-import "time"
-
-// GraphInfo holds the GraphDesc and some runtime info about the graph execution
-type GraphInfo struct {
-	Desc              GraphDesc
-	LastExecutionTime time.Time
-	ExecutionCounter  int64
-}
-
 // GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
 type GraphOperationDesc struct {
 	Name            string `json:",omitempty"`
@@ -25,6 +16,7 @@ type GraphOperationDesc struct {
 type GraphDesc struct {
 	Tags       []string
 	Source     string
+	sourceFile string
 	OutputFrom string
 	Operations []GraphOperationDesc
 }
@@ -83,19 +75,16 @@ func (gd *GraphDesc) HasAtLeastOneTagPerGroup(tagGroups [][]string) bool {
 	return true
 }
 
-// AddTag adds a Tag to the description and removes duplicates
-func (gd *GraphDesc) AddTag(tag string) {
-	if gd.Tags == nil || len(gd.Tags) == 0 {
-		gd.Tags = []string{tag}
-	}
-	if tag == "" {
-		return
-	}
+// AddTags adds a Tag to the description and removes duplicates
+func (gd *GraphDesc) AddTags(tags ...string) {
 	fakeSet := map[string]bool{}
 	for _, t := range gd.Tags {
 		fakeSet[t] = true
 	}
-	fakeSet[tag] = true
+	for _, t := range tags {
+		fakeSet[t] = true
+	}
+
 	gd.Tags = make([]string, 0, len(fakeSet))
 	for k := range fakeSet {
 		gd.Tags = append(gd.Tags, k)

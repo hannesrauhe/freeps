@@ -26,6 +26,11 @@ func (h *HookMQTT) OnExecute(ctx *base.Context, graphName string, mainArgs map[s
 	return nil
 }
 
+// OnExecuteOperation does nothing
+func (h *HookMQTT) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
+	return nil
+}
+
 // OnExecutionError does nothing
 func (h *HookMQTT) OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *freepsgraph.GraphOperationDesc) error {
 	return nil

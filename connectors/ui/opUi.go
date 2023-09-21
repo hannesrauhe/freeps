@@ -227,7 +227,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 		} else if k == "delArg" {
 			delete(gopd.Arguments, v)
 		} else if k == "addTag" && v != "" {
-			gd.AddTag(v)
+			gd.AddTags(v)
 		} else if k == "delTag" {
 			gd.RemoveTag(v)
 		} else if k == "op" {
@@ -314,7 +314,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 			if td.GraphName == "" {
 				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddExternalGraph(td.GraphName, gd, "")
+			err := o.ge.AddExternalGraph(td.GraphName, *gd)
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
@@ -324,14 +324,14 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 			if td.GraphName == "" {
 				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddTemporaryGraph(td.GraphName, gd, "temporary")
+			err := o.ge.AddTemporaryGraph(td.GraphName, *gd, "UI")
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			err := o.ge.AddTemporaryGraph("UIgraph", gd, "temporary")
+			err := o.ge.AddTemporaryGraph("UIgraph", *gd, "UI")
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
