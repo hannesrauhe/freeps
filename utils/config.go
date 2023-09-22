@@ -152,18 +152,18 @@ func RemoveSection(jsonBytes []byte, sectionName string) ([]byte, error) {
 func WriteSectionBytes(jsonBytes []byte, sectionName string, sectionBytes []byte) ([]byte, error) {
 	genStruct := make(map[string]interface{})
 	json.Unmarshal(sectionBytes, &genStruct)
-	return WriteSection(jsonBytes, sectionName, genStruct)
+	return WriteSection(jsonBytes, sectionName, genStruct, false)
 }
 
 // WriteSection puts the ConfigStruct object in the config file by preserving everything that is part of the section
-func WriteSection(jsonBytes []byte, sectionName string, configStruct interface{}) ([]byte, error) {
+func WriteSection(jsonBytes []byte, sectionName string, configStruct interface{}, preserveExisting bool) ([]byte, error) {
 	sectionName = StringToLower(sectionName)
 	sectionsMap, err := GetSectionsMap(jsonBytes)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	if sectionsMap[sectionName] == nil {
+	if sectionsMap[sectionName] == nil || preserveExisting == false {
 		// section is missing, will include the values from configStruct in the JSON string
 		sectionsMap[sectionName] = configStruct
 		return json.MarshalIndent(sectionsMap, "", "  ")
@@ -322,7 +322,7 @@ func (c *ConfigReader) WriteSection(sectionName string, configStruct interface{}
 	c.lck.Lock()
 	defer c.lck.Unlock()
 
-	newb, err := WriteSection(c.configFileContent, sectionName, configStruct)
+	newb, err := WriteSection(c.configFileContent, sectionName, configStruct, true)
 	if len(newb) > 0 {
 		c.configChanged = true
 		c.configFileContent = newb

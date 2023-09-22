@@ -10,7 +10,7 @@
             "Function": "getAll",
             "Arguments": {
                 "maxAge": "10m",
-                "namespace": "execution_log"
+                "namespace": "_execution_log"
             }
         },
         {
