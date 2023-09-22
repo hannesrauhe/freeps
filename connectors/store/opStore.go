@@ -20,7 +20,7 @@ var _ base.FreepsBaseOperator = &OpStore{}
 
 // NewOpStore creates a new store operator and re-initializes the store
 func NewOpStore(cr *utils.ConfigReader) *OpStore {
-	sc := defaultConfig
+	sc := getDefaultConfig()
 	err := cr.ReadSectionWithDefaults("store", &sc)
 	if err != nil {
 		logrus.Fatal(err)
