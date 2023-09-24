@@ -82,7 +82,7 @@ func (s *Store) createPostgresNamespace(name string) error {
 }
 
 func newPostgresStoreNamespace(schema string, name string) *postgresStoreNamespace {
-	ns := &postgresStoreNamespace{schema: schema, name: name, qlog: store.GetNamespace("_postgres_query_log")}
+	ns := &postgresStoreNamespace{schema: schema, name: name}
 	return ns
 }
 
@@ -99,9 +99,13 @@ func (p *postgresStoreNamespace) query(limit int, projection string, filter stri
 		filter = "1=1"
 	}
 	queryString := fmt.Sprintf("select %v from %v.%v where %v order by modification_time desc limit %d", projection, p.schema, p.name, filter, limit)
-	if p.qlog != nil {
-		p.qlog.SetValue(time.Now().Format(time.UnixDate), base.MakePlainOutput("query: %v", queryString), "postgresStoreNamespace.query")
-	}
+
+	// if p.qlog == nil {
+	// 	p.qlog = store.GetNamespace("_postgres_query_log")
+	// }
+	// if p.qlog != nil {
+	// 	p.qlog.SetValue(time.Now().Format("2006/01/02 15:04:05.00000"), base.MakePlainOutput("query: %v", queryString), "postgresStoreNamespace.query")
+	// }
 	return db.Query(queryString, args...)
 }
 
