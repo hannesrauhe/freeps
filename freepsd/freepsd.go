@@ -100,7 +100,7 @@ func mainLoop() bool {
 		&optime.OpTime{},
 	}
 
-	ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
+	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
 	for _, op := range availableOperators {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
@@ -111,7 +111,7 @@ func mainLoop() bool {
 	ge.AddOperator(fritz.NewOpFritz(cr))
 	freepsexec.AddExecOperators(cr, ge)
 
-	sh, err := freepsstore.NewStoreHook(cr)
+	sh, err := freepsstore.NewStoreHook(cr, ge)
 	if err != nil {
 		logger.Errorf("Store hook not available: %v", err.Error())
 	} else {

@@ -13,12 +13,13 @@ type HookStore struct {
 	graphInfoLogNs    StoreNamespace
 	operatorInfoLogNs StoreNamespace
 	errorLog          *CollectedErrors
+	GE                *freepsgraph.GraphEngine
 }
 
 var _ freepsgraph.FreepsHook = &HookStore{}
 
 // NewStoreHook creates a new store Hook
-func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
+func NewStoreHook(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*HookStore, error) {
 	if store.namespaces == nil || store.config == nil {
 		return nil, fmt.Errorf("Store was not properly initialized")
 	}
@@ -32,7 +33,7 @@ func NewStoreHook(cr *utils.ConfigReader) (*HookStore, error) {
 	if store.config.OperatorInfoName != "" {
 		olog = store.GetNamespace(store.config.OperatorInfoName)
 	}
-	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, operatorInfoLogNs: olog, errorLog: NewCollectedErrors(store.config)}, nil
+	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, operatorInfoLogNs: olog, errorLog: NewCollectedErrors(store.config), GE: ge}, nil
 }
 
 // GetName returns the name of the hook
@@ -45,6 +46,13 @@ type GraphInfo struct {
 	ExecutionCounter uint64
 	Arguments        map[string]string `json:",omitempty"`
 	Input            string            `json:",omitempty"`
+}
+
+// FunctionInfo keeps information about the usage of functions
+type FunctionInfo struct {
+	ExecutionCounter uint64
+	ReferenceCounter uint64
+	LastUsedByGraph  string `json:",omitempty"`
 }
 
 // OnExecute gets called when freepsgraph starts executing a Graph
@@ -76,11 +84,6 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 	return nil
 }
 
-// OperatorInfo keeps information about an operator execution
-type OperatorInfo struct {
-	ExecutionCounter uint64
-}
-
 // OnExecuteOperation gets called when freepsgraph starts executing an Operation
 func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
 	if h.operatorInfoLogNs == nil {
@@ -88,16 +91,41 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 	}
 	opDetails := ctx.GetOperation(operationIndexInContext)
 	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
-		oldGraphInfo := GraphInfo{}
-		newGraphInfo := GraphInfo{ExecutionCounter: 1}
+		fnInfo := FunctionInfo{}
 		if oldValue != nil {
-			oldValue.ParseJSON(&oldGraphInfo)
-			newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
+			oldValue.ParseJSON(&fnInfo)
 		}
-		return base.MakeObjectOutput(newGraphInfo)
+		fnInfo.ExecutionCounter++
+		fnInfo.LastUsedByGraph = opDetails.GraphName
+		return base.MakeObjectOutput(fnInfo)
 	}, ctx.GetID())
 	if out.IsError() {
 		return out.GetError()
+	}
+	return nil
+}
+
+// OnGraphChanged analyzes all graphs and updates the operator info
+func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
+	if h.operatorInfoLogNs == nil {
+		return fmt.Errorf("no operator info namespace in hook")
+	}
+	for graphName, gd := range h.GE.GetAllGraphDesc() {
+		for _, op := range gd.Operations {
+			opDesc := fmt.Sprintf("%v.%v", op.Operator, op.Function)
+			out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
+				fnInfo := FunctionInfo{}
+				if oldValue != nil {
+					oldValue.ParseJSON(&fnInfo)
+				}
+				fnInfo.ReferenceCounter++
+				fnInfo.LastUsedByGraph = graphName
+				return base.MakeObjectOutput(fnInfo)
+			}, "")
+			if out.IsError() {
+				return out.GetError()
+			}
+		}
 	}
 	return nil
 }
@@ -119,11 +147,6 @@ func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mai
 	if out.IsError() {
 		return out.GetError()
 	}
-	return nil
-}
-
-// OnGraphChanged does nothing in store
-func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
 	return nil
 }
 
