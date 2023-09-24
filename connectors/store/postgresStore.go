@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -86,18 +87,25 @@ func newPostgresStoreNamespace(schema string, name string) *postgresStoreNamespa
 }
 
 type postgresStoreNamespace struct {
+	qlog   StoreNamespace
 	schema string
 	name   string
 }
 
 var _ StoreNamespace = &postgresStoreNamespace{}
 
-func (p *postgresStoreNamespace) query(projection string, filter string, args ...any) (*sql.Rows, error) {
+func (p *postgresStoreNamespace) query(limit int, projection string, filter string, args ...any) (*sql.Rows, error) {
 	if filter == "" {
 		filter = "1=1"
 	}
-	// TODO(HR): remove hard-coded limit of 100 rows
-	queryString := fmt.Sprintf("select %v from %v.%v where %v limit %d", projection, p.schema, p.name, filter, 100)
+	queryString := fmt.Sprintf("select %v from %v.%v where %v order by modification_time desc limit %d", projection, p.schema, p.name, filter, limit)
+
+	// if p.qlog == nil {
+	// 	p.qlog = store.GetNamespace("_postgres_query_log")
+	// }
+	// if p.qlog != nil {
+	// 	p.qlog.SetValue(time.Now().Format("2006/01/02 15:04:05.00000"), base.MakePlainOutput("query: %v", queryString), "postgresStoreNamespace.query")
+	// }
 	return db.Query(queryString, args...)
 }
 
@@ -134,6 +142,39 @@ func (p *postgresStoreNamespace) DeleteValue(key string) {
 
 func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
 	result := map[string]*base.OperatorIO{}
+	r := p.GetSearchResultWithMetadata(keyPattern, valuePattern, modifiedByPattern, minAge, maxAge)
+	for k, v := range r {
+		result[k] = v.data
+	}
+	return result
+}
+
+func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *postgresStoreNamespace) GetKeys() []string {
+	res := []string{}
+	rows, err := p.query(100, "key", "")
+	if err != nil {
+		return res
+	}
+	defer rows.Close()
+	for rows.Next() {
+		key := ""
+		if err := rows.Scan(&key); err != nil {
+			return res
+		}
+		res = append(res, key)
+	}
+	if err := rows.Err(); err != nil {
+		return res
+	}
+	return res
+}
+
+func (p *postgresStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry {
+	result := map[string]StoreEntry{}
 	filter := ""
 	filterParts := []any{}
 	if keyPattern != "" {
@@ -153,7 +194,7 @@ func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern 
 		}
 		filter += fmt.Sprintf("modification_time < now() - interval '%v'", minAge.String())
 	}
-	if maxAge != 0 {
+	if maxAge != time.Duration(math.MaxInt64) {
 		if filter != "" {
 			filter += " AND "
 		}
@@ -168,60 +209,44 @@ func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern 
 	// 	filterParts = append(filterParts, valuePattern)
 	// }
 
-	rows, err := p.query("key, http_code, output_type, content_type, value_plain, value_bytes, value_json", filter, filterParts...)
+	rows, err := p.query(100, "key, http_code, output_type, content_type, value_plain, value_bytes, value_json, modified_by, modification_time", filter, filterParts...)
 	if err != nil {
-		result["error"] = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		e := StoreEntry{
+			timestamp: time.Now(),
+			data:      base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err),
+		}
+		result["error"] = e
 		return result
 	}
 	defer rows.Close()
 	for rows.Next() {
 		key := ""
-		output := base.OperatorIO{}
+		e := StoreEntry{
+			data: &base.OperatorIO{},
+		}
 		var valuePlain sql.NullString
 		var valueBytes, valueJSON []byte
-		if err := rows.Scan(&key, &output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON); err != nil {
-			result["error"] = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		if err := rows.Scan(&key, &e.data.HTTPCode, &e.data.OutputType, &e.data.ContentType, &valuePlain, &valueBytes, &valueJSON, &e.modifiedBy, &e.timestamp); err != nil {
+			result["error"] = StoreEntry{
+				timestamp: time.Now(),
+				data:      base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err),
+			}
 			return result
 		}
-		p.entryToOutput(&output, valuePlain, valueBytes, valueJSON)
-		result[key] = &output
+		p.entryToOutput(e.data, valuePlain, valueBytes, valueJSON)
+		result[key] = e
 	}
 	if err := rows.Err(); err != nil {
-		result["error"] = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		result["error"] = StoreEntry{
+			timestamp: time.Now(),
+			data:      base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err),
+		}
 	}
 	return result
 }
 
-func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
-	panic("not implemented") // TODO: Implement
-}
-
-func (p *postgresStoreNamespace) GetKeys() []string {
-	res := []string{}
-	rows, err := p.query("key", "")
-	if err != nil {
-		return res
-	}
-	defer rows.Close()
-	for rows.Next() {
-		key := ""
-		if err := rows.Scan(&key); err != nil {
-			return res
-		}
-		res = append(res, key)
-	}
-	if err := rows.Err(); err != nil {
-		return res
-	}
-	return res
-}
-
-func (p *postgresStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry {
-	panic("not implemented") // TODO: Implement
-}
-
 func (p *postgresStoreNamespace) GetValue(key string) *base.OperatorIO {
-	rows, err := p.query("http_code, output_type, content_type, value_plain, value_bytes, value_json", "key=$1", key)
+	rows, err := p.query(1, "http_code, output_type, content_type, value_plain, value_bytes, value_json", "key=$1", key)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 	}

@@ -18,13 +18,13 @@
         Value: <input type="text" value="{{$.arguments.value}}" name="value">
     </div>
     <div class="col">
-        ModifiedByPattern: <input type="text" value="{{$.arguments.modifiedBy}}" name="modifiedBy">
+        ModifiedByPattern: <input type="text" value="{{$.arguments.modifiedby}}" name="modifiedBy">
     </div>
     <div class="col">
-        MinAge: <input type="text" value="{{$.arguments.minAge}}" name="minAge">
+        MinAge: <input type="text" value="{{$.arguments.minage}}" name="minAge">
     </div>
     <div class="col">
-        MaxAge: <input type="text" value="{{$.arguments.maxAge}}" name="maxAge">
+        MaxAge: <input type="text" value="{{$.arguments.maxage}}" name="maxAge">
     </div>
     <div class="col">
         <button>Submit</button>
@@ -37,7 +37,7 @@
     <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>
 {{ range $key, $entry := .input }}
 <tr><td><a href="/store/del?namespace={{$.arguments.namespace}}&key={{$key}}" class="button" target="_blank">x</a></td><td><a href="/ui/storeSingle.html?namespace={{$.arguments.namespace}}&key={{$key}}">{{$key}}</a></td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
-    <td><a href="/graph/executionLog?key={{$entry.ModifiedBy}}&maxAge=&minAge=">{{$entry.ModifiedBy}}</a></td></tr>
+    <td><a href="/ui/executionLog.html?key={{$entry.ModifiedBy}}">{{$entry.ModifiedBy}}</a></td></tr>
 {{ end }}
 </table>
 
