@@ -87,3 +87,51 @@ func (o *OpTime) Now(ctx *base.Context, input *base.OperatorIO, n NowParameter) 
 	}
 	return base.MakePlainOutput("%v", time.Now())
 }
+
+// TimeOfDayParameter is a struct to hold the start and end of a range in hours and minutes
+type TimeOfDayParameter struct {
+	StartHour   int
+	StartMinute int
+	EndHour     int
+	EndMinute   int
+}
+
+// IsTimeOfDay returns true if the current time is within the given range
+func (o *OpTime) IsTimeOfDay(ctx *base.Context, input *base.OperatorIO, t TimeOfDayParameter) *base.OperatorIO {
+	now := time.Now()
+	start := time.Date(now.Year(), now.Month(), now.Day(), t.StartHour, t.StartMinute, 0, 0, now.Location())
+	end := time.Date(now.Year(), now.Month(), now.Day(), t.EndHour, t.EndMinute, 0, 0, now.Location())
+	if start.After(end) {
+		end = end.Add(24 * time.Hour)
+	}
+
+	if now.Before(start) || now.After(end) {
+		return base.MakeOutputError(http.StatusExpectationFailed, "It's not time yet!")
+	}
+
+	return base.MakeEmptyOutput()
+}
+
+// TimeOfYearParameter is a struct to hold the start and end of a date range
+type TimeOfYearParameter struct {
+	StartMonth time.Month
+	StartDay   int
+	EndMonth   time.Month
+	EndDay     int
+}
+
+// IsTimeOfYear returns true if the current date is within the given range
+func (o *OpTime) IsTimeOfYear(ctx *base.Context, input *base.OperatorIO, t TimeOfYearParameter) *base.OperatorIO {
+	now := time.Now()
+	start := time.Date(now.Year(), t.StartMonth, t.StartDay, 0, 0, 0, 0, now.Location())
+	end := time.Date(now.Year(), t.EndMonth, t.EndDay, 0, 0, 0, 0, now.Location())
+	if start.After(end) {
+		end = end.AddDate(1, 0, 0)
+	}
+
+	if now.Before(start) || now.After(end) {
+		return base.MakeOutputError(http.StatusExpectationFailed, "It's not time yet!")
+	}
+
+	return base.MakeEmptyOutput()
+}
