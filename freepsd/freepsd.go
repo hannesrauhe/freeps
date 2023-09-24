@@ -26,6 +26,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	optime "github.com/hannesrauhe/freeps/connectors/time"
 	"github.com/hannesrauhe/freeps/connectors/ui"
+	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -90,7 +91,7 @@ func mainLoop() bool {
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
 		&freepsflux.OperatorFlux{},
-		&freepsgraph.OpUtils{},
+		&freepsutils.OpUtils{},
 		&freepsgraph.OpRegexp{},
 		&freepsgraph.OpCurl{},
 		&chaosimradio.OpCiR{},

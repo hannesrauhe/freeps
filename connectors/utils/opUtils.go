@@ -1,4 +1,4 @@
-package freepsgraph
+package freepsutils
 
 import (
 	"net/http"
@@ -22,17 +22,25 @@ type FlattenArgs struct {
 	ExcludeRegexp *string
 }
 
-// Flatten flattens the input from a nested map to a flat map
-func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args FlattenArgs) *base.OperatorIO {
+func (m *OpUtils) flatten(ctx *base.Context, input *base.OperatorIO) (map[string]interface{}, *base.OperatorIO) {
 	nestedArgsMap := map[string]interface{}{}
 	err := input.ParseJSON(&nestedArgsMap)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
+		return nil, base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
 	}
 
 	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
+		return nil, base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
+	}
+	return argsmap, nil
+}
+
+// Flatten flattens the input from a nested map to a flat map
+func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args FlattenArgs) *base.OperatorIO {
+	argsmap, err := m.flatten(ctx, input)
+	if err != nil {
+		return err
 	}
 
 	if args.IncludeRegexp != nil {
@@ -71,6 +79,29 @@ func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args Flatte
 	}
 
 	return base.MakeObjectOutput(argsmap)
+}
+
+// ExtractArgs are the arguments for the Extract function
+type ExtractArgs struct {
+	Key string
+}
+
+// Extract extracts the value of a given key from the flattened input
+func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args ExtractArgs) *base.OperatorIO {
+	nestedArgsMap := map[string]interface{}{}
+	err := input.ParseJSON(&nestedArgsMap)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
+	}
+	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
+	}
+	vInterface, ok := argsmap[args.Key]
+	if !ok {
+		return base.MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.Key)
+	}
+	return base.MakeObjectOutput(vInterface)
 }
 
 // EchoArgs are the arguments for the Echo function
