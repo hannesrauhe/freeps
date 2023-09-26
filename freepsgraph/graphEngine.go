@@ -48,49 +48,20 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.hooks = make(map[string]FreepsHook)
 
 	if cr != nil {
-		var err error
-		config := ge.ReadConfig()
+		ge.loadStoredAndEmbeddedGraphs()
+		ge.loadExternalGraphs()
 
-		for _, fURL := range config.GraphsFromURL {
-			newGraphs := make(map[string]GraphDesc)
-			err = cr.ReadObjectFromURL(&newGraphs, fURL)
-			if err != nil {
-				log.Errorf("Skipping %v, because: %v", fURL, err)
-			}
-			ge.addExternalGraphsWithSource(newGraphs, "url: "+fURL, "")
+		g := ge.GetAllGraphDesc()
+		addedGraphs := make([]string, 0, len(g))
+		for n := range g {
+			addedGraphs = append(addedGraphs, n)
 		}
-		for _, fName := range config.GraphsFromFile {
-			newGraphs := make(map[string]GraphDesc)
-			err = cr.ReadObjectFromFile(&newGraphs, fName)
-			if err != nil {
-				log.Errorf("Skipping %v, because: %v", fName, err)
-			}
-			ge.addExternalGraphsWithSource(newGraphs, "", fName)
-		}
+		ge.TriggerGraphChangedHooks(addedGraphs, []string{})
 
 		ge.operators["weather"] = NewWeatherOp(cr)
-
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 
 	return ge
-}
-
-func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, srcName string, srcFile string) {
-	for k, v := range src {
-		if v.Tags == nil {
-			v.Tags = []string{}
-		}
-		v.Source = srcName
-		v.sourceFile = srcFile
-		oldGraph, ok := ge.graphs[k]
-		if ok {
-			log.Warnf("Graph \"%v\" is specified twice in \"%v\" and \"%v\", using the latter", k, oldGraph.sourceFile, srcFile)
-		}
-		ge.graphs[k] = &v
-	}
 }
 
 // getHookMapCopy returns a copy of the hook-map to reduce locking time (hook map does not need to be locked while hook is executed)
@@ -476,70 +447,43 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, remove
 }
 
 // AddTemporaryGraph adds a graph to the temporary graph list
-func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd GraphDesc, source string) error {
-	gd.sourceFile = ""
-	gd.Source = source
-
-	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
-
-	ge.graphLock.Lock()
-	defer ge.graphLock.Unlock()
-	return ge.addGraphUnderLock(graphName, gd)
+func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd GraphDesc, overwrite bool) error {
+	return ge.AddExternalGraph(graphName, gd, true, overwrite)
 }
 
-// AddExternalGraph adds a graph to the external graph list and stores it in the config directory
-func (ge *GraphEngine) AddExternalGraph(graphName string, gd GraphDesc) error {
-	if gd.sourceFile == "" {
-		gd.sourceFile = "externalGraph_" + graphName + ".json"
-	}
+// AddExternalGraph adds a graph from an external source and stores it on disk, after checking if the graph is valid
+func (ge *GraphEngine) AddExternalGraph(graphName string, gd GraphDesc, temporary bool, overwrite bool) error {
+	// check if graph is valid
 	_, err := NewGraph(nil, graphName, &gd, ge)
 	if err != nil {
 		return err
 	}
-	exGraph, ok := ge.graphs[graphName]
-	if ok && exGraph.sourceFile != "" && exGraph.sourceFile != gd.sourceFile {
-		return fmt.Errorf("Graph \"%v\" already exists and is stored in another file, please explicitly delete the graph to continue", graphName)
-	}
-
+	gd.temporary = temporary
 	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	return ge.addGraphUnderLock(graphName, gd)
+	return ge.addGraphUnderLock(graphName, gd, !temporary, overwrite)
 }
 
-func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc) error {
-	config := ge.ReadConfig()
-	graphFileIsInConfig := false
-	fileName := gd.sourceFile
-
-	if fileName != "" {
-		graphsInFile := make(map[string]GraphDesc)
-		for _, fName := range config.GraphsFromFile {
-			if fName == fileName {
-				fileName = fName
-				err := ge.cr.ReadObjectFromFile(&graphsInFile, fName)
-				if err != nil {
-					return fmt.Errorf("Error reading graphs from file %s: %s", fName, err.Error())
-				}
-				graphFileIsInConfig = true
-				break
-			}
+func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeToDisk bool, overwrite bool) error {
+	oldGraph, ok := ge.graphs[graphName]
+	if ok {
+		if overwrite {
+			log.Warnf("Graph \"%v\" already exists (Source \"%v\"), overwriting with new source \"%v\"", graphName, oldGraph.Source, gd.Source)
+		} else {
+			return fmt.Errorf("Graph \"%v\" already exists, please explicitly delete the graph to continue", graphName)
 		}
+	}
 
-		graphsInFile[graphName] = gd
-
-		err := ge.cr.WriteObjectToFile(graphsInFile, fileName)
+	if gd.Tags == nil {
+		gd.Tags = []string{}
+	}
+	if writeToDisk {
+		fileName := "graphs/" + graphName + ".json"
+		err := ge.cr.WriteObjectToFile(gd, fileName)
 		if err != nil {
 			return fmt.Errorf("Error writing graphs to file %s: %s", fileName, err.Error())
-		}
-
-		if !graphFileIsInConfig {
-			config.GraphsFromFile = append(config.GraphsFromFile, fileName)
-			err := ge.cr.WriteSection("graphs", config, true)
-			if err != nil {
-				return fmt.Errorf("Error writing config file: %s", err.Error())
-			}
 		}
 	}
 	ge.graphs[graphName] = &gd
@@ -556,7 +500,7 @@ func (ge *GraphEngine) DeleteTemporaryGraph(graphName string) {
 	defer ge.graphLock.Unlock()
 	exGraph, ok := ge.graphs[graphName]
 	if ok {
-		if exGraph.sourceFile == "" {
+		if exGraph.temporary {
 			delete(ge.graphs, graphName)
 		}
 	}
@@ -579,46 +523,12 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	}
 	delete(ge.graphs, graphName)
 
-	/* this graph is not in storage */
-	if deletedGraph.sourceFile == "" {
-		return nil
+	if deletedGraph.temporary {
+		delete(ge.graphs, graphName)
 	}
 
-	/* remove graph from file and corresponding file if empty */
-	config := ge.ReadConfig()
-	checkedFiles := make([]string, 0)
-
-	deleteIndex := -1
-	for i, fName := range config.GraphsFromFile {
-		if fName != deletedGraph.sourceFile {
-			continue
-		}
-		existingGraphs := make(map[string]GraphDesc)
-		err := ge.cr.ReadObjectFromFile(&existingGraphs, fName)
-		if err != nil {
-			log.Errorf("Error reading graphs from file %s: %s", fName, err.Error())
-		}
-		if _, exists := existingGraphs[graphName]; !exists {
-			checkedFiles = append(checkedFiles, fName)
-			continue
-		}
-		delete(existingGraphs, graphName)
-		if len(existingGraphs) == 0 {
-			err = ge.cr.RemoveFile(fName)
-			if err != nil {
-				log.Errorf("Error deleting file %s: %s", fName, err.Error())
-			}
-			deleteIndex = i
-		} else {
-			err = ge.cr.WriteObjectToFile(existingGraphs, fName)
-			if err != nil {
-				log.Errorf("Error writing to file %s: %s", fName, err.Error())
-			}
-			checkedFiles = append(checkedFiles, fName)
-		}
-	}
-	config.GraphsFromFile = utils.DeleteElemFromSlice(config.GraphsFromFile, deleteIndex)
-	err := ge.cr.WriteSection("graphs", config, true)
+	fname := "graphs/" + graphName + ".json"
+	err := ge.cr.RemoveFile(fname)
 
 	return err
 }

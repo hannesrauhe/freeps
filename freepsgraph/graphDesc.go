@@ -16,9 +16,9 @@ type GraphOperationDesc struct {
 type GraphDesc struct {
 	Tags       []string
 	Source     string
-	sourceFile string
 	OutputFrom string
 	Operations []GraphOperationDesc
+	temporary  bool
 }
 
 // HasAllTags return true if the GraphDesc contains all given tags

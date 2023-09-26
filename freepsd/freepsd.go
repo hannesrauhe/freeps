@@ -118,10 +118,6 @@ func mainLoop() bool {
 		ge.AddHook(sh)
 	}
 
-	if err := ge.LoadEmbeddedGraphs(); err != nil {
-		logger.Fatal(err)
-	}
-
 	if operator != "" {
 		args, _ := url.ParseQuery(argstring)
 		oio := base.MakeEmptyOutput()
