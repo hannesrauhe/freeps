@@ -570,6 +570,10 @@ func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]str
 	return r
 }
 
+// StartListening (noOp)
+func (o *OpUI) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpUI) Shutdown(ctx *base.Context) {
 }

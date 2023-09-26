@@ -24,12 +24,12 @@ import (
 //go:embed static_server_content/*
 var staticContent embed.FS
 
-type FreepsHttp struct {
+type FreepsHttpListener struct {
 	graphengine *freepsgraph.GraphEngine
 	srv         *http.Server
 }
 
-func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *base.OperatorIO, err error) {
+func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *base.OperatorIO, err error) {
 	mainInput = base.MakeEmptyOutput()
 	query := req.URL.Query()
 	mainArgs = utils.URLArgsToMap(query)
@@ -84,7 +84,7 @@ func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string
 	return
 }
 
-func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	httplogger := log.WithField("restAPI", req.RemoteAddr)
 
@@ -120,11 +120,11 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (r *FreepsHttp) Shutdown(ctx context.Context) {
+func (r *FreepsHttpListener) Shutdown(ctx context.Context) {
 	r.srv.Shutdown(ctx)
 }
 
-func (r *FreepsHttp) handleStaticContent(w http.ResponseWriter, req *http.Request) {
+func (r *FreepsHttpListener) handleStaticContent(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 
 	fc, err := staticContent.ReadFile("static_server_content/" + vars["file"])
@@ -140,8 +140,8 @@ func (r *FreepsHttp) handleStaticContent(w http.ResponseWriter, req *http.Reques
 	w.Write(fc)
 }
 
-func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsHttp {
-	rest := &FreepsHttp{graphengine: ge}
+func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsHttpListener {
+	rest := &FreepsHttpListener{graphengine: ge}
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", rest.handleStaticContent)

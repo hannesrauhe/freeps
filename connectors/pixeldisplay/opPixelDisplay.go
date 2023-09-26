@@ -53,6 +53,11 @@ func (op *OpPixelDisplay) InitCopyOfOperator(config interface{}, ctx *base.Conte
 	return newOp, nil
 }
 
+// StartListening is a noop
+func (op *OpPixelDisplay) StartListening(ctx *base.Context) {
+}
+
+// Shutdown shuts down the display
 func (op *OpPixelDisplay) Shutdown(ctx *base.Context) {
 	op.display.Shutdown()
 }

@@ -186,6 +186,10 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 	return map[string]string{}
 }
 
+// StartListening (noOp)
+func (o *OpSystem) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpSystem) Shutdown(ctx *base.Context) {
 }
