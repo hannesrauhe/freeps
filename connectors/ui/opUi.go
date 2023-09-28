@@ -531,6 +531,7 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 			}
 			tdata["input"] = tinput
 		}
+		tdata["selfURL"] = "/ui/" + fn + "?" + utils.MapToURLArgs(lowercaseArgs).Encode()
 		return o.createOutput(fn, &tdata, logger, withFooter)
 	}
 }

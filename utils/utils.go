@@ -15,7 +15,7 @@ import (
 
 // URLArgsToMap converts the string map of arrays to a string map of strings by joining multiple values per key
 // this simplfies handling of single key-value pairs, while consciously sacrificing keys with multiple values
-func URLArgsToMap(args map[string][]string) map[string]string {
+func URLArgsToMap(args url.Values) map[string]string {
 	retMap := map[string]string{}
 	for k, v := range args {
 		if len(v) > 1 {
@@ -41,6 +41,15 @@ func URLParseQuery(query string) (map[string]string, error) {
 		return nil, err
 	}
 	return URLArgsToMap(v), nil
+}
+
+// MapToURLArgs converts a string map to a string map of arrays and splits multiple values per key
+func MapToURLArgs(args map[string]string) url.Values {
+	retMap := url.Values{}
+	for k, v := range args {
+		retMap[k] = strings.Split(v, ",")
+	}
+	return retMap
 }
 
 // ReadObjectFromURL decodes a JSON object from an http stream

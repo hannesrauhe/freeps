@@ -95,22 +95,23 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// backward compatibility to a very early version
-	device, exists := vars["device"]
-	if exists {
-		mainArgs["device"] = device
-	}
+	// allows to redirect if an empty success response was returned
+	redirectLocation, redirect := mainArgs["redirect"]
 
 	ctx := base.NewContext(httplogger)
 	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	opio.Log(httplogger)
 
+	w.Header().Set("X-Freeps-ID", ctx.GetID())
+	if redirect && opio.IsEmpty() {
+		http.Redirect(w, req, redirectLocation, http.StatusFound)
+		return
+	}
 	bytes, err := opio.GetBytes()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error creating response: %v", err)
 	}
-	w.Header().Set("X-Freeps-ID", ctx.GetID())
 	w.Header().Set("Content-Type", opio.ContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 	w.WriteHeader(int(opio.HTTPCode))
