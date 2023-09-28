@@ -123,20 +123,19 @@ func TestGraphStorage(t *testing.T) {
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 	ge := NewGraphEngine(cr, func() {})
-	err = ge.AddExternalGraph("test1", createValidGraph())
+	err = ge.AddExternalGraph("test1", createValidGraph(), false, false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test1.json"))
 	assert.NilError(t, err)
 	assert.Assert(t, fileIsInList(cr, "externalGraph_test1.json"))
 
-	err = ge.AddExternalGraph("test2", createValidGraph())
+	err = ge.AddExternalGraph("test2", createValidGraph(), false, false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
 	assert.NilError(t, err)
 	assert.Assert(t, fileIsInList(cr, "externalGraph_test2.json"))
 
 	g := createValidGraph()
-	g.sourceFile = "foo.json"
 	err = ge.AddExternalGraph("test3", g)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
@@ -144,13 +143,11 @@ func TestGraphStorage(t *testing.T) {
 	assert.Assert(t, fileIsInList(cr, "foo.json"))
 
 	g = createValidGraph()
-	g.sourceFile = "foo-should-no-work.json"
 	err = ge.AddExternalGraph("test3", g)
 	assert.ErrorContains(t, err, "delete")
 
 	g = createValidGraph()
-	g.sourceFile = "foo.json"
-	err = ge.AddExternalGraph("test4", createValidGraph())
+	err = ge.AddExternalGraph("test4", createValidGraph(), false, false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
