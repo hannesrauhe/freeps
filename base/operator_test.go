@@ -209,14 +209,11 @@ type MyTestOperatorWithConfig struct {
 	bla int
 }
 
-var _ FreepsOperatorWithShutdown = &MyTestOperatorWithConfig{}
+var _ FreepsOperatorWithConfig = &MyTestOperatorWithConfig{}
 
 func (mt *MyTestOperatorWithConfig) InitCopyOfOperator(config interface{}, ctx *Context) (FreepsOperatorWithConfig, error) {
 	newMt := MyTestOperatorWithConfig{bla: 42}
 	return &newMt, nil
-}
-
-func (mt *MyTestOperatorWithConfig) Shutdown(ctx *Context) {
 }
 
 func (mt *MyTestOperatorWithConfig) GetDefaultConfig() interface{} {

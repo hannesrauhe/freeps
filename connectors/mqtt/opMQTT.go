@@ -87,6 +87,10 @@ func (o *OpMQTT) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
+// StartListening (noOp)
+func (o *OpMQTT) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpMQTT) Shutdown(ctx *base.Context) {
 }

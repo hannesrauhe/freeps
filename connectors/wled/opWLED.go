@@ -237,6 +237,10 @@ func NewWLEDOp(cr *utils.ConfigReader) *OpWLED {
 	return &OpWLED{cr: cr, config: &conf}
 }
 
+// StartListening (noOp)
+func (o *OpWLED) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpWLED) Shutdown(ctx *base.Context) {
 }

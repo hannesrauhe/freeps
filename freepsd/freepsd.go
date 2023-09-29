@@ -93,7 +93,7 @@ func mainLoop() bool {
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
 		&freepsgraph.OpRegexp{},
-		&freepsgraph.OpCurl{},
+		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&chaosimradio.OpCiR{},
 		&telegram.OpTelegram{},
 		&pixeldisplay.OpPixelDisplay{},
@@ -147,12 +147,12 @@ func mainLoop() bool {
 	}
 
 	logger.Infof("Starting Listeners")
+	ge.StartListening(initCtx)
 	mm, err := muteme.NewMuteMe()
 	if err != nil {
 		logger.Errorf("MuteMe not started: %v", err)
 	}
 
-	http := freepshttp.NewFreepsHttp(cr, ge)
 	m := mqtt.GetInstance()
 	if err := m.Init(logger, cr, ge); err != nil {
 		logger.Errorf("MQTT not started: %v", err)
@@ -174,12 +174,11 @@ func mainLoop() bool {
 		// Shutdown the server when the context is canceled
 		m.Shutdown()
 		telg.Shutdown(context.TODO())
-		http.Shutdown(context.TODO())
 		mm.Shutdown()
 	}
 	running := ge.ReloadRequested()
-	ge.Shutdown(base.NewContext(logger))
 	logger.Infof("Stopping Listeners")
+	ge.Shutdown(base.NewContext(logger))
 	return running
 }
 

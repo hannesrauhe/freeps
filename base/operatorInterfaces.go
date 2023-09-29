@@ -9,6 +9,8 @@ type FreepsBaseOperator interface {
 	GetPossibleArgs(fn string) []string
 	GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
 	GetName() string
+
+	StartListening(*Context)
 	Shutdown(*Context)
 }
 
@@ -29,6 +31,8 @@ type FreepsOperatorWithConfig interface {
 // FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
 type FreepsOperatorWithShutdown interface {
 	FreepsOperator
+	// StartListening is called when the graph engine is starting up
+	StartListening(ctx *Context)
 	// Shutdown is called when the graph engine is shutting down
 	Shutdown(ctx *Context)
 }

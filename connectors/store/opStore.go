@@ -357,6 +357,10 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	return map[string]string{}
 }
 
+// StartListening (noOp)
+func (o *OpStore) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpStore) Shutdown(ctx *base.Context) {
 }
