@@ -37,7 +37,7 @@
     <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>
 {{ range $key, $entry := store_Search $.arguments.namespace $.arguments.key $.arguments.value $.arguments.modifiedby $.arguments.minage $.arguments.maxage }}
 <tr><td><a href="/store/del?namespace={{$.arguments.namespace}}&key={{$key}}&redirect={{$.selfURL}}" class="button">x</a></td><td><a href="/ui/storeSingle.html?namespace={{$.arguments.namespace}}&key={{$key}}">{{$key}}</a></td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
-    <td><a href="/graph/executionLog?key={{$entry.ModifiedBy}}&maxAge=&minAge=">{{$entry.ModifiedBy}}</a></td></tr>
+    <td><a href="/graph/executionLog?key={{$entry.ModifiedBy}}">{{$entry.ModifiedBy}}</a></td></tr>
 {{ end }}
 </table>
 

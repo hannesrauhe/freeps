@@ -75,7 +75,7 @@ func TestReadMergeConfig(t *testing.T) {
 
 	myConfig.Foo2 = "overwritenInConfig"
 
-	newConfigBytes, err := WriteSection(configFileBytes, "myRelativeIncludedSection", myConfig)
+	newConfigBytes, err := WriteSection(configFileBytes, "myRelativeIncludedSection", myConfig, true)
 	assert.NilError(t, err)
 	assert.Assert(t, len(newConfigBytes) > 0)
 
