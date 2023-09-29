@@ -1,43 +1,71 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+{{ $namespace := "default" }}
+{{ if .arguments.namespace }}
+    {{ $namespace = .arguments.namespace }}
+{{ end }}
+{{ $key := "" }}
+{{ if .arguments.key }}
+    {{ $key = .arguments.key }}
+{{ end }}
+{{ $value := "" }}
+{{ if .arguments.value }}
+    {{ $value = .arguments.value }}
+{{ end }}
+{{ $modifiedby := "" }}
+{{ if .arguments.modifiedby }}
+    {{ $modifiedby = .arguments.modifiedby }}
+{{ end }}
+{{ $minage := "" }}
+{{ if .arguments.minage }}
+    {{ $minage = .arguments.minage }}
+{{ end }}
+{{ $maxage := "" }}
+{{ if .arguments.maxage }}
+    {{ $maxage = .arguments.maxage }}
+{{ end }}
+
+
 <div class="container">
-<form method="GET" action="/graph/storeUI"  class="row">
+<form method="GET" action="/ui/store.html"  class="row">
     <div class="col">
         Namespace: <select name="namespace" >
             <option value=""></option>
             {{ range $i, $ns_opt := store_GetNamespaces }}
-            <option value="{{$ns_opt}}" {{if eq $ns_opt $.arguments.namespace}}selected{{end}}>{{$ns_opt}}</option>
+            <option value="{{$ns_opt}}" {{if eq $ns_opt $namespace}}selected{{end}}>{{$ns_opt}}</option>
             {{ end }}
         </select>
     </div>
     <div class="col">
-        Key: <input type="text" value="{{$.arguments.key}}" name="key">
+        Key: <input type="text" value="{{$key}}" name="key">
     </div>
     <div class="col">
-        Value: <input type="text" value="{{$.arguments.value}}" name="value">
+        Value: <input type="text" value="{{$value}}" name="value">
     </div>
     <div class="col">
-        ModifiedByPattern: <input type="text" value="{{$.arguments.modifiedby}}" name="modifiedBy">
+        ModifiedByPattern: <input type="text" value="{{$modifiedby}}" name="modifiedBy">
     </div>
     <div class="col">
-        MinAge: <input type="text" value="{{$.arguments.minage}}" name="minAge">
+        MinAge: <input type="text" value="{{$minage}}" name="minAge">
     </div>
     <div class="col">
-        MaxAge: <input type="text" value="{{$.arguments.maxage}}" name="maxAge">
+        MaxAge: <input type="text" value="{{$maxage}}" name="maxAge">
     </div>
     <div class="col">
         <button>Submit</button>
-        <button formaction="/store/setSimpleValue" formtarget="_blank">New Entry</button>
+        <input type="hidden" name="redirect" value="{{.selfURL}}">
+        <input type="hidden" name="output" value="empty">
+        <button formaction="/store/setSimpleValue">New Entry</button>
     </div>
 </form>
 </div>
 
 <table>
     <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>
-{{ range $key, $entry := store_Search $.arguments.namespace $.arguments.key $.arguments.value $.arguments.modifiedby $.arguments.minage $.arguments.maxage }}
-<tr><td><a href="/store/del?namespace={{$.arguments.namespace}}&key={{$key}}&redirect={{$.selfURL}}" class="button">x</a></td><td><a href="/ui/storeSingle.html?namespace={{$.arguments.namespace}}&key={{$key}}">{{$key}}</a></td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
-    <td><a href="/graph/executionLog?key={{$entry.ModifiedBy}}">{{$entry.ModifiedBy}}</a></td></tr>
+{{ range $key, $entry := store_Search $namespace $key $value $modifiedby $minage $maxage }}
+<tr><td><a href="/store/del?namespace={{$namespace}}&key={{$key}}&redirect={{$.selfURL}}" class="button">x</a></td><td><a href="/ui/storeSingle.html?namespace={{$namespace}}&key={{$key}}">{{$key}}</a></td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
+    <td><a href="/ui/executionLog.html?key={{$entry.ModifiedBy}}">{{$entry.ModifiedBy}}</a></td></tr>
 {{ end }}
 </table>
 

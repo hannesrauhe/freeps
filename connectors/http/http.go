@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -141,22 +142,27 @@ func (r *FreepsHttpListener) handleStaticContent(w http.ResponseWriter, req *htt
 	w.Write(fc)
 }
 
-func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsHttpListener {
+func NewFreepsHttp(cfg HTTPConfig, ge *freepsgraph.GraphEngine) *FreepsHttpListener {
 	rest := &FreepsHttpListener{graphengine: ge}
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", rest.handleStaticContent)
-	// r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	if cfg.EnablePprof {
+		r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		r.HandleFunc("/debug/pprof/", pprof.Index)
+	}
 	r.HandleFunc("/{file}", rest.handleStaticContent)
 	r.Handle("/{mod}/", rest)
 	r.Handle("/{mod}/{function}", rest)
 	r.Handle("/{mod}/{function}/", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
 
-	tHandler := http.TimeoutHandler(r, time.Minute, "graph proceesing timeout - graph might still be running")
+	tHandler := http.TimeoutHandler(r, time.Duration(cfg.GraphProcessingTimeout)*time.Second, "graph proceesing timeout - graph might still be running")
 	rest.srv = &http.Server{
 		Handler: tHandler,
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%v", cfg.Port),
 	}
 
 	go func() {

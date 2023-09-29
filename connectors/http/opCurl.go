@@ -18,10 +18,27 @@ import (
 type OpCurl struct {
 	CR       *utils.ConfigReader
 	GE       *freepsgraph.GraphEngine
+	Config   HTTPConfig
 	listener *FreepsHttpListener
 }
 
 var _ base.FreepsOperatorWithShutdown = &OpCurl{}
+var _ base.FreepsOperatorWithConfig = &OpCurl{}
+
+// GetDefaultConfig returns the default config for the http connector
+func (o *OpCurl) GetDefaultConfig() interface{} {
+	return &HTTPConfig{
+		Port:                   8080,
+		EnablePprof:            false,
+		GraphProcessingTimeout: 120,
+	}
+}
+
+// InitCopyOfOperator creates a copy of the operator
+func (o *OpCurl) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+	cfg := config.(*HTTPConfig)
+	return &OpCurl{CR: o.CR, GE: o.GE, Config: *cfg}, nil
+}
 
 // CurlArgs are the common arguments for all curl functions
 type CurlArgs struct {
@@ -116,7 +133,7 @@ func (o *OpCurl) handleResponse(resp *http.Response, err error, ctx *base.Contex
 
 // StartListening starts the http server
 func (o *OpCurl) StartListening(ctx *base.Context) {
-	o.listener = NewFreepsHttp(o.CR, o.GE)
+	o.listener = NewFreepsHttp(o.Config, o.GE)
 }
 
 // Shutdown shuts down the http server
