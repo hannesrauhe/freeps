@@ -268,6 +268,10 @@ func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	return map[string]string{}
 }
 
+// StartListening (noOp)
+func (o *OpExec) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpExec) Shutdown(ctx *base.Context) {
 	o.stopBackground(ctx)

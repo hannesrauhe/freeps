@@ -18,13 +18,21 @@ type StoreEntry struct {
 	modifiedBy string
 }
 
+// ReadableStoreEntry is a StoreEntry with a more readable timestamp
+type ReadableStoreEntry struct {
+	Value      string
+	Age        string
+	ModifiedBy string
+}
+
+// GetHumanReadable returns a readable version of the entry
+func (v StoreEntry) GetHumanReadable() ReadableStoreEntry {
+	return ReadableStoreEntry{v.data.GetString(), time.Now().Sub(v.timestamp).String(), v.modifiedBy}
+}
+
 // MarshalJSON provides a custom marshaller with better readable time formats
 func (v StoreEntry) MarshalJSON() ([]byte, error) {
-	readable := struct {
-		Value      string
-		Age        string
-		ModifiedBy string
-	}{v.data.GetString(), time.Now().Sub(v.timestamp).String(), v.modifiedBy}
+	readable := v.GetHumanReadable()
 	return json.Marshal(readable)
 }
 

@@ -531,6 +531,7 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 			}
 			tdata["input"] = tinput
 		}
+		tdata["selfURL"] = "/ui/" + fn + "?" + utils.MapToURLArgs(lowercaseArgs).Encode()
 		return o.createOutput(fn, &tdata, logger, withFooter)
 	}
 }
@@ -568,6 +569,10 @@ func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]str
 		return graphs
 	}
 	return r
+}
+
+// StartListening (noOp)
+func (o *OpUI) StartListening(ctx *base.Context) {
 }
 
 // Shutdown (noOp)

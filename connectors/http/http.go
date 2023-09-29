@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -24,12 +25,12 @@ import (
 //go:embed static_server_content/*
 var staticContent embed.FS
 
-type FreepsHttp struct {
+type FreepsHttpListener struct {
 	graphengine *freepsgraph.GraphEngine
 	srv         *http.Server
 }
 
-func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *base.OperatorIO, err error) {
+func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *base.OperatorIO, err error) {
 	mainInput = base.MakeEmptyOutput()
 	query := req.URL.Query()
 	mainArgs = utils.URLArgsToMap(query)
@@ -84,7 +85,7 @@ func (r *FreepsHttp) ParseRequest(req *http.Request) (mainArgs map[string]string
 	return
 }
 
-func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	httplogger := log.WithField("restAPI", req.RemoteAddr)
 
@@ -95,22 +96,23 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// backward compatibility to a very early version
-	device, exists := vars["device"]
-	if exists {
-		mainArgs["device"] = device
-	}
+	// allows to redirect if an empty success response was returned
+	redirectLocation, redirect := mainArgs["redirect"]
 
 	ctx := base.NewContext(httplogger)
 	opio := r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	opio.Log(httplogger)
 
+	w.Header().Set("X-Freeps-ID", ctx.GetID())
+	if redirect && opio.IsEmpty() {
+		http.Redirect(w, req, redirectLocation, http.StatusFound)
+		return
+	}
 	bytes, err := opio.GetBytes()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error creating response: %v", err)
 	}
-	w.Header().Set("X-Freeps-ID", ctx.GetID())
 	w.Header().Set("Content-Type", opio.ContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 	w.WriteHeader(int(opio.HTTPCode))
@@ -120,11 +122,11 @@ func (r *FreepsHttp) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (r *FreepsHttp) Shutdown(ctx context.Context) {
+func (r *FreepsHttpListener) Shutdown(ctx context.Context) {
 	r.srv.Shutdown(ctx)
 }
 
-func (r *FreepsHttp) handleStaticContent(w http.ResponseWriter, req *http.Request) {
+func (r *FreepsHttpListener) handleStaticContent(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 
 	fc, err := staticContent.ReadFile("static_server_content/" + vars["file"])
@@ -140,22 +142,27 @@ func (r *FreepsHttp) handleStaticContent(w http.ResponseWriter, req *http.Reques
 	w.Write(fc)
 }
 
-func NewFreepsHttp(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *FreepsHttp {
-	rest := &FreepsHttp{graphengine: ge}
+func NewFreepsHttp(cfg HTTPConfig, ge *freepsgraph.GraphEngine) *FreepsHttpListener {
+	rest := &FreepsHttpListener{graphengine: ge}
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", rest.handleStaticContent)
-	// r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	if cfg.EnablePprof {
+		r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		r.HandleFunc("/debug/pprof/", pprof.Index)
+	}
 	r.HandleFunc("/{file}", rest.handleStaticContent)
 	r.Handle("/{mod}/", rest)
 	r.Handle("/{mod}/{function}", rest)
 	r.Handle("/{mod}/{function}/", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
 
-	tHandler := http.TimeoutHandler(r, time.Minute, "graph proceesing timeout - graph might still be running")
+	tHandler := http.TimeoutHandler(r, time.Duration(cfg.GraphProcessingTimeout)*time.Second, "graph proceesing timeout - graph might still be running")
 	rest.srv = &http.Server{
 		Handler: tHandler,
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%v", cfg.Port),
 	}
 
 	go func() {

@@ -1,10 +1,6 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-{{ $requestedTag := "" }}
-{{ if .arguments.tag }}
-    {{ $requestedTag = .arguments.tag }}
-{{ end }}
 <div class="container">
     <div class="row">
         <div class="col-3">
@@ -25,9 +21,9 @@
 
         <table class="col-9">
         <tr><th>Graph</th><th>Actions</th><th>Tags</th></tr>
-                {{ range $value, $info := graph_GetGraphDescByTag $requestedTag }}
+                {{ range $value, $info := graph_GetGraphDescByTag .arguments.tag }}
                         <tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
-                            <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}" target="outputframe">Delete</a></td>
+                            <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}&redirect={{$.selfURL}}" >Delete</a></td>
                             <td>{{ range $index, $t := $info.Tags }} <a href="/ui/graphInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
                 {{ end }}
         </table>

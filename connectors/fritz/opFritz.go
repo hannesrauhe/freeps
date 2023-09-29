@@ -343,6 +343,10 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 	return templ, nil
 }
 
+// StartListening (noOp)
+func (o *OpFritz) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpFritz) Shutdown(ctx *base.Context) {
 }

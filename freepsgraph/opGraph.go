@@ -51,6 +51,10 @@ func (o *OpGraph) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	return map[string]string{}
 }
 
+// StartListening (noOp)
+func (o *OpGraph) StartListening(*base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpGraph) Shutdown(*base.Context) {
 }
@@ -97,6 +101,10 @@ func (o *OpGraphByTag) GetPossibleArgs(fn string) []string {
 // GetArgSuggestions returns addtional tags
 func (o *OpGraphByTag) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	return o.ge.GetTags()
+}
+
+// StartListening (noOp)
+func (o *OpGraphByTag) StartListening(*base.Context) {
 }
 
 // Shutdown (noOp)
