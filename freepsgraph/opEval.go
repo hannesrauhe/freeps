@@ -329,6 +329,10 @@ func (m *OpEval) Split(argsmap map[string]string, input *base.OperatorIO) *base.
 	return base.MakePlainOutput(strArray[pos])
 }
 
+// StartListening (noOp)
+func (o *OpEval) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o *OpEval) Shutdown(ctx *base.Context) {
 }

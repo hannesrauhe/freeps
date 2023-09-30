@@ -2,8 +2,10 @@ package ui
 
 import (
 	"html/template"
+	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
@@ -40,6 +42,25 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			}
 			return ns.GetAllValues(100)
 		},
+		"store_Search": func(namespace string, keyPattern string, valuePattern string, modifiedByPattern string, minAgeStr string, maxAgeStr string) map[string]freepsstore.ReadableStoreEntry {
+			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			if ns == nil {
+				return nil
+			}
+			minAge := time.Duration(0)
+			maxAge := time.Duration(math.MaxInt64)
+			if minAgeStr != "" {
+				minAge, _ = time.ParseDuration(minAgeStr)
+			}
+			if maxAgeStr != "" {
+				maxAge, _ = time.ParseDuration(maxAgeStr)
+			}
+			retMap := map[string]freepsstore.ReadableStoreEntry{}
+			for k, v := range ns.GetSearchResultWithMetadata(keyPattern, valuePattern, modifiedByPattern, minAge, maxAge) {
+				retMap[k] = v.GetHumanReadable()
+			}
+			return retMap
+		},
 		"store_Get": func(namespace string, key string) interface{} {
 			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
 			if ns == nil {
@@ -63,7 +84,10 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return v.GetString()
 		},
 		"graph_GetGraphDescByTag": func(tagstr string) map[string]freepsgraph.GraphDesc {
-			tags := strings.Split(tagstr, ",")
+			tags := []string{}
+			if tagstr != "" {
+				tags = strings.Split(tagstr, ",")
+			}
 			return o.ge.GetGraphDescByTag(tags)
 		},
 		"graph_ExecuteGraph": func(graphName string, mainArgsStr string) *base.OperatorIO {

@@ -39,6 +39,10 @@ func (*MockOperator) GetArgSuggestions(fn string, arg string, otherArgs map[stri
 	return map[string]string{}
 }
 
+// StartListening (noOp)
+func (*MockOperator) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (*MockOperator) Shutdown(ctx *base.Context) {
 }

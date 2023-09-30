@@ -533,6 +533,17 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	return err
 }
 
+// StartListening starts all listening operators
+func (ge *GraphEngine) StartListening(ctx *base.Context) {
+	ge.operatorLock.Lock()
+	defer ge.operatorLock.Unlock()
+	for _, op := range ge.operators {
+		if op != nil {
+			op.StartListening(ctx)
+		}
+	}
+}
+
 // Shutdown should be called for graceful shutdown
 func (ge *GraphEngine) Shutdown(ctx *base.Context) {
 	ge.hookMapLock.Lock()

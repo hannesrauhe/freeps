@@ -97,6 +97,10 @@ func (o OpWeather) GetArgSuggestions(fn string, arg string, otherArgs map[string
 	return map[string]string{}
 }
 
+// StartListening (noOp)
+func (o OpWeather) StartListening(ctx *base.Context) {
+}
+
 // Shutdown (noOp)
 func (o OpWeather) Shutdown(ctx *base.Context) {
 }

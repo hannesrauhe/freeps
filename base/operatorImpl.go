@@ -394,6 +394,14 @@ func (o *FreepsOperatorWrapper) GetConfig() interface{} {
 	return o.config
 }
 
+// StartListening calls the StartListening method of the FreepsOperator if it exists
+func (o *FreepsOperatorWrapper) StartListening(ctx *Context) {
+	opStartListening, ok := o.opInstance.(FreepsOperatorWithShutdown)
+	if ok {
+		opStartListening.StartListening(ctx)
+	}
+}
+
 // Shutdown calls the Shutdown method of the FreepsOperator if it exists
 func (o *FreepsOperatorWrapper) Shutdown(ctx *Context) {
 	opShutdown, ok := o.opInstance.(FreepsOperatorWithShutdown)

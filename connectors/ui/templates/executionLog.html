@@ -3,7 +3,7 @@
 
 {{ $namespaceName := "_execution_log" }}
 <div class="container">
-    <a href="/graph/storeUI?namespace={{$namespaceName}}&maxAge=10m">Last 10min</a>
+    <a href="/ui/store.html?namespace={{$namespaceName}}&maxAge=10m">Last 10min</a>
     <table>
         <tr>
             <th>Name</th>
@@ -18,7 +18,7 @@
             <td colspan=2 align="right"><a
                     href="/ui/storeSingle.html?namespace={{$namespaceName}}&key={{.arguments.key}}">Plain</a> <a
                     href="/graph/contextToDot/?namespace={{$namespaceName}}&key={{.arguments.key}}">ToDot</a> <a
-                    href="/graph/storeUI?namespace=_error_log&modifiedBy={{$.arguments.key}}">Errors</a></td>
+                    href="/ui/store.html?namespace=_error_log&modifiedBy={{$.arguments.key}}">Errors</a></td>
         </tr>
         {{ range $i, $Operation := $ctx.Operations }}
         <tr>
