@@ -24,11 +24,12 @@ func (m *OpRegexp) FindStringIndex(ctx *base.Context, input *base.OperatorIO, ar
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Invalid regexp: %v", err)
 	}
-	loc := re.FindStringIndex(input.GetString())
+	str := input.GetString()
+	loc := re.FindStringIndex(str)
 	if loc == nil {
 		return base.MakeOutputError(http.StatusExpectationFailed, "No match")
 	}
-	return base.MakePlainOutput(input.GetString()[loc[0]:loc[1]])
+	return base.MakePlainOutput(str[loc[0]:loc[1]])
 }
 
 // FindStringSubmatchIndex returns the first match of the given regexp
@@ -37,9 +38,10 @@ func (m *OpRegexp) FindStringSubmatchIndex(ctx *base.Context, input *base.Operat
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Invalid regexp: %v", err)
 	}
-	loc := re.FindStringSubmatchIndex(input.GetString())
+	str := input.GetString()
+	loc := re.FindStringSubmatchIndex(str)
 	if loc == nil {
 		return base.MakeOutputError(http.StatusExpectationFailed, "No match")
 	}
-	return base.MakePlainOutput(input.GetString()[loc[2]:loc[3]])
+	return base.MakePlainOutput(str[loc[2]:loc[3]])
 }
