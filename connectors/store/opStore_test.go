@@ -21,7 +21,7 @@ func testOutput(t *testing.T, fn string, output string) {
 	input := base.MakePlainOutput("test_value")
 	ctx := base.NewContext(logrus.StandardLogger())
 
-	s := NewOpStore(cr)
+	s := NewOpStore(cr, nil)
 	vars["output"] = "empty"
 	out := s.Execute(ctx, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
@@ -77,7 +77,7 @@ func TestStoreExpiration(t *testing.T) {
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
-	s := NewOpStore(cr)
+	s := NewOpStore(cr, nil)
 	out := s.Execute(ctx, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
@@ -135,7 +135,7 @@ func TestStoreCompareAndSwap(t *testing.T) {
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
-	s := NewOpStore(cr)
+	s := NewOpStore(cr, nil)
 	out := s.Execute(ctx, "compareAndSwap", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusNotFound)
@@ -164,7 +164,7 @@ func TestStoreSetGetAll(t *testing.T) {
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
-	s := NewOpStore(cr)
+	s := NewOpStore(cr, nil)
 	outSet := s.Execute(ctx, "setAll", vars, input)
 	assert.Assert(t, !outSet.IsError(), outSet.Output)
 
@@ -186,7 +186,7 @@ func TestStoreUpdateTransaction(t *testing.T) {
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
-	NewOpStore(cr)
+	NewOpStore(cr, nil)
 
 	ns := store.GetNamespace("testing")
 	ns.SetValue("v1", base.MakePlainOutput("old_value"), ctx.GetID())

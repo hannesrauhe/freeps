@@ -26,6 +26,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	optime "github.com/hannesrauhe/freeps/connectors/time"
 	"github.com/hannesrauhe/freeps/connectors/ui"
+	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -90,8 +91,8 @@ func mainLoop() bool {
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
 		&freepsflux.OperatorFlux{},
-		&freepsgraph.OpUtils{},
-		&freepsgraph.OpRegexp{},
+		&freepsutils.OpUtils{},
+		&freepsutils.OpRegexp{},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&chaosimradio.OpCiR{},
 		&telegram.OpTelegram{},
@@ -100,7 +101,7 @@ func mainLoop() bool {
 		&optime.OpTime{},
 	}
 
-	ge.AddOperator(freepsstore.NewOpStore(cr)) //needs to be first for now
+	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
 	for _, op := range availableOperators {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
@@ -111,7 +112,7 @@ func mainLoop() bool {
 	ge.AddOperator(fritz.NewOpFritz(cr))
 	freepsexec.AddExecOperators(cr, ge)
 
-	sh, err := freepsstore.NewStoreHook(cr)
+	sh, err := freepsstore.NewStoreHook(cr, ge)
 	if err != nil {
 		logger.Errorf("Store hook not available: %v", err.Error())
 	} else {

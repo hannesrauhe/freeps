@@ -1,4 +1,4 @@
-package freepsgraph
+package freepsutils
 
 import (
 	"testing"

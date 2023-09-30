@@ -9,17 +9,19 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpStore struct {
 	cr *utils.ConfigReader
+	GE *freepsgraph.GraphEngine
 }
 
 var _ base.FreepsBaseOperator = &OpStore{}
 
 // NewOpStore creates a new store operator and re-initializes the store
-func NewOpStore(cr *utils.ConfigReader) *OpStore {
+func NewOpStore(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *OpStore {
 	sc := getDefaultConfig()
 	err := cr.ReadSectionWithDefaults("store", &sc)
 	if err != nil {
@@ -44,7 +46,7 @@ func NewOpStore(cr *utils.ConfigReader) *OpStore {
 	if err != nil {
 		logrus.Print(err)
 	}
-	return &OpStore{cr: cr}
+	return &OpStore{cr: cr, GE: ge}
 }
 
 // GetName returns the name of the operator
