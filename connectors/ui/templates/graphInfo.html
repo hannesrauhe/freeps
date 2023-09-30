@@ -1,33 +1,38 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+{{ $requestedTag := "" }}
+{{ if .arguments.tag }}
+    {{ $requestedTag = .arguments.tag }}
+{{ end }}
 <div class="container">
-    <div class="row">
-        <div class="col-3">
-        <ul>
-            <li><a href="/ui/graphInfo.html">All graphs</a></li>
-            {{ range $tag, $array := graph_GetTagMap }}
-            <li><a href="/ui/graphInfo.html?tag={{ $tag }}">{{ $tag }}</a></li>
-                {{ if gt (len $array) 0 }}
-                <ul>
-                    {{ range $i, $value := $array }}
-                    <li><a href="/ui/graphInfo.html?tag={{ $tag }}:{{ $value }}">{{ $value }}</a></li>
-                    {{ end }}
-                </ul>
-                {{ end }}
+    <form method="GET" action="/ui/graphInfo.html"  class="row">
+        Tags: <select name="tag" onChange="this.form.submit()">
+            <option value="">All graphs</option>
+        {{ range $tag, $array := graph_GetTagMap }}
+            
+            {{ if gt (len $array) 0 }}
+            <optgroup label="{{ $tag }}">                
             {{ end }}
-        </ul>    
-        </div>
-
-        <table class="col-9">
+                <option value="{{ $tag }}" {{if eq $tag $requestedTag}}selected{{end}} >{{ $tag }}</option>
+            {{ range $i, $value := $array }}
+                <option value="{{ $tag }}:{{ $value }}">{{ $tag }}:{{ $value }}</option>
+            {{ end }}
+            {{ if gt (len $array) 0 }}
+            </optgroup>
+            {{ end }}
+        {{ end }}
+        </select>    
+    </form>
+    <div class="row">
+        <table>
         <tr><th>Graph</th><th>Actions</th><th>Tags</th></tr>
-                {{ range $value, $info := graph_GetGraphDescByTag .arguments.tag }}
-                        <tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
-                            <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}&redirect={{$.selfURL}}" >Delete</a></td>
-                            <td>{{ range $index, $t := $info.Tags }} <a href="/ui/graphInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
-                {{ end }}
+            {{ range $value, $info := graph_GetGraphDescByTag $requestedTag }}
+            <tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
+                <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/system/deleteGraph?name={{ $value }}&redirect={{$.selfURL}}" >Delete</a></td>
+                <td>{{ range $index, $t := $info.Tags }} <a href="/ui/graphInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
+            {{ end }}
         </table>
-
     <div>
     <iframe name="outputframe" style="min-width: 500px; height:500px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
     </div>
