@@ -110,23 +110,36 @@ func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []s
 	if h.operatorInfoLogNs == nil {
 		return fmt.Errorf("no operator info namespace in hook")
 	}
+
+	collectedInfo := map[string]FunctionInfo{}
 	for graphName, gd := range h.GE.GetAllGraphDesc() {
 		for _, op := range gd.Operations {
 			opDesc := fmt.Sprintf("%v.%v", op.Operator, op.Function)
-			out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
-				fnInfo := FunctionInfo{}
-				if oldValue != nil {
-					oldValue.ParseJSON(&fnInfo)
-				}
-				fnInfo.ReferenceCounter++
-				fnInfo.LastUsedByGraph = graphName
-				return base.MakeObjectOutput(fnInfo)
-			}, "")
-			if out.IsError() {
-				return out.GetError()
-			}
+			fnInfo := FunctionInfo{}
+			fnInfo, _ = collectedInfo[opDesc]
+			fnInfo.ReferenceCounter++
+			fnInfo.LastUsedByGraph = graphName
+			collectedInfo[opDesc] = fnInfo
 		}
 	}
+
+	for opDesc, newInfo := range collectedInfo {
+		out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
+			fnInfo := FunctionInfo{}
+			if oldValue != nil {
+				oldValue.ParseJSON(&fnInfo)
+			}
+			fnInfo.ReferenceCounter = newInfo.ReferenceCounter
+			if fnInfo.LastUsedByGraph == "" {
+				fnInfo.LastUsedByGraph = newInfo.LastUsedByGraph
+			}
+			return base.MakeObjectOutput(fnInfo)
+		}, "")
+		if out.IsError() {
+			return out.GetError()
+		}
+	}
+
 	return nil
 }
 
