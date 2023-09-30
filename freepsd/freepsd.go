@@ -92,7 +92,7 @@ func mainLoop() bool {
 		&muteme.MuteMe{},
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
-		&freepsgraph.OpRegexp{},
+		&freepsutils.OpRegexp{},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&chaosimradio.OpCiR{},
 		&telegram.OpTelegram{},
