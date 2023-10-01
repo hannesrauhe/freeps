@@ -35,24 +35,10 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 		o.ge.reloadRequested = true
 		o.cancel()
 		return base.MakeEmptyOutput()
-	case "getGraph", "getGraphDesc":
-		gd, ok := o.ge.GetGraphDesc(args["name"])
-		if !ok {
-			return base.MakeOutputError(http.StatusNotFound, "Unknown graph %v", args["name"])
-		}
-		return base.MakeObjectOutput(gd)
+	case "getGraph", "getGraphDesc", "GetGraphDesc":
+		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "getGraph", map[string]string{"graphName": args["name"]}, base.MakeEmptyOutput())
 	case "deleteGraph":
-		err := o.ge.DeleteGraph(args["name"])
-		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-		}
-		return base.MakeEmptyOutput()
-	case "GetGraphDesc":
-		gi, ok := o.ge.GetGraphDesc(args["name"])
-		if !ok {
-			return base.MakeOutputError(http.StatusNotFound, "Unknown graph %v", args["name"])
-		}
-		return base.MakeObjectOutput(gi)
+		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "deleteGraph", map[string]string{"graphName": args["name"]}, base.MakeEmptyOutput())
 	case "toDot":
 		g, out := o.ge.prepareGraphExecution(ctx, args["name"])
 		if out.IsError() {
@@ -89,29 +75,8 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 
 	case "version":
 		return base.MakePlainOutput(utils.BuildFullVersion())
-
-	case "graphStats":
-		return o.GraphStats(ctx, fn, args, input)
 	}
 	return base.MakeOutputError(http.StatusBadRequest, "Unknown function: "+fn)
-}
-
-type GraphStats struct {
-	OperatorCount  map[string]int
-	FunctionsCount map[string]int
-}
-
-func (o *OpSystem) GraphStats(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
-	stats := GraphStats{OperatorCount: make(map[string]int), FunctionsCount: make(map[string]int)}
-	g := o.ge.GetAllGraphDesc()
-	for _, gd := range g {
-		for _, op := range gd.Operations {
-			stats.OperatorCount[op.Operator]++
-			fn := op.Operator + "." + op.Function
-			stats.FunctionsCount[fn]++
-		}
-	}
-	return base.MakeObjectOutput(stats)
 }
 
 func (o *OpSystem) GetFunctions() []string {
@@ -136,8 +101,6 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 		return []string{}
 	case "deleteGraph":
 		return []string{"name"}
-	case "graphStats":
-		return []string{}
 	}
 	return []string{"name"}
 }

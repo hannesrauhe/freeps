@@ -365,8 +365,8 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, remove
 	}
 }
 
-// AddExternalGraph adds a graph from an external source and stores it on disk, after checking if the graph is valid
-func (ge *GraphEngine) AddExternalGraph(graphName string, gd GraphDesc, overwrite bool) error {
+// AddGraph adds a graph from an external source and stores it on disk, after checking if the graph is valid
+func (ge *GraphEngine) AddGraph(graphName string, gd GraphDesc, overwrite bool) error {
 	// check if graph is valid
 	_, err := NewGraph(nil, graphName, &gd, ge)
 	if err != nil {
@@ -405,9 +405,9 @@ func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeTo
 }
 
 // DeleteGraph removes a graph from the engine and from the storage
-func (ge *GraphEngine) DeleteGraph(graphName string) error {
+func (ge *GraphEngine) DeleteGraph(graphName string) (*GraphDesc, error) {
 	if graphName == "" {
-		return errors.New("No name given")
+		return nil, errors.New("No name given")
 	}
 
 	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
@@ -417,18 +417,14 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	/* remove the graph from memory*/
 	deletedGraph, exists := ge.graphs[graphName]
 	if !exists {
-		return nil
+		return nil, errors.New("Graph not found")
 	}
 	delete(ge.graphs, graphName)
-
-	if deletedGraph.temporary {
-		delete(ge.graphs, graphName)
-	}
 
 	fname := "graphs/" + graphName + ".json"
 	err := ge.cr.RemoveFile(fname)
 
-	return err
+	return deletedGraph, err
 }
 
 // StartListening starts all listening operators

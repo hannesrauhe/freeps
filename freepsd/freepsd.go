@@ -93,6 +93,7 @@ func mainLoop() bool {
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
 		&freepsutils.OpRegexp{},
+		&freepsutils.OpGraphBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&chaosimradio.OpCiR{},
 		&telegram.OpTelegram{},

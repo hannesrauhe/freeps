@@ -132,7 +132,7 @@ func TestGraphStorage(t *testing.T) {
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
 
 	gdir := ge.GetGraphDir()
-	err = ge.AddExternalGraph("test1", createValidGraph(), false)
+	err = ge.AddGraph("test1", createValidGraph(), false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "test1.json"))
 	assert.NilError(t, err)
@@ -143,27 +143,27 @@ func TestGraphStorage(t *testing.T) {
 
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
 
-	err = ge.AddExternalGraph("test2", createValidGraph(), false)
+	err = ge.AddGraph("test2", createValidGraph(), false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "test2.json"))
 	assert.NilError(t, err)
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
 
 	g := createValidGraph()
-	err = ge.AddExternalGraph("test2", g, false)
+	err = ge.AddGraph("test2", g, false)
 	assert.ErrorContains(t, err, "already exists")
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
 
 	g = createValidGraph()
-	err = ge.AddExternalGraph("test2", g, true)
+	err = ge.AddGraph("test2", g, true)
 	assert.NilError(t, err)
 
-	err = ge.DeleteGraph("test2")
+	_, err = ge.DeleteGraph("test2")
 	_, exists = ge.GetGraphDesc("test2")
 	assert.Assert(t, !exists)
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
 
-	err = ge.DeleteGraph("test1")
+	_, err = ge.DeleteGraph("test1")
 	assert.NilError(t, err)
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
 	_, err = os.Stat(path.Join(gdir, "test2.json"))
@@ -216,30 +216,30 @@ func TestGraphExecution(t *testing.T) {
 	expectByTagExecution([]string{"not"}, nil)
 
 	g0 := createValidGraph()
-	err = ge.AddExternalGraph("test0", g0, false)
+	err = ge.AddGraph("test0", g0, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, nil)
 
 	g1 := createValidGraph()
 	g1.AddTags("t1")
-	err = ge.AddExternalGraph("test1", g1, false)
+	err = ge.AddGraph("test1", g1, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{}) //single graph executed with empty output
 
 	g2 := createValidGraph()
 	g2.AddTags("t1", "t4")
-	err = ge.AddExternalGraph("test2", g2, false)
+	err = ge.AddGraph("test2", g2, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2"})
 
 	g3 := createValidGraph()
 	g3.AddTags("t1", "t2", "t4")
-	err = ge.AddExternalGraph("test3", g3, false)
+	err = ge.AddGraph("test3", g3, false)
 	assert.NilError(t, err)
 
 	g4 := createValidGraph()
 	g4.AddTags("t4")
-	err = ge.AddExternalGraph("test4", g4, false)
+	err = ge.AddGraph("test4", g4, false)
 	assert.NilError(t, err)
 
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
@@ -257,10 +257,10 @@ func TestGraphExecution(t *testing.T) {
 
 	g5 := createValidGraph()
 	g5.AddTags("keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man")
-	ge.AddExternalGraph("test5", g5, false)
+	ge.AddGraph("test5", g5, false)
 	g6 := createValidGraph()
 	g6.AddTags("keytag1:bar", "keytag2:bla")
-	ge.AddExternalGraph("test5", g6, false)
+	ge.AddGraph("test5", g6, false)
 
 	expectByTagExtendedExecution([][]string{{"t2", ":yes:man", "keytag2:bla"}, {"t4", "fadabump", "keytag2:bla"}, {"t2", "keytag2:bla"}}, []string{"test3", "test6"})
 
