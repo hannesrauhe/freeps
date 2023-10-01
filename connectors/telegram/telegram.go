@@ -9,6 +9,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -193,7 +194,7 @@ func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
-	r.ge.DeleteTemporaryGraph(fmt.Sprint(msg.ChatID))
+	freepsstore.DeleteGraph(fmt.Sprint(msg.ChatID))
 	msg.ReplyMarkup, _ = r.getModKeyboard()
 	r.sendMessage(msg)
 }
@@ -230,7 +231,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			}
 		} else {
 			// inputText contains the mod to use
-			r.ge.DeleteTemporaryGraph(fmt.Sprint(chat.ID))
+			freepsstore.DeleteGraph(fmt.Sprint(chat.ID))
 			tcr.P = -1
 			tcr.C = inputText
 		}
@@ -247,8 +248,8 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			r.sendStartMessage(&msg)
 			return
 		}
-		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C}}}
-		r.ge.AddTemporaryGraph(tcr.T, tpl, "telegram")
+		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C}}, Source: "telegram"}
+		freepsstore.StoreGraph(tcr.T, tpl, "telegram")
 		op, god = r.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + god.Operator
 		msg.ReplyMarkup, _ = r.getFnKeyboard(&tcr)
@@ -293,7 +294,11 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 
 	if tcr.F {
 		ctx := base.NewContext(telelogger)
-		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, base.MakeEmptyOutput())
+		gd, err := freepsstore.GetGraph(tcr.T)
+		if err != nil {
+			msg.Text = err.Error()
+		}
+		io := r.ge.ExecuteAdHocGraph(ctx, "telegram/"+tcr.T, gd, map[string]string{}, base.MakeEmptyOutput())
 		if io.IsError() {
 			msg.Text = fmt.Sprintf("Error when executing operation: %v", io.GetError())
 		} else if utils.StringStartsWith(io.ContentType, "image") {
@@ -313,7 +318,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 				msg.Text = "Empty Result, HTTP code:" + fmt.Sprint(io.GetStatusCode())
 			}
 		}
-		r.ge.DeleteTemporaryGraph(tcr.T)
+		freepsstore.DeleteGraph(tcr.T)
 		msg.ReplyMarkup = r.getReplyKeyboard()
 	}
 	r.sendMessage(&msg)

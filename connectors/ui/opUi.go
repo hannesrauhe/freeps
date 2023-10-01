@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
@@ -314,7 +315,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 			if td.GraphName == "" {
 				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddExternalGraph(td.GraphName, *gd)
+			err := o.ge.AddExternalGraph(td.GraphName, *gd, true)
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
@@ -324,17 +325,18 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 			if td.GraphName == "" {
 				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddTemporaryGraph(td.GraphName, *gd, "UI")
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, err.Error())
+			err := freepsstore.StoreGraph(td.GraphName, *gd, "UI")
+			if err.IsError() {
+				return err
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			err := o.ge.AddTemporaryGraph("UIgraph", *gd, "UI")
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, err.Error())
+			err := freepsstore.StoreGraph(td.GraphName, *gd, "UI")
+			if err.IsError() {
+				return err
 			}
+			//TODO(HR): execute add hoc graph
 			td.Output = "/graph/UIgraph"
 		}
 	}

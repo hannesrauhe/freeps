@@ -13,7 +13,15 @@ var embeddedGraphs embed.FS
 
 // GetGraphDir returns the directory where the graphs are stored
 func (ge *GraphEngine) GetGraphDir() string {
-	return ge.cr.GetConfigDir() + "/graphs"
+	d := ge.cr.GetConfigDir() + "/graphs"
+	// create directory if it does not exist
+	if _, err := os.Stat(d); os.IsNotExist(err) {
+		err = os.MkdirAll(d, 0755)
+		if err != nil {
+			panic("could not create graph directory: " + err.Error())
+		}
+	}
+	return d
 }
 
 func (ge *GraphEngine) loadStoredAndEmbeddedGraphs() error {
@@ -89,7 +97,7 @@ func (ge *GraphEngine) loadExternalGraphs() {
 		}
 		ge.addExternalGraphsWithSource(newGraphs, "url: "+fURL)
 	}
-	config.GraphsFromURL = []string{}
+	// config.GraphsFromURL = []string{}
 	for _, fName := range config.GraphsFromFile {
 		newGraphs := make(map[string]GraphDesc)
 		err = ge.cr.ReadObjectFromFile(&newGraphs, fName)
@@ -98,13 +106,13 @@ func (ge *GraphEngine) loadExternalGraphs() {
 		}
 		ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 	}
-	config.GraphsFromFile = []string{}
+	// config.GraphsFromFile = []string{}
 }
 
 func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, srcName string) {
 	for k, v := range src {
 		v.Source = srcName
-		err := ge.addGraphUnderLock(k, v, true, true)
+		err := ge.addGraphUnderLock(k, v, true, false)
 		if err != nil {
 			log.Errorf("Skipping graph %v from %v, because: %v", k, srcName, err)
 		}

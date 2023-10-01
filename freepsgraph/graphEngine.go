@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"sort"
 	"strings"
 	"sync"
@@ -99,92 +98,12 @@ func (ge *GraphEngine) ReloadRequested() bool {
 	return ge.reloadRequested
 }
 
-// ExecuteGraph executes a graph stored in the engine
-func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
-	g, o := ge.prepareGraphExecution(ctx, graphName)
-	if g == nil {
-		return o
-	}
-	ge.TriggerOnExecuteHooks(ctx, graphName, mainArgs, mainInput)
-	defer ge.TriggerOnExecutionFinishedHooks(ctx, graphName, mainArgs, mainInput)
-	return g.execute(ctx, mainArgs, mainInput)
-}
-
-// ExecuteOperatorByName executes an operator directly
-func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
-	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
-	g, err := NewGraph(ctx, name, &GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, ge)
-	if err != nil {
-		return base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
-	}
-	ge.TriggerOnExecuteHooks(ctx, name, mainArgs, mainInput)
-	defer ge.TriggerOnExecutionFinishedHooks(ctx, name, mainArgs, mainInput)
-	return g.execute(ctx, mainArgs, mainInput)
-}
-
-// ExecuteGraphByTags executes graphs with given tags
-func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
-	taggroups := [][]string{}
-	for _, t := range tags {
-		taggroups = append(taggroups, []string{t})
-	}
-	return ge.ExecuteGraphByTagsExtended(ctx, taggroups, args, input)
-}
-
-// ExecuteGraphByTagsExtended executes all graphs that at least one tag of each group
-func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [][]string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
-	if tagGroups == nil || len(tagGroups) == 0 {
-		return base.MakeOutputError(http.StatusBadRequest, "No tags given")
-	}
-
-	// ctx.GetLogger().Infof("Executing graph by tags: %v", tagGroups)
-
-	tg := ge.GetGraphDescByTagExtended(tagGroups)
-	if len(tg) <= 1 {
-		for n := range tg {
-			return ge.ExecuteGraph(ctx, n, args, input)
-		}
-		return base.MakeOutputError(404, "No graph with tags found: %v", fmt.Sprint(tagGroups))
-	}
-
-	// need to build a temporary graph containing all graphs with matching tags
-	op := []GraphOperationDesc{}
-	for n := range tg {
-		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n, InputFrom: "_"})
-	}
-	gd := GraphDesc{Operations: op, Tags: []string{"internal"}}
-	name := "ExecuteGraphByTag"
-
-	g, err := NewGraph(ctx, name, &gd, ge)
-	if err != nil {
-		return base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
-	}
-
-	ge.TriggerOnExecuteHooks(ctx, name, args, input)
-	defer ge.TriggerOnExecutionFinishedHooks(ctx, name, args, input)
-	return g.execute(ctx, args, input)
-}
-
 func (ge *GraphEngine) getGraphDescUnlocked(graphName string) (*GraphDesc, bool) {
 	gi, exists := ge.graphs[graphName]
 	if exists {
 		return gi, exists
 	}
 	return nil, false
-}
-
-func (ge *GraphEngine) prepareGraphExecution(ctx *base.Context, graphName string) (*Graph, *base.OperatorIO) {
-	ge.graphLock.Lock()
-	defer ge.graphLock.Unlock()
-	gi, exists := ge.getGraphDescUnlocked(graphName)
-	if !exists {
-		return nil, base.MakeOutputError(404, "No graph with name \"%s\" found", graphName)
-	}
-	g, err := NewGraph(ctx, graphName, gi, ge)
-	if err != nil {
-		return nil, base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
-	}
-	return g, base.MakeEmptyOutput()
 }
 
 // CheckGraph checks if the graph is valid
@@ -446,24 +365,18 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, remove
 	}
 }
 
-// AddTemporaryGraph adds a graph to the temporary graph list
-func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd GraphDesc, overwrite bool) error {
-	return ge.AddExternalGraph(graphName, gd, true, overwrite)
-}
-
 // AddExternalGraph adds a graph from an external source and stores it on disk, after checking if the graph is valid
-func (ge *GraphEngine) AddExternalGraph(graphName string, gd GraphDesc, temporary bool, overwrite bool) error {
+func (ge *GraphEngine) AddExternalGraph(graphName string, gd GraphDesc, overwrite bool) error {
 	// check if graph is valid
 	_, err := NewGraph(nil, graphName, &gd, ge)
 	if err != nil {
 		return err
 	}
-	gd.temporary = temporary
 	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	return ge.addGraphUnderLock(graphName, gd, !temporary, overwrite)
+	return ge.addGraphUnderLock(graphName, gd, true, overwrite)
 }
 
 func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeToDisk bool, overwrite bool) error {
@@ -489,21 +402,6 @@ func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeTo
 	ge.graphs[graphName] = &gd
 
 	return nil
-}
-
-// DeleteTemporaryGraph deletes the graph with the given name (only if it's a temporary graph)
-func (ge *GraphEngine) DeleteTemporaryGraph(graphName string) {
-	// defer so the lock is released first
-	defer ge.TriggerGraphChangedHooks([]string{}, []string{graphName})
-
-	ge.graphLock.Lock()
-	defer ge.graphLock.Unlock()
-	exGraph, ok := ge.graphs[graphName]
-	if ok {
-		if exGraph.temporary {
-			delete(ge.graphs, graphName)
-		}
-	}
 }
 
 // DeleteGraph removes a graph from the engine and from the storage
