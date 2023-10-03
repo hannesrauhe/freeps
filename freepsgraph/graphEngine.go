@@ -487,8 +487,8 @@ func (ge *GraphEngine) AddTemporaryGraph(graphName string, gd GraphDesc, source 
 	return ge.addGraphUnderLock(graphName, gd)
 }
 
-// AddExternalGraph adds a graph to the external graph list and stores it in the config directory
-func (ge *GraphEngine) AddExternalGraph(graphName string, gd GraphDesc) error {
+// AddGraph adds a graph to the external graph list and stores it in the config directory
+func (ge *GraphEngine) AddGraph(graphName string, gd GraphDesc) error {
 	if gd.sourceFile == "" {
 		gd.sourceFile = "externalGraph_" + graphName + ".json"
 	}
@@ -563,9 +563,9 @@ func (ge *GraphEngine) DeleteTemporaryGraph(graphName string) {
 }
 
 // DeleteGraph removes a graph from the engine and from the storage
-func (ge *GraphEngine) DeleteGraph(graphName string) error {
+func (ge *GraphEngine) DeleteGraph(graphName string) (*GraphDesc, error) {
 	if graphName == "" {
-		return errors.New("No name given")
+		return nil, errors.New("No name given")
 	}
 
 	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
@@ -575,13 +575,13 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	/* remove the graph from memory*/
 	deletedGraph, exists := ge.graphs[graphName]
 	if !exists {
-		return nil
+		return deletedGraph, nil
 	}
 	delete(ge.graphs, graphName)
 
 	/* this graph is not in storage */
 	if deletedGraph.sourceFile == "" {
-		return nil
+		return deletedGraph, nil
 	}
 
 	/* remove graph from file and corresponding file if empty */
@@ -620,7 +620,7 @@ func (ge *GraphEngine) DeleteGraph(graphName string) error {
 	config.GraphsFromFile = utils.DeleteElemFromSlice(config.GraphsFromFile, deleteIndex)
 	err := ge.cr.WriteSection("graphs", config, true)
 
-	return err
+	return deletedGraph, err
 }
 
 // StartListening starts all listening operators

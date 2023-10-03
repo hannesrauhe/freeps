@@ -127,13 +127,13 @@ func TestGraphStorage(t *testing.T) {
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 	ge := NewGraphEngine(cr, func() {})
-	err = ge.AddExternalGraph("test1", createValidGraph())
+	err = ge.AddGraph("test1", createValidGraph())
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test1.json"))
 	assert.NilError(t, err)
 	assert.Assert(t, fileIsInList(cr, "externalGraph_test1.json"))
 
-	err = ge.AddExternalGraph("test2", createValidGraph())
+	err = ge.AddGraph("test2", createValidGraph())
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
 	assert.NilError(t, err)
@@ -141,7 +141,7 @@ func TestGraphStorage(t *testing.T) {
 
 	g := createValidGraph()
 	g.sourceFile = "foo.json"
-	err = ge.AddExternalGraph("test3", g)
+	err = ge.AddGraph("test3", g)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
@@ -149,12 +149,12 @@ func TestGraphStorage(t *testing.T) {
 
 	g = createValidGraph()
 	g.sourceFile = "foo-should-no-work.json"
-	err = ge.AddExternalGraph("test3", g)
+	err = ge.AddGraph("test3", g)
 	assert.ErrorContains(t, err, "delete")
 
 	g = createValidGraph()
 	g.sourceFile = "foo.json"
-	err = ge.AddExternalGraph("test4", createValidGraph())
+	err = ge.AddGraph("test4", createValidGraph())
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(tdir, "foo.json"))
 	assert.NilError(t, err)
@@ -226,30 +226,30 @@ func TestGraphExecution(t *testing.T) {
 	expectByTagExecution([]string{"not"}, nil)
 
 	g0 := createValidGraph()
-	err = ge.AddExternalGraph("test0", g0)
+	err = ge.AddGraph("test0", g0)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, nil)
 
 	g1 := createValidGraph()
 	g1.AddTags("t1")
-	err = ge.AddExternalGraph("test1", g1)
+	err = ge.AddGraph("test1", g1)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{}) //single graph executed with empty output
 
 	g2 := createValidGraph()
 	g2.AddTags("t1", "t4")
-	err = ge.AddExternalGraph("test2", g2)
+	err = ge.AddGraph("test2", g2)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2"})
 
 	g3 := createValidGraph()
 	g3.AddTags("t1", "t2", "t4")
-	err = ge.AddExternalGraph("test3", g3)
+	err = ge.AddGraph("test3", g3)
 	assert.NilError(t, err)
 
 	g4 := createValidGraph()
 	g4.AddTags("t4")
-	err = ge.AddExternalGraph("test4", g4)
+	err = ge.AddGraph("test4", g4)
 	assert.NilError(t, err)
 
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
