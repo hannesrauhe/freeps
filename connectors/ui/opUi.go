@@ -314,7 +314,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 			if td.GraphName == "" {
 				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddExternalGraph(td.GraphName, *gd)
+			err := o.ge.AddGraph(td.GraphName, *gd)
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
