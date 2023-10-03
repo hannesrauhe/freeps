@@ -208,6 +208,51 @@ func (o *FreepsOperatorWrapper) getInitializedParamStruct(f reflect.Type) (refle
 	return paramStructInstance, ps
 }
 
+// callParamSuggestionFunction : if paramStruct has a function with the Name argName + "Suggestions", execute it and return the result
+func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, argName string) map[string]string {
+	suggestionsFunc := paramStruct.MethodByName(argName + "Suggestions")
+
+	if !suggestionsFunc.IsValid() {
+		return nil
+	}
+
+	// make sure suggestionsFunc returns a single argument
+	if suggestionsFunc.Type().NumOut() != 1 {
+		return nil
+	}
+
+	outValue := make([]reflect.Value, 0)
+	if suggestionsFunc.Type().NumIn() == 0 {
+		// if the function has no parameters, call it without any
+		outValue = suggestionsFunc.Call([]reflect.Value{})
+	}
+
+	// if the function has one parameter, call it with the operator instance
+	if suggestionsFunc.Type().NumIn() == 1 {
+		outValue = suggestionsFunc.Call([]reflect.Value{reflect.ValueOf(o.opInstance)})
+	}
+
+	if outValue == nil {
+		return nil
+	}
+
+	// if the output is a map[string]string, return it
+	if suggestionsFunc.Type().Out(0) == reflect.TypeOf(map[string]string{}) {
+		return outValue[0].Interface().(map[string]string)
+	}
+
+	// if the output is an array of strings, convert it to a map
+	if suggestionsFunc.Type().Out(0) == reflect.TypeOf([]string{}) {
+		res := map[string]string{}
+		for _, v := range outValue[0].Interface().([]string) {
+			res[v] = v
+		}
+		return res
+	}
+
+	return nil
+}
+
 // createFunctionMap creates a map of all exported functions of the struct that return a struct that implements FreepsFunction
 func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 	o.functionMetaDataMap = make(map[string]FreepsFunctionMetaData)
@@ -372,6 +417,10 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	// create an initialized instance of the parameter struct
 	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
 	if ps == nil {
+		suggestions := o.callParamSuggestionFunction(paramStruct, argName)
+		if suggestions != nil {
+			return suggestions
+		}
 		// common arg suggestions if the parameter struct does not implement the FreepsFunctionParameters interface
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
 	}
