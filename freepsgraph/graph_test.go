@@ -50,7 +50,7 @@ func (*MockOperator) Shutdown(ctx *base.Context) {
 var _ base.FreepsBaseOperator = &MockOperator{}
 
 func createValidGraph() GraphDesc {
-	return GraphDesc{Operations: []GraphOperationDesc{{Operator: "system", Function: "echo"}}, Source: "test"}
+	return GraphDesc{Operations: []GraphOperationDesc{{Operator: "system", Function: "noop"}}, Source: "test"}
 }
 
 func TestOperatorErrorChain(t *testing.T) {
@@ -260,7 +260,7 @@ func TestGraphExecution(t *testing.T) {
 	ge.AddGraph("test5", g5, false)
 	g6 := createValidGraph()
 	g6.AddTags("keytag1:bar", "keytag2:bla")
-	ge.AddGraph("test5", g6, false)
+	ge.AddGraph("test6", g6, false)
 
 	expectByTagExtendedExecution([][]string{{"t2", ":yes:man", "keytag2:bla"}, {"t4", "fadabump", "keytag2:bla"}, {"t2", "keytag2:bla"}}, []string{"test3", "test6"})
 
