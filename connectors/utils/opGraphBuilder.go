@@ -1,9 +1,13 @@
 package freepsutils
 
 import (
+	"encoding/json"
+	"net/http"
+
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 // OpGraphBuilder is the operator to build and modify graphs
@@ -13,22 +17,38 @@ type OpGraphBuilder struct {
 
 var _ base.FreepsOperator = &OpGraphBuilder{}
 
-// AddGraphArgs are the arguments for the GraphBuilder function
-type AddGraphArgs struct {
-	GraphName string
-	Overwrite bool
-}
-
 // AddGraph adds a graph to the graph engine
-func (m *OpGraphBuilder) AddGraph(ctx *base.Context, input *base.OperatorIO, args AddGraphArgs) *base.OperatorIO {
-	gd := freepsgraph.GraphDesc{}
-	err := input.ParseJSON(&gd)
-	if err != nil {
-		return base.MakeOutputError(400, "Invalid graph: %v", err)
+func (m *OpGraphBuilder) AddGraph(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+	if !input.IsFormData() {
+		return base.MakeOutputError(http.StatusBadRequest, "Invalid input format")
 	}
-	err = m.GE.AddGraph(args.GraphName, gd, args.Overwrite)
+
+	formdata, err := input.ParseFormData()
 	if err != nil {
-		return base.MakeOutputError(400, "Could not add graph: %v", err)
+		return base.MakeOutputError(http.StatusBadRequest, "Invalid form data: %v", err)
+	}
+
+	graphName := formdata.Get("GraphName")
+	if graphName == "" {
+		return base.MakeOutputError(http.StatusBadRequest, "Graph name is missing")
+	}
+	overwrite, _ := utils.ConvertToBool(formdata.Get("Overwrite"))
+	save, _ := utils.ConvertToBool(formdata.Get("SaveGraph"))
+
+	gd := freepsgraph.GraphDesc{}
+	err = json.Unmarshal([]byte(formdata.Get("GraphJSON")), &gd)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "Invalid graph JSON: %v", err)
+	}
+
+	if !save {
+		output := freepsstore.StoreGraph("added_"+graphName, gd, ctx.GetID())
+		return output
+	} else {
+		err = m.GE.AddGraph(graphName, gd, overwrite)
+		if err != nil {
+			return base.MakeOutputError(400, "Could not add graph: %v", err)
+		}
 	}
 	return base.MakeEmptyOutput()
 }
@@ -72,14 +92,14 @@ func (m *OpGraphBuilder) RestoreDeletedGraph(ctx *base.Context, input *base.Oper
 // GetGraphArgs are the arguments for the GraphBuilder function
 type GetGraphArgs struct {
 	GraphName string
-	FromStore bool
+	FromStore *bool
 }
 
 // GetGraph returns a graph from the graph engine
 func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, args GetGraphArgs) *base.OperatorIO {
 	gd, ok := m.GE.GetGraphDesc(args.GraphName)
 	if !ok {
-		if args.FromStore {
+		if args.FromStore != nil && *args.FromStore {
 			gd, err := freepsstore.GetGraph(args.GraphName)
 			if err != nil {
 				return base.MakeOutputError(404, "Graph not found in store: %v", err)
@@ -89,4 +109,13 @@ func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, arg
 		return base.MakeOutputError(404, "Graph not found")
 	}
 	return base.MakeObjectOutput(gd)
+}
+
+// ExecuteGraphFromStore executes a graph after loading it from the store
+func (m *OpGraphBuilder) ExecuteGraphFromStore(ctx *base.Context, input *base.OperatorIO, args GetGraphArgs) *base.OperatorIO {
+	gd, err := freepsstore.GetGraph(args.GraphName)
+	if err != nil {
+		return base.MakeOutputError(404, "Graph not found in store: %v", err)
+	}
+	return m.GE.ExecuteAdHocGraph(ctx, "ExecuteFromStore/"+args.GraphName, gd, make(map[string]string), input)
 }

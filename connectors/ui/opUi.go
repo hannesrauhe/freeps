@@ -284,7 +284,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 	return gd
 }
 
-func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger *log.Entry, tmpl string) *base.OperatorIO {
+func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.OperatorIO, logger *log.Entry, tmpl string) *base.OperatorIO {
 	var gd *freepsgraph.GraphDesc
 	var exists bool
 	targetNum := 0
@@ -323,21 +323,24 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 		if _, ok := formInput["SaveTemp"]; ok {
 			td.GraphName = formInput["GraphName"]
 			if td.GraphName == "" {
-				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
+				td.GraphName = ctx.GetID()
 			}
-			err := freepsstore.StoreGraph(td.GraphName, *gd, "UI")
+			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx.GetID())
 			if err.IsError() {
 				return err
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			err := freepsstore.StoreGraph(td.GraphName, *gd, "UI")
+			td.GraphName = formInput["GraphName"]
+			if td.GraphName == "" {
+				td.GraphName = ctx.GetID()
+			}
+			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx.GetID())
 			if err.IsError() {
 				return err
 			}
-			//TODO(HR): execute add hoc graph
-			td.Output = "/graph/UIgraph"
+			td.Output = "/graphBuilder/ExecuteGraphFromStore?graphName=" + td.GraphName
 		}
 	}
 
@@ -477,9 +480,9 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 
 	switch fn {
 	case "", "home":
-		return o.editGraph(args, input, logger, "home.html")
+		return o.editGraph(ctx, args, input, logger, "home.html")
 	case "edit", "editGraph":
-		return o.editGraph(args, input, logger, "editgraph.html")
+		return o.editGraph(ctx, args, input, logger, "editgraph.html")
 	case "editTemplate":
 		return o.editTemplate(args, input, logger)
 	case "deleteTemplate":
