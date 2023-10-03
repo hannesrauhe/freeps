@@ -40,7 +40,6 @@ func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
 	}
 	f, _ := freepslib.NewFreepsLib(&conf)
 	op := &OpFritz{fl: f, fc: &conf}
-	op.getDeviceList() // fill cache
 	return op
 }
 
@@ -343,8 +342,9 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 	return templ, nil
 }
 
-// StartListening (noOp)
+// StartListening currently only tries to log in and catches the initial device state
 func (o *OpFritz) StartListening(ctx *base.Context) {
+	go o.getDeviceList()
 }
 
 // Shutdown (noOp)

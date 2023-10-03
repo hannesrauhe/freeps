@@ -22,30 +22,19 @@ type SectionParams struct {
 	SectionName string
 }
 
-var _ base.FreepsFunctionParameters = &SectionParams{}
-
-// InitOptionalParameters initializes the optional (pointer) arguments of the parameters struct with default values
-func (p *SectionParams) InitOptionalParameters(operator base.FreepsOperator, fn string) {
-}
-
-// GetArgSuggestions returns a map of possible arguments for the given function and argument name
-func (p *SectionParams) GetArgSuggestions(operator base.FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string {
+// SectionNameSuggestions returns a map of possible arguments for the given function and argument name
+func (p *SectionParams) SectionNameSuggestions(oc *OpConfig) map[string]string {
 	retMap := make(map[string]string)
 
-	sections, err := operator.(*OpConfig).CR.GetSectionNames()
+	sections, err := oc.CR.GetSectionNames()
 	if err != nil {
 		return retMap
 	}
 
 	for _, section := range sections {
-		retMap[utils.StringToLower(section)] = section
+		retMap[section] = utils.StringToLower(section)
 	}
 	return retMap
-}
-
-// VerifyParameters checks if the given parameters are valid
-func (p *SectionParams) VerifyParameters(operator base.FreepsOperator) *base.OperatorIO {
-	return nil
 }
 
 // GetSection returns the section with the given name
@@ -100,25 +89,14 @@ type GetOperatorConfigParams struct {
 	OperatorName string
 }
 
-var _ base.FreepsFunctionParameters = &GetOperatorConfigParams{}
-
-// InitOptionalParameters initializes the optional (pointer) arguments of the parameters struct with default values
-func (p *GetOperatorConfigParams) InitOptionalParameters(operator base.FreepsOperator, fn string) {
-}
-
-// GetArgSuggestions returns a map of possible arguments for the given function and argument name
-func (p *GetOperatorConfigParams) GetArgSuggestions(operator base.FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string {
+// OperatorNameSuggestions returns a map of possible arguments for the given function and argument name
+func (p *GetOperatorConfigParams) OperatorNameSuggestions(oc *OpConfig) map[string]string {
 	retMap := make(map[string]string)
-	operators := operator.(*OpConfig).GE.GetOperators()
+	operators := oc.GE.GetOperators()
 	for _, op := range operators {
-		retMap[utils.StringToLower(op)] = op
+		retMap[op] = utils.StringToLower(op)
 	}
 	return retMap
-}
-
-// VerifyParameters checks if the given parameters are valid
-func (p *GetOperatorConfigParams) VerifyParameters(operator base.FreepsOperator) *base.OperatorIO {
-	return nil
 }
 
 // GetOperatorConfig returns the default config for a given section
