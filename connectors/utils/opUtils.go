@@ -86,18 +86,23 @@ type ExtractArgs struct {
 	Key string
 }
 
-// Extract extracts the value of a given key from the flattened input
+// Extract extracts the value of a given key from the input, if necessary it tries to flatten the input first
 func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args ExtractArgs) *base.OperatorIO {
 	nestedArgsMap := map[string]interface{}{}
 	err := input.ParseJSON(&nestedArgsMap)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
 	}
+	vInterface, ok := nestedArgsMap[args.Key]
+	if ok {
+		return base.MakeObjectOutput(vInterface)
+	}
+
 	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
 	}
-	vInterface, ok := argsmap[args.Key]
+	vInterface, ok = argsmap[args.Key]
 	if !ok {
 		return base.MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.Key)
 	}
