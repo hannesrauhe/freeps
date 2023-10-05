@@ -19,7 +19,7 @@ function blinkYellow(time) {
 
 function advertise() {
   if (adv === false) {
-    retrun
+    return;
   }
   var p = Puck.mag();
   p.x -= zero.x;
