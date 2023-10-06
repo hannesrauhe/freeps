@@ -153,9 +153,13 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		}
 	case "get":
 		{
-			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil}
+			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, DefaultValue: nil}
 			if maxAgeRequest {
 				argsStruct.MaxAge = &maxAge
+			}
+			val, ok := args["defaultValue"]
+			if ok {
+				argsStruct.DefaultValue = &val
 			}
 			return o.Get(ctx, input, argsStruct)
 		}
@@ -269,7 +273,7 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	case "search":
 		return []string{"namespace", "key", "value", "modifiedBy", "minAge", "maxAge"}
 	case "get":
-		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}
+		return []string{"namespace", "keyArgName", "key", "output", "maxAge", "defaultValue"}
 	case "getAll":
 		return []string{"namespace", "maxAge"}
 	case "deleteOlder":
