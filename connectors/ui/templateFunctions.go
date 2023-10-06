@@ -67,10 +67,7 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 				return nil
 			}
 			v := ns.GetValue(key)
-			if v == nil {
-				return nil
-			}
-			return v.Output
+			return v.GetData().Output
 		},
 		"store_GetString": func(namespace string, key string) string {
 			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
@@ -78,10 +75,7 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 				return ""
 			}
 			v := ns.GetValue(key)
-			if v == nil {
-				return ""
-			}
-			return v.GetString()
+			return v.GetData().GetString()
 		},
 		"graph_GetGraphDescByTag": func(tagstr string) map[string]freepsgraph.GraphDesc {
 			tags := []string{}

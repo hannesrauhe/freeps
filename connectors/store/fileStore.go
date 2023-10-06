@@ -3,7 +3,6 @@ package freepsstore
 import (
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -119,20 +118,24 @@ func (p *fileStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valu
 	return res
 }
 
-func (p *fileStoreNamespace) GetValue(key string) *base.OperatorIO {
+func (p *fileStoreNamespace) GetValue(key string) StoreEntry {
+	e := StoreEntry{timestamp: time.Now(), modifiedBy: "", data: base.MakeEmptyOutput()}
 	path, err := p.getFilePath(key)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		e.data = base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return e
 	}
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return base.MakeOutputError(500, "Failed to open file: %v", err.Error())
+		e.data = base.MakeOutputError(500, "Failed to open file: %v", err.Error())
+		return e
 	}
-	return base.MakeByteOutput(b)
+	e.data = base.MakeByteOutput(b)
+	return e
 }
 
-func (p *fileStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry {
+	return p.GetValue(key)
 }
 
 func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {

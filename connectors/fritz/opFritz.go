@@ -276,13 +276,13 @@ func (m *OpFritz) GetTemplates() map[string]string {
 // GetDeviceByAIN returns the device object for the device with the given AIN
 func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
 	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
-	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge)
+	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge).GetData()
 	if cachedDev.IsError() {
 		devl, err := m.getDeviceList()
 		if devl == nil || err != nil {
 			return nil, err
 		}
-		cachedDev = devNs.GetValue(AIN)
+		cachedDev = devNs.GetValue(AIN).GetData()
 	}
 	if cachedDev.IsError() {
 		return nil, fmt.Errorf("Device with AIN \"%v\" not found", AIN)

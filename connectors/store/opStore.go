@@ -151,29 +151,25 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			}
 			nsStore.SetAll(m, ctx.GetID())
 		}
-	case "get", "equals":
+	case "get":
 		{
-			var io *base.OperatorIO
+			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil}
 			if maxAgeRequest {
-				io = nsStore.GetValueBeforeExpiration(key, maxAge)
-			} else {
-				io = nsStore.GetValue(key)
+				argsStruct.MaxAge = &maxAge
 			}
-			if io.IsError() {
-				return io
+			return o.Get(ctx, input, argsStruct)
+		}
+	case "equals":
+		{
+			argsStruct := StoreEqualsArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, Value: nil}
+			if maxAgeRequest {
+				argsStruct.MaxAge = &maxAge
 			}
-
-			if fn == "equals" {
-				val, ok := args["value"]
-				if !ok {
-					val = input.GetString()
-				}
-				if io.GetString() != val {
-					return base.MakeOutputError(http.StatusExpectationFailed, "Values do not match")
-				}
+			val, ok := args["value"]
+			if ok {
+				argsStruct.Value = &val
 			}
-
-			result[ns] = map[string]*base.OperatorIO{key: io}
+			return o.Equals(ctx, input, argsStruct)
 		}
 	case "set":
 		{
@@ -331,7 +327,7 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 				return map[string]string{}
 			}
 			io := store.GetNamespace(ns).GetValue(key)
-			return map[string]string{io.GetString(): io.GetString()}
+			return map[string]string{io.GetData().GetString(): io.GetData().GetString()}
 		}
 	case "output":
 		{
