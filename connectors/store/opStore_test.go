@@ -201,7 +201,7 @@ func TestStoreUpdateTransaction(t *testing.T) {
 		t.Errorf("Error while updating value: %v", o)
 	}
 	assert.Equal(t, o.GetString(), "new_value")
-	o = ns.GetValue("v1")
+	o = ns.GetValue("v1").GetData()
 	assert.Equal(t, o.GetString(), "new_value")
 	o = ns.UpdateTransaction("v2", func(oldV *base.OperatorIO) *base.OperatorIO {
 		if !oldV.IsEmpty() {

@@ -45,11 +45,11 @@ func (o *OpStore) modifyOutputSingleNamespace(ns string, output string, result m
 		}
 	case "hierarchy":
 		{
-			flatresult := map[string]interface{}{}
+			flatresult := map[string]*base.OperatorIO{}
 			for k, v := range result {
-				flatresult[k] = v.GetData().Output
+				flatresult[k] = v.GetData()
 			}
-			return base.MakeObjectOutput(map[string]map[string]interface{}{ns: flatresult})
+			return base.MakeObjectOutput(map[string]map[string]*base.OperatorIO{ns: flatresult})
 		}
 	}
 	return base.MakeOutputError(http.StatusBadRequest, "Unknown output type '%v'", output)

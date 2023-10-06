@@ -32,6 +32,9 @@ func (s *inMemoryStoreNamespace) GetValue(key string) StoreEntry {
 // GetValueBeforeExpiration gets the value from the StoreNamespace, but returns error if older than maxAge
 func (s *inMemoryStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry {
 	e := s.GetValue(key)
+	if e == NotFoundEntry {
+		return e
+	}
 	ts := e.timestamp
 	if ts.Add(maxAge).Before(time.Now()) {
 		e.data = base.MakeOutputError(http.StatusGone, "Entry is older than %v", maxAge)
