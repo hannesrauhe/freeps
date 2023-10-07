@@ -165,7 +165,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		}
 	case "equals":
 		{
-			argsStruct := StoreEqualsArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, Value: nil}
+			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, Value: nil}
 			if maxAgeRequest {
 				argsStruct.MaxAge = &maxAge
 			}

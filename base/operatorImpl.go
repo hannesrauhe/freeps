@@ -416,21 +416,22 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 
 	// create an initialized instance of the parameter struct
 	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
+
+	//set all required parameters of the FreepsFunction
+	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
+	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
+
+	// if the parameter struct does not implement the FreepsFunctionParameters interface, see if it has a function with the Name argName + "Suggestions"
 	if ps == nil {
 		suggestions := o.callParamSuggestionFunction(paramStruct, argName)
 		if suggestions != nil {
 			return suggestions
 		}
-		// common arg suggestions if the parameter struct does not implement the FreepsFunctionParameters interface
+		// common suggestions for all parameters if there are no suggestions for the parameter
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
 	}
 
-	failOnError := false
-
-	//set all required parameters of the FreepsFunction
-	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
-	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
-
+	// call the parameter struct's suggestion function
 	res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
 	if res == nil || len(res) == 0 {
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))

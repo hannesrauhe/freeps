@@ -60,8 +60,14 @@ type StoreGetArgs struct {
 	Namespace    string
 	Key          string
 	Output       string
-	DefaultValue *string
+	DefaultValue *string // only used for Get
+	Value        *string // only used for Equals
 	MaxAge       *time.Duration
+}
+
+// NamespaceSuggestions returns a list of namespaces
+func (p *StoreGetArgs) NamespaceSuggestions(oc *OpStore) []string {
+	return store.GetNamespaces()
 }
 
 // Get returns a value from the store that is not older than the given maxAge; returns the default value or an error if the value is older or not found
@@ -84,17 +90,8 @@ func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetAr
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
 }
 
-// StoreEqualsArgs are the arguments for the StoreEquals function
-type StoreEqualsArgs struct {
-	Namespace string
-	Key       string
-	Output    string
-	Value     *string
-	MaxAge    *time.Duration
-}
-
 // Equals returns an error if the value from the store is not equal to the given value
-func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreEqualsArgs) *base.OperatorIO {
+func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGetArgs) *base.OperatorIO {
 	nsStore := store.GetNamespace(args.Namespace)
 	e := StoreEntry{}
 	if args.MaxAge != nil {
