@@ -128,17 +128,6 @@ func (ge *GraphEngine) ReloadRequested() bool {
 	return ge.reloadRequested
 }
 
-// ExecuteGraph executes a graph stored in the engine
-func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
-	g, o := ge.prepareGraphExecution(ctx, graphName)
-	if g == nil {
-		return o
-	}
-	ge.TriggerOnExecuteHooks(ctx, graphName, mainArgs, mainInput)
-	defer ge.TriggerOnExecutionFinishedHooks(ctx, graphName, mainArgs, mainInput)
-	return g.execute(ctx, mainArgs, mainInput)
-}
-
 // ExecuteOperatorByName executes an operator directly
 func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
@@ -200,20 +189,6 @@ func (ge *GraphEngine) getGraphDescUnlocked(graphName string) (*GraphDesc, bool)
 		return gi, exists
 	}
 	return nil, false
-}
-
-func (ge *GraphEngine) prepareGraphExecution(ctx *base.Context, graphName string) (*Graph, *base.OperatorIO) {
-	ge.graphLock.Lock()
-	defer ge.graphLock.Unlock()
-	gi, exists := ge.getGraphDescUnlocked(graphName)
-	if !exists {
-		return nil, base.MakeOutputError(404, "No graph with name \"%s\" found", graphName)
-	}
-	g, err := NewGraph(ctx, graphName, gi, ge)
-	if err != nil {
-		return nil, base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
-	}
-	return g, base.MakeEmptyOutput()
 }
 
 // CheckGraph checks if the graph is valid
