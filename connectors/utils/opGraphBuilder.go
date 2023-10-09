@@ -28,6 +28,15 @@ func (arg *GraphFromEngineArgs) GraphNameSuggestions(m *OpGraphBuilder) []string
 	return graphNames
 }
 
+// GetGraph returns a graph from the graph engine
+func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
+	gd, ok := m.GE.GetGraphDesc(args.GraphName)
+	if !ok {
+		return base.MakeOutputError(404, "Graph not found in Engine: %v", args.GraphName)
+	}
+	return base.MakeObjectOutput(gd)
+}
+
 // DeleteGraph deletes a graph from the graph engine and stores a backup in the store
 func (m *OpGraphBuilder) DeleteGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
 	backup, err := m.GE.DeleteGraph(args.GraphName)
@@ -56,15 +65,11 @@ func (arg *GraphFromStoreArgs) GraphNameSuggestions(m *OpGraphBuilder) []string 
 	return graphNames
 }
 
-// GetGraph returns a graph from the graph engine
-func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromStoreArgs) *base.OperatorIO {
-	gd, ok := m.GE.GetGraphDesc(args.GraphName)
-	if !ok {
-		gd, err := freepsstore.GetGraph(args.GraphName)
-		if err != nil {
-			return base.MakeOutputError(404, "Graph not found in store: %v", err)
-		}
-		return base.MakeObjectOutput(gd)
+// GetGraphFromStore returns a graph from the store
+func (m *OpGraphBuilder) GetGraphFromStore(ctx *base.Context, input *base.OperatorIO, args GraphFromStoreArgs) *base.OperatorIO {
+	gd, err := freepsstore.GetGraph(args.GraphName)
+	if err != nil {
+		return base.MakeOutputError(404, "Graph not found in store: %v", err)
 	}
 	return base.MakeObjectOutput(gd)
 }
