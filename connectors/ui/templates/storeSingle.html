@@ -19,9 +19,11 @@
             </select>
         </div>
     </form>
-    <form method="post" action="/store/set">
+    <form method="post" action="/store/setSimpleValue">
         <input type="hidden" name="namespace" value="{{$.arguments.namespace}}">
         <input type="hidden" name="key" value="{{$.arguments.key}}">
+        <input type="hidden" name="output" value="empty">
+        <input type="hidden" name="redirect" value="{{$.selfURL}}">
         <div>
             <textarea name="value" rows="50">{{ store_GetString $.arguments.namespace $.arguments.key}}</textarea>
         </div>
@@ -32,8 +34,9 @@
         <input type="hidden" name="namespace" value="{{$.arguments.namespace}}">
         <input type="hidden" name="key" value="{{$.arguments.key}}">
         <input type="hidden" name="output" value="direct">
+        <input type="hidden" name="redirect" value="/ui/store.html?namespace={{$.arguments.namespace}}"> <!-- only relevant for delete-->
         <button>Show</button>
-        <button formaction="/store/delete" formtarget="_blank">Delete</button>
+        <button formaction="/store/delete">Delete</button>
     </form>
 </div>
 

@@ -245,30 +245,39 @@ func (p *postgresStoreNamespace) GetSearchResultWithMetadata(keyPattern string, 
 	return result
 }
 
-func (p *postgresStoreNamespace) GetValue(key string) *base.OperatorIO {
-	rows, err := p.query(1, "http_code, output_type, content_type, value_plain, value_bytes, value_json", "key=$1", key)
+func (p *postgresStoreNamespace) GetValue(key string) StoreEntry {
+	e := StoreEntry{
+		timestamp: time.Now(),
+		data:      &base.OperatorIO{},
+	}
+	rows, err := p.query(1, "key, http_code, output_type, content_type, value_plain, value_bytes, value_json, modified_by, modification_time", "key=$1", key)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		e.data = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		return e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		output := base.OperatorIO{}
 		var valuePlain sql.NullString
 		var valueBytes, valueJSON []byte
-		if err := rows.Scan(&output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON); err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		if err := rows.Scan(&output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON, &e.modifiedBy, &e.timestamp); err != nil {
+			e.data = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 		}
-		p.entryToOutput(&output, valuePlain, valueBytes, valueJSON)
-		return &output
+		p.entryToOutput(e.data, valuePlain, valueBytes, valueJSON)
+		return e
 	}
 	if err := rows.Err(); err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		e.data = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		return e
 	}
-	return base.MakeOutputError(http.StatusNotFound, "Key not found")
+	return NotFoundEntry
 }
 
-func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry {
+	return StoreEntry{
+		timestamp: time.Now(),
+		data:      base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet"),
+	}
 }
 
 func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {

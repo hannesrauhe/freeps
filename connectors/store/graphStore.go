@@ -19,13 +19,14 @@ func GetGraphStore() StoreNamespace {
 func GetGraph(name string) (freepsgraph.GraphDesc, error) {
 	gd := freepsgraph.GraphDesc{}
 	op := GetGraphStore().GetValue(name)
-	if op == nil {
+	if op == NotFoundEntry {
 		return gd, fmt.Errorf("Graph \"%s\" not found", name)
 	}
-	if op.OutputType != base.Byte {
+	io := op.GetData()
+	if io.OutputType != base.Byte {
 		return gd, fmt.Errorf("Object \"%s\" is not a serialized Graph", name)
 	}
-	err := op.ParseJSON(&gd)
+	err := io.ParseJSON(&gd)
 	return gd, err
 }
 

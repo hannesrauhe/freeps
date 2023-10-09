@@ -82,6 +82,15 @@ func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs map[strin
 
 	// it's an html form without an attached file
 	mainInput = base.MakeObjectOutputWithContentType(req.PostForm, "application/x-www-form-urlencoded")
+
+	// if mainArgs is empty, the form data will be passed as args, this way post requests can be sent to the same url as get requests
+	if len(mainArgs) == 0 {
+		query, err = mainInput.ParseFormData()
+		if err != nil {
+			return
+		}
+		mainArgs = utils.URLArgsToMap(query)
+	}
 	return
 }
 
