@@ -19,29 +19,28 @@ type inMemoryStoreNamespace struct {
 var _ StoreNamespace = &inMemoryStoreNamespace{}
 
 // GetValue from the StoreNamespace
-func (s *inMemoryStoreNamespace) GetValue(key string) *base.OperatorIO {
+func (s *inMemoryStoreNamespace) GetValue(key string) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
-	io, ok := s.entries[key]
+	e, ok := s.entries[key]
 	if !ok {
-		return base.MakeOutputError(http.StatusNotFound, "Key not found")
+		return NotFoundEntry
 	}
-	return io.data
+	return e
 }
 
 // GetValueBeforeExpiration gets the value from the StoreNamespace, but returns error if older than maxAge
-func (s *inMemoryStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO {
-	s.nsLock.Lock()
-	defer s.nsLock.Unlock()
-	ent, ok := s.entries[key]
-	if !ok {
-		return base.MakeOutputError(http.StatusNotFound, "Key not found")
+func (s *inMemoryStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry {
+	e := s.GetValue(key)
+	if e == NotFoundEntry {
+		return e
 	}
-	ts := ent.timestamp
+	ts := e.timestamp
 	if ts.Add(maxAge).Before(time.Now()) {
-		return base.MakeOutputError(http.StatusGone, "key is older than %v", maxAge)
+		e.data = base.MakeOutputError(http.StatusGone, "Entry is older than %v", maxAge)
+		return e
 	}
-	return ent.data
+	return e
 }
 
 func (s *inMemoryStoreNamespace) setValueUnlocked(key string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {

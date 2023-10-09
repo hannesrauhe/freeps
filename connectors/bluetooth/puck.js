@@ -19,16 +19,16 @@ function blinkYellow(time) {
 
 function advertise() {
   if (adv === false) {
-    retrun
+    return;
   }
   var p = Puck.mag();
   p.x -= zero.x;
   p.y -= zero.y;
   p.z -= zero.z;
 
-  var magVal = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) / 10;
-  if (magVal > 128) {
-    magVal = 128;
+  var magVal = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) / 50;
+  if (magVal > 127) {
+    magVal = 127;
   }
   stateGreen = magVal < 10;
 

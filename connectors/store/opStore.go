@@ -151,29 +151,29 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			}
 			nsStore.SetAll(m, ctx.GetID())
 		}
-	case "get", "equals":
+	case "get":
 		{
-			var io *base.OperatorIO
+			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, DefaultValue: nil}
 			if maxAgeRequest {
-				io = nsStore.GetValueBeforeExpiration(key, maxAge)
-			} else {
-				io = nsStore.GetValue(key)
+				argsStruct.MaxAge = &maxAge
 			}
-			if io.IsError() {
-				return io
+			val, ok := args["defaultValue"]
+			if ok {
+				argsStruct.DefaultValue = &val
 			}
-
-			if fn == "equals" {
-				val, ok := args["value"]
-				if !ok {
-					val = input.GetString()
-				}
-				if io.GetString() != val {
-					return base.MakeOutputError(http.StatusExpectationFailed, "Values do not match")
-				}
+			return o.Get(ctx, input, argsStruct)
+		}
+	case "equals":
+		{
+			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, Value: nil}
+			if maxAgeRequest {
+				argsStruct.MaxAge = &maxAge
 			}
-
-			result[ns] = map[string]*base.OperatorIO{key: io}
+			val, ok := args["value"]
+			if ok {
+				argsStruct.Value = &val
+			}
+			return o.Equals(ctx, input, argsStruct)
 		}
 	case "set":
 		{
@@ -273,7 +273,7 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	case "search":
 		return []string{"namespace", "key", "value", "modifiedBy", "minAge", "maxAge"}
 	case "get":
-		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}
+		return []string{"namespace", "keyArgName", "key", "output", "maxAge", "defaultValue"}
 	case "getAll":
 		return []string{"namespace", "maxAge"}
 	case "deleteOlder":
@@ -331,7 +331,7 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 				return map[string]string{}
 			}
 			io := store.GetNamespace(ns).GetValue(key)
-			return map[string]string{io.GetString(): io.GetString()}
+			return map[string]string{io.GetData().GetString(): io.GetData().GetString()}
 		}
 	case "output":
 		{

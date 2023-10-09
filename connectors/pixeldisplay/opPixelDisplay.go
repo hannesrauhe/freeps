@@ -167,7 +167,7 @@ func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, a
 	var err error
 
 	if args.Icon != nil {
-		binput, err = freepsstore.GetFileStore().GetValue(*args.Icon).GetBytes()
+		binput, err = freepsstore.GetFileStore().GetValue(*args.Icon).GetData().GetBytes()
 		if err != nil {
 			return base.MakeOutputError(http.StatusBadRequest, "Icon %v is not accssible: %v", *args.Icon, err.Error())
 		}

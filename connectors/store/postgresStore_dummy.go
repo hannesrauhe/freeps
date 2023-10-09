@@ -4,8 +4,9 @@ package freepsstore
 
 import (
 	"fmt"
-	"github.com/hannesrauhe/freeps/base"
 	"time"
+
+	"github.com/hannesrauhe/freeps/base"
 )
 
 type dummydb struct{}
@@ -53,11 +54,11 @@ func (p *postgresStoreNamespace) GetSearchResultWithMetadata(keyPattern string, 
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) GetValue(key string) *base.OperatorIO {
+func (p *postgresStoreNamespace) GetValue(key string) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO {
+func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 

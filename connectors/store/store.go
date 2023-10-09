@@ -2,6 +2,7 @@ package freepsstore
 
 import (
 	"encoding/json"
+	"net/http"
 	"sync"
 	"time"
 
@@ -24,6 +25,9 @@ type ReadableStoreEntry struct {
 	Age        string
 	ModifiedBy string
 }
+
+// NotFoundEntry is a StoreEntry with a 404 error
+var NotFoundEntry = StoreEntry{base.MakeOutputError(http.StatusNotFound, "Key not found"), time.Unix(0, 0), ""}
 
 // GetHumanReadable returns a readable version of the entry
 func (v StoreEntry) GetHumanReadable() ReadableStoreEntry {
@@ -55,8 +59,8 @@ type StoreNamespace interface {
 	GetKeys() []string
 	Len() int
 	GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry
-	GetValue(key string) *base.OperatorIO
-	GetValueBeforeExpiration(key string, maxAge time.Duration) *base.OperatorIO
+	GetValue(key string) StoreEntry
+	GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry
 	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO
 	SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO
 	SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO
