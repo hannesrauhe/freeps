@@ -73,6 +73,9 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 	case "stats":
 		return o.Stats(ctx, fn, args, input)
 
+	case "noop":
+		return base.MakeEmptyOutput()
+
 	case "version":
 		return base.MakePlainOutput(utils.BuildFullVersion())
 	}

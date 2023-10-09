@@ -75,11 +75,20 @@ func (m *OpGraphBuilder) RestoreDeletedGraphFromStore(ctx *base.Context, input *
 	if err != nil {
 		return base.MakeOutputError(400, "Could not restore graph: %v", err)
 	}
-	err = m.GE.AddGraph(args.GraphName, gd)
+	err = m.GE.AddGraph(args.GraphName, gd, false)
 	if err != nil {
 		return base.MakeOutputError(400, "Could not restore graph: %v", err)
 	}
 	return base.MakeEmptyOutput()
+}
+
+// ExecuteGraphFromStore executes a graph after loading it from the store
+func (m *OpGraphBuilder) ExecuteGraphFromStore(ctx *base.Context, input *base.OperatorIO, args GraphFromStoreArgs) *base.OperatorIO {
+	gd, err := freepsstore.GetGraph(args.GraphName)
+	if err != nil {
+		return base.MakeOutputError(404, "Graph not found in store: %v", err)
+	}
+	return m.GE.ExecuteAdHocGraph(ctx, "ExecuteFromStore/"+args.GraphName, gd, make(map[string]string), input)
 }
 
 // AddGraph adds a graph to the graph engine (unsused)
