@@ -159,6 +159,7 @@ func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, l
 			logger.Error(err)
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
+		w.WriteString(fmt.Sprintf("<title>%v</title>", templateBaseName))
 		w.Write(styles)
 		err = t.Execute(&w, templateData)
 		if err != nil {

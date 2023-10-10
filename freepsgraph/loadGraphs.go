@@ -112,7 +112,7 @@ func (ge *GraphEngine) loadExternalGraphs() {
 func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, srcName string) {
 	for k, v := range src {
 		v.Source = srcName
-		err := ge.addGraphUnderLock(k, v, true, false)
+		err := ge.addGraphUnderLock(k, v, true, true)
 		if err != nil {
 			log.Errorf("Skipping graph %v from %v, because: %v", k, srcName, err)
 		}
