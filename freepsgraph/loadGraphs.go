@@ -97,7 +97,7 @@ func (ge *GraphEngine) loadExternalGraphs() {
 		}
 		ge.addExternalGraphsWithSource(newGraphs, "url: "+fURL)
 	}
-	// config.GraphsFromURL = []string{}
+	config.GraphsFromURL = []string{}
 	for _, fName := range config.GraphsFromFile {
 		newGraphs := make(map[string]GraphDesc)
 		err = ge.cr.ReadObjectFromFile(&newGraphs, fName)
@@ -106,7 +106,7 @@ func (ge *GraphEngine) loadExternalGraphs() {
 		}
 		ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 	}
-	// config.GraphsFromFile = []string{}
+	config.GraphsFromFile = []string{}
 }
 
 func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, srcName string) {
