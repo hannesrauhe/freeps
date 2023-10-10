@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"os"
+	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -60,6 +61,9 @@ func (ge *GraphEngine) loadStoredAndEmbeddedGraphs() error {
 	}
 	for _, e := range storedList {
 		if e.IsDir() {
+			continue
+		}
+		if filepath.Ext(e.Name()) != ".json" {
 			continue
 		}
 		gb, err := os.ReadFile(ge.GetGraphDir() + "/" + e.Name())
