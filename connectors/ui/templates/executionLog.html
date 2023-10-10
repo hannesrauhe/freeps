@@ -2,6 +2,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 {{ $namespaceName := "_execution_log" }}
+{{ $ctx := store_Get $namespaceName .arguments.key }}
+{{ if hasField $ctx "Created" }}
 <div class="container">
     <a href="/ui/store.html?namespace={{$namespaceName}}&maxAge=10m">Last 10min</a>
     <table>
@@ -11,7 +13,6 @@
             <th>Code</th>
             <th>Duration</th>
         </tr>
-        {{ $ctx := store_Get $namespaceName .arguments.key }}
         <tr>
             <td><b>{{.arguments.key}}</b></td>
             <td>{{$ctx.Created}}</td>
@@ -30,3 +31,11 @@
         {{ end }}
     </table>
 </div>
+{{ else }}
+<div class="container">
+    <h1>Execution log not found</h1>
+    <p>Key: {{.arguments.key}}</p>
+    <p>Error: {{ $ctx }}</p>
+</div>
+{{ end }}
+`

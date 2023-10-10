@@ -3,6 +3,7 @@ package ui
 import (
 	"html/template"
 	"math"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +21,19 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 		},
 		"divisibleBy": func(a int, b int) bool {
 			return a != 0 && a%b == 0
+		},
+		"hasField": func(v interface{}, name string) bool {
+			rv := reflect.ValueOf(v)
+			if rv.Kind() == reflect.Ptr {
+				rv = rv.Elem()
+			}
+			if rv.Kind() == reflect.Map {
+				return rv.MapIndex(reflect.ValueOf(name)).IsValid()
+			}
+			if rv.Kind() != reflect.Struct {
+				return false
+			}
+			return rv.FieldByName(name).IsValid()
 		},
 		"store_GetNamespaces": func() []string {
 			ns := freepsstore.GetGlobalStore().GetNamespaces()
