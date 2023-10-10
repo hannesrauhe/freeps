@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -361,6 +362,10 @@ func (c *ConfigReader) WriteBackConfigIfChanged() error {
 
 func (c *ConfigReader) WriteObjectToFile(obj interface{}, filename string) error {
 	fullPath := c.GetConfigDir() + "/" + filename
+	// create a backup of the old file if one exists by attaching the unix timestamp to the file name
+	if _, err := os.Stat(fullPath); err == nil {
+		os.Rename(fullPath, fmt.Sprintf("%v.%v.bak", fullPath, time.Now().Unix()))
+	}
 	f, err := os.Create(fullPath)
 	if err != nil {
 		return err
