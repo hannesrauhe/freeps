@@ -107,6 +107,7 @@ func (ge *GraphEngine) loadExternalGraphs() {
 		ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
 	}
 	config.GraphsFromFile = []string{}
+	ge.cr.WriteSection("graphs", &config, true)
 }
 
 func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, srcName string) {
