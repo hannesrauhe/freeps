@@ -250,18 +250,20 @@ func (p *postgresStoreNamespace) GetValue(key string) StoreEntry {
 		timestamp: time.Now(),
 		data:      &base.OperatorIO{},
 	}
-	rows, err := p.query(1, "key, http_code, output_type, content_type, value_plain, value_bytes, value_json, modified_by, modification_time", "key=$1", key)
+	rows, err := p.query(1, "http_code, output_type, content_type, value_plain, value_bytes, value_json, modified_by, modification_time", "key=$1", key)
 	if err != nil {
 		e.data = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
 		return e
 	}
 	defer rows.Close()
 	for rows.Next() {
-		output := base.OperatorIO{}
 		var valuePlain sql.NullString
 		var valueBytes, valueJSON []byte
-		if err := rows.Scan(&output.HTTPCode, &output.OutputType, &output.ContentType, &valuePlain, &valueBytes, &valueJSON, &e.modifiedBy, &e.timestamp); err != nil {
-			e.data = base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err)
+		if err := rows.Scan(&e.data.HTTPCode, &e.data.OutputType, &e.data.ContentType, &valuePlain, &valueBytes, &valueJSON, &e.modifiedBy, &e.timestamp); err != nil {
+			return StoreEntry{
+				timestamp: time.Now(),
+				data:      base.MakeOutputError(http.StatusInternalServerError, "getValue: %v", err),
+			}
 		}
 		p.entryToOutput(e.data, valuePlain, valueBytes, valueJSON)
 		return e
