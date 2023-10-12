@@ -9,6 +9,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -81,9 +82,9 @@ func (r *Telegraminator) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewOneTimeReplyKeyboard(rows...)
 }
 
-func (r *Telegraminator) getCurrentOp(graphName string) (base.FreepsBaseOperator, *freepsgraph.GraphOperationDesc) {
-	graph, exists := r.ge.GetGraphDesc(graphName)
-	if !exists {
+func (r *Telegraminator) getCurrentOp(graphName string) (base.FreepsBaseOperator, *freepsgraph.GraphDesc) {
+	graph, err := freepsstore.GetGraph(graphName)
+	if err != nil {
 		return nil, nil
 	}
 	if graph.Operations == nil || len(graph.Operations) == 0 {
@@ -93,7 +94,7 @@ func (r *Telegraminator) getCurrentOp(graphName string) (base.FreepsBaseOperator
 	if op == nil {
 		return nil, nil
 	}
-	return op, &graph.Operations[0]
+	return op, &graph
 }
 
 func (r *Telegraminator) getModButtons() []*ButtonWrapper {
@@ -123,7 +124,8 @@ func (r *Telegraminator) getFnButtons(tcr *TelegramCallbackResponse) []*ButtonWr
 }
 
 func (r *Telegraminator) getArgsButtons(arg string, tcr *TelegramCallbackResponse) []*ButtonWrapper {
-	op, ta := r.getCurrentOp(tcr.T)
+	op, gd := r.getCurrentOp(tcr.T)
+	ta := gd.Operations[0]
 	if op == nil {
 		return make([]*ButtonWrapper, 0)
 	}
@@ -193,7 +195,7 @@ func (r *Telegraminator) sendMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (r *Telegraminator) sendStartMessage(msg *tgbotapi.MessageConfig) {
-	r.ge.DeleteTemporaryGraph(fmt.Sprint(msg.ChatID))
+	freepsstore.DeleteGraph(fmt.Sprint(msg.ChatID))
 	msg.ReplyMarkup, _ = r.getModKeyboard()
 	r.sendMessage(msg)
 }
@@ -230,7 +232,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 			}
 		} else {
 			// inputText contains the mod to use
-			r.ge.DeleteTemporaryGraph(fmt.Sprint(chat.ID))
+			freepsstore.DeleteGraph(fmt.Sprint(chat.ID))
 			tcr.P = -1
 			tcr.C = inputText
 		}
@@ -240,48 +242,51 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 		delete(r.chatState, chat.ID)
 	}
 	tcr.T = fmt.Sprint(chat.ID)
-	op, god := r.getCurrentOp(tcr.T)
+	op, gd := r.getCurrentOp(tcr.T)
 	if op == nil {
 		if !r.ge.HasOperator(tcr.C) {
 			msg.Text += " Please pick an Operator"
 			r.sendStartMessage(&msg)
 			return
 		}
-		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C}}}
-		r.ge.AddTemporaryGraph(tcr.T, tpl, "telegram")
-		op, god = r.getCurrentOp(tcr.T)
-		msg.Text = "Pick a function for " + god.Operator
+		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}}}, Source: "telegram"}
+		freepsstore.StoreGraph(tcr.T, tpl, "telegram")
+		op, gd = r.getCurrentOp(tcr.T)
+		msg.Text = "Pick a function for " + gd.Operations[0].Operator
 		msg.ReplyMarkup, _ = r.getFnKeyboard(&tcr)
-	} else if len(god.Function) == 0 {
+	} else if len(gd.Operations[0].Function) == 0 {
 		if tcr.K {
-			msg.Text = "Type a function for " + god.Operator
+			msg.Text = "Type a function for " + gd.Operations[0].Operator
 			tcr.K = false
 			r.chatState[chat.ID] = tcr
 		} else {
-			god.Function = tcr.C
+			gd.Operations[0].Function = tcr.C
+			freepsstore.StoreGraph(tcr.T, *gd, "telegram")
 		}
 	}
 
-	if len(god.Function) > 0 && !tcr.F {
-		args := op.GetPossibleArgs(god.Function)
-		if tcr.P == 0 {
-			god.Arguments = map[string]string{}
-		}
+	if len(gd.Operations[0].Function) > 0 && !tcr.F {
+		args := op.GetPossibleArgs(gd.Operations[0].Function)
 		if tcr.K {
-			msg.Text = fmt.Sprintf("Type a Value for %s (%s/%s)", args[tcr.P], god.Operator, god.Function)
+			msg.Text = fmt.Sprintf("Type a Value for %s (%s/%s)", args[tcr.P], gd.Operations[0].Operator, gd.Operations[0].Function)
 			tcr.K = false
 			r.chatState[chat.ID] = tcr
 		} else {
 			if tcr.P >= 0 {
-				god.Arguments[args[tcr.P]] = tcr.C
+				if gd.Operations[0].Arguments == nil {
+					gd.Operations[0].Arguments = make(map[string]string)
+				}
+				gd.Operations[0].Arguments[args[tcr.P]] = tcr.C
+				freepsstore.StoreGraph(tcr.T, *gd, "telegram")
 			}
 			tcr.C = ""
 			tcr.P++
 			if tcr.P >= len(args) {
 				tcr.F = true
+				freepsstore.StoreGraph(tcr.T, *gd, "telegram")
 			} else {
 				addVals := ""
-				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], god.Operator, god.Function)
+				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], gd.Operations[0].Operator, gd.Operations[0].Function)
 				msg.ReplyMarkup, addVals = r.getArgsKeyboard(args[tcr.P], &tcr)
 				if len(addVals) > 0 {
 					// do not use SendMessage, because that message gets deleted.... yeah, I need to clean this up
@@ -293,7 +298,11 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 
 	if tcr.F {
 		ctx := base.NewContext(telelogger)
-		io := r.ge.ExecuteGraph(ctx, tcr.T, map[string]string{}, base.MakeEmptyOutput())
+		gd, err := freepsstore.GetGraph(tcr.T)
+		if err != nil {
+			msg.Text = err.Error()
+		}
+		io := r.ge.ExecuteAdHocGraph(ctx, "telegram/"+tcr.T, gd, map[string]string{}, base.MakeEmptyOutput())
 		if io.IsError() {
 			msg.Text = fmt.Sprintf("Error when executing operation: %v", io.GetError())
 		} else if utils.StringStartsWith(io.ContentType, "image") {
@@ -313,7 +322,7 @@ func (r *Telegraminator) Respond(chat *tgbotapi.Chat, callbackData string, input
 				msg.Text = "Empty Result, HTTP code:" + fmt.Sprint(io.GetStatusCode())
 			}
 		}
-		r.ge.DeleteTemporaryGraph(tcr.T)
+		freepsstore.DeleteGraph(tcr.T)
 		msg.ReplyMarkup = r.getReplyKeyboard()
 	}
 	r.sendMessage(&msg)

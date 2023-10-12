@@ -1,6 +1,9 @@
 package freepsgraph
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/hannesrauhe/freeps/base"
 )
 
@@ -38,4 +41,46 @@ func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArg
 	ge.TriggerOnExecuteHooks(ctx, graphName, mainArgs, mainInput)
 	defer ge.TriggerOnExecutionFinishedHooks(ctx, graphName, mainArgs, mainInput)
 	return g.execute(ctx, mainArgs, mainInput)
+}
+
+// ExecuteOperatorByName executes an operator directly
+func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
+	return ge.ExecuteAdHocGraph(ctx, name, GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, mainArgs, mainInput)
+}
+
+// ExecuteGraphByTags executes graphs with given tags
+func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+	taggroups := [][]string{}
+	for _, t := range tags {
+		taggroups = append(taggroups, []string{t})
+	}
+	return ge.ExecuteGraphByTagsExtended(ctx, taggroups, args, input)
+}
+
+// ExecuteGraphByTagsExtended executes all graphs that at least one tag of each group
+func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [][]string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+	if tagGroups == nil || len(tagGroups) == 0 {
+		return base.MakeOutputError(http.StatusBadRequest, "No tags given")
+	}
+
+	// ctx.GetLogger().Infof("Executing graph by tags: %v", tagGroups)
+
+	tg := ge.GetGraphDescByTagExtended(tagGroups)
+	if len(tg) <= 1 {
+		for n := range tg {
+			return ge.ExecuteGraph(ctx, n, args, input)
+		}
+		return base.MakeOutputError(404, "No graph with tags found: %v", fmt.Sprint(tagGroups))
+	}
+
+	// need to build a temporary graph containing all graphs with matching tags
+	op := []GraphOperationDesc{}
+	for n := range tg {
+		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n, InputFrom: "_"})
+	}
+	gd := GraphDesc{Operations: op, Tags: []string{"internal"}}
+	name := "ExecuteGraphByTag"
+
+	return ge.ExecuteAdHocGraph(ctx, name, gd, args, input)
 }

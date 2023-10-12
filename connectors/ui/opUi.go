@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
@@ -158,6 +159,7 @@ func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, l
 			logger.Error(err)
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
+		w.WriteString(fmt.Sprintf("<title>%v</title>", templateBaseName))
 		w.Write(styles)
 		err = t.Execute(&w, templateData)
 		if err != nil {
@@ -283,7 +285,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 	return gd
 }
 
-func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger *log.Entry, tmpl string) *base.OperatorIO {
+func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.OperatorIO, logger *log.Entry, tmpl string) *base.OperatorIO {
 	var gd *freepsgraph.GraphDesc
 	var exists bool
 	targetNum := 0
@@ -314,7 +316,7 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 			if td.GraphName == "" {
 				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddGraph(td.GraphName, *gd)
+			err := o.ge.AddGraph(td.GraphName, *gd, true)
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
@@ -322,20 +324,24 @@ func (o *OpUI) editGraph(vars map[string]string, input *base.OperatorIO, logger 
 		if _, ok := formInput["SaveTemp"]; ok {
 			td.GraphName = formInput["GraphName"]
 			if td.GraphName == "" {
-				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
+				td.GraphName = ctx.GetID()
 			}
-			err := o.ge.AddTemporaryGraph(td.GraphName, *gd, "UI")
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, err.Error())
+			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx.GetID())
+			if err.IsError() {
+				return err
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			err := o.ge.AddTemporaryGraph("UIgraph", *gd, "UI")
-			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, err.Error())
+			td.GraphName = formInput["GraphName"]
+			if td.GraphName == "" {
+				td.GraphName = ctx.GetID()
 			}
-			td.Output = "/graph/UIgraph"
+			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx.GetID())
+			if err.IsError() {
+				return err
+			}
+			td.Output = "/graphBuilder/ExecuteGraphFromStore?graphName=" + td.GraphName
 		}
 	}
 
@@ -475,9 +481,9 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 
 	switch fn {
 	case "", "home":
-		return o.editGraph(args, input, logger, "home.html")
+		return o.editGraph(ctx, args, input, logger, "home.html")
 	case "edit", "editGraph":
-		return o.editGraph(args, input, logger, "editgraph.html")
+		return o.editGraph(ctx, args, input, logger, "editgraph.html")
 	case "editTemplate":
 		return o.editTemplate(args, input, logger)
 	case "deleteTemplate":

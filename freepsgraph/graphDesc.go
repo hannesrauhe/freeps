@@ -16,7 +16,6 @@ type GraphOperationDesc struct {
 type GraphDesc struct {
 	Tags       []string
 	Source     string
-	sourceFile string
 	OutputFrom string
 	Operations []GraphOperationDesc
 }

@@ -80,7 +80,7 @@ func (m *OpGraphBuilder) RestoreDeletedGraphFromStore(ctx *base.Context, input *
 	if err != nil {
 		return base.MakeOutputError(400, "Could not restore graph: %v", err)
 	}
-	err = m.GE.AddGraph(args.GraphName, gd)
+	err = m.GE.AddGraph(args.GraphName, gd, false)
 	if err != nil {
 		return base.MakeOutputError(400, "Could not restore graph: %v", err)
 	}

@@ -50,7 +50,7 @@ func (*MockOperator) Shutdown(ctx *base.Context) {
 var _ base.FreepsBaseOperator = &MockOperator{}
 
 func createValidGraph() GraphDesc {
-	return GraphDesc{Operations: []GraphOperationDesc{{Operator: "eval", Function: "echo"}}}
+	return GraphDesc{Operations: []GraphOperationDesc{{Operator: "system", Function: "noop"}}, Source: "test"}
 }
 
 func TestOperatorErrorChain(t *testing.T) {
@@ -127,57 +127,47 @@ func TestGraphStorage(t *testing.T) {
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 	ge := NewGraphEngine(cr, func() {})
-	err = ge.AddGraph("test1", createValidGraph())
-	assert.NilError(t, err)
-	_, err = os.Stat(path.Join(tdir, "externalGraph_test1.json"))
-	assert.NilError(t, err)
-	assert.Assert(t, fileIsInList(cr, "externalGraph_test1.json"))
 
-	err = ge.AddGraph("test2", createValidGraph())
+	// expect embedded graphs to be loaded
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
+
+	gdir := ge.GetGraphDir()
+	err = ge.AddGraph("test1", createValidGraph(), false)
 	assert.NilError(t, err)
-	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
+	_, err = os.Stat(path.Join(gdir, "test1.json"))
 	assert.NilError(t, err)
-	assert.Assert(t, fileIsInList(cr, "externalGraph_test2.json"))
+
+	eg, exists := ge.GetGraphDesc("test1")
+	assert.Assert(t, exists)
+	assert.Equal(t, eg.Source, "test")
+
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
+
+	err = ge.AddGraph("test2", createValidGraph(), false)
+	assert.NilError(t, err)
+	_, err = os.Stat(path.Join(gdir, "test2.json"))
+	assert.NilError(t, err)
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
 
 	g := createValidGraph()
-	g.sourceFile = "foo.json"
-	err = ge.AddGraph("test3", g)
-	assert.NilError(t, err)
-	_, err = os.Stat(path.Join(tdir, "foo.json"))
-	assert.NilError(t, err)
-	assert.Assert(t, fileIsInList(cr, "foo.json"))
+	err = ge.AddGraph("test2", g, false)
+	assert.ErrorContains(t, err, "already exists")
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
 
 	g = createValidGraph()
-	g.sourceFile = "foo-should-no-work.json"
-	err = ge.AddGraph("test3", g)
-	assert.ErrorContains(t, err, "delete")
+	err = ge.AddGraph("test2", g, true)
+	assert.NilError(t, err)
 
-	g = createValidGraph()
-	g.sourceFile = "foo.json"
-	err = ge.AddGraph("test4", createValidGraph())
-	assert.NilError(t, err)
-	_, err = os.Stat(path.Join(tdir, "foo.json"))
-	assert.NilError(t, err)
+	_, err = ge.DeleteGraph("test2")
+	_, exists = ge.GetGraphDesc("test2")
+	assert.Assert(t, !exists)
 	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
-	assert.Assert(t, fileIsInList(cr, "foo.json"))
 
-	ge.DeleteGraph("test4")
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
-	_, err = os.Stat(path.Join(tdir, "foo.json"))
+	_, err = ge.DeleteGraph("test1")
 	assert.NilError(t, err)
-	assert.Assert(t, fileIsInList(cr, "foo.json"))
-
-	ge.DeleteGraph("test2")
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 2)
-	_, err = os.Stat(path.Join(tdir, "externalGraph_test2.json"))
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
+	_, err = os.Stat(path.Join(gdir, "test2.json"))
 	assert.Assert(t, err != nil)
-	assert.Assert(t, false == fileIsInList(cr, "externalGraph_test2.json"))
-
-	ge.DeleteGraph("test3")
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 1)
-	_, err = os.Stat(path.Join(tdir, "foo.json"))
-	assert.Assert(t, err != nil)
-	assert.Assert(t, false == fileIsInList(cr, "foo.json"))
 }
 
 func expectOutput(t *testing.T, op *base.OperatorIO, expectedCode int, expectedOutputMapKeys []string) {
@@ -226,30 +216,30 @@ func TestGraphExecution(t *testing.T) {
 	expectByTagExecution([]string{"not"}, nil)
 
 	g0 := createValidGraph()
-	err = ge.AddGraph("test0", g0)
+	err = ge.AddGraph("test0", g0, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, nil)
 
 	g1 := createValidGraph()
 	g1.AddTags("t1")
-	err = ge.AddGraph("test1", g1)
+	err = ge.AddGraph("test1", g1, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{}) //single graph executed with empty output
 
 	g2 := createValidGraph()
 	g2.AddTags("t1", "t4")
-	err = ge.AddGraph("test2", g2)
+	err = ge.AddGraph("test2", g2, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2"})
 
 	g3 := createValidGraph()
 	g3.AddTags("t1", "t2", "t4")
-	err = ge.AddGraph("test3", g3)
+	err = ge.AddGraph("test3", g3, false)
 	assert.NilError(t, err)
 
 	g4 := createValidGraph()
 	g4.AddTags("t4")
-	err = ge.AddGraph("test4", g4)
+	err = ge.AddGraph("test4", g4, false)
 	assert.NilError(t, err)
 
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
@@ -267,10 +257,10 @@ func TestGraphExecution(t *testing.T) {
 
 	g5 := createValidGraph()
 	g5.AddTags("keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man")
-	ge.AddTemporaryGraph("test5", g5, "testing")
+	ge.AddGraph("test5", g5, false)
 	g6 := createValidGraph()
 	g6.AddTags("keytag1:bar", "keytag2:bla")
-	ge.AddTemporaryGraph("test6", g6, "testing")
+	ge.AddGraph("test6", g6, false)
 
 	expectByTagExtendedExecution([][]string{{"t2", ":yes:man", "keytag2:bla"}, {"t4", "fadabump", "keytag2:bla"}, {"t2", "keytag2:bla"}}, []string{"test3", "test6"})
 
