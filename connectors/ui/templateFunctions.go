@@ -115,6 +115,13 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 		"graph_GetTagMap": func() map[string][]string {
 			return o.ge.GetTagMap()
 		},
+		"operator_GetPossigbleArgs": func(opName string, fn string) []string {
+			op := o.ge.GetOperator(opName)
+			if op == nil {
+				return []string{}
+			}
+			return op.GetPossibleArgs(fn)
+		},
 		"operator_GetArgSuggestions": func(opName string, fn string, arg string) map[string]string {
 			op := o.ge.GetOperator(opName)
 			if op == nil {
