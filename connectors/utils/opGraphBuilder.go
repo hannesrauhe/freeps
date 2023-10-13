@@ -52,7 +52,8 @@ func (m *OpGraphBuilder) DeleteGraph(ctx *base.Context, input *base.OperatorIO, 
 
 // GraphFromStoreArgs are the arguments for the GraphBuilder function
 type GraphFromStoreArgs struct {
-	GraphName string
+	GraphName       string
+	CreateIfMissing *bool
 }
 
 // GraphNameSuggestions returns suggestions for graph names
@@ -65,13 +66,68 @@ func (arg *GraphFromStoreArgs) GraphNameSuggestions(m *OpGraphBuilder) []string 
 	return graphNames
 }
 
+func (m *OpGraphBuilder) buildDefaultOperation() freepsgraph.GraphOperationDesc {
+	return freepsgraph.GraphOperationDesc{
+		Operator:  "system",
+		Function:  "noop",
+		Arguments: map[string]string{},
+	}
+}
+
 // GetGraphFromStore returns a graph from the store
 func (m *OpGraphBuilder) GetGraphFromStore(ctx *base.Context, input *base.OperatorIO, args GraphFromStoreArgs) *base.OperatorIO {
 	gd, err := freepsstore.GetGraph(args.GraphName)
 	if err != nil {
-		return base.MakeOutputError(404, "Graph not found in store: %v", err)
+		gd = freepsgraph.GraphDesc{
+			Operations: []freepsgraph.GraphOperationDesc{
+				m.buildDefaultOperation(),
+			},
+		}
+		if args.CreateIfMissing == nil || !*args.CreateIfMissing {
+			return base.MakeOutputError(404, "Graph not found in store: %v", err)
+		}
+		freepsstore.StoreGraph(args.GraphName, gd, ctx.GetID())
 	}
 	return base.MakeObjectOutput(gd)
+}
+
+// SetOperationArgs sets the fields of an operation given by the number in a graph in the store
+type SetOperationArgs struct {
+	GraphName       string
+	OperationNumber int
+	Operator        *string
+	Function        *string
+	ArgumentName    *string
+	ArgumentValue   *string
+}
+
+// SetOperation sets the fields of an operation given by the number in a graph in the store
+func (m *OpGraphBuilder) SetOperation(ctx *base.Context, input *base.OperatorIO, args SetOperationArgs) *base.OperatorIO {
+	gd, err := freepsstore.GetGraph(args.GraphName)
+	if err != nil {
+		return base.MakeOutputError(404, "Graph not found in store: %v", err)
+	}
+	if args.OperationNumber < 0 || args.OperationNumber > len(gd.Operations) {
+		return base.MakeOutputError(400, "Invalid operation number")
+	}
+	if args.OperationNumber == len(gd.Operations) {
+		gd.Operations = append(gd.Operations, m.buildDefaultOperation())
+	}
+
+	if args.Operator != nil {
+		gd.Operations[args.OperationNumber].Operator = *args.Operator
+	}
+	if args.Function != nil {
+		gd.Operations[args.OperationNumber].Function = *args.Function
+	}
+	if args.ArgumentName != nil {
+		if args.ArgumentValue == nil {
+			return base.MakeOutputError(400, "Argument value is missing")
+		}
+		gd.Operations[args.OperationNumber].Arguments[*args.ArgumentName] = *args.ArgumentValue
+	}
+	freepsstore.StoreGraph(args.GraphName, gd, ctx.GetID())
+	return base.MakeEmptyOutput()
 }
 
 // RestoreDeletedGraphFromStore restores a graph from the backup in store

@@ -35,6 +35,9 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			}
 			return rv.FieldByName(name).IsValid()
 		},
+		"getContextID": func() string {
+			return ctx.GetID()
+		},
 		"store_GetNamespaces": func() []string {
 			ns := freepsstore.GetGlobalStore().GetNamespaces()
 			sort.Strings(ns)
@@ -91,6 +94,9 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			v := ns.GetValue(key)
 			return v.GetData().GetString()
 		},
+		"ge_GetOperators": func() []string {
+			return o.ge.GetOperators()
+		},
 		"graph_GetGraphDescByTag": func(tagstr string) map[string]freepsgraph.GraphDesc {
 			tags := []string{}
 			if tagstr != "" {
@@ -114,6 +120,13 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 		},
 		"graph_GetTagMap": func() map[string][]string {
 			return o.ge.GetTagMap()
+		},
+		"operator_GetFunctions": func(opName string) []string {
+			op := o.ge.GetOperator(opName)
+			if op == nil {
+				return []string{}
+			}
+			return op.GetFunctions()
 		},
 		"operator_GetPossigbleArgs": func(opName string, fn string) []string {
 			op := o.ge.GetOperator(opName)
