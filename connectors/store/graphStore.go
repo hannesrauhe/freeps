@@ -36,7 +36,7 @@ func StoreGraph(name string, gd freepsgraph.GraphDesc, modifiedBy string) *base.
 	if err != nil {
 		return base.MakeOutputError(500, "Failed to marshal graph: "+err.Error())
 	}
-	return GetGraphStore().SetValue(name, base.MakeByteOutput(b), modifiedBy)
+	return GetGraphStore().SetValue(name, base.MakeByteOutput(b), modifiedBy).GetData()
 }
 
 // DeleteGraph deletes a graph from the store

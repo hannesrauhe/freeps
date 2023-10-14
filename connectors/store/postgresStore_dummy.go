@@ -62,11 +62,11 @@ func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge tim
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 

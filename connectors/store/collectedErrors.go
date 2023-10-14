@@ -34,11 +34,11 @@ func NewCollectedErrors(config *StoreConfig) *CollectedErrors {
 func (ce *CollectedErrors) AddError(input *base.OperatorIO, err *base.OperatorIO, ctx *base.Context, graphName string, od *freepsgraph.GraphOperationDesc) error {
 	e := &CollectedError{Input: input, Error: err.GetString(), GraphName: graphName, Operation: od}
 	id := ce.errorCounter.Add(1)
-	storeErr := ce.ns.SetValue(fmt.Sprint(id), base.MakeObjectOutput(e), ctx.GetID())
+	storeErr := ce.ns.SetValue(fmt.Sprint(id), base.MakeObjectOutput(e), ctx.GetID()).GetData()
 	if storeErr.IsError() {
 		return storeErr.GetError()
 	}
-	storeErr = ce.ns.SetValue(fmt.Sprintf("%d-input", id), input, ctx.GetID())
+	storeErr = ce.ns.SetValue(fmt.Sprintf("%d-input", id), input, ctx.GetID()).GetData()
 	if storeErr.IsError() {
 		return storeErr.GetError()
 	}

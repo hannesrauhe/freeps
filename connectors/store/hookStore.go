@@ -156,7 +156,7 @@ func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mai
 	if !ctx.IsRootContext() {
 		return nil
 	}
-	out := h.executionLogNs.SetValue(ctx.GetID(), base.MakeObjectOutput(ctx), ctx.GetID())
+	out := h.executionLogNs.SetValue(ctx.GetID(), base.MakeObjectOutput(ctx), ctx.GetID()).GetData()
 	if out.IsError() {
 		return out.GetError()
 	}

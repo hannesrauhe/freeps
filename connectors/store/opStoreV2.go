@@ -115,3 +115,30 @@ func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGe
 	}
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
 }
+
+// StoreSetArgs are the arguments for the StoreSet function
+type StoreSetArgs struct {
+	Namespace string
+	Key       string
+	Output    string
+	MaxAge    *time.Duration
+}
+
+// NamespaceSuggestions returns a list of namespaces
+func (p *StoreSetArgs) NamespaceSuggestions(oc *OpStore) []string {
+	return store.GetNamespaces()
+}
+
+// Set sets a value in the store
+func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreSetArgs) *base.OperatorIO {
+	nsStore := store.GetNamespace(args.Namespace)
+	var e StoreEntry
+	if args.MaxAge != nil {
+		e = nsStore.OverwriteValueIfOlder(args.Key, input, *args.MaxAge, ctx.GetID())
+		if e.GetData().IsError() {
+			return e.GetData()
+		}
+	}
+	e = nsStore.SetValue(args.Key, input, ctx.GetID())
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
+}

@@ -177,17 +177,11 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		}
 	case "set":
 		{
+			argsStruct := StoreSetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil}
 			if maxAgeRequest {
-				io := nsStore.OverwriteValueIfOlder(key, input, maxAge, ctx.GetID())
-				if io.IsError() {
-					return io
-				}
+				argsStruct.MaxAge = &maxAge
 			}
-			io := nsStore.SetValue(key, input, ctx.GetID())
-			if io.IsError() {
-				return io
-			}
-			result[ns] = map[string]*base.OperatorIO{key: input}
+			return o.Set(ctx, input, argsStruct)
 		}
 	case "compareAndSwap":
 		{

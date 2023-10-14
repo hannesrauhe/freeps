@@ -282,11 +282,11 @@ func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge tim
 	}
 }
 
-func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+	return MakeEntryError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
-func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
 	var execErr error
 	insertStart := fmt.Sprintf("insert into %s.%s", p.schema, p.name)
 	if io.IsEmpty() {
@@ -296,7 +296,7 @@ func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 	} else {
 		b, err := io.GetBytes()
 		if err != nil {
-			base.MakeOutputError(http.StatusInternalServerError, "cannot get bytes for insertion in postgres: %v", err)
+			return MakeEntryError(http.StatusInternalServerError, "cannot get bytes for insertion in postgres: %v", err)
 		}
 		if io.IsObject() {
 			_, execErr = db.Exec(insertStart+"(key, output_type, content_type, http_code, modified_by, value_json) values($1,$2,$3,$4,$5,$6)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, b)
@@ -305,9 +305,9 @@ func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 		}
 	}
 	if execErr != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "error when inserting into postgres: %v", execErr)
+		return MakeEntryError(http.StatusInternalServerError, "error when inserting into postgres: %v", execErr)
 	}
-	return io
+	return StoreEntry{timestamp: time.Now(), data: io, modifiedBy: modifiedBy}
 }
 
 func (p *postgresStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
