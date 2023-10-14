@@ -36,6 +36,14 @@
                 <option value="{{$fn_opt}}">{{$fn_opt}}</option>
                 {{ end }}
             </datalist>
+            <details class=dropdown>
+                <summary class="button outline">All functions</summary>
+                <div class="card row">
+                {{ range $i, $fn_opt := operator_GetFunctions $operator }}
+                <button name="function" value="{{$fn_opt}}">{{$fn_opt}}</button>
+                {{ end }}
+                </form>
+            </details>
         </div>
     </form>
     <form method="get" class="row" action="/graph/{{$requestedGraph}}">
