@@ -43,11 +43,14 @@
 	<p>
 		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
 	</p>
+	{{ if eq $op.Operator "graph" }}
+	<p>
+		Edit Graph {{ $op.Function }}: <a href="/ui/editGraph?graph={{ $op.Function }}">{{ $op.Function }}</a>
+	</p>
+	{{ end }}
 </div>
 
-	<div style="float: left; margin:10px">
-		<textarea name="GraphJSON" cols="50" rows="20" >{{ .GraphJSON }}</textarea>
-	</div>
+	<input type="hidden" name="GraphJSON" value="{{ .GraphJSON }}">
 
 	<div style="clear: both">
 		<button type="submit" name="Execute" value="Execute">Execute</button>
@@ -55,11 +58,35 @@
 		<button type="submit" name="SaveTemp">Save Temporarily</button>
 		<button type="submit" name="SaveGraph">Save Graph</button>
 		<button type="submit" name="GraphJSON" value="" />Reset</button>
-	</div>
+	</div>	
+</form>
+<hr />
+<form action="/{{$op.Operator}}/{{$op.Function}}" method="POST" target="outputframe">
+{{ range $argName, $argVal := $op.Arguments }}
+	<p><label for="input_{{ $argName }}">{{ $argName }}: </label>
+		<input id="input_{{ $argName }}" type="text" name="{{ $argName }}" value="{{ $argVal }}" disabled/>
+	</p>
+{{ end }}
+
+{{ $TestInput := "" }}
+{{ if eq $op.Operator "graph" }}
+	{{ $gi := store_Get "_graph_info" $op.Function }}
+	{{ if hasField $gi "Input" }}
+		{{ $TestInput = $gi.Input }}
+	{{ end }}
+{{ end }}
+	<p>
+		<label for="textarea_input">Input: </label>
+		<textarea id="textarea_input" name="input" cols="50" rows="10" >{{ $TestInput }}</textarea>
+	</p>
+	<p>
+		<label for="input_input_content-type">Content-Type (optional):</label>
+		<input id="input_input_content_type" name="input-content-type">
+		<button type="submit" name="ExecuteWithInput" value="Execute">Execute</button>
+	</p>
+</form>
 {{ if ne .Output "" }}
 <iframe name="outputframe"
 	style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden"
 	id="outputframe" src="{{ .Output }}"></iframe>
 {{ end }}
-
-	</form>

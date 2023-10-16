@@ -1,0 +1,65 @@
+<link rel="stylesheet" href="/chota.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+{{ $requestedGraph := "" }}
+{{ if .arguments.graphname }}
+    {{ $requestedGraph = .arguments.graphname }}
+{{ else }}
+    {{ $requestedGraph = getContextID }}
+{{ end }}
+{{ $result := printf "CreateIfMissing=true&graphName=%v" $requestedGraph | graph_ExecuteOperator "graphBuilder" "getgraphfromstore" }}
+{{ if eq 200 $result.HTTPCode }}
+{{ $graphDesc := $result.Output }}
+{{ $operationNumber := 0}}
+{{ $operation := index $graphDesc.Operations $operationNumber }}
+{{ $operator := $operation.Operator }}
+{{ $function := $operation.Function }}
+<div class="container"> 
+    <form method="post" class="row" action="/graphBuilder/SetOperation">        
+        <input type="hidden" name="redirect" value="{{$.selfPath}}?graphName={{$requestedGraph}}">
+        <input type="hidden" name="operationNumber" value="{{$operationNumber}}">
+        <input type="hidden" name="graphName" value="{{$requestedGraph}}">
+        <div class="col">
+            <label for="select_operator">Operator:</label>
+            <select name="operator" id="select_operator" onchange="this.form.submit()">
+                {{ range $i, $op_opt := ge_GetOperators }}
+                <option value="{{$op_opt}}" {{if eq $op_opt $operator}}selected{{end}}>{{$op_opt}}</option>
+                {{ end }}
+            </select>
+        </div>
+        <div class="col">
+            <label for="input_function">Function:</label>
+            <input type="search" value="{{$function}}" name="function" id="input_function" list="datalist_function">
+            <!-- suggestions for the function input -->
+            <datalist id="datalist_function" for>
+                {{ range $i, $fn_opt := operator_GetFunctions $operator }}
+                <option value="{{$fn_opt}}">{{$fn_opt}}</option>
+                {{ end }}
+            </datalist>
+            <details class=dropdown>
+                <summary class="button outline">All functions</summary>
+                <div class="card row">
+                {{ range $i, $fn_opt := operator_GetFunctions $operator }}
+                <button name="function" value="{{$fn_opt}}">{{$fn_opt}}</button>
+                {{ end }}
+                </form>
+            </details>
+        </div>
+    </form>
+    <form method="get" class="row" action="/graph/{{$requestedGraph}}">
+{{ range $key, $entry :=  $graphDesc.Operations }}
+        <p>
+            <label for="input_{{$entry.Name}}">{{$entry.Name}}</label>
+            <input type="text" name="{{$entry.Name}}" id="input_{{$entry.Name}}" value="" />
+        </p>
+{{ end }}
+        <button>Execute</button>
+    </form>
+</div>
+{{ else }}
+<div class="container">
+    <h1>Graph {{$requestedGraph}} not loaded</h1>
+    <p>Error: {{ $result }}</p>
+</div>
+{{ end }}
+

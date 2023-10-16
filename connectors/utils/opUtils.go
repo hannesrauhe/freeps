@@ -172,6 +172,23 @@ func (m *OpUtils) EchoArguments(ctx *base.Context, input *base.OperatorIO, args 
 	return base.MakeObjectOutput(output)
 }
 
+// Remap values from the input to the output
+func (m *OpUtils) RemapKeys(ctx *base.Context, input *base.OperatorIO, args EchoArgumentsArgs, mapping map[string]string) *base.OperatorIO {
+	oldArgs, err := input.GetArgsMap()
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string: %v", err)
+	}
+	output := map[string]interface{}{}
+	for k, v := range oldArgs {
+		if newKey, ok := mapping[k]; ok {
+			output[newKey] = v
+		} else {
+			output[k] = v
+		}
+	}
+	return base.MakeObjectOutput(output)
+}
+
 // StringSplitArgs are the arguments for the Split function
 type StringSplitArgs struct {
 	Sep string
@@ -199,4 +216,25 @@ type StringReplaceArgs struct {
 // StringReplace replaces the given search string with the given replace string
 func (m *OpUtils) StringReplace(ctx *base.Context, input *base.OperatorIO, args StringReplaceArgs) *base.OperatorIO {
 	return base.MakePlainOutput(strings.Replace(input.GetString(), args.Search, args.Replace, -1))
+}
+
+// ConvertFormDataToInputArgs are the arguments for the ConvertFormDataToInput function
+type ConvertFormDataToInputArgs struct {
+	InputFieldName *string
+}
+
+// ConvertFormDataToInput takes the "input" field from the form data and passes it on directly
+func (m *OpUtils) ConvertFormDataToInput(ctx *base.Context, input *base.OperatorIO, args ConvertFormDataToInputArgs) *base.OperatorIO {
+	formData, err := input.ParseFormData()
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "input not valid form data: %v", err)
+	}
+	inputFieldName := "input"
+	if args.InputFieldName != nil {
+		inputFieldName = *args.InputFieldName
+	}
+	if formData.Has(inputFieldName) {
+		return base.MakePlainOutput(formData.Get(inputFieldName))
+	}
+	return base.MakeOutputError(http.StatusBadRequest, "input not valid form data: no input field")
 }
