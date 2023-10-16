@@ -75,9 +75,15 @@
 		{{ $TestInput = $gi.Input }}
 	{{ end }}
 {{ end }}
-	<label for="textarea_input">Input: </label>
-	<textarea id="textarea_input" name="input" cols="50" rows="10" >{{ $TestInput }}</textarea>
-	<button type="submit" name="ExecuteWithInput" value="Execute">Execute</button>
+	<p>
+		<label for="textarea_input">Input: </label>
+		<textarea id="textarea_input" name="input" cols="50" rows="10" >{{ $TestInput }}</textarea>
+	</p>
+	<p>
+		<label for="input_input_content-type">Content-Type (optional):</label>
+		<input id="input_input_content_type" name="input-content-type">
+		<button type="submit" name="ExecuteWithInput" value="Execute">Execute</button>
+	</p>
 </form>
 {{ if ne .Output "" }}
 <iframe name="outputframe"
