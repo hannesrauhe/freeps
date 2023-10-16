@@ -41,14 +41,48 @@ func (o *OpGraph) GetFunctions() []string {
 	return graphs
 }
 
-// GetPossibleArgs returns an empty slice, because possible arguments are unknown
+// GetPossibleArgs returns suggestions based on the suggestions of the operators in the graph
 func (o *OpGraph) GetPossibleArgs(fn string) []string {
-	return []string{}
+	agd, exists := o.ge.GetGraphDesc(fn)
+	if !exists {
+		return []string{}
+	}
+	possibleArgs := make([]string, 0)
+	for _, op := range agd.Operations {
+		if op.IgnoreMainArgs {
+			continue
+		}
+		thisOpArgs := o.ge.GetOperator(op.Operator).GetPossibleArgs(op.Function)
+		possibleArgs = append(possibleArgs, thisOpArgs...)
+	}
+	return possibleArgs
 }
 
-// GetArgSuggestions returns an empty map, because possible arguments are unknown
+// GetArgSuggestions returns suggestions based on the suggestions of the operators in the graph
 func (o *OpGraph) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
-	return map[string]string{}
+	agd, exists := o.ge.GetGraphDesc(fn)
+	if !exists {
+		return map[string]string{}
+	}
+	possibleValues := make(map[string]string, 0)
+	for _, op := range agd.Operations {
+		if op.IgnoreMainArgs {
+			continue
+		}
+		// build a map of all arguments that will be passed to this operation on execution
+		thisOpArgs := make(map[string]string)
+		for k, v := range op.Arguments {
+			thisOpArgs[k] = v
+		}
+		for k, v := range otherArgs {
+			thisOpArgs[k] = v
+		}
+		thisOpSuggestions := o.ge.GetOperator(op.Operator).GetArgSuggestions(op.Function, arg, thisOpArgs)
+		for k, v := range thisOpSuggestions {
+			possibleValues[k] = v
+		}
+	}
+	return possibleValues
 }
 
 // StartListening (noOp)
