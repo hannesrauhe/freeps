@@ -132,9 +132,10 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 	switch fn {
 	case "search":
 		{
-			output = "arguments" // just for completenes, will not be read afterwards
-			fullres := nsStore.GetSearchResultWithMetadata(args["key"], args["value"], args["modifiedBy"], minAge, maxAge)
-			return base.MakeObjectOutput(fullres)
+			value := args["value"]
+			modifiedBy := args["modifiedBy"]
+			sargs := StoreSearchArgs{Namespace: ns, Key: &key, Value: &value, ModifiedBy: &modifiedBy, MinAge: &minAge, MaxAge: &maxAge, Output: &output}
+			return o.Search(ctx, input, sargs)
 		}
 	case "getAll":
 		{

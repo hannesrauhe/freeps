@@ -149,3 +149,28 @@ func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreSe
 	nsStore.DeleteValue(args.Key)
 	return base.MakeEmptyOutput()
 }
+
+// StoreSearchArgs are the arguments for the StoreSet function
+type StoreSearchArgs struct {
+	Namespace  string
+	Key        *string
+	Value      *string
+	ModifiedBy *string
+	MinAge     *time.Duration
+	MaxAge     *time.Duration
+	Output     *string
+}
+
+// NamespaceSuggestions returns a list of namespaces
+func (p *StoreSearchArgs) NamespaceSuggestions(oc *OpStore) []string {
+	return store.GetNamespaces()
+}
+
+//TODO: add default functions
+
+// Search searches the store for values matching the given criteria
+func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSearchArgs) *base.OperatorIO {
+	nsStore := store.GetNamespace(args.Namespace)
+	res := nsStore.GetSearchResultWithMetadata(*args.Key, *args.Value, *args.ModifiedBy, *args.MinAge, *args.MaxAge)
+	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, res)
+}

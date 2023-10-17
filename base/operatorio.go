@@ -82,7 +82,10 @@ func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
 	if io.IsEmpty() {
 		return map[string]string{}, nil
 	}
-	return nil, fmt.Errorf("Output is not of type map, but %T", io.Output)
+	if io.ParseJSON(&strmap) == nil {
+		return strmap, nil
+	}
+	return nil, fmt.Errorf("Output is not convertible to type map, type is %T", io.Output)
 }
 
 func (io *OperatorIO) ParseJSON(obj interface{}) error {
