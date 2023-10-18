@@ -175,20 +175,6 @@ func matches(k string, v StoreEntry, keyPattern, valuePattern, modifiedByPattern
 	return true
 }
 
-// GetAllFiltered searches through all keys, optionally finds substring in key, value and ID, and returns only records younger than maxAge
-func (s *inMemoryStoreNamespace) GetAllFiltered(keyPattern, valuePattern, modifiedByPattern string, minAge, maxAge time.Duration) map[string]*base.OperatorIO {
-	s.nsLock.Lock()
-	defer s.nsLock.Unlock()
-	tnow := time.Now()
-	copy := map[string]*base.OperatorIO{}
-	for k, v := range s.entries {
-		if matches(k, v, keyPattern, valuePattern, modifiedByPattern, minAge, maxAge, tnow) {
-			copy[k] = v.data
-		}
-	}
-	return copy
-}
-
 // GetSearchResultWithMetadata searches through all keys, optionally finds substring in key, value and ID, and returns only records younger than maxAge
 func (s *inMemoryStoreNamespace) GetSearchResultWithMetadata(keyPattern, valuePattern, modifiedByPattern string, minAge, maxAge time.Duration) map[string]StoreEntry {
 	s.nsLock.Lock()

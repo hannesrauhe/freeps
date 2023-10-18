@@ -138,7 +138,11 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		}
 	case "getAll":
 		{
-			result[ns] = nsStore.GetAllFiltered(key, args["value"], args["modifiedBy"], minAge, maxAge)
+			r := nsStore.GetSearchResultWithMetadata(key, args["value"], args["modifiedBy"], minAge, maxAge)
+			result[ns] = map[string]*base.OperatorIO{}
+			for k, v := range r {
+				result[ns][k] = v.data
+			}
 		}
 	case "setAll":
 		{
@@ -197,8 +201,11 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		}
 	case "del", "delete", "remove":
 		{
-			nsStore.DeleteValue(key)
-			return base.MakeEmptyOutput()
+			argsStruct := StoreSetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil}
+			if maxAgeRequest {
+				argsStruct.MaxAge = &maxAge
+			}
+			return o.Delete(ctx, input, argsStruct)
 		}
 	case "deleteOlder":
 		{

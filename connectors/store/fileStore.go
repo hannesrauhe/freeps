@@ -100,10 +100,6 @@ func fileMatches(de fs.DirEntry, keyPattern, valuePattern, modifiedByPattern str
 	return &i
 }
 
-func (p *fileStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
-	panic("not implemented") // TODO: Implement
-}
-
 func (p *fileStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry {
 	res := map[string]StoreEntry{}
 	dirEntries, err := os.ReadDir(p.dir)

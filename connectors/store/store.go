@@ -62,7 +62,6 @@ type StoreNamespace interface {
 	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO
 	DeleteOlder(maxAge time.Duration) int
 	DeleteValue(key string)
-	GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO
 	GetAllValues(limit int) map[string]*base.OperatorIO
 	GetKeys() []string
 	Len() int

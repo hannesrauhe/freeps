@@ -140,15 +140,6 @@ func (p *postgresStoreNamespace) DeleteValue(key string) {
 	panic("not implemented") // TODO: Implement
 }
 
-func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
-	result := map[string]*base.OperatorIO{}
-	r := p.GetSearchResultWithMetadata(keyPattern, valuePattern, modifiedByPattern, minAge, maxAge)
-	for k, v := range r {
-		result[k] = v.data
-	}
-	return result
-}
-
 func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
 	panic("not implemented") // TODO: Implement
 }

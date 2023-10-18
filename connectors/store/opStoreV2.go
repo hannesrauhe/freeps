@@ -142,3 +142,10 @@ func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreSetAr
 	e = nsStore.SetValue(args.Key, input, ctx.GetID())
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
 }
+
+// Delete deletes a key from the store
+func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreSetArgs) *base.OperatorIO {
+	nsStore := store.GetNamespace(args.Namespace)
+	nsStore.DeleteValue(args.Key)
+	return base.MakeEmptyOutput()
+}

@@ -38,10 +38,6 @@ func (p *postgresStoreNamespace) DeleteValue(key string) {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
-	panic("postgres support not compiled, method should not be called")
-}
-
 func (p *postgresStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO {
 	panic("postgres support not compiled, method should not be called")
 }
