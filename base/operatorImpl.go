@@ -195,16 +195,19 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 }
 
 // getInitializedParamStruct returns the struct that is the third parameter of the function,
-// if the struct implements the FreepsFunctionParameters interface, InitOptionalParameters is called and the struct is returned
+// if it has a function Init([opinstance]), call it to intialize optional values
 func (o *FreepsOperatorWrapper) getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
 	paramStruct := f.In(2)
 
 	paramStructInstance := reflect.New(paramStruct)
+	if psI, ok := paramStructInstance.Interface().(FreepsFunctionParametersWithInit); ok {
+		psI.Init(o.opInstance, f.Name())
+	}
+
 	if !paramStructInstance.Type().Implements(reflect.TypeOf((*FreepsFunctionParameters)(nil)).Elem()) {
 		return paramStructInstance, nil
 	}
 	ps := paramStructInstance.Interface().(FreepsFunctionParameters)
-	ps.InitOptionalParameters(o.opInstance, f.Name())
 	return paramStructInstance, ps
 }
 

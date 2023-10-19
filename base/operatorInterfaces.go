@@ -37,11 +37,13 @@ type FreepsOperatorWithShutdown interface {
 	Shutdown(ctx *Context)
 }
 
+// FreepsFunctionParametersWithInit adds the Init() method to FreepsFunctionParameters
+type FreepsFunctionParametersWithInit interface {
+	Init(operator FreepsOperator, fn string)
+}
+
 // FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
 type FreepsFunctionParameters interface {
-	// InitOptionalParameters initializes the optional (pointer) arguments of the parameters struct with default values
-	InitOptionalParameters(operator FreepsOperator, fn string)
-
 	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
 	GetArgSuggestions(operator FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string
 

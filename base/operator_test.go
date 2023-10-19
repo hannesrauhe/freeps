@@ -107,7 +107,7 @@ func (mf *MyTestFuncParams) GetArgSuggestions(op FreepsOperator, fn string, argN
 	return map[string]string{}
 }
 
-func (mf *MyTestFuncParams) InitOptionalParameters(op FreepsOperator, fn string) {
+func (mf *MyTestFuncParams) Init(op FreepsOperator, fn string) {
 	mf.OptParamWithDefault = new(int)
 	*mf.OptParamWithDefault = 42
 }
