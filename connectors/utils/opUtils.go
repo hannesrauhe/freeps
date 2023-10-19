@@ -261,24 +261,3 @@ func (m *OpUtils) ConvertFormDataToInput(ctx *base.Context, input *base.Operator
 	}
 	return base.MakeOutputError(http.StatusBadRequest, "input not valid form data: no input field")
 }
-
-// ConvertFormDataToInputArgs are the arguments for the ConvertFormDataToInput function
-type ConvertFormDataToInputArgs struct {
-	InputFieldName *string
-}
-
-// ConvertFormDataToInput takes the "input" field from the form data and passes it on directly
-func (m *OpUtils) ConvertFormDataToInput(ctx *base.Context, input *base.OperatorIO, args ConvertFormDataToInputArgs) *base.OperatorIO {
-	formData, err := input.ParseFormData()
-	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "input not valid form data: %v", err)
-	}
-	inputFieldName := "input"
-	if args.InputFieldName != nil {
-		inputFieldName = *args.InputFieldName
-	}
-	if formData.Has(inputFieldName) {
-		return base.MakePlainOutput(formData.Get(inputFieldName))
-	}
-	return base.MakeOutputError(http.StatusBadRequest, "input not valid form data: no input field")
-}
