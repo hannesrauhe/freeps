@@ -61,7 +61,7 @@
 	</div>	
 </form>
 <hr />
-<form action="/{{$op.Operator}}/{{$op.Function}}" method="POST" target="outputframe">
+<form action="{{ .Quicklink }}" method="POST" target="outputframe">
 {{ range $argName, $argVal := $op.Arguments }}
 	<p><label for="input_{{ $argName }}">{{ $argName }}: </label>
 		<input id="input_{{ $argName }}" type="text" name="{{ $argName }}" value="{{ $argVal }}" disabled/>
