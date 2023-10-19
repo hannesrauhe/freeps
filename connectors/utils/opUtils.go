@@ -209,13 +209,36 @@ func (m *OpUtils) StringSplit(ctx *base.Context, input *base.OperatorIO, args St
 
 // StringReplaceArgs are the arguments for the StringReplace function
 type StringReplaceArgs struct {
-	Search  string
-	Replace string
+	InputString *string
+	Search      string
+	Replace     string
 }
 
 // StringReplace replaces the given search string with the given replace string
 func (m *OpUtils) StringReplace(ctx *base.Context, input *base.OperatorIO, args StringReplaceArgs) *base.OperatorIO {
-	return base.MakePlainOutput(strings.Replace(input.GetString(), args.Search, args.Replace, -1))
+	inputStr := input.GetString()
+	if args.InputString != nil {
+		inputStr = *args.InputString
+	}
+	return base.MakePlainOutput(strings.Replace(inputStr, args.Search, args.Replace, -1))
+}
+
+// StringReplaceMultiArgs
+type StringReplaceMultiArgs struct {
+	InputString *string
+}
+
+// StringReplaceMulti replaces given args framed with "%" with their values
+func (m *OpUtils) StringReplaceMulti(ctx *base.Context, input *base.OperatorIO, args StringReplaceMultiArgs, otherArgs map[string]string) *base.OperatorIO {
+	inputStr := input.GetString()
+	if args.InputString != nil {
+		inputStr = *args.InputString
+	}
+	for k, v := range otherArgs {
+		searchStr := "%" + k + "%"
+		inputStr = strings.Replace(inputStr, searchStr, v, -1)
+	}
+	return base.MakePlainOutput(inputStr)
 }
 
 // ConvertFormDataToInputArgs are the arguments for the ConvertFormDataToInput function
