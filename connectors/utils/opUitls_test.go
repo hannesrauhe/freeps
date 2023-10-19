@@ -6,6 +6,7 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
+	"gotest.tools/v3/assert"
 )
 
 func TestFlattenWithRegexp(t *testing.T) {
@@ -38,4 +39,22 @@ func TestFlattenWithRegexp(t *testing.T) {
 	if obj["params.foo"] != "4" {
 		t.Errorf("Flatten returned wrong value for params.foo: %v", out)
 	}
+}
+
+func TestStringReplace(t *testing.T) {
+	ctx := base.NewContext(logrus.StandardLogger())
+
+	o := base.MakeFreepsOperators(&OpUtils{}, nil, ctx)[0]
+	args := map[string]string{
+		"InputString": "%a% + %b% = %c%",
+		"a":           "1",
+		"b":           "2",
+		"c":           "3",
+	}
+
+	input := base.MakeEmptyOutput()
+
+	// include regexp: all keys that start with "params", exclude regexp: all keys that contain "icon"
+	out := o.Execute(ctx, "StringReplaceMulti", args, input)
+	assert.Equal(t, out.GetString(), "1 + 2 = 3")
 }
