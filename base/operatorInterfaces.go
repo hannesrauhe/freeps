@@ -19,6 +19,19 @@ type FreepsOperator interface {
 	// every exported function that follows the rules given in FreepsFunctionType is a FreepsFunction
 }
 
+// FreepsOperatorWithDynamicFunctions adds methods to support dynamic functions to FreepsOperator
+type FreepsOperatorWithDynamicFunctions interface {
+	FreepsOperator
+	// GetDynamicFunctions returns a list of functions that are dynamically added to the operator
+	GetDynamicFunctions() []string
+	// GetDynamicPossibleArgs returns a list of possible arguments for the given function
+	GetDynamicPossibleArgs(fn string) []string
+	// GetDynamicArgSuggestions returns a map of possible arguments for the given function and argument name
+	GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
+	// ExecuteDynamic executes the given function with the given arguments
+	ExecuteDynamic(ctx *Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO
+}
+
 // FreepsOperatorWithConfig adds methods to support multiple configurations to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator

@@ -297,8 +297,15 @@ func (o *FreepsOperatorWrapper) GetName() string {
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := utils.KeysToLower(args)
+
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
+		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+		if ok {
+			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), lowercaseArgs, mainInput)
+		}
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
 	}
 
@@ -313,12 +320,6 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	case FreepsFunctionTypeContextAndInput:
 		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput)})
 		return outValue[0].Interface().(*OperatorIO)
-	}
-
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := map[string]string{}
-	for k, v := range args {
-		lowercaseArgs[utils.StringToLower(k)] = v
 	}
 
 	// create an initialized instance of the parameter struct
@@ -370,6 +371,11 @@ func (o *FreepsOperatorWrapper) GetFunctions() []string {
 	for _, v := range o.functionMetaDataMap {
 		list = append(list, v.Name)
 	}
+
+	dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+	if ok {
+		list = append(list, dynmaicOp.GetDynamicFunctions()...)
+	}
 	return list
 }
 
@@ -379,6 +385,10 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 
 	m := o.getFunctionMetaData(fn)
 	if m == nil {
+		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+		if ok {
+			return dynmaicOp.GetDynamicPossibleArgs(utils.StringToLower(fn))
+		}
 		return list
 	}
 	if m.FuncType == FreepsFunctionTypeSimple || m.FuncType == FreepsFunctionTypeContextOnly || m.FuncType == FreepsFunctionTypeContextAndInput {
@@ -400,21 +410,21 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 
 // GetArgSuggestions creates a Freepsfunction by name and returns the suggestions for the argument argName
 func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName string, otherArgs map[string]string) map[string]string {
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := utils.KeysToLower(otherArgs)
 	res := map[string]string{}
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
+		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+		if ok {
+			return dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
+		}
 		return res
 	}
 
 	switch ffm.FuncType {
 	case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput:
 		return res
-	}
-
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := map[string]string{}
-	for k, v := range otherArgs {
-		lowercaseArgs[utils.StringToLower(k)] = v
 	}
 
 	// create an initialized instance of the parameter struct
