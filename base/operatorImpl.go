@@ -108,7 +108,7 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			ctx.GetLogger().Debugf("Operator \"%v\" disabled", opVariationSectionName)
 			continue
 		}
-		opVariation, err := opVariation0.InitCopyOfOperator(conf, ctx)
+		opVariation, err := opVariation0.InitCopyOfOperator(ctx, conf, opVariationSectionName)
 		if err != nil {
 			ctx.logger.Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
@@ -196,12 +196,12 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 
 // getInitializedParamStruct returns the struct that is the third parameter of the function,
 // if it has a function Init([opinstance]), call it to intialize optional values
-func (o *FreepsOperatorWrapper) getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
+func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
 	paramStruct := f.In(2)
 
 	paramStructInstance := reflect.New(paramStruct)
 	if psI, ok := paramStructInstance.Interface().(FreepsFunctionParametersWithInit); ok {
-		psI.Init(o.opInstance, f.Name())
+		psI.Init(ctx, o.opInstance, f.Name())
 	}
 
 	if !paramStructInstance.Type().Implements(reflect.TypeOf((*FreepsFunctionParameters)(nil)).Elem()) {
@@ -267,7 +267,7 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 		}
 		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
 		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
-			paramStruct, ps := o.getInitializedParamStruct(t.Method(i).Type)
+			paramStruct, ps := o.getInitializedParamStruct(ctx, t.Method(i).Type)
 			if ps == nil && paramStruct.NumMethod() > 0 {
 				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", t.Method(i).Name, o.GetName())
 			}
@@ -321,7 +321,7 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	}
 
 	// create an initialized instance of the parameter struct
-	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
+	paramStruct, ps := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
 
 	failOnError := true
 
@@ -428,7 +428,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		}
 
 		// create an initialized instance of the parameter struct
-		paramStruct, ps = o.getInitializedParamStruct(ffm.FuncValue.Type())
+		paramStruct, ps = o.getInitializedParamStruct(nil, ffm.FuncValue.Type())
 
 		//set all required parameters of the FreepsFunction
 		o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, false)

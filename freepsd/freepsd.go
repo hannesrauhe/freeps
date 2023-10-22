@@ -59,7 +59,6 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 }
 
 func mainLoop() bool {
-
 	logger := logrus.StandardLogger()
 	if verbose {
 		logger.SetLevel(logrus.DebugLevel)
@@ -100,6 +99,7 @@ func mainLoop() bool {
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
+		&fritz.OpFritz{},
 	}
 
 	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
@@ -110,7 +110,6 @@ func mainLoop() bool {
 	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
-	ge.AddOperator(fritz.NewOpFritz(cr))
 	freepsexec.AddExecOperators(cr, ge)
 
 	sh, err := freepsstore.NewStoreHook(cr, ge)

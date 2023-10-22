@@ -21,7 +21,7 @@ func (mm *MuteMe) GetDefaultConfig() interface{} {
 }
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
-func (mm *MuteMe) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+func (mm *MuteMe) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	var err error
 	if impl != nil {
 		return nil, fmt.Errorf("Only one instance of muteme is allowed")

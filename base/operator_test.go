@@ -211,7 +211,7 @@ type MyTestOperatorWithConfig struct {
 
 var _ FreepsOperatorWithConfig = &MyTestOperatorWithConfig{}
 
-func (mt *MyTestOperatorWithConfig) InitCopyOfOperator(config interface{}, ctx *Context) (FreepsOperatorWithConfig, error) {
+func (mt *MyTestOperatorWithConfig) InitCopyOfOperator(ctx *Context, config interface{}, name string) (FreepsOperatorWithConfig, error) {
 	newMt := MyTestOperatorWithConfig{bla: 42}
 	return &newMt, nil
 }
