@@ -63,7 +63,7 @@ func (mt *MyDynamicTestOperator) ExecuteDynamic(ctx *Context, fn string, mainArg
 	return MakeOutputError(http.StatusNotFound, "Unknown function %v", fn)
 }
 
-func (mt *MyDynamicTestOperator) CommonArgSuggestions() []string {
+func (mt *MyDynamicTestOperator) CommonargSuggestions() []string {
 	return []string{"common", "common2", "common3"}
 }
 

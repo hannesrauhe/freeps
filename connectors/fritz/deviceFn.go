@@ -16,7 +16,7 @@ func (m *OpFritz) GetDevices() *base.OperatorIO {
 	return base.MakeObjectOutput(l)
 }
 
-func (m *OpFritz) GetDeviceSuggestions() map[string]string {
+func (m *OpFritz) DeviceSuggestions() map[string]string {
 	l, _ := m.getCachedDeviceList(false)
 	return l
 }

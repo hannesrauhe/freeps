@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"unicode"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -212,7 +213,10 @@ func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflec
 }
 
 // callParamSuggestionFunction : if paramStruct has a function with the Name argName + "Suggestions", execute it and return the result
-func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, argName string) map[string]string {
+func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, lkArgName string) map[string]string {
+	r := []rune(lkArgName)
+	r[0] = unicode.ToUpper(r[0])
+	argName := string(r)
 	suggestionsFunc := paramStruct.MethodByName(argName + "Suggestions")
 
 	if !suggestionsFunc.IsValid() {
@@ -411,6 +415,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	//TODO(HR): ensure that args are lowercase
 	lowercaseArgs := utils.KeysToLower(otherArgs)
 	res := map[string]string{}
+	lkArgName := utils.StringToLower(argName)
 
 	var paramStruct reflect.Value
 	var ps FreepsFunctionParameters //TODO(HR): may deprecate this
@@ -419,7 +424,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
-			res = dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
+			res = dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), lkArgName, lowercaseArgs)
 		}
 	} else {
 		switch ffm.FuncType {
@@ -435,7 +440,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
 
 		// call the parameter struct's suggestion function
-		res = o.callParamSuggestionFunction(paramStruct, argName)
+		res = o.callParamSuggestionFunction(paramStruct, lkArgName)
 	}
 
 	if res != nil && len(res) > 0 {
@@ -444,19 +449,19 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 
 	// check if operator itself has Suggestions for this argument
 	operatorStruct := reflect.ValueOf(o.opInstance)
-	res = o.callParamSuggestionFunction(operatorStruct, argName)
+	res = o.callParamSuggestionFunction(operatorStruct, lkArgName)
 	if res != nil {
 		return res
 	}
 
 	// if the parameter struct implements FreepsFunctionParameters interface, call its GetArgSuggestions function => deprecate
 	if ps != nil {
-		res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
+		res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), lkArgName, lowercaseArgs)
 	}
 
 	if (res == nil || len(res) == 0) && ffm != nil {
 		// common suggestions for all parameters if there are no suggestions for the parameter
-		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
+		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, lkArgName))
 	}
 	return res
 }
