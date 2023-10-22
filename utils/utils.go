@@ -173,3 +173,15 @@ func StringToInt(input string) (int, error) {
 func StringPtr(input string) *string {
 	return &input
 }
+
+// KeysToLower converts all keys in a map to lower case (always returns a new map, even if the input map is nil)
+func KeysToLower(input map[string]string) map[string]string {
+	lowercaseMap := map[string]string{}
+	if input == nil {
+		return lowercaseMap
+	}
+	for k, v := range input {
+		lowercaseMap[StringToLower(k)] = v
+	}
+	return lowercaseMap
+}

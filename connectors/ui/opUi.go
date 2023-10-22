@@ -474,10 +474,7 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 	delete(args, "noFooter")
 
 	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := map[string]string{}
-	for k, v := range args {
-		lowercaseArgs[utils.StringToLower(k)] = v
-	}
+	lowercaseArgs := utils.KeysToLower(args)
 
 	switch fn {
 	case "", "home":
