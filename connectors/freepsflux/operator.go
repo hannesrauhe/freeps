@@ -32,13 +32,13 @@ func (o *OperatorFlux) InitCopyOfOperator(ctx *base.Context, config interface{},
 	return &newO, err
 }
 
-func (o *OperatorFlux) PushFreepsDeviceList(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+func (o *OperatorFlux) PushFreepsDeviceList(ctx *base.Context, input *base.OperatorIO, args base.FunctionArguments) *base.OperatorIO {
 	var devicelist freepslib.AvmDeviceList
 	err := input.ParseJSON(&devicelist)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
-	err, lp := o.ff.PushFreepsDeviceList(&devicelist)
+	err, lp := o.ff.PushFreepsDeviceList(&devicelist, args.GetLowerCaseMap())
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}
