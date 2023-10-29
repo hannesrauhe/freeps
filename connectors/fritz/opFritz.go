@@ -56,14 +56,14 @@ func (m *OpFritz) GetTemplateNamespace() freepsstore.StoreNamespace {
 }
 
 // ExecuteDynamic executes a dynamic function
-func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
-	dev := vars["device"]
+func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, args base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	dev := args.Get("device")
 	fn := strings.ToLower(mixedCaseFn)
 
 	switch fn {
 	case "upnp":
 		{
-			m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
+			m, err := m.fl.GetUpnpDataMap(args.Get("serviceName"), args.Get("actionName"))
 			if err == nil {
 				return base.MakeObjectOutput(m)
 			}
@@ -127,7 +127,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, vars map
 		}
 	case "wakeup":
 		{
-			netdev := vars["netdevice"]
+			netdev := args.Get("netdevice")
 			log.Printf("Waking Up %v", netdev)
 			err := m.fl.WakeUpDevice(netdev)
 			if err == nil {
@@ -137,11 +137,13 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, vars map
 		}
 	}
 
+	vars := args.GetOriginalCaseMap()
+
 	if fn[0:3] == "set" {
 		err := m.fl.HomeAutoSwitch(fn, dev, vars)
 		if err == nil {
 			vars["fn"] = fn
-			return base.MakeObjectOutput(vars)
+			return base.MakeObjectOutput(args)
 		}
 		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}

@@ -313,17 +313,18 @@ func (o *FreepsOperatorWrapper) GetName() string {
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := utils.KeysToLower(args)
-
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
-			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), lowercaseArgs, mainInput)
+			fa := NewFunctionArguments(args)
+			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
 		}
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
 	}
+
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := utils.KeysToLower(args)
 
 	// execute function immediately if the FreepsFunctionType indicates it needs no arguments
 	switch ffm.FuncType {
