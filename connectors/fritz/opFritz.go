@@ -14,9 +14,6 @@ import (
 	"github.com/hannesrauhe/freepslib"
 )
 
-const deviceNamespace = "_fritz_devices"
-const netDeviceNamespace = "_fritz_network_devices"
-const templateNamespace = "_fritz_templates"
 const maxAge = time.Second * 100
 
 type OpFritz struct {
@@ -30,19 +27,35 @@ var _ base.FreepsOperatorWithConfig = &OpFritz{}
 var _ base.FreepsOperatorWithDynamicFunctions = &OpFritz{}
 
 // GetDefaultConfig returns the default config for the http connector
-func (o *OpFritz) GetDefaultConfig() interface{} {
+func (m *OpFritz) GetDefaultConfig() interface{} {
 	conf := freepslib.FBconfig{Verbose: false}
 	return &conf
 }
 
 // InitCopyOfOperator creates a copy of the operator
-func (o *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
+func (m *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	cfg := config.(*freepslib.FBconfig)
 	f, err := freepslib.NewFreepsLib(cfg)
 	op := &OpFritz{name: name, fl: f, fc: cfg}
 	return op, err
 }
 
+// GetDeviceNamespace returns the namespace for the device cache
+func (m *OpFritz) GetDeviceNamespace() freepsstore.StoreNamespace {
+	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_devices")
+}
+
+// GetNetworkDeviceNamespace returns the namespace for the network device cache
+func (m *OpFritz) GetNetworkDeviceNamespace() freepsstore.StoreNamespace {
+	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_network_devices")
+}
+
+// GetTemplateNamespace returns the namespace for the template cache
+func (m *OpFritz) GetTemplateNamespace() freepsstore.StoreNamespace {
+	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_templates")
+}
+
+// ExecuteDynamic executes a dynamic function
 func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	dev := vars["device"]
 	fn := strings.ToLower(mixedCaseFn)
@@ -106,7 +119,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, vars map
 			if err != nil {
 				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 			}
-			netDevNs := freepsstore.GetGlobalStore().GetNamespace(netDeviceNamespace)
+			netDevNs := m.GetNetworkDeviceNamespace()
 			for active := range r.Data.Active {
 				netDevNs.SetValue(r.Data.Active[active].UID, base.MakeObjectOutput(r.Data.Active[active]), ctx.GetID())
 			}
@@ -222,7 +235,7 @@ func (m *OpFritz) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[
 
 // GetTemplates returns a map of all templates IDs
 func (m *OpFritz) GetTemplates() map[string]string {
-	tNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
+	tNs := m.GetTemplateNamespace()
 	keys := tNs.GetAllValues(0)
 	if len(keys) == 0 {
 		m.getTemplateList()
@@ -242,7 +255,7 @@ func (m *OpFritz) GetTemplates() map[string]string {
 
 // GetDeviceByAIN returns the device object for the device with the given AIN
 func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
-	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
+	devNs := m.GetDeviceNamespace()
 	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge).GetData()
 	if cachedDev.IsError() {
 		devl, err := m.getDeviceList()
@@ -269,7 +282,7 @@ func (m *OpFritz) GetDeviceMap() (map[string]freepslib.AvmDevice, error) {
 	}
 	r := map[string]freepslib.AvmDevice{}
 
-	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
+	devNs := m.GetDeviceNamespace()
 	for AIN, cachedDev := range devNs.GetAllValues(0) {
 		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
 		if !ok {
@@ -288,7 +301,7 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 		log.Println(err)
 		return nil, err
 	}
-	templNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
+	templNs := m.GetTemplateNamespace()
 	for _, t := range templ.Template {
 		templNs.SetValue(t.ID, base.MakeObjectOutput(t), "")
 	}
