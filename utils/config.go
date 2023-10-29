@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -328,6 +329,9 @@ func (c *ConfigReader) WriteSection(sectionName string, configStruct interface{}
 
 	newb, err := WriteSection(c.configFileContent, sectionName, configStruct, true)
 	if len(newb) > 0 {
+		if bytes.Equal(c.configFileContent, newb) {
+			return err // most likely nil, but just in case WriteSection reported something else
+		}
 		c.configChanged = true
 		c.configFileContent = newb
 		if persistImmediately {

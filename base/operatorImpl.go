@@ -96,11 +96,6 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			continue
 		}
 
-		err = cr.WriteBackConfigIfChanged()
-		if err != nil {
-			ctx.logger.Errorf("Writing back config for operator \"%v\" failed: %v", opVariationSectionName, err)
-		}
-
 		// check if the config object has a field called "enabled" and if it is set to false
 		// if it is set to false, we do not want to initialize the operator and return nil
 		enabledField := reflect.ValueOf(conf).Elem().FieldByName("Enabled")
@@ -113,9 +108,18 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			ctx.logger.Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
 		}
+		err = cr.WriteSection(opVariationSectionName, conf, false)
+		if err != nil {
+			ctx.logger.Errorf("Writing config for operator \"%v\" failed: %v", opVariationSectionName, err)
+		}
 		opVariationWrapper := FreepsOperatorWrapper{opInstance: opVariation, opName: opVariationSectionName, config: conf}
 		opVariationWrapper.createFunctionMap(ctx)
 		ops = append(ops, &opVariationWrapper)
+	}
+
+	err = cr.WriteBackConfigIfChanged()
+	if err != nil {
+		ctx.logger.Errorf("Writing back config file failed: %v", err)
 	}
 	return ops
 }
