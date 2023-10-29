@@ -213,6 +213,7 @@ func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflec
 }
 
 // callParamSuggestionFunction : if paramStruct has a function with the Name argName + "Suggestions", execute it and return the result
+// Note: function is uppercase because it is exported, but all other letters need to be lowercase
 func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, lkArgName string) map[string]string {
 	r := []rune(lkArgName)
 	r[0] = unicode.ToUpper(r[0])
