@@ -418,7 +418,9 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 		}
 		return list
 	}
-	if m.FuncType == FreepsFunctionTypeSimple || m.FuncType == FreepsFunctionTypeContextOnly || m.FuncType == FreepsFunctionTypeContextAndInput {
+
+	switch m.FuncType {
+	case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput, FreepsFunctionTypeWithDynamicFunctionArguments:
 		return list
 	}
 
@@ -453,7 +455,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		}
 	} else {
 		switch ffm.FuncType {
-		case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput:
+		case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput, FreepsFunctionTypeWithDynamicFunctionArguments:
 			return res
 		}
 
