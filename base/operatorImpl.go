@@ -20,6 +20,8 @@ const (
 	FreepsFunctionTypeContextOnly
 	// FreepsFunctionTypeContextAndInput indicates that the function has a Context ptr as first parameter and a OperatorIO ptr as second parameter
 	FreepsFunctionTypeContextAndInput
+	// FreepsFunctionTypeWithDynamicFunctionArguments indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter and FunctionArguments as third parameter
+	FreepsFunctionTypeWithDynamicFunctionArguments
 	// FreepsFunctionTypeWithArguments indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter and a struct as third parameter
 	FreepsFunctionTypeWithArguments
 	// FreepsFunctionTypeFullSignature indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter, a struct as third parameter and a map[string]string as fourth parameter
@@ -152,6 +154,7 @@ func (o *FreepsOperatorWrapper) getFunction(name string) *reflect.Value {
 // 6. optionally takes a OperatorIO ptr as second parameters
 // 7. optionally takes a struct as third parameter (the parameters struct)
 // 8. optionally takes a map[string]string as fourth parameter
+// or takes a FunctionArguments as third parameter
 func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 	// describe function signature in a string to give developer a hint what is wrong
 	// we do not want to use f.String() because it is not very readable
@@ -187,6 +190,9 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 			return FreepsFunctionTypeContextAndInput, nil
 		}
 	case 4:
+		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Implements(reflect.TypeOf((*FunctionArguments)(nil)).Elem()) {
+			return FreepsFunctionTypeWithDynamicFunctionArguments, nil
+		}
 		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Kind() == reflect.Struct {
 			return FreepsFunctionTypeWithArguments, nil
 		}
@@ -323,9 +329,6 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
 	}
 
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := utils.KeysToLower(args)
-
 	// execute function immediately if the FreepsFunctionType indicates it needs no arguments
 	switch ffm.FuncType {
 	case FreepsFunctionTypeSimple:
@@ -337,7 +340,14 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	case FreepsFunctionTypeContextAndInput:
 		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput)})
 		return outValue[0].Interface().(*OperatorIO)
+	case FreepsFunctionTypeWithDynamicFunctionArguments:
+		fa := NewFunctionArguments(args)
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), reflect.ValueOf(fa)})
+		return outValue[0].Interface().(*OperatorIO)
 	}
+
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := utils.KeysToLower(args)
 
 	// create an initialized instance of the parameter struct
 	paramStruct, ps := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())

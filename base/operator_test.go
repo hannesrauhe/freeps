@@ -81,6 +81,10 @@ func (mt *MyTestOperator) Counter(ctx *Context, mainInput *OperatorIO) *Operator
 	return MakePlainOutput("%v", mt.counter)
 }
 
+func (mt *MyTestOperator) CounterWithDynamicArgs(ctx *Context, mainInput *OperatorIO, args FunctionArguments) *OperatorIO {
+	return MakePlainOutput("%v, %v", args.Size(), mt.counter)
+}
+
 func (mt *MyTestOperator) AnotherUnusedFunctionWrongReturn(ctx *Context, mainInput *OperatorIO) int {
 	return 0
 }
@@ -124,7 +128,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Assert(t, gop != nil, "")
 	assert.Equal(t, gop.GetName(), "MyTestOperator")
 	fnl := gop.GetFunctions()
-	assert.Equal(t, len(fnl), 4)
+	assert.Equal(t, len(fnl), 5)
 	assert.Assert(t, cmp.Contains(fnl, "MyFavoriteFunction"))
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
@@ -176,6 +180,9 @@ func TestOpBuilderExecute(t *testing.T) {
 	output = gop.Execute(nil, "counter", map[string]string{}, MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "6")
+	output = gop.Execute(nil, "counterwithdynamicargs", map[string]string{"x": "y"}, MakeEmptyOutput())
+	assert.Assert(t, !output.IsError(), output.GetString())
+	assert.Equal(t, output.GetString(), "1, 6")
 
 	// happy path with optional parameters that have names of internal fields
 	output = gop.Execute(nil, "MyFavoriteFuNCtion", map[string]string{"Param1": "test", "param2": "12", "neversetvar": "bla", "neversetvarptr": "bla"}, MakeEmptyOutput())

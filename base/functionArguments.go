@@ -11,6 +11,7 @@ type FunctionArguments interface {
 	GetOriginalCase(key string) string
 	GetLowerCaseMap() map[string]string
 	GetOriginalCaseMap() map[string]string
+	Size() int
 }
 
 // FunctionArgumentsImpl is a struct that can be used to pass arguments to a function
@@ -109,4 +110,9 @@ func (fa *FunctionArgumentsImpl) GetOriginalCaseMap() map[string]string {
 		ret[v] = strings.Join(fa.LcArgs[k], ",")
 	}
 	return ret
+}
+
+// Size returns the number of keys
+func (fa *FunctionArgumentsImpl) Size() int {
+	return len(fa.LcArgs)
 }
