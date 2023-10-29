@@ -257,6 +257,7 @@ func (c *ConfigReader) GetSectionNames() ([]string, error) {
 
 	sectionsMap, err := GetSectionsMap(c.configFileContent)
 	if err != nil {
+		c.logger.Errorf("Error getting section names: %s", err)
 		return []string{}, err
 	}
 	keys := make([]string, 0, len(sectionsMap))
@@ -273,6 +274,7 @@ func (c *ConfigReader) GetSectionNamesWithPrefix(prefix string) ([]string, error
 
 	sectionsMap, err := GetSectionsMap(c.configFileContent)
 	if err != nil {
+		c.logger.Errorf("Error getting section names: %s", err)
 		return []string{}, err
 	}
 	keys := make([]string, 0, len(sectionsMap))

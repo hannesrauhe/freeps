@@ -24,8 +24,9 @@ func (mt *MyDynamicTestOperator) Simple2(ctx *Context) *OperatorIO {
 }
 
 type StaticFuncArgs struct {
-	Arg1      string
-	CommonArg *string
+	Arg1       string
+	CommonArg  *string
+	CommonArg2 *string
 }
 
 func (a *StaticFuncArgs) Arg1Suggestions() []string {
@@ -67,6 +68,10 @@ func (mt *MyDynamicTestOperator) CommonargSuggestions() []string {
 	return []string{"common", "common2", "common3"}
 }
 
+func (mt *MyDynamicTestOperator) CoMMonaRg2Suggestions() []string {
+	return []string{"common2only"}
+}
+
 func TestDynmaicOperator(t *testing.T) {
 	ctx := NewContext(logrus.StandardLogger())
 	gops := MakeFreepsOperators(&MyDynamicTestOperator{}, nil, ctx)[0]
@@ -98,7 +103,7 @@ func TestDynmaicOperator(t *testing.T) {
 	args = gops.GetPossibleArgs("Simple2")
 	assert.Assert(t, len(args) == 0, "Expected 0 arguments, got %v", args)
 	args = gops.GetPossibleArgs("StaticFunc")
-	assert.Assert(t, len(args) == 2, "Expected 2 argument, got %v", args)
+	assert.Assert(t, len(args) == 3, "Expected 3 argument, got %v", args)
 
 	argmap := gops.GetArgSuggestions("DynFunc", "DynTestArg", make(map[string]string))
 	assert.Assert(t, len(argmap) == 1, "Expected 1 argument, got %v", argmap)
@@ -116,4 +121,6 @@ func TestDynmaicOperator(t *testing.T) {
 	assert.Assert(t, len(argmap) == 1, "Expected 1 argument, got %v", argmap)
 	argmap = gops.GetArgSuggestions("StaticFunc", "CommonArg", make(map[string]string))
 	assert.Assert(t, len(argmap) == 3, "Expected 3 argument, got %v", argmap)
+	argmap = gops.GetArgSuggestions("StaticFunc", "CommonArG2", make(map[string]string))
+	assert.Assert(t, len(argmap) == 1, "Expected 1 argument, got %v", argmap)
 }

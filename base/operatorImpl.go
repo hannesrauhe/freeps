@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"unicode"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -215,10 +214,20 @@ func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflec
 // callParamSuggestionFunction : if paramStruct has a function with the Name argName + "Suggestions", execute it and return the result
 // Note: function is uppercase because it is exported, but all other letters need to be lowercase
 func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, lkArgName string) map[string]string {
-	r := []rune(lkArgName)
-	r[0] = unicode.ToUpper(r[0])
-	argName := string(r)
-	suggestionsFunc := paramStruct.MethodByName(argName + "Suggestions")
+	// iterate over all methods in paramStruct and check if there is a method with the name argName + "Suggestions", where argName is case-insensitive
+	var suggestionsFunc reflect.Value
+	for i := 0; i < paramStruct.NumMethod(); i++ {
+		methodName := paramStruct.Type().Method(i).Name
+		// check if method Name ends with "Suggestions"
+		if !utils.StringEndsWith(methodName, "Suggestions") {
+			continue
+		}
+		// check if the methodName without "Suggestions" is equal to the argName (case-insensitive)
+		if utils.StringToLower(methodName[:len(methodName)-11]) == lkArgName {
+			suggestionsFunc = paramStruct.Method(i)
+			break
+		}
+	}
 
 	if !suggestionsFunc.IsValid() {
 		return nil

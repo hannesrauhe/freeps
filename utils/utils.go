@@ -144,6 +144,10 @@ func StringStartsWith(input string, prefix string) bool {
 	return len(input) >= len(prefix) && input[0:len(prefix)] == prefix
 }
 
+func StringEndsWith(input string, suffix string) bool {
+	return len(input) >= len(suffix) && input[len(input)-len(suffix):] == suffix
+}
+
 // StringToLower converts a string to lower case
 func StringToLower(input string) string {
 	return strings.ToLower(input)
