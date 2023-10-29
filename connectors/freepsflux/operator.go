@@ -25,7 +25,7 @@ func (o *OperatorFlux) GetDefaultConfig() interface{} {
 }
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
-func (o *OperatorFlux) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+func (o *OperatorFlux) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	var err error
 	newO := OperatorFlux{config: config.(*FreepsFluxConfig)}
 	newO.ff, err = NewFreepsFlux(newO.config, nil)

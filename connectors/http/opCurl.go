@@ -35,7 +35,7 @@ func (o *OpCurl) GetDefaultConfig() interface{} {
 }
 
 // InitCopyOfOperator creates a copy of the operator
-func (o *OpCurl) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+func (o *OpCurl) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	cfg := config.(*HTTPConfig)
 	return &OpCurl{CR: o.CR, GE: o.GE, Config: *cfg}, nil
 }

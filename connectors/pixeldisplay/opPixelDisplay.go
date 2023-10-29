@@ -43,7 +43,7 @@ func (op *OpPixelDisplay) GetDefaultConfig() interface{} {
 	}
 }
 
-func (op *OpPixelDisplay) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+func (op *OpPixelDisplay) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	cfg := config.(*OpConfig)
 	disp, err := NewWLEDMatrixDisplay(cfg.WLEDMatrixDisplay)
 	if err != nil {
