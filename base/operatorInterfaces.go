@@ -38,7 +38,7 @@ type FreepsOperatorWithConfig interface {
 	// GetDefaultConfig returns a copy of the default config
 	GetDefaultConfig() interface{}
 	// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
-	InitCopyOfOperator(config interface{}, ctx *Context) (FreepsOperatorWithConfig, error)
+	InitCopyOfOperator(ctx *Context, config interface{}, fullOperatorName string) (FreepsOperatorWithConfig, error)
 }
 
 // FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
@@ -52,7 +52,7 @@ type FreepsOperatorWithShutdown interface {
 
 // FreepsFunctionParametersWithInit adds the Init() method to FreepsFunctionParameters
 type FreepsFunctionParametersWithInit interface {
-	Init(operator FreepsOperator, fn string)
+	Init(ctx *Context, operator FreepsOperator, fn string)
 }
 
 // FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
