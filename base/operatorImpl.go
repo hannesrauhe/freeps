@@ -20,6 +20,8 @@ const (
 	FreepsFunctionTypeContextOnly
 	// FreepsFunctionTypeContextAndInput indicates that the function has a Context ptr as first parameter and a OperatorIO ptr as second parameter
 	FreepsFunctionTypeContextAndInput
+	// FreepsFunctionTypeWithDynamicFunctionArguments indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter and FunctionArguments as third parameter
+	FreepsFunctionTypeWithDynamicFunctionArguments
 	// FreepsFunctionTypeWithArguments indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter and a struct as third parameter
 	FreepsFunctionTypeWithArguments
 	// FreepsFunctionTypeFullSignature indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter, a struct as third parameter and a map[string]string as fourth parameter
@@ -96,11 +98,6 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			continue
 		}
 
-		err = cr.WriteBackConfigIfChanged()
-		if err != nil {
-			ctx.logger.Errorf("Writing back config for operator \"%v\" failed: %v", opVariationSectionName, err)
-		}
-
 		// check if the config object has a field called "enabled" and if it is set to false
 		// if it is set to false, we do not want to initialize the operator and return nil
 		enabledField := reflect.ValueOf(conf).Elem().FieldByName("Enabled")
@@ -113,9 +110,18 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			ctx.logger.Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
 		}
+		err = cr.WriteSection(opVariationSectionName, conf, false)
+		if err != nil {
+			ctx.logger.Errorf("Writing config for operator \"%v\" failed: %v", opVariationSectionName, err)
+		}
 		opVariationWrapper := FreepsOperatorWrapper{opInstance: opVariation, opName: opVariationSectionName, config: conf}
 		opVariationWrapper.createFunctionMap(ctx)
 		ops = append(ops, &opVariationWrapper)
+	}
+
+	err = cr.WriteBackConfigIfChanged()
+	if err != nil {
+		ctx.logger.Errorf("Writing back config file failed: %v", err)
 	}
 	return ops
 }
@@ -148,6 +154,7 @@ func (o *FreepsOperatorWrapper) getFunction(name string) *reflect.Value {
 // 6. optionally takes a OperatorIO ptr as second parameters
 // 7. optionally takes a struct as third parameter (the parameters struct)
 // 8. optionally takes a map[string]string as fourth parameter
+// or takes a FunctionArguments as third parameter
 func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 	// describe function signature in a string to give developer a hint what is wrong
 	// we do not want to use f.String() because it is not very readable
@@ -183,6 +190,9 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 			return FreepsFunctionTypeContextAndInput, nil
 		}
 	case 4:
+		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Implements(reflect.TypeOf((*FunctionArguments)(nil)).Elem()) {
+			return FreepsFunctionTypeWithDynamicFunctionArguments, nil
+		}
 		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Kind() == reflect.Struct {
 			return FreepsFunctionTypeWithArguments, nil
 		}
@@ -309,14 +319,12 @@ func (o *FreepsOperatorWrapper) GetName() string {
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := utils.KeysToLower(args)
-
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
-			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), lowercaseArgs, mainInput)
+			fa := NewFunctionArguments(args)
+			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
 		}
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
 	}
@@ -332,7 +340,14 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	case FreepsFunctionTypeContextAndInput:
 		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput)})
 		return outValue[0].Interface().(*OperatorIO)
+	case FreepsFunctionTypeWithDynamicFunctionArguments:
+		fa := NewFunctionArguments(args)
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), reflect.ValueOf(fa)})
+		return outValue[0].Interface().(*OperatorIO)
 	}
+
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := utils.KeysToLower(args)
 
 	// create an initialized instance of the parameter struct
 	paramStruct, ps := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
@@ -403,7 +418,9 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 		}
 		return list
 	}
-	if m.FuncType == FreepsFunctionTypeSimple || m.FuncType == FreepsFunctionTypeContextOnly || m.FuncType == FreepsFunctionTypeContextAndInput {
+
+	switch m.FuncType {
+	case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput, FreepsFunctionTypeWithDynamicFunctionArguments:
 		return list
 	}
 
@@ -438,7 +455,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		}
 	} else {
 		switch ffm.FuncType {
-		case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput:
+		case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput, FreepsFunctionTypeWithDynamicFunctionArguments:
 			return res
 		}
 

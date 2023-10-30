@@ -30,12 +30,13 @@
         </div>
     </form>    
     
-    <form method="post" action="/config/WriteSection" class="row" target="outputframe">               
+    <form method="post" action="/config/WriteSection" class="row">
 {{ if .arguments.sectionname }}
         <div class="col">
             {{ $sectionBytes := printf "sectionname=%s" $requestedSection |graph_ExecuteOperator "config" "GetSection" }}
             <textarea name="sectionBytes" rows="35">{{ printf "%s" $sectionBytes.Output }} </textarea>
             <input type="text" name="sectionName" value="{{$requestedSection}}"> 
+            <input type="hidden" name="redirect" value="{{.selfURL}}">
             <button type="submit" name="WriteSection">WriteSection</button>
             <button type="submit" class="button error" formaction="/config/RemoveSection" formmethod="get" >DeleteSection</button>
         </div>
@@ -47,11 +48,10 @@
         </div>
 {{ end }}
     </form>
-    <form class="row" method="get" target="outputframe">        
+    <form class="row" method="get">
+        <input type="hidden" name="redirect" value="{{.selfURL}}">
         <button type="submit" formaction="/system/reload">Reload Freeps</button>
         <button type="submit" class="button error" formaction="/system/stop">Stop Freeps</button>
     </form>
-    
-    <iframe name="outputframe"></iframe>
 </div>
 

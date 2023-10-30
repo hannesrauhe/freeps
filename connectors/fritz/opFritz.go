@@ -11,51 +11,59 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
 
-const deviceNamespace = "_fritz_devices"
-const netDeviceNamespace = "_fritz_network_devices"
-const templateNamespace = "_fritz_templates"
 const maxAge = time.Second * 100
 
 type OpFritz struct {
-	fl *freepslib.Freeps
-	fc *freepslib.FBconfig
+	name string
+	fl   *freepslib.Freeps
+	fc   *freepslib.FBconfig
 }
 
-var _ base.FreepsBaseOperator = &OpFritz{}
+var _ base.FreepsOperatorWithShutdown = &OpFritz{}
+var _ base.FreepsOperatorWithConfig = &OpFritz{}
+var _ base.FreepsOperatorWithDynamicFunctions = &OpFritz{}
 
-// NewOpFritz creates a new operator for Freeps and Freepsflux
-func NewOpFritz(cr *utils.ConfigReader) *OpFritz {
-	conf := freepslib.DefaultConfig
-	err := cr.ReadSectionWithDefaults("freepslib", &conf)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Print(err)
-	}
-	f, _ := freepslib.NewFreepsLib(&conf)
-	op := &OpFritz{fl: f, fc: &conf}
-	return op
+// GetDefaultConfig returns the default config for the http connector
+func (m *OpFritz) GetDefaultConfig() interface{} {
+	conf := freepslib.FBconfig{Verbose: false}
+	return &conf
 }
 
-// GetName returns the name of the operator
-func (o *OpFritz) GetName() string {
-	return "fritz"
+// InitCopyOfOperator creates a copy of the operator
+func (m *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
+	cfg := config.(*freepslib.FBconfig)
+	f, err := freepslib.NewFreepsLib(cfg)
+	op := &OpFritz{name: name, fl: f, fc: cfg}
+	return op, err
 }
 
-func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
-	dev := vars["device"]
+// GetDeviceNamespace returns the namespace for the device cache
+func (m *OpFritz) GetDeviceNamespace() freepsstore.StoreNamespace {
+	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_devices")
+}
+
+// GetNetworkDeviceNamespace returns the namespace for the network device cache
+func (m *OpFritz) GetNetworkDeviceNamespace() freepsstore.StoreNamespace {
+	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_network_devices")
+}
+
+// GetTemplateNamespace returns the namespace for the template cache
+func (m *OpFritz) GetTemplateNamespace() freepsstore.StoreNamespace {
+	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_templates")
+}
+
+// ExecuteDynamic executes a dynamic function
+func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, args base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	dev := args.Get("device")
 	fn := strings.ToLower(mixedCaseFn)
 
 	switch fn {
 	case "upnp":
 		{
-			m, err := m.fl.GetUpnpDataMap(vars["serviceName"], vars["actionName"])
+			m, err := m.fl.GetUpnpDataMap(args.Get("serviceName"), args.Get("actionName"))
 			if err == nil {
 				return base.MakeObjectOutput(m)
 			}
@@ -68,10 +76,6 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 				return base.MakeObjectOutput(&met)
 			}
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-		}
-	case "getdevices":
-		{
-			return base.MakeObjectOutput(m.GetDevices())
 		}
 	case "gettemplates":
 		{
@@ -115,7 +119,7 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 			if err != nil {
 				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 			}
-			netDevNs := freepsstore.GetGlobalStore().GetNamespace(netDeviceNamespace)
+			netDevNs := m.GetNetworkDeviceNamespace()
 			for active := range r.Data.Active {
 				netDevNs.SetValue(r.Data.Active[active].UID, base.MakeObjectOutput(r.Data.Active[active]), ctx.GetID())
 			}
@@ -123,7 +127,7 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 		}
 	case "wakeup":
 		{
-			netdev := vars["netdevice"]
+			netdev := args.Get("netdevice")
 			log.Printf("Waking Up %v", netdev)
 			err := m.fl.WakeUpDevice(netdev)
 			if err == nil {
@@ -133,11 +137,13 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 		}
 	}
 
+	vars := args.GetOriginalCaseMap()
+
 	if fn[0:3] == "set" {
 		err := m.fl.HomeAutoSwitch(fn, dev, vars)
 		if err == nil {
 			vars["fn"] = fn
-			return base.MakeObjectOutput(vars)
+			return base.MakeObjectOutput(args)
 		}
 		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
@@ -149,7 +155,7 @@ func (m *OpFritz) Execute(ctx *base.Context, mixedCaseFn string, vars map[string
 	return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 }
 
-func (m *OpFritz) GetFunctions() []string {
+func (m *OpFritz) GetDynamicFunctions() []string {
 	swc := m.fl.GetSuggestedSwitchCmds()
 	fn := make([]string, 0, len(swc)+1)
 	for k := range swc {
@@ -160,7 +166,7 @@ func (m *OpFritz) GetFunctions() []string {
 	return fn
 }
 
-func (m *OpFritz) GetPossibleArgs(fn string) []string {
+func (m *OpFritz) GetDynamicPossibleArgs(fn string) []string {
 	if fn == "upnp" {
 		return []string{"serviceName", "actionName"}
 	}
@@ -174,7 +180,7 @@ func (m *OpFritz) GetPossibleArgs(fn string) []string {
 	return make([]string, 0)
 }
 
-func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (m *OpFritz) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	if fn == "upnp" {
 		ret := map[string]string{}
 		if arg == "serviceName" {
@@ -206,8 +212,6 @@ func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 			ret[dev.Name] = dev.UID
 		}
 		return ret
-	case "device":
-		return m.GetDevices()
 	case "template":
 		return m.GetTemplates()
 	case "onoff":
@@ -231,31 +235,9 @@ func (m *OpFritz) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	return map[string]string{}
 }
 
-// GetDevices returns a map of all device AINs
-func (m *OpFritz) GetDevices() map[string]string {
-	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
-	devs := devNs.GetAllValues(0)
-	if len(devs) == 0 {
-		m.getDeviceList()
-		devs = devNs.GetAllValues(0)
-	}
-	r := map[string]string{}
-
-	for AIN, cachedDev := range devs {
-		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
-		if !ok {
-			log.Errorf("Cached record for %v is invalid", AIN)
-			continue
-		}
-		r[dev.Name] = dev.AIN
-	}
-
-	return r
-}
-
 // GetTemplates returns a map of all templates IDs
 func (m *OpFritz) GetTemplates() map[string]string {
-	tNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
+	tNs := m.GetTemplateNamespace()
 	keys := tNs.GetAllValues(0)
 	if len(keys) == 0 {
 		m.getTemplateList()
@@ -275,7 +257,7 @@ func (m *OpFritz) GetTemplates() map[string]string {
 
 // GetDeviceByAIN returns the device object for the device with the given AIN
 func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
-	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
+	devNs := m.GetDeviceNamespace()
 	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge).GetData()
 	if cachedDev.IsError() {
 		devl, err := m.getDeviceList()
@@ -302,7 +284,7 @@ func (m *OpFritz) GetDeviceMap() (map[string]freepslib.AvmDevice, error) {
 	}
 	r := map[string]freepslib.AvmDevice{}
 
-	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
+	devNs := m.GetDeviceNamespace()
 	for AIN, cachedDev := range devNs.GetAllValues(0) {
 		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
 		if !ok {
@@ -314,20 +296,6 @@ func (m *OpFritz) GetDeviceMap() (map[string]freepslib.AvmDevice, error) {
 	return r, nil
 }
 
-// getDeviceList retrieves the devicelist and caches
-func (m *OpFritz) getDeviceList() (*freepslib.AvmDeviceList, error) {
-	devl, err := m.fl.GetDeviceList()
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	devNs := freepsstore.GetGlobalStore().GetNamespace(deviceNamespace)
-	for _, dev := range devl.Device {
-		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), "")
-	}
-	return devl, nil
-}
-
 // getTemplateList retrieves the template list and caches
 func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 	templ, err := m.fl.GetTemplateList()
@@ -335,7 +303,7 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 		log.Println(err)
 		return nil, err
 	}
-	templNs := freepsstore.GetGlobalStore().GetNamespace(templateNamespace)
+	templNs := m.GetTemplateNamespace()
 	for _, t := range templ.Template {
 		templNs.SetValue(t.ID, base.MakeObjectOutput(t), "")
 	}

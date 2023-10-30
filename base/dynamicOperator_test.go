@@ -56,7 +56,7 @@ func (mt *MyDynamicTestOperator) GetDynamicArgSuggestions(fn string, arg string,
 	return map[string]string{}
 }
 
-func (mt *MyDynamicTestOperator) ExecuteDynamic(ctx *Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (mt *MyDynamicTestOperator) ExecuteDynamic(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO {
 	switch fn {
 	case "dynfunc":
 		return MakePlainOutput("DynFunc Output")
