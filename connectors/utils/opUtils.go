@@ -203,7 +203,17 @@ func (m *OpUtils) EchoArguments(ctx *base.Context, input *base.OperatorIO, args 
 	return base.MakeObjectOutput(output)
 }
 
-// Remap values from the input to the output
+// MergeInputAndArguments merges the input and the arguments into a single map
+func (m *OpUtils) MergeInputAndArguments(ctx *base.Context, input *base.OperatorIO, args base.FunctionArguments) *base.OperatorIO {
+	output := map[string]interface{}{}
+	input.ParseJSON(&output)
+	for k, v := range args.GetOriginalCaseMap() {
+		output[k] = v
+	}
+	return base.MakeObjectOutput(output)
+}
+
+// RemapKeys renames arguments in the input based on the given mapping
 func (m *OpUtils) RemapKeys(ctx *base.Context, input *base.OperatorIO, args EchoArgumentsArgs, mapping map[string]string) *base.OperatorIO {
 	oldArgs, err := input.GetArgsMap()
 	if err != nil {

@@ -89,6 +89,9 @@ func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
 }
 
 func (io *OperatorIO) ParseJSON(obj interface{}) error {
+	if io.IsEmpty() {
+		return nil
+	}
 	if io.OutputType == Byte {
 		v, ok := io.Output.([]byte)
 		if ok {
