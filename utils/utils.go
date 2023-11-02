@@ -144,6 +144,10 @@ func StringStartsWith(input string, prefix string) bool {
 	return len(input) >= len(prefix) && input[0:len(prefix)] == prefix
 }
 
+func StringEndsWith(input string, suffix string) bool {
+	return len(input) >= len(suffix) && input[len(input)-len(suffix):] == suffix
+}
+
 // StringToLower converts a string to lower case
 func StringToLower(input string) string {
 	return strings.ToLower(input)
@@ -172,4 +176,16 @@ func StringToInt(input string) (int, error) {
 // StringPtr returns a pointer to a string
 func StringPtr(input string) *string {
 	return &input
+}
+
+// KeysToLower converts all keys in a map to lower case (always returns a new map, even if the input map is nil)
+func KeysToLower(input map[string]string) map[string]string {
+	lowercaseMap := map[string]string{}
+	if input == nil {
+		return lowercaseMap
+	}
+	for k, v := range input {
+		lowercaseMap[StringToLower(k)] = v
+	}
+	return lowercaseMap
 }

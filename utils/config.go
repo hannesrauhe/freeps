@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -65,6 +66,7 @@ func GetSectionsMap(jsonBytes []byte) (map[string]interface{}, error) {
 	}
 	for k, v := range sectionsMap {
 		lk := StringToLower(k)
+		lk = getNewSectionName(lk)
 		if lowerCase[lk] != nil {
 			fmt.Printf("Section %s is defined in multiple case-variants in config file, preferring lower case", lk)
 			if k != lk {
@@ -256,6 +258,7 @@ func (c *ConfigReader) GetSectionNames() ([]string, error) {
 
 	sectionsMap, err := GetSectionsMap(c.configFileContent)
 	if err != nil {
+		c.logger.Errorf("Error getting section names: %s", err)
 		return []string{}, err
 	}
 	keys := make([]string, 0, len(sectionsMap))
@@ -272,6 +275,7 @@ func (c *ConfigReader) GetSectionNamesWithPrefix(prefix string) ([]string, error
 
 	sectionsMap, err := GetSectionsMap(c.configFileContent)
 	if err != nil {
+		c.logger.Errorf("Error getting section names: %s", err)
 		return []string{}, err
 	}
 	keys := make([]string, 0, len(sectionsMap))
@@ -325,6 +329,9 @@ func (c *ConfigReader) WriteSection(sectionName string, configStruct interface{}
 
 	newb, err := WriteSection(c.configFileContent, sectionName, configStruct, true)
 	if len(newb) > 0 {
+		if bytes.Equal(c.configFileContent, newb) {
+			return err // most likely nil, but just in case WriteSection reported something else
+		}
 		c.configChanged = true
 		c.configFileContent = newb
 		if persistImmediately {

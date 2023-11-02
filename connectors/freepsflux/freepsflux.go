@@ -87,7 +87,7 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 	return nil
 }
 
-func (ff *FreepsFlux) PushFreepsDeviceList(devl *freepslib.AvmDeviceList) (error, string) {
+func (ff *FreepsFlux) PushFreepsDeviceList(devl *freepslib.AvmDeviceList, tags map[string]string) (error, string) {
 	err := ff.InitInflux(false)
 	if err != nil {
 		return err, ""
@@ -98,7 +98,7 @@ func (ff *FreepsFlux) PushFreepsDeviceList(devl *freepslib.AvmDeviceList) (error
 	retString := ""
 	for i, writeAPI := range ff.writeApis {
 		builder := strings.Builder{}
-		ff.DeviceListToPoints(devl, mTime, func(point *write.Point) {
+		ff.DeviceListToPointsWithTags(devl, mTime, tags, func(point *write.Point) {
 			writeAPI.WritePoint(point)
 			write.PointToLineProtocolBuffer(point, &builder, time.Second)
 		})
@@ -235,9 +235,9 @@ func (ff *FreepsFlux) MetricsToLineProtocol(met *freepslib.FritzBoxMetrics, mTim
 	return builder.String(), nil
 }
 
-func (ff *FreepsFlux) DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time) (string, error) {
+func (ff *FreepsFlux) DeviceListToLineProtocol(devl *freepslib.AvmDeviceList, mTime time.Time, tags map[string]string) (string, error) {
 	builder := strings.Builder{}
-	ff.DeviceListToPoints(devl, mTime, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
+	ff.DeviceListToPointsWithTags(devl, mTime, tags, func(point *write.Point) { write.PointToLineProtocolBuffer(point, &builder, time.Second) })
 	return builder.String(), nil
 }
 
@@ -277,6 +277,10 @@ func (ff *FreepsFlux) MetricsToPoints(met *freepslib.FritzBoxMetrics, mTime time
 }
 
 func (ff *FreepsFlux) DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime time.Time, f func(*write.Point)) error {
+	return ff.DeviceListToPointsWithTags(devl, mTime, nil, f)
+}
+
+func (ff *FreepsFlux) DeviceListToPointsWithTags(devl *freepslib.AvmDeviceList, mTime time.Time, tags map[string]string, f func(*write.Point)) error {
 	for _, dev := range devl.Device {
 		if ff.config.IgnoreNotPresent && !dev.Present {
 			continue
@@ -312,6 +316,11 @@ func (ff *FreepsFlux) DeviceListToPoints(devl *freepslib.AvmDeviceList, mTime ti
 		}
 		if dev.LevelControl != nil {
 			p.AddField("level", dev.LevelControl.Level)
+		}
+		if tags != nil {
+			for k, v := range tags {
+				p.AddTag(k, v)
+			}
 		}
 		p.SortFields()
 		if len(p.FieldList()) != 0 {

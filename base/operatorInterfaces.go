@@ -19,13 +19,26 @@ type FreepsOperator interface {
 	// every exported function that follows the rules given in FreepsFunctionType is a FreepsFunction
 }
 
+// FreepsOperatorWithDynamicFunctions adds methods to support dynamic functions to FreepsOperator
+type FreepsOperatorWithDynamicFunctions interface {
+	FreepsOperator
+	// GetDynamicFunctions returns a list of functions that are dynamically added to the operator
+	GetDynamicFunctions() []string
+	// GetDynamicPossibleArgs returns a list of possible arguments for the given function
+	GetDynamicPossibleArgs(fn string) []string
+	// GetDynamicArgSuggestions returns a map of possible arguments for the given function and argument name
+	GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
+	// ExecuteDynamic executes the given function with the given arguments
+	ExecuteDynamic(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO
+}
+
 // FreepsOperatorWithConfig adds methods to support multiple configurations to FreepsOperator
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
 	// GetDefaultConfig returns a copy of the default config
 	GetDefaultConfig() interface{}
 	// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
-	InitCopyOfOperator(config interface{}, ctx *Context) (FreepsOperatorWithConfig, error)
+	InitCopyOfOperator(ctx *Context, config interface{}, fullOperatorName string) (FreepsOperatorWithConfig, error)
 }
 
 // FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
@@ -37,11 +50,13 @@ type FreepsOperatorWithShutdown interface {
 	Shutdown(ctx *Context)
 }
 
+// FreepsFunctionParametersWithInit adds the Init() method to FreepsFunctionParameters
+type FreepsFunctionParametersWithInit interface {
+	Init(ctx *Context, operator FreepsOperator, fn string)
+}
+
 // FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
 type FreepsFunctionParameters interface {
-	// InitOptionalParameters initializes the optional (pointer) arguments of the parameters struct with default values
-	InitOptionalParameters(operator FreepsOperator, fn string)
-
 	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
 	GetArgSuggestions(operator FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string
 

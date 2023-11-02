@@ -83,7 +83,13 @@ func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args Flatte
 
 // ExtractArgs are the arguments for the Extract function
 type ExtractArgs struct {
-	Key string
+	Key  string
+	Type *string
+}
+
+// TypeSuggestions returns a list of possible types for the given key
+func (m *OpUtils) TypeSuggestions() []string {
+	return []string{"string", "int", "float", "bool", "quotedstring", "stringobject"}
 }
 
 // Extract extracts the value of a given key from the input, if necessary it tries to flatten the input first
@@ -106,7 +112,32 @@ func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args Extrac
 	if !ok {
 		return base.MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.Key)
 	}
-	return base.MakeObjectOutput(vInterface)
+
+	if args.Type == nil {
+		return base.MakeObjectOutput(vInterface)
+	}
+	var outputObject any
+	switch utils.StringToLower(*args.Type) {
+	case "int":
+		outputObject, err = utils.ConvertToInt64(vInterface)
+	case "float":
+		outputObject, err = utils.ConvertToFloat(vInterface)
+	case "bool":
+		outputObject, err = utils.ConvertToBool(vInterface)
+	case "quotedstring", "stringobject":
+		outputObject, err = utils.ConvertToString(vInterface)
+	case "string":
+		outputObject, err = utils.ConvertToString(vInterface)
+		if err == nil {
+			return base.MakePlainOutput(outputObject.(string))
+		}
+	default:
+		return base.MakeOutputError(http.StatusBadRequest, "No such type %s", *args.Type)
+	}
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err)
+	}
+	return base.MakeObjectOutput(outputObject)
 }
 
 // EchoArgs are the arguments for the Echo function
@@ -172,7 +203,17 @@ func (m *OpUtils) EchoArguments(ctx *base.Context, input *base.OperatorIO, args 
 	return base.MakeObjectOutput(output)
 }
 
-// Remap values from the input to the output
+// MergeInputAndArguments merges the input and the arguments into a single map
+func (m *OpUtils) MergeInputAndArguments(ctx *base.Context, input *base.OperatorIO, args base.FunctionArguments) *base.OperatorIO {
+	output := map[string]interface{}{}
+	input.ParseJSON(&output)
+	for k, v := range args.GetOriginalCaseMap() {
+		output[k] = v
+	}
+	return base.MakeObjectOutput(output)
+}
+
+// RemapKeys renames arguments in the input based on the given mapping
 func (m *OpUtils) RemapKeys(ctx *base.Context, input *base.OperatorIO, args EchoArgumentsArgs, mapping map[string]string) *base.OperatorIO {
 	oldArgs, err := input.GetArgsMap()
 	if err != nil {

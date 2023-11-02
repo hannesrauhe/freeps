@@ -25,20 +25,20 @@ func (o *OperatorFlux) GetDefaultConfig() interface{} {
 }
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
-func (o *OperatorFlux) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+func (o *OperatorFlux) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	var err error
 	newO := OperatorFlux{config: config.(*FreepsFluxConfig)}
 	newO.ff, err = NewFreepsFlux(newO.config, nil)
 	return &newO, err
 }
 
-func (o *OperatorFlux) PushFreepsDeviceList(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+func (o *OperatorFlux) PushFreepsDeviceList(ctx *base.Context, input *base.OperatorIO, args base.FunctionArguments) *base.OperatorIO {
 	var devicelist freepslib.AvmDeviceList
 	err := input.ParseJSON(&devicelist)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
-	err, lp := o.ff.PushFreepsDeviceList(&devicelist)
+	err, lp := o.ff.PushFreepsDeviceList(&devicelist, args.GetLowerCaseMap())
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}

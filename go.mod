@@ -10,14 +10,14 @@ require (
 	github.com/godbus/dbus/v5 v5.0.3
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hannesrauhe/freepslib v1.0.2
+	github.com/hannesrauhe/freepslib v1.1.0
 	github.com/influxdata/influxdb-client-go/v2 v2.12.2
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/keep94/sunrise v1.0.1
 	github.com/lib/pq v1.10.7
 	github.com/mackerelio/go-osstat v0.2.4
 	github.com/muka/go-bluetooth v0.0.0-20221213043340-85dc80edc4e1
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/sstallion/go-hid v0.13.3
 	golang.org/x/image v0.6.0
 	gopkg.in/yaml.v3 v3.0.1

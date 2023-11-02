@@ -20,6 +20,8 @@ const (
 	FreepsFunctionTypeContextOnly
 	// FreepsFunctionTypeContextAndInput indicates that the function has a Context ptr as first parameter and a OperatorIO ptr as second parameter
 	FreepsFunctionTypeContextAndInput
+	// FreepsFunctionTypeWithDynamicFunctionArguments indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter and FunctionArguments as third parameter
+	FreepsFunctionTypeWithDynamicFunctionArguments
 	// FreepsFunctionTypeWithArguments indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter and a struct as third parameter
 	FreepsFunctionTypeWithArguments
 	// FreepsFunctionTypeFullSignature indicates that the function has a Context ptr as first parameter, a OperatorIO ptr as second parameter, a struct as third parameter and a map[string]string as fourth parameter
@@ -96,11 +98,6 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			continue
 		}
 
-		err = cr.WriteBackConfigIfChanged()
-		if err != nil {
-			ctx.logger.Errorf("Writing back config for operator \"%v\" failed: %v", opVariationSectionName, err)
-		}
-
 		// check if the config object has a field called "enabled" and if it is set to false
 		// if it is set to false, we do not want to initialize the operator and return nil
 		enabledField := reflect.ValueOf(conf).Elem().FieldByName("Enabled")
@@ -108,14 +105,23 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 			ctx.GetLogger().Debugf("Operator \"%v\" disabled", opVariationSectionName)
 			continue
 		}
-		opVariation, err := opVariation0.InitCopyOfOperator(conf, ctx)
+		opVariation, err := opVariation0.InitCopyOfOperator(ctx, conf, opVariationSectionName)
 		if err != nil {
 			ctx.logger.Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
 		}
+		err = cr.WriteSection(opVariationSectionName, conf, false)
+		if err != nil {
+			ctx.logger.Errorf("Writing config for operator \"%v\" failed: %v", opVariationSectionName, err)
+		}
 		opVariationWrapper := FreepsOperatorWrapper{opInstance: opVariation, opName: opVariationSectionName, config: conf}
 		opVariationWrapper.createFunctionMap(ctx)
 		ops = append(ops, &opVariationWrapper)
+	}
+
+	err = cr.WriteBackConfigIfChanged()
+	if err != nil {
+		ctx.logger.Errorf("Writing back config file failed: %v", err)
 	}
 	return ops
 }
@@ -148,6 +154,7 @@ func (o *FreepsOperatorWrapper) getFunction(name string) *reflect.Value {
 // 6. optionally takes a OperatorIO ptr as second parameters
 // 7. optionally takes a struct as third parameter (the parameters struct)
 // 8. optionally takes a map[string]string as fourth parameter
+// or takes a FunctionArguments as third parameter
 func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 	// describe function signature in a string to give developer a hint what is wrong
 	// we do not want to use f.String() because it is not very readable
@@ -183,6 +190,9 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 			return FreepsFunctionTypeContextAndInput, nil
 		}
 	case 4:
+		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Implements(reflect.TypeOf((*FunctionArguments)(nil)).Elem()) {
+			return FreepsFunctionTypeWithDynamicFunctionArguments, nil
+		}
 		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Kind() == reflect.Struct {
 			return FreepsFunctionTypeWithArguments, nil
 		}
@@ -195,22 +205,39 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 }
 
 // getInitializedParamStruct returns the struct that is the third parameter of the function,
-// if the struct implements the FreepsFunctionParameters interface, InitOptionalParameters is called and the struct is returned
-func (o *FreepsOperatorWrapper) getInitializedParamStruct(f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
+// if it has a function Init([opinstance]), call it to intialize optional values
+func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
 	paramStruct := f.In(2)
 
 	paramStructInstance := reflect.New(paramStruct)
+	if psI, ok := paramStructInstance.Interface().(FreepsFunctionParametersWithInit); ok {
+		psI.Init(ctx, o.opInstance, f.Name())
+	}
+
 	if !paramStructInstance.Type().Implements(reflect.TypeOf((*FreepsFunctionParameters)(nil)).Elem()) {
 		return paramStructInstance, nil
 	}
 	ps := paramStructInstance.Interface().(FreepsFunctionParameters)
-	ps.InitOptionalParameters(o.opInstance, f.Name())
 	return paramStructInstance, ps
 }
 
 // callParamSuggestionFunction : if paramStruct has a function with the Name argName + "Suggestions", execute it and return the result
-func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, argName string) map[string]string {
-	suggestionsFunc := paramStruct.MethodByName(argName + "Suggestions")
+// Note: function is uppercase because it is exported, but all other letters need to be lowercase
+func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, lkArgName string) map[string]string {
+	// iterate over all methods in paramStruct and check if there is a method with the name argName + "Suggestions", where argName is case-insensitive
+	var suggestionsFunc reflect.Value
+	for i := 0; i < paramStruct.NumMethod(); i++ {
+		methodName := paramStruct.Type().Method(i).Name
+		// check if method Name ends with "Suggestions"
+		if !utils.StringEndsWith(methodName, "Suggestions") {
+			continue
+		}
+		// check if the methodName without "Suggestions" is equal to the argName (case-insensitive)
+		if utils.StringToLower(methodName[:len(methodName)-11]) == lkArgName {
+			suggestionsFunc = paramStruct.Method(i)
+			break
+		}
+	}
 
 	if !suggestionsFunc.IsValid() {
 		return nil
@@ -221,14 +248,12 @@ func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.
 		return nil
 	}
 
-	outValue := make([]reflect.Value, 0)
+	var outValue []reflect.Value
 	if suggestionsFunc.Type().NumIn() == 0 {
 		// if the function has no parameters, call it without any
 		outValue = suggestionsFunc.Call([]reflect.Value{})
-	}
-
-	// if the function has one parameter, call it with the operator instance
-	if suggestionsFunc.Type().NumIn() == 1 {
+	} else if suggestionsFunc.Type().NumIn() == 1 {
+		// if the function has one parameter, call it with the operator instance
 		outValue = suggestionsFunc.Call([]reflect.Value{reflect.ValueOf(o.opInstance)})
 	}
 
@@ -266,7 +291,7 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 		}
 		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
 		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
-			paramStruct, ps := o.getInitializedParamStruct(t.Method(i).Type)
+			paramStruct, ps := o.getInitializedParamStruct(ctx, t.Method(i).Type)
 			if ps == nil && paramStruct.NumMethod() > 0 {
 				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", t.Method(i).Name, o.GetName())
 			}
@@ -296,6 +321,11 @@ func (o *FreepsOperatorWrapper) GetName() string {
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
+		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+		if ok {
+			fa := NewFunctionArguments(args)
+			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
+		}
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
 	}
 
@@ -310,16 +340,17 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 	case FreepsFunctionTypeContextAndInput:
 		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput)})
 		return outValue[0].Interface().(*OperatorIO)
+	case FreepsFunctionTypeWithDynamicFunctionArguments:
+		fa := NewFunctionArguments(args)
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), reflect.ValueOf(fa)})
+		return outValue[0].Interface().(*OperatorIO)
 	}
 
 	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := map[string]string{}
-	for k, v := range args {
-		lowercaseArgs[utils.StringToLower(k)] = v
-	}
+	lowercaseArgs := utils.KeysToLower(args)
 
 	// create an initialized instance of the parameter struct
-	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
+	paramStruct, ps := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
 
 	failOnError := true
 
@@ -367,6 +398,11 @@ func (o *FreepsOperatorWrapper) GetFunctions() []string {
 	for _, v := range o.functionMetaDataMap {
 		list = append(list, v.Name)
 	}
+
+	dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+	if ok {
+		list = append(list, dynmaicOp.GetDynamicFunctions()...)
+	}
 	return list
 }
 
@@ -376,9 +412,15 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 
 	m := o.getFunctionMetaData(fn)
 	if m == nil {
+		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+		if ok {
+			return dynmaicOp.GetDynamicPossibleArgs(utils.StringToLower(fn))
+		}
 		return list
 	}
-	if m.FuncType == FreepsFunctionTypeSimple || m.FuncType == FreepsFunctionTypeContextOnly || m.FuncType == FreepsFunctionTypeContextAndInput {
+
+	switch m.FuncType {
+	case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput, FreepsFunctionTypeWithDynamicFunctionArguments:
 		return list
 	}
 
@@ -397,44 +439,56 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 
 // GetArgSuggestions creates a Freepsfunction by name and returns the suggestions for the argument argName
 func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName string, otherArgs map[string]string) map[string]string {
+	//TODO(HR): ensure that args are lowercase
+	lowercaseArgs := utils.KeysToLower(otherArgs)
 	res := map[string]string{}
+	lkArgName := utils.StringToLower(argName)
+
+	var paramStruct reflect.Value
+	var ps FreepsFunctionParameters //TODO(HR): may deprecate this
+
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
-		return res
-	}
-
-	switch ffm.FuncType {
-	case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput:
-		return res
-	}
-
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := map[string]string{}
-	for k, v := range otherArgs {
-		lowercaseArgs[utils.StringToLower(k)] = v
-	}
-
-	// create an initialized instance of the parameter struct
-	paramStruct, ps := o.getInitializedParamStruct(ffm.FuncValue.Type())
-
-	//set all required parameters of the FreepsFunction
-	o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
-	o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
-
-	// if the parameter struct does not implement the FreepsFunctionParameters interface, see if it has a function with the Name argName + "Suggestions"
-	if ps == nil {
-		suggestions := o.callParamSuggestionFunction(paramStruct, argName)
-		if suggestions != nil {
-			return suggestions
+		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
+		if ok {
+			res = dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), lkArgName, lowercaseArgs)
 		}
-		// common suggestions for all parameters if there are no suggestions for the parameter
-		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
+	} else {
+		switch ffm.FuncType {
+		case FreepsFunctionTypeSimple, FreepsFunctionTypeContextOnly, FreepsFunctionTypeContextAndInput, FreepsFunctionTypeWithDynamicFunctionArguments:
+			return res
+		}
+
+		// create an initialized instance of the parameter struct
+		paramStruct, ps = o.getInitializedParamStruct(nil, ffm.FuncValue.Type())
+
+		//set all required parameters of the FreepsFunction
+		o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
+		o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
+
+		// call the parameter struct's suggestion function
+		res = o.callParamSuggestionFunction(paramStruct, lkArgName)
 	}
 
-	// call the parameter struct's suggestion function
-	res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), utils.StringToLower(argName), lowercaseArgs)
-	if res == nil || len(res) == 0 {
-		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, utils.StringToLower(argName)))
+	if res != nil && len(res) > 0 {
+		return res
+	}
+
+	// check if operator itself has Suggestions for this argument
+	operatorStruct := reflect.ValueOf(o.opInstance)
+	res = o.callParamSuggestionFunction(operatorStruct, lkArgName)
+	if res != nil {
+		return res
+	}
+
+	// if the parameter struct implements FreepsFunctionParameters interface, call its GetArgSuggestions function => deprecate
+	if ps != nil {
+		res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), lkArgName, lowercaseArgs)
+	}
+
+	if (res == nil || len(res) == 0) && ffm != nil {
+		// common suggestions for all parameters if there are no suggestions for the parameter
+		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, lkArgName))
 	}
 	return res
 }

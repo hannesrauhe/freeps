@@ -21,7 +21,7 @@ func (mm *MuteMe) GetDefaultConfig() interface{} {
 }
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
-func (mm *MuteMe) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+func (mm *MuteMe) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	var err error
 	if impl != nil {
 		return nil, fmt.Errorf("Only one instance of muteme is allowed")
@@ -40,10 +40,6 @@ type SetColorArgs struct {
 }
 
 var _ base.FreepsFunctionParameters = &SetColorArgs{}
-
-// InitOptionalParameters does nothing because there are no optional arguments
-func (mma *SetColorArgs) InitOptionalParameters(op base.FreepsOperator, fn string) {
-}
 
 // GetArgSuggestions returns suggestions for the color
 func (mma *SetColorArgs) GetArgSuggestions(op base.FreepsOperator, fn string, arg string, otherArgs map[string]string) map[string]string {

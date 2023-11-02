@@ -21,7 +21,7 @@ func (m *OpTelegram) GetDefaultConfig() interface{} {
 }
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
-func (m *OpTelegram) InitCopyOfOperator(config interface{}, ctx *base.Context) (base.FreepsOperatorWithConfig, error) {
+func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	if bot != nil {
 		return nil, fmt.Errorf("Only one instance of telegram is allowed")
 	}
