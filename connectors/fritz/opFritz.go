@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strings"
 	"time"
 
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
@@ -56,9 +55,8 @@ func (m *OpFritz) GetTemplateNamespace() freepsstore.StoreNamespace {
 }
 
 // ExecuteDynamic executes a dynamic function
-func (m *OpFritz) ExecuteDynamic(ctx *base.Context, mixedCaseFn string, args base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	dev := args.Get("device")
-	fn := strings.ToLower(mixedCaseFn)
 
 	switch fn {
 	case "upnp":

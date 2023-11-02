@@ -1,6 +1,7 @@
 package freepsstore
 
 import (
+	"math"
 	"net/http"
 	"time"
 
@@ -166,7 +167,20 @@ func (p *StoreSearchArgs) NamespaceSuggestions(oc *OpStore) []string {
 	return store.GetNamespaces()
 }
 
-//TODO: add default functions
+// Init initializes the StoreSearchArgs with default values
+func (p *StoreSearchArgs) Init(ctx *base.Context, op base.FreepsOperator, fn string) {
+	p.Output = new(string)
+	*p.Output = "hierarchy"
+	p.Key = new(string)
+	p.Value = new(string)
+	p.ModifiedBy = new(string)
+	p.MinAge = new(time.Duration)
+	*p.MinAge = 0
+	p.MaxAge = new(time.Duration)
+	*p.MaxAge = math.MaxInt64
+}
+
+var _ base.FreepsFunctionParametersWithInit = &StoreSearchArgs{}
 
 // Search searches the store for values matching the given criteria
 func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSearchArgs) *base.OperatorIO {

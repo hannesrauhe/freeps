@@ -87,6 +87,7 @@ func mainLoop() bool {
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
+		&freepsstore.OpStore{},
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
 		&freepsflux.OperatorFlux{},
@@ -102,7 +103,6 @@ func mainLoop() bool {
 		&fritz.OpFritz{},
 	}
 
-	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
 	for _, op := range availableOperators {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
