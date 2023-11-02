@@ -80,22 +80,10 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 		keyArgName = "key"
 	}
 	key, ok := args[keyArgName]
-	if fn != "getAll" && fn != "setall" && fn != "deleteolder" && fn != "search" && !ok {
+	if fn != "getall" && fn != "setall" && fn != "deleteolder" && fn != "search" && !ok {
 		return base.MakeOutputError(http.StatusBadRequest, "No key given")
 	}
-	// overwrite input and function to treat setSimpleValue like set
-	if fn == "setsimplevalue" {
-		valueArgName := args["valueArgName"]
-		if valueArgName == "" {
-			valueArgName = "value"
-		}
-		val, ok := args[valueArgName]
-		if !ok {
-			return base.MakeOutputError(http.StatusBadRequest, "No value given")
-		}
-		fn = "set"
-		input = base.MakePlainOutput(val)
-	}
+
 	output, ok := args["output"]
 	if !ok {
 		// default is the complete tree
@@ -123,13 +111,6 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 	}
 
 	switch fn {
-	case "search":
-		{
-			value := args["value"]
-			modifiedBy := args["modifiedBy"]
-			sargs := StoreSearchArgs{Namespace: ns, Key: &key, Value: &value, ModifiedBy: &modifiedBy, MinAge: &minAge, MaxAge: &maxAge, Output: &output}
-			return o.Search(ctx, input, sargs)
-		}
 	case "getall":
 		{
 			r := nsStore.GetSearchResultWithMetadata(key, args["value"], args["modifiedBy"], minAge, maxAge)
@@ -149,38 +130,6 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 			}
 			nsStore.SetAll(m, ctx.GetID())
 		}
-	case "get":
-		{
-			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, DefaultValue: nil}
-			if maxAgeRequest {
-				argsStruct.MaxAge = &maxAge
-			}
-			val, ok := args["defaultValue"]
-			if ok {
-				argsStruct.DefaultValue = &val
-			}
-			return o.Get(ctx, input, argsStruct)
-		}
-	case "equals":
-		{
-			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, Value: nil}
-			if maxAgeRequest {
-				argsStruct.MaxAge = &maxAge
-			}
-			val, ok := args["value"]
-			if ok {
-				argsStruct.Value = &val
-			}
-			return o.Equals(ctx, input, argsStruct)
-		}
-	case "set":
-		{
-			argsStruct := StoreSetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil}
-			if maxAgeRequest {
-				argsStruct.MaxAge = &maxAge
-			}
-			return o.Set(ctx, input, argsStruct)
-		}
 	case "compareandswap":
 		{
 			val, ok := args["value"]
@@ -192,14 +141,6 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 				return io
 			}
 			result[ns] = map[string]*base.OperatorIO{key: input}
-		}
-	case "del", "delete", "remove":
-		{
-			argsStruct := StoreSetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil}
-			if maxAgeRequest {
-				argsStruct.MaxAge = &maxAge
-			}
-			return o.Delete(ctx, input, argsStruct)
 		}
 	case "deleteolder":
 		{

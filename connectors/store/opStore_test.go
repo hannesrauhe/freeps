@@ -12,16 +12,23 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func testOutput(t *testing.T, fn string, output string) {
+func prepareStore(t *testing.T) (base.FreepsBaseOperator, *base.Context) {
+	ctx := base.NewContext(logrus.StandardLogger())
+
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
+	s := base.MakeFreepsOperators(&OpStore{}, cr, ctx)[0]
+	return s, ctx
+}
+
+func testOutput(t *testing.T, fn string, output string) {
+	s, ctx := prepareStore(t)
+
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value"}
 	input := base.MakePlainOutput("test_value")
-	ctx := base.NewContext(logrus.StandardLogger())
 
-	s := base.MakeFreepsOperators(&OpStore{}, cr, ctx)[0]
 	vars["output"] = "empty"
 	out := s.Execute(ctx, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
@@ -70,14 +77,10 @@ func TestStoreOpOutput(t *testing.T) {
 }
 
 func TestStoreExpiration(t *testing.T) {
+	s, ctx := prepareStore(t)
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
 	input := base.MakePlainOutput("test_value")
-	ctx := base.NewContext(logrus.StandardLogger())
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
-	assert.NilError(t, err)
 
-	s := base.MakeFreepsOperators(&OpStore{}, cr, ctx)[0]
 	out := s.Execute(ctx, "setSimpleValue", vars, input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
@@ -127,15 +130,10 @@ func TestStoreExpiration(t *testing.T) {
 }
 
 func TestStoreCompareAndSwap(t *testing.T) {
+	s, ctx := prepareStore(t)
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
 	input := base.MakePlainOutput("a_new_value")
-	ctx := base.NewContext(logrus.StandardLogger())
 
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
-	assert.NilError(t, err)
-
-	s := base.MakeFreepsOperators(&OpStore{}, cr, ctx)[0]
 	out := s.Execute(ctx, "compareAndSwap", vars, input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusNotFound)
@@ -156,32 +154,46 @@ func TestStoreCompareAndSwap(t *testing.T) {
 }
 
 func TestStoreDynamicArgName(t *testing.T) {
+	s, ctx := prepareStore(t)
 	vars := map[string]string{"namespace": "testing", "keyargname": "schluessel", "valueargname": "wert", "schluessel": "test_key", "wert": "test_value", "output": "direct"}
 	input := base.MakePlainOutput("a_new_value")
-	ctx := base.NewContext(logrus.StandardLogger())
 
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
-	assert.NilError(t, err)
-
-	s := base.MakeFreepsOperators(&OpStore{}, cr, ctx)[0]
 	out := s.Execute(ctx, "setSimpleValue", vars, input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
 	out = s.Execute(ctx, "get", vars, input)
-	assert.Equal(t, out.GetString(), "a_new_value")
+	assert.Equal(t, out.GetString(), "test_value")
+
+	out = s.Execute(ctx, "del", vars, input)
+	assert.Assert(t, !out.IsError(), "Unexpected error when deleting value: %v", out)
+
+	vars["wert"] = ""
+	out = s.Execute(ctx, "set", vars, input)
+	assert.Assert(t, !out.IsError())
+
+	delete(vars, "wert")
+	out = s.Execute(ctx, "set", vars, input)
+	assert.Assert(t, !out.IsError())
+}
+
+func TestStoreGetDefault(t *testing.T) {
+	s, ctx := prepareStore(t)
+	vars := map[string]string{"namespace": "testing", "key": "test_key", "defaultvalue": "mydefault", "output": "direct"}
+	input := base.MakePlainOutput("a_new_value")
+
+	out := s.Execute(ctx, "set", vars, input)
+	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
+
+	vars["key"] = "test_key2"
+	out = s.Execute(ctx, "get", vars, input)
+	assert.Equal(t, out.GetString(), "mydefault")
 }
 
 func TestStoreSetGetAll(t *testing.T) {
+	s, ctx := prepareStore(t)
 	vars := map[string]string{"namespace": "testing"}
 	input := base.MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
-	ctx := base.NewContext(logrus.StandardLogger())
 
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
-	assert.NilError(t, err)
-
-	s := base.MakeFreepsOperators(&OpStore{}, cr, ctx)[0]
 	outSet := s.Execute(ctx, "setAll", vars, input)
 	assert.Assert(t, !outSet.IsError(), outSet.Output)
 

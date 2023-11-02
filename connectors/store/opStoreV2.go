@@ -1,6 +1,7 @@
 package freepsstore
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 	"time"
@@ -56,29 +57,88 @@ func (o *OpStore) modifyOutputSingleNamespace(ns string, output string, result m
 	return base.MakeOutputError(http.StatusBadRequest, "Unknown output type '%v'", output)
 }
 
-// StoreGetArgs are the arguments for the StoreGet function
-type StoreGetArgs struct {
-	Namespace    string
-	Key          string
-	Output       string
-	DefaultValue *string // only used for Get
-	Value        *string // only used for Equals
-	MaxAge       *time.Duration
-}
-
 // NamespaceSuggestions returns a list of namespaces
-func (p *StoreGetArgs) NamespaceSuggestions(oc *OpStore) []string {
+func (o *OpStore) NamespaceSuggestions() []string {
 	return store.GetNamespaces()
 }
 
+// OutputSuggestions returns the different output types
+func (o *OpStore) OutputSuggestions() []string {
+	return []string{"full", "arguments", "flat", "direct", "bool", "empty", "hierarchy"}
+}
+
+// StoreGetSetEqualArgs are the arguments for the Get, Set and Equal function
+type StoreGetSetEqualArgs struct {
+	Namespace    string
+	Key          *string
+	KeyArgName   *string
+	Output       *string
+	DefaultValue *string // only used for Get
+	Value        *string
+	ValueArgName *string // only used for Equals/Set
+	MaxAge       *time.Duration
+}
+
+// Init initializes the args with default values
+func (p *StoreGetSetEqualArgs) Init(ctx *base.Context, op base.FreepsOperator, fn string) {
+	p.Output = new(string)
+	*p.Output = "hierarchy"
+}
+
+// KeySuggestions returns a list of keys for the given namespace
+func (p *StoreGetSetEqualArgs) KeySuggestions() []string {
+	if p.Namespace == "" {
+		return []string{}
+	}
+	return store.GetNamespace(p.Namespace).GetKeys()
+}
+
+// ValueSuggestions returns a list of values for the given namespace and key
+func (p *StoreGetSetEqualArgs) ValueSuggestions() []string {
+	if p.Namespace == "" || p.Key == nil {
+		return []string{}
+	}
+	if *p.Key == "" {
+		return []string{}
+	}
+	v := store.GetNamespace(p.Namespace).GetValue(*p.Key)
+	if v == NotFoundEntry {
+		return []string{}
+	}
+	return []string{v.GetData().GetString()}
+}
+
+// GetKey returns the key based on the key or keyArgName
+func (p *StoreGetSetEqualArgs) GetKey(fa base.FunctionArguments) (string, error) {
+	key := "key"
+	if p.KeyArgName == nil {
+		if p.Key == nil {
+			return key, fmt.Errorf("No key given")
+		}
+		return *p.Key, nil
+	}
+
+	key = fa.Get(*p.KeyArgName)
+	if key == "" {
+		return key, fmt.Errorf("No key \"%v\"  given", *p.KeyArgName)
+	}
+	return key, nil
+
+}
+
 // Get returns a value from the store that is not older than the given maxAge; returns the default value or an error if the value is older or not found
-func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetArgs) *base.OperatorIO {
+func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+	key, err := args.GetKey(base.NewFunctionArguments(vars))
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+
 	nsStore := store.GetNamespace(args.Namespace)
 	e := StoreEntry{}
 	if args.MaxAge != nil {
-		e = nsStore.GetValueBeforeExpiration(args.Key, *args.MaxAge)
+		e = nsStore.GetValueBeforeExpiration(key, *args.MaxAge)
 	} else {
-		e = nsStore.GetValue(args.Key)
+		e = nsStore.GetValue(key)
 	}
 	io := e.GetData()
 
@@ -88,17 +148,22 @@ func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetAr
 		}
 		e = StoreEntry{base.MakePlainOutput(*args.DefaultValue), time.Now(), ctx.GetID()}
 	}
-	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
+	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, map[string]StoreEntry{key: e})
 }
 
 // Equals returns an error if the value from the store is not equal to the given value
-func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGetArgs) *base.OperatorIO {
+func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+	key, err := args.GetKey(base.NewFunctionArguments(vars))
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+
 	nsStore := store.GetNamespace(args.Namespace)
 	e := StoreEntry{}
 	if args.MaxAge != nil {
-		e = nsStore.GetValueBeforeExpiration(args.Key, *args.MaxAge)
+		e = nsStore.GetValueBeforeExpiration(key, *args.MaxAge)
 	} else {
-		e = nsStore.GetValue(args.Key)
+		e = nsStore.GetValue(key)
 	}
 	io := e.GetData()
 
@@ -114,41 +179,65 @@ func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGe
 	if io.GetString() != val {
 		return base.MakeOutputError(http.StatusExpectationFailed, "Values do not match")
 	}
-	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
-}
-
-// StoreSetArgs are the arguments for the StoreSet function
-type StoreSetArgs struct {
-	Namespace string
-	Key       string
-	Output    string
-	MaxAge    *time.Duration
-}
-
-// NamespaceSuggestions returns a list of namespaces
-func (p *StoreSetArgs) NamespaceSuggestions(oc *OpStore) []string {
-	return store.GetNamespaces()
+	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, map[string]StoreEntry{key: e})
 }
 
 // Set sets a value in the store
-func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreSetArgs) *base.OperatorIO {
+func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+	key, err := args.GetKey(base.NewFunctionArguments(vars))
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+
 	nsStore := store.GetNamespace(args.Namespace)
 	var e StoreEntry
 	if args.MaxAge != nil {
-		e = nsStore.OverwriteValueIfOlder(args.Key, input, *args.MaxAge, ctx.GetID())
+		e = nsStore.OverwriteValueIfOlder(key, input, *args.MaxAge, ctx.GetID())
 		if e.GetData().IsError() {
 			return e.GetData()
 		}
 	}
-	e = nsStore.SetValue(args.Key, input, ctx.GetID())
-	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
+	e = nsStore.SetValue(key, input, ctx.GetID())
+	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, map[string]StoreEntry{key: e})
+}
+
+// SetSimpleValue sets a value based on a parameter and ignores the input
+func (o *OpStore) SetSimpleValue(ctx *base.Context, input *base.OperatorIO, p StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+	value := ""
+	if p.ValueArgName == nil {
+		if p.Value == nil {
+			return base.MakeOutputError(http.StatusBadRequest, "No value given")
+		}
+		value = *p.Value
+	} else {
+		fa := base.NewFunctionArguments(vars)
+		if !fa.Has(*p.ValueArgName) {
+			return base.MakeOutputError(http.StatusBadRequest, "No value \"%v\" given", *p.ValueArgName)
+		}
+		value = fa.Get(*p.ValueArgName)
+	}
+	return o.Set(ctx, base.MakePlainOutput(value), p, vars)
 }
 
 // Delete deletes a key from the store
-func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreSetArgs) *base.OperatorIO {
+func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+	key, err := args.GetKey(base.NewFunctionArguments(vars))
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
 	nsStore := store.GetNamespace(args.Namespace)
-	nsStore.DeleteValue(args.Key)
+	nsStore.DeleteValue(key)
 	return base.MakeEmptyOutput()
+}
+
+// Del deletes a key from the store
+func (o *OpStore) Del(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+	return o.Delete(ctx, input, args, vars)
+}
+
+// Remove deletes a key from the store
+func (o *OpStore) Remove(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+	return o.Delete(ctx, input, args, vars)
 }
 
 // StoreSearchArgs are the arguments for the StoreSet function
@@ -160,11 +249,6 @@ type StoreSearchArgs struct {
 	MinAge     *time.Duration
 	MaxAge     *time.Duration
 	Output     *string
-}
-
-// NamespaceSuggestions returns a list of namespaces
-func (p *StoreSearchArgs) NamespaceSuggestions(oc *OpStore) []string {
-	return store.GetNamespaces()
 }
 
 // Init initializes the StoreSearchArgs with default values
