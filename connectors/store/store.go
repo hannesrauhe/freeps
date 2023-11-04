@@ -59,7 +59,7 @@ func (v StoreEntry) IsError() bool { return v.data != nil && v.data.IsError() }
 
 // StoreNamespace defines all functions to retrieve and modify data in the store
 type StoreNamespace interface {
-	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry
 	DeleteOlder(maxAge time.Duration) int
 	DeleteValue(key string)
 	GetAllValues(limit int) map[string]*base.OperatorIO

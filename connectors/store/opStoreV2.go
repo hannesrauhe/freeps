@@ -9,7 +9,18 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 )
 
-func (o *OpStore) modifyOutputSingleNamespace(ns string, output string, result map[string]StoreEntry) *base.OperatorIO {
+func (o *OpStore) modifyOutputSingleNamespace(ns string, outputPtr *string, result map[string]StoreEntry) *base.OperatorIO {
+	if len(result) == 1 {
+		for _, v := range result {
+			if v.IsError() {
+				return v.GetData()
+			}
+		}
+	}
+	output := "hierarchy"
+	if outputPtr != nil {
+		output = *outputPtr
+	}
 	switch output {
 	case "full":
 		{
@@ -65,6 +76,10 @@ func (o *OpStore) NamespaceSuggestions() []string {
 // OutputSuggestions returns the different output types
 func (o *OpStore) OutputSuggestions() []string {
 	return []string{"full", "arguments", "flat", "direct", "bool", "empty", "hierarchy"}
+}
+
+func (o *OpStore) GetNamespaces(ctx *base.Context) *base.OperatorIO {
+	return base.MakeObjectOutput(store.GetNamespaces())
 }
 
 // StoreGetSetEqualArgs are the arguments for the Get, Set and Equal function
@@ -123,7 +138,6 @@ func (p *StoreGetSetEqualArgs) GetKey(fa base.FunctionArguments) (string, error)
 		return key, fmt.Errorf("No key \"%v\"  given", *p.KeyArgName)
 	}
 	return key, nil
-
 }
 
 // Get returns a value from the store that is not older than the given maxAge; returns the default value or an error if the value is older or not found
@@ -140,15 +154,11 @@ func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 	} else {
 		e = nsStore.GetValue(key)
 	}
-	io := e.GetData()
 
-	if io.IsError() {
-		if args.DefaultValue == nil {
-			return io
-		}
+	if e == NotFoundEntry && args.DefaultValue != nil {
 		e = StoreEntry{base.MakePlainOutput(*args.DefaultValue), time.Now(), ctx.GetID()}
 	}
-	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, map[string]StoreEntry{key: e})
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{key: e})
 }
 
 // Equals returns an error if the value from the store is not equal to the given value
@@ -179,7 +189,7 @@ func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGe
 	if io.GetString() != val {
 		return base.MakeOutputError(http.StatusExpectationFailed, "Values do not match")
 	}
-	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, map[string]StoreEntry{key: e})
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{key: e})
 }
 
 // Set sets a value in the store
@@ -198,7 +208,7 @@ func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 		}
 	}
 	e = nsStore.SetValue(key, input, ctx.GetID())
-	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, map[string]StoreEntry{key: e})
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{key: e})
 }
 
 // SetSimpleValue sets a value based on a parameter and ignores the input
@@ -240,6 +250,30 @@ func (o *OpStore) Remove(ctx *base.Context, input *base.OperatorIO, args StoreGe
 	return o.Delete(ctx, input, args, vars)
 }
 
+// CASArgs are the arguments for the CompareAndSwap function
+type CASArgs struct {
+	Namespace string
+	Key       string
+	Output    *string
+	Value     string
+}
+
+// KeySuggestions returns a list of keys for the given namespace
+func (p *CASArgs) KeySuggestions() []string {
+	if p.Namespace == "" {
+		return []string{}
+	}
+	return store.GetNamespace(p.Namespace).GetKeys()
+}
+
+// CompareAndSwap sets a value in the store if the current value is equal to the given value
+func (o *OpStore) CompareAndSwap(ctx *base.Context, input *base.OperatorIO, args CASArgs) *base.OperatorIO {
+	nsStore := store.GetNamespace(args.Namespace)
+	e := nsStore.CompareAndSwap(args.Key, args.Value, input, ctx.GetID())
+
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
+}
+
 // StoreSearchArgs are the arguments for the StoreSet function
 type StoreSearchArgs struct {
 	Namespace  string
@@ -270,5 +304,5 @@ var _ base.FreepsFunctionParametersWithInit = &StoreSearchArgs{}
 func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSearchArgs) *base.OperatorIO {
 	nsStore := store.GetNamespace(args.Namespace)
 	res := nsStore.GetSearchResultWithMetadata(*args.Key, *args.Value, *args.ModifiedBy, *args.MinAge, *args.MaxAge)
-	return o.modifyOutputSingleNamespace(args.Namespace, *args.Output, res)
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, res)
 }

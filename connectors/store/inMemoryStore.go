@@ -71,17 +71,17 @@ func (s *inMemoryStoreNamespace) SetAll(valueMap map[string]interface{}, modifie
 }
 
 // CompareAndSwap sets the value if the string representation of the already stored value is as expected
-func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	oldV, exists := s.entries[key]
 	if !exists {
-		return base.MakeOutputError(http.StatusNotFound, "key does not exist yet")
+		return NotFoundEntry
 	}
 	if oldV.data == nil || oldV.data.GetString() != expected {
-		return base.MakeOutputError(http.StatusConflict, "old value is different from expectation")
+		return MakeEntryError(http.StatusConflict, "old value is different from expectation")
 	}
-	return s.setValueUnlocked(key, newValue, modifiedBy).GetData()
+	return s.setValueUnlocked(key, newValue, modifiedBy)
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value

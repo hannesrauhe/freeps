@@ -8,10 +8,13 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpStore struct {
+	CR *utils.ConfigReader
+	GE *freepsgraph.GraphEngine
 }
 
 var _ base.FreepsOperatorWithConfig = &OpStore{}
@@ -43,15 +46,12 @@ func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 	}
 	store.namespaces["_files"] = fns
 
-	return &OpStore{}, err
+	return &OpStore{CR: o.CR, GE: o.GE}, err
 }
 
 // ExecuteDynamic is a single spaghetti - needs cleanup ... moving to opStoreV2.go
 func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	args := fa.GetOriginalCaseMap()
-	if fn == "getnamespaces" {
-		return base.MakeObjectOutput(store.GetNamespaces())
-	}
 	result := map[string]map[string]*base.OperatorIO{}
 	ns, ok := args["namespace"]
 	if !ok {
@@ -129,18 +129,6 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 				return base.MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
 			}
 			nsStore.SetAll(m, ctx.GetID())
-		}
-	case "compareandswap":
-		{
-			val, ok := args["value"]
-			if !ok {
-				return base.MakeOutputError(http.StatusBadRequest, "No expected value given")
-			}
-			io := nsStore.CompareAndSwap(key, val, input, ctx.GetID())
-			if io.IsError() {
-				return io
-			}
-			result[ns] = map[string]*base.OperatorIO{key: input}
 		}
 	case "deleteolder":
 		{

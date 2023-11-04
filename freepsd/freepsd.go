@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -87,7 +86,7 @@ func mainLoop() bool {
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
-		&freepsstore.OpStore{},
+		&freepsstore.OpStore{CR: cr, GE: ge},
 		&freepsbluetooth.Bluetooth{},
 		&muteme.MuteMe{},
 		&freepsflux.OperatorFlux{},
@@ -131,7 +130,7 @@ func mainLoop() bool {
 			}
 			oio = base.MakeByteOutput(b)
 		} else if input != "" {
-			content, err := ioutil.ReadFile(input)
+			content, err := os.ReadFile(input)
 			if err != nil {
 				log.Fatal(err)
 			}

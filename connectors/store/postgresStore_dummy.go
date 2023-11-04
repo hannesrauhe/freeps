@@ -26,7 +26,7 @@ type postgresStoreNamespace struct {
 
 var _ StoreNamespace = &postgresStoreNamespace{}
 
-func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 

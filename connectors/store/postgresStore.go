@@ -128,8 +128,8 @@ func (p *postgresStoreNamespace) entryToOutput(output *base.OperatorIO, valuePla
 	}
 }
 
-func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+	return MakeEntryError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
 func (p *postgresStoreNamespace) DeleteOlder(maxAge time.Duration) int {

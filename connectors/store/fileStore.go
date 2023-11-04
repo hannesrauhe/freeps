@@ -40,8 +40,8 @@ func makeGenericStoreEntry(io *base.OperatorIO) StoreEntry {
 
 var _ StoreNamespace = &fileStoreNamespace{}
 
-func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+	return MakeEntryError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
 func (p *fileStoreNamespace) DeleteOlder(maxAge time.Duration) int {
