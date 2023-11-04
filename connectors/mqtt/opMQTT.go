@@ -9,25 +9,34 @@ import (
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpMQTT struct {
+	CR   *utils.ConfigReader
+	GE   *freepsgraph.GraphEngine
+	impl *FreepsMqttImpl
 }
 
-var _ base.FreepsBaseOperator = &OpMQTT{}
+var _ base.FreepsOperatorWithDynamicFunctions = &OpMQTT{}
+var _ base.FreepsOperatorWithConfig = &OpMQTT{}
+var _ base.FreepsOperatorWithHook = &OpMQTT{}
+var _ base.FreepsOperatorWithShutdown = &OpMQTT{}
 
-func NewMQTTOp(cr *utils.ConfigReader) *OpMQTT {
-	fmqtt := &OpMQTT{}
-	return fmqtt
+func (o *OpMQTT) GetDefaultConfig() interface{} {
+	return FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 }
 
-// GetName returns the name of the operator
-func (o *OpMQTT) GetName() string {
-	return "mqtt"
+func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
+	cfg := config.(*FreepsMqttConfig)
+	f, err := newFreepsMqttImpl(ctx.GetLogger(), cfg, o.GE)
+	op := &OpMQTT{CR: o.CR, GE: o.GE, impl: f}
+	return op, err
 }
 
-func (o *OpMQTT) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	args := fa.GetOriginalCaseMap()
 	switch fn {
 	case "publish":
 		topic, ok := args["topic"]
@@ -50,31 +59,27 @@ func (o *OpMQTT) Execute(ctx *base.Context, fn string, args map[string]string, i
 		if ok {
 			return o.publishToExternal(args, topic, msg, qos, retain)
 		}
-		fm := GetInstance()
-		err = fm.Publish(topic, msg, qos, retain)
+		err = o.impl.publish(topic, msg, qos, retain)
 		if err != nil {
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		return base.MakeEmptyOutput()
 	case "getSubscriptions":
-		topics, err := GetInstance().GetSubscriptions()
-		if err != nil {
-			return base.MakeOutputError(500, "Error when trying to get Subscriptions: %v", err.Error())
-		}
+		topics := o.impl.getTopicSubscriptions()
 		return base.MakeObjectOutput(topics)
 	}
 	return base.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 }
 
-func (o *OpMQTT) GetFunctions() []string {
+func (o *OpMQTT) GetDynamicFunctions() []string {
 	return []string{"publish", "getSubscriptions"}
 }
 
-func (o *OpMQTT) GetPossibleArgs(fn string) []string {
+func (o *OpMQTT) GetDynamicPossibleArgs(fn string) []string {
 	return []string{"topic", "msg", "qos", "retain", "server", "username", "password"}
 }
 
-func (o *OpMQTT) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpMQTT) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	switch arg {
 	case "retain":
 		return map[string]string{"true": "true", "false": "false"}
@@ -85,14 +90,6 @@ func (o *OpMQTT) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 	}
 
 	return map[string]string{}
-}
-
-// StartListening (noOp)
-func (o *OpMQTT) StartListening(ctx *base.Context) {
-}
-
-// Shutdown (noOp)
-func (o *OpMQTT) Shutdown(ctx *base.Context) {
 }
 
 // publish on a new connection to a defined server
@@ -126,4 +123,16 @@ func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg int
 	}
 	client.Disconnect(250)
 	return base.MakeEmptyOutput()
+}
+
+func (o *OpMQTT) GetHook() interface{} {
+	return &HookMQTT{o.impl}
+}
+
+func (o *OpMQTT) StartListening(ctx *base.Context) {
+	o.impl.startTagSubscriptions()
+}
+
+func (o *OpMQTT) Shutdown(ctx *base.Context) {
+	o.impl.Shutdown()
 }

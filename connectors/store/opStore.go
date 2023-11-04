@@ -364,3 +364,8 @@ func (o *OpStore) StartListening(ctx *base.Context) {
 // Shutdown (noOp)
 func (o *OpStore) Shutdown(ctx *base.Context) {
 }
+
+// GetHook (noOp)
+func (o *OpStore) GetHook() interface{} {
+	return nil
+}

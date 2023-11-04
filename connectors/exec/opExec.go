@@ -277,6 +277,11 @@ func (o *OpExec) Shutdown(ctx *base.Context) {
 	o.stopBackground(ctx)
 }
 
+// GetHook (noOp)
+func (o *OpExec) GetHook() interface{} {
+	return nil
+}
+
 // AddExecOperators adds executables to the config
 func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngine) error {
 	execConfig := DefaultConfig

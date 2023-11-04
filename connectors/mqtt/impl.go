@@ -15,7 +15,6 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
@@ -36,8 +35,6 @@ type FreepsMqttConfig struct {
 	Topics      []TopicConfig
 	ResultTopic string // Topic to publish results to; empty (default) means no publishing of results
 }
-
-var DefaultConfig = FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
 
 func (fm *FreepsMqttImpl) publishResult(topic string, ctx *base.Context, out *base.OperatorIO) {
 	if fm.Config.ResultTopic == "" {
@@ -162,17 +159,8 @@ func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
 	fm.startTagSubscriptions()
 }
 
-func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
+func newFreepsMqttImpl(logger log.FieldLogger, fmc *FreepsMqttConfig, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
 	mqttlogger := logger.WithField("component", "mqtt")
-	fmc := DefaultConfig
-	err := cr.ReadSectionWithDefaults("freepsmqtt", &fmc)
-	if err != nil {
-		return nil, fmt.Errorf("Reading the config failed: %v", err.Error())
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		log.Error(err)
-	}
 
 	if fmc.Server == "" {
 		return nil, fmt.Errorf("no server given in the config file")
@@ -180,7 +168,7 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqttImpl{Config: &fmc, ge: ge, mqttlogger: mqttlogger, topics: map[string]bool{}}
+	fmqtt := &FreepsMqttImpl{Config: fmc, ge: ge, mqttlogger: mqttlogger, topics: map[string]bool{}}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true).SetOrderMatters(false)
 	if fmc.Username != "" {
@@ -195,13 +183,6 @@ func newFreepsMqttImpl(logger log.FieldLogger, cr *utils.ConfigReader, ge *freep
 	connOpts.OnConnect = fmqtt.startConfigSubscriptions
 
 	client := MQTT.NewClient(connOpts)
-	go func() {
-		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			mqttlogger.Errorf("Error when connecting to %s: %v \n", fmc.Server, token.Error().Error())
-		} else {
-			mqttlogger.Infof("Connected to %s", fmc.Server)
-		}
-	}()
 	fmqtt.client = client
 	return fmqtt, nil
 }
@@ -225,6 +206,17 @@ func (fm *FreepsMqttImpl) getTopicSubscriptions() []string {
 		topics = append(topics, t)
 	}
 	return topics
+}
+
+func (fm *FreepsMqttImpl) StartListening() error {
+	go func() {
+		if token := fm.client.Connect(); token.Wait() && token.Error() != nil {
+			fm.mqttlogger.Errorf("Error when connecting to %s: %v \n", fm.Config.Server, token.Error().Error())
+		} else {
+			fm.mqttlogger.Infof("Connected to %s", fm.Config.Server)
+		}
+	}()
+	return nil
 }
 
 // Shutdown MQTT and cancel all subscriptions

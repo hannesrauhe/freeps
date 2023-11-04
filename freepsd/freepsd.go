@@ -100,6 +100,7 @@ func mainLoop() bool {
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
 		&fritz.OpFritz{},
+		&mqtt.OpMQTT{CR: cr, GE: ge},
 	}
 
 	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
@@ -107,7 +108,6 @@ func mainLoop() bool {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
 	}
-	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	freepsexec.AddExecOperators(cr, ge)
@@ -149,13 +149,6 @@ func mainLoop() bool {
 		logger.Errorf("MuteMe not started: %v", err)
 	}
 
-	m := mqtt.GetInstance()
-	if err := m.Init(logger, cr, ge); err != nil {
-		logger.Errorf("MQTT not started: %v", err)
-	} else {
-		h, _ := mqtt.NewMQTTHook(cr)
-		ge.AddHook(h)
-	}
 	fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
 	if err != nil {
 		logger.Errorf("FreepsBT not started: %v", err)
@@ -168,7 +161,6 @@ func mainLoop() bool {
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
-		m.Shutdown()
 		telg.Shutdown(context.TODO())
 		mm.Shutdown()
 	}
