@@ -1,4 +1,4 @@
-package freepsgraph
+package weather
 
 import (
 	"net/http"
