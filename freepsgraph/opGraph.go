@@ -93,6 +93,11 @@ func (o *OpGraph) StartListening(*base.Context) {
 func (o *OpGraph) Shutdown(*base.Context) {
 }
 
+// GetHook returns the hook for this operator
+func (o *OpGraph) GetHook() interface{} {
+	return nil
+}
+
 /*** By Tag ****/
 
 func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
@@ -143,4 +148,9 @@ func (o *OpGraphByTag) StartListening(*base.Context) {
 
 // Shutdown (noOp)
 func (o *OpGraphByTag) Shutdown(*base.Context) {
+}
+
+// GetHook returns the hook for this operator
+func (o *OpGraphByTag) GetHook() interface{} {
+	return nil
 }
