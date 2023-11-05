@@ -55,7 +55,6 @@ func ReadBytesFromFile(filePath string, configFileDir string) []byte {
 // GetSectionsMap returns a map of section names (all lower case) to config-objects, the type of config-object depends on the section
 func GetSectionsMap(jsonBytes []byte) (map[string]interface{}, error) {
 	sectionsMap := make(map[string]interface{})
-	lowerCase := make(map[string]interface{})
 	var err error
 
 	if len(jsonBytes) > 0 {
@@ -64,19 +63,8 @@ func GetSectionsMap(jsonBytes []byte) (map[string]interface{}, error) {
 	if err != nil {
 		return sectionsMap, fmt.Errorf("Error parsing config file: %s", err)
 	}
-	for k, v := range sectionsMap {
-		lk := StringToLower(k)
-		lk = getNewSectionName(lk)
-		if lowerCase[lk] != nil {
-			fmt.Printf("Section %s is defined in multiple case-variants in config file, preferring lower case", lk)
-			if k != lk {
-				continue
-			}
-		}
-		lowerCase[lk] = v
-	}
 
-	return lowerCase, nil
+	return migrateConfigSection(sectionsMap)
 }
 
 // ReadSectionWithDefaults parses the content of the first-level-JSON object in <sectionName> into configStruct
