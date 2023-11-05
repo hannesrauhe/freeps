@@ -127,3 +127,8 @@ func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg int
 	client.Disconnect(250)
 	return base.MakeEmptyOutput()
 }
+
+// GetHook (noOp)
+func (o *OpMQTT) GetHook() interface{} {
+	return nil
+}

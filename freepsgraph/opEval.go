@@ -336,3 +336,8 @@ func (o *OpEval) StartListening(ctx *base.Context) {
 // Shutdown (noOp)
 func (o *OpEval) Shutdown(ctx *base.Context) {
 }
+
+// GetHook returns the hook for this operator
+func (o *OpEval) GetHook() interface{} {
+	return nil
+}

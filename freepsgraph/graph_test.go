@@ -47,6 +47,11 @@ func (*MockOperator) StartListening(ctx *base.Context) {
 func (*MockOperator) Shutdown(ctx *base.Context) {
 }
 
+// GetHook returns the hook
+func (*MockOperator) GetHook() interface{} {
+	return nil
+}
+
 var _ base.FreepsBaseOperator = &MockOperator{}
 
 func createValidGraph() GraphDesc {

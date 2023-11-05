@@ -104,3 +104,8 @@ func (o OpWeather) StartListening(ctx *base.Context) {
 // Shutdown (noOp)
 func (o OpWeather) Shutdown(ctx *base.Context) {
 }
+
+// GetHook (noOp)
+func (o OpWeather) GetHook() interface{} {
+	return nil
+}

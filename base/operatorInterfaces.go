@@ -10,6 +10,7 @@ type FreepsBaseOperator interface {
 	GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
 	GetName() string
 
+	GetHook() interface{}
 	StartListening(*Context)
 	Shutdown(*Context)
 }
@@ -48,6 +49,13 @@ type FreepsOperatorWithShutdown interface {
 	StartListening(ctx *Context)
 	// Shutdown is called when the graph engine is shutting down
 	Shutdown(ctx *Context)
+}
+
+// FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
+type FreepsOperatorWithHook interface {
+	FreepsOperator
+	// GetHook returns the hook for this operator
+	GetHook() interface{}
 }
 
 // FreepsFunctionParametersWithInit adds the Init() method to FreepsFunctionParameters
