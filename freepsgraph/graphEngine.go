@@ -56,8 +56,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			addedGraphs = append(addedGraphs, n)
 		}
 		ge.TriggerGraphChangedHooks(addedGraphs, []string{})
-
-		ge.operators["weather"] = NewWeatherOp(cr)
 	}
 
 	return ge
