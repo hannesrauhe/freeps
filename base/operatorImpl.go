@@ -513,3 +513,12 @@ func (o *FreepsOperatorWrapper) Shutdown(ctx *Context) {
 		opShutdown.Shutdown(ctx)
 	}
 }
+
+// GetHook returns the hook of the FreepsOperator if it exists
+func (o *FreepsOperatorWrapper) GetHook() interface{} {
+	opHook, ok := o.opInstance.(FreepsOperatorWithHook)
+	if ok {
+		return opHook.GetHook()
+	}
+	return nil
+}

@@ -244,3 +244,8 @@ func (o *OpWLED) StartListening(ctx *base.Context) {
 // Shutdown (noOp)
 func (o *OpWLED) Shutdown(ctx *base.Context) {
 }
+
+// GetHook (noOp)
+func (o *OpWLED) GetHook() interface{} {
+	return nil
+}

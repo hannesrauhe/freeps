@@ -159,3 +159,8 @@ func (o *OpSystem) StartListening(ctx *base.Context) {
 // Shutdown (noOp)
 func (o *OpSystem) Shutdown(ctx *base.Context) {
 }
+
+// GetHook (noOp)
+func (o *OpSystem) GetHook() interface{} {
+	return nil
+}

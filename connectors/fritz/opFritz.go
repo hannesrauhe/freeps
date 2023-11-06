@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
@@ -41,17 +42,17 @@ func (m *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 
 // GetDeviceNamespace returns the namespace for the device cache
 func (m *OpFritz) GetDeviceNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_devices")
+	return freepsstore.GetGlobalStore().GetNamespace("_" + strings.ToLower(m.name) + "_devices")
 }
 
 // GetNetworkDeviceNamespace returns the namespace for the network device cache
 func (m *OpFritz) GetNetworkDeviceNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_network_devices")
+	return freepsstore.GetGlobalStore().GetNamespace("_" + strings.ToLower(m.name) + "_network_devices")
 }
 
 // GetTemplateNamespace returns the namespace for the template cache
 func (m *OpFritz) GetTemplateNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_templates")
+	return freepsstore.GetGlobalStore().GetNamespace("_" + strings.ToLower(m.name) + "_templates")
 }
 
 // ExecuteDynamic executes a dynamic function
@@ -81,7 +82,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 		}
 	case "getdevicelistinfos":
 		{
-			devl, err := m.getDeviceList()
+			devl, err := m.getDeviceList(ctx)
 			if err == nil {
 				return base.MakeObjectOutput(devl)
 			}
@@ -89,7 +90,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 		}
 	case "getdevicemap":
 		{
-			devl, err := m.GetDeviceMap()
+			devl, err := m.GetDeviceMap(ctx)
 			if err == nil {
 				return base.MakeObjectOutput(devl)
 			}
@@ -97,7 +98,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 		}
 	case "getdeviceinfos":
 		{
-			devObject, err := m.GetDeviceByAIN(dev)
+			devObject, err := m.GetDeviceByAIN(ctx, dev)
 			if err == nil {
 				return base.MakeObjectOutput(devObject)
 			}
@@ -254,11 +255,11 @@ func (m *OpFritz) GetTemplates() map[string]string {
 }
 
 // GetDeviceByAIN returns the device object for the device with the given AIN
-func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
+func (m *OpFritz) GetDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmDevice, error) {
 	devNs := m.GetDeviceNamespace()
 	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge).GetData()
 	if cachedDev.IsError() {
-		devl, err := m.getDeviceList()
+		devl, err := m.getDeviceList(ctx)
 		if devl == nil || err != nil {
 			return nil, err
 		}
@@ -275,8 +276,8 @@ func (m *OpFritz) GetDeviceByAIN(AIN string) (*freepslib.AvmDevice, error) {
 }
 
 // GetDeviceMap returns all devices by AIN
-func (m *OpFritz) GetDeviceMap() (map[string]freepslib.AvmDevice, error) {
-	devl, err := m.getDeviceList()
+func (m *OpFritz) GetDeviceMap(ctx *base.Context) (map[string]freepslib.AvmDevice, error) {
+	devl, err := m.getDeviceList(ctx)
 	if devl == nil || err != nil {
 		return nil, err
 	}
@@ -310,7 +311,7 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 
 // StartListening currently only tries to log in and catches the initial device state
 func (o *OpFritz) StartListening(ctx *base.Context) {
-	go o.getDeviceList()
+	go o.getDeviceList(ctx)
 }
 
 // Shutdown (noOp)

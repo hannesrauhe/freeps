@@ -56,8 +56,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 			addedGraphs = append(addedGraphs, n)
 		}
 		ge.TriggerGraphChangedHooks(addedGraphs, []string{})
-
-		ge.operators["weather"] = NewWeatherOp(cr)
 	}
 
 	return ge
@@ -252,6 +250,10 @@ func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
 	defer ge.operatorLock.Unlock()
 	if op != nil {
 		ge.operators[utils.StringToLower(op.GetName())] = op
+		h := op.GetHook()
+		if h != nil {
+			ge.AddHook(h.(FreepsHook))
+		}
 	}
 }
 
@@ -265,6 +267,10 @@ func (ge *GraphEngine) AddOperators(ops []base.FreepsBaseOperator) {
 
 	for _, op := range ops {
 		ge.operators[utils.StringToLower(op.GetName())] = op
+		h := op.GetHook()
+		if h != nil {
+			ge.AddHook(h.(FreepsHook))
+		}
 	}
 }
 

@@ -582,3 +582,8 @@ func (o *OpUI) StartListening(ctx *base.Context) {
 // Shutdown (noOp)
 func (o *OpUI) Shutdown(ctx *base.Context) {
 }
+
+// GetHook (noOp)
+func (o *OpUI) GetHook() interface{} {
+	return nil
+}

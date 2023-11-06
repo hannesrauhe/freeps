@@ -26,6 +26,7 @@ import (
 	optime "github.com/hannesrauhe/freeps/connectors/time"
 	"github.com/hannesrauhe/freeps/connectors/ui"
 	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
+	"github.com/hannesrauhe/freeps/connectors/weather"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -100,6 +101,7 @@ func mainLoop() bool {
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
 		&fritz.OpFritz{},
+		&weather.OpWeather{},
 	}
 
 	for _, op := range availableOperators {
