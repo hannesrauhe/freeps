@@ -42,17 +42,17 @@ func (m *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 
 // GetDeviceNamespace returns the namespace for the device cache
 func (m *OpFritz) GetDeviceNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_devices")
+	return freepsstore.GetGlobalStore().GetNamespace("_" + strings.ToLower(m.name) + "_devices")
 }
 
 // GetNetworkDeviceNamespace returns the namespace for the network device cache
 func (m *OpFritz) GetNetworkDeviceNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_network_devices")
+	return freepsstore.GetGlobalStore().GetNamespace("_" + strings.ToLower(m.name) + "_network_devices")
 }
 
 // GetTemplateNamespace returns the namespace for the template cache
 func (m *OpFritz) GetTemplateNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespace(m.name + "_templates")
+	return freepsstore.GetGlobalStore().GetNamespace("_" + strings.ToLower(m.name) + "_templates")
 }
 
 // ExecuteDynamic executes a dynamic function
