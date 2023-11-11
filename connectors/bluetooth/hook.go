@@ -1,3 +1,5 @@
+//go:build !nobluetooth && linux
+
 package freepsbluetooth
 
 import (
@@ -5,18 +7,13 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 type HookBluetooth struct {
+	btw *FreepsBluetooth
 }
 
 var _ freepsgraph.FreepsHook = HookBluetooth{}
-
-// NewBTHook creates a Hook to subscribe to topics when graphs change
-func NewBTHook(cr *utils.ConfigReader) (HookBluetooth, error) {
-	return HookBluetooth{}, nil
-}
 
 // GetName returns the name of the hook
 func (h HookBluetooth) GetName() string {
@@ -45,10 +42,10 @@ func (h HookBluetooth) OnExecutionFinished(ctx *base.Context, graphName string, 
 
 // OnGraphChanged checks if subscriptions need to be changed
 func (h HookBluetooth) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
-	if btwatcher == nil {
+	if h.btw == nil {
 		return fmt.Errorf("Bluetooth watcher uninitialized")
 	}
-	btwatcher.StopDiscovery(true)
+	h.btw.StopDiscovery(true)
 	return nil
 }
 

@@ -88,7 +88,7 @@ func mainLoop() bool {
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
-		&freepsbluetooth.Bluetooth{},
+		&freepsbluetooth.Bluetooth{GE: ge},
 		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
@@ -153,12 +153,6 @@ func mainLoop() bool {
 	} else {
 		h, _ := mqtt.NewMQTTHook(cr)
 		ge.AddHook(h)
-	}
-	fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
-	if err != nil {
-		logger.Errorf("FreepsBT not started: %v", err)
-	} else if fbt != nil {
-		ge.AddHook(&freepsbluetooth.HookBluetooth{})
 	}
 	telg := telegram.NewTelegramBot(cr, ge, cancel)
 
