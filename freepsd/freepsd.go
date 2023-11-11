@@ -96,7 +96,7 @@ func mainLoop() bool {
 		&freepsutils.OpGraphBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&chaosimradio.OpCiR{},
-		&telegram.OpTelegram{},
+		&telegram.OpTelegram{GE: ge},
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
@@ -164,14 +164,11 @@ func mainLoop() bool {
 	} else if fbt != nil {
 		ge.AddHook(&freepsbluetooth.HookBluetooth{})
 	}
-	telg := telegram.NewTelegramBot(cr, ge, cancel)
-	mm.StartListening(ge)
 
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
 		m.Shutdown()
-		telg.Shutdown(context.TODO())
 		mm.Shutdown()
 	}
 	running := ge.ReloadRequested()
