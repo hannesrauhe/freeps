@@ -4,6 +4,7 @@ package muteme
 
 import (
 	"fmt"
+
 	"github.com/hannesrauhe/freeps/base"
 )
 
@@ -16,8 +17,6 @@ var DefaultConfig = MuteMeConfig{
 }
 
 type MuteMeImpl struct{}
-
-var impl *MuteMeImpl
 
 func (m *MuteMeImpl) SetColor(color string) error {
 	return fmt.Errorf("Not compiled")
@@ -33,6 +32,6 @@ func (m *MuteMeImpl) Shutdown() {
 func (m *MuteMeImpl) mainloop(interface{}) {
 }
 
-func newMuteMe(ctx *base.Context, mmc *MuteMeConfig) (*MuteMeImpl, error) {
+func newMuteMeImpl(ctx *base.Context, mmc *MuteMeConfig) (*MuteMeImpl, error) {
 	return nil, fmt.Errorf("Not compiled")
 }

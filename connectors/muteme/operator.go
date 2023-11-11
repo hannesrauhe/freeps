@@ -1,18 +1,21 @@
 package muteme
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 )
 
 // MuteMe implements the FreepsOperator interface to control the MuteMe button
 type MuteMe struct {
+	GE     *freepsgraph.GraphEngine
 	config MuteMeConfig
+	impl   *MuteMeImpl
 }
 
 var _ base.FreepsOperatorWithConfig = &MuteMe{}
+var _ base.FreepsOperatorWithShutdown = &MuteMe{}
 
 // GetDefaultConfig returns a copy of the default config
 func (mm *MuteMe) GetDefaultConfig() interface{} {
@@ -23,11 +26,8 @@ func (mm *MuteMe) GetDefaultConfig() interface{} {
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
 func (mm *MuteMe) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	var err error
-	if impl != nil {
-		return nil, fmt.Errorf("Only one instance of muteme is allowed")
-	}
-	newMM := MuteMe{config: *config.(*MuteMeConfig)}
-	impl, err = newMuteMe(ctx, &newMM.config)
+	newMM := MuteMe{config: *config.(*MuteMeConfig), GE: mm.GE}
+	newMM.impl, err = newMuteMeImpl(ctx, &newMM.config)
 	if err != nil {
 		return nil, err
 	}
@@ -39,42 +39,26 @@ type SetColorArgs struct {
 	Color string
 }
 
-var _ base.FreepsFunctionParameters = &SetColorArgs{}
+// ColorSuggestions returns suggestions for the color
+func (mma *SetColorArgs) ColorSuggestions() []string {
+	r := make([]string, 0, len(colors))
+	for c := range colors {
+		r = append(r, c)
+	}
+	return r
+}
 
 // GetArgSuggestions returns suggestions for the color
 func (mma *SetColorArgs) GetArgSuggestions(op base.FreepsOperator, fn string, arg string, otherArgs map[string]string) map[string]string {
-	switch arg {
-	case "color":
-		r := map[string]string{}
-		for c, _ := range colors {
-			r[c] = c
-		}
-		return r
-	}
-
 	return map[string]string{}
-}
-
-// VerifyParameters checks if the given parameters are valid
-func (mma *SetColorArgs) VerifyParameters(op base.FreepsOperator) *base.OperatorIO {
-	if mma.Color == "" {
-		return base.MakeOutputError(http.StatusBadRequest, "Missing color")
-	}
-	if _, ok := colors[mma.Color]; !ok {
-		return base.MakeOutputError(http.StatusBadRequest, "Invalid color")
-	}
-	return nil
 }
 
 // SetColor sets the color of the MuteMe button
 func (mm *MuteMe) SetColor(ctx *base.Context, input *base.OperatorIO, args SetColorArgs) *base.OperatorIO {
-	if impl == nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Muteme not initialized")
-	}
-	if err := impl.SetColor(args.Color); err != nil {
+	if err := mm.impl.SetColor(args.Color); err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Failed to set color: %v", err)
 	}
-	return base.MakePlainOutput(impl.GetColor())
+	return base.MakePlainOutput(mm.impl.GetColor())
 }
 
 // TurnOff turns off the MuteMe button
@@ -84,21 +68,26 @@ func (mm *MuteMe) TurnOff(ctx *base.Context) *base.OperatorIO {
 
 // Cycle cycles through the colors of the MuteMe button
 func (mm *MuteMe) Cycle(ctx *base.Context) *base.OperatorIO {
-	if impl == nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Muteme not initialized")
-	}
 	for c, b := range colors {
-		if b != 0x00 && c != impl.GetColor() {
+		if b != 0x00 && c != mm.impl.GetColor() {
 			return mm.SetColor(ctx, nil, SetColorArgs{Color: c})
 		}
 	}
-	return base.MakePlainOutput(impl.GetColor())
+	return base.MakePlainOutput(mm.impl.GetColor())
 }
 
 // GetColor returns the current color of the MuteMe button
 func (mm *MuteMe) GetColor() *base.OperatorIO {
-	if impl == nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Muteme not initialized")
-	}
-	return base.MakePlainOutput(impl.GetColor())
+	return base.MakePlainOutput(mm.impl.GetColor())
+}
+
+// Shutdown the muteme listener
+func (mm *MuteMe) Shutdown(ctx *base.Context) {
+	mm.impl.Shutdown()
+	mm.impl = nil
+}
+
+// StartListening starts the main loop of the muteme listener
+func (mm *MuteMe) StartListening(ctx *base.Context) {
+	go mm.impl.mainloop(mm.GE)
 }

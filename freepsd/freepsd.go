@@ -89,7 +89,7 @@ func mainLoop() bool {
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
 		&freepsbluetooth.Bluetooth{},
-		&muteme.MuteMe{},
+		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
 		&freepsutils.OpRegexp{},
@@ -146,10 +146,6 @@ func mainLoop() bool {
 
 	logger.Infof("Starting Listeners")
 	ge.StartListening(initCtx)
-	mm, err := muteme.NewMuteMe()
-	if err != nil {
-		logger.Errorf("MuteMe not started: %v", err)
-	}
 
 	m := mqtt.GetInstance()
 	if err := m.Init(logger, cr, ge); err != nil {
@@ -165,14 +161,12 @@ func mainLoop() bool {
 		ge.AddHook(&freepsbluetooth.HookBluetooth{})
 	}
 	telg := telegram.NewTelegramBot(cr, ge, cancel)
-	mm.StartListening(ge)
 
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
 		m.Shutdown()
 		telg.Shutdown(context.TODO())
-		mm.Shutdown()
 	}
 	running := ge.ReloadRequested()
 	logger.Infof("Stopping Listeners")
