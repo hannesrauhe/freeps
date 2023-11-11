@@ -10,7 +10,6 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
 
 	"context"
 
@@ -19,8 +18,6 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 	"github.com/sirupsen/logrus"
 )
-
-var btwatcher *FreepsBluetooth
 
 // FreepsBluetooth provides options to scan for bt devices and execute operations based on that
 type FreepsBluetooth struct {
@@ -34,45 +31,18 @@ type FreepsBluetooth struct {
 	monitors           *monitors
 }
 
-// NewBTWatcher creates a new BT watcher
-func NewBTWatcher(logger logrus.FieldLogger, cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*FreepsBluetooth, error) {
-	btc := defaultBluetoothConfig
-	err := cr.ReadSectionWithDefaults("bluetooth", &btc)
-	if err != nil {
-		return nil, err
-	}
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		logrus.Print(err)
-	}
-
-	btlogger := logger.WithField("component", "bluetooth")
-	if !btc.Enabled {
-		btlogger.Infof("Bluetooth module disabled in config")
-		return nil, nil
-	}
-	btwatcher = &FreepsBluetooth{config: &btc, log: btlogger, shuttingDown: false, ge: ge, monitors: &monitors{watchers: map[string]deviceEntry{}}}
-
-	err = btwatcher.StartDiscovery()
-	if err != nil {
-		btwatcher = nil
-		api.Exit()
-	}
-	return btwatcher, err
-}
-
 // StartDiscovery starts the process of discovery new bluetooth devices
 func (fbt *FreepsBluetooth) StartDiscovery() error {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
-	if btwatcher.shuttingDown {
+	if fbt.shuttingDown {
 		return nil
 	}
 
 	if fbt.cancel != nil {
 		return nil
 	}
-	err := btwatcher.run(fbt.config.AdapterName, false)
+	err := fbt.run(fbt.config.AdapterName, false)
 	if err != nil {
 		return err
 	}
@@ -177,7 +147,7 @@ func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery 
 func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 	fbt.discoInitLock.Lock()
 	defer fbt.discoInitLock.Unlock()
-	if btwatcher.shuttingDown {
+	if fbt.shuttingDown {
 		return
 	}
 
@@ -190,9 +160,9 @@ func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 	fbt.cancel = nil
 
 	// remove monitors that have no graphs anymore
-	for w, deviceTags := range btwatcher.getMonitoredTags() {
+	for w, deviceTags := range fbt.getMonitoredTags() {
 		if len(fbt.ge.GetGraphDescByTagExtended([][]string{{"bluetooth"}, deviceTags})) == 0 {
-			btwatcher.deleteMonitor(w)
+			fbt.deleteMonitor(w)
 		}
 	}
 	dur := fbt.config.DiscoveryPauseDuration
