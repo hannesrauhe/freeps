@@ -22,8 +22,6 @@ type MuteMeImpl struct {
 	logger       logrus.FieldLogger
 }
 
-var impl *MuteMeImpl
-
 func (m *MuteMeImpl) setColor(color string) error {
 	b := make([]byte, 2)
 	b[0] = 0x0
@@ -175,6 +173,9 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 }
 
 func (m *MuteMeImpl) Shutdown() {
+	// indicate shutdown by blinking:
+	m.blink(m.config.ErrorColor, "off")
+
 	close(m.cmd)
 }
 
@@ -198,7 +199,7 @@ func (m *MuteMeImpl) GetColor() string {
 	return m.currentColor.Load().(string)
 }
 
-func newMuteMe(ctx *base.Context, mmc *MuteMeConfig) (*MuteMeImpl, error) {
+func newMuteMeImpl(ctx *base.Context, mmc *MuteMeConfig) (*MuteMeImpl, error) {
 	// Initialize the hid package.
 	if err := hid.Init(); err != nil {
 		return nil, err
