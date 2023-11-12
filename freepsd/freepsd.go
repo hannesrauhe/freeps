@@ -27,6 +27,7 @@ import (
 	optime "github.com/hannesrauhe/freeps/connectors/time"
 	"github.com/hannesrauhe/freeps/connectors/ui"
 	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
+	"github.com/hannesrauhe/freeps/connectors/weather"
 	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
@@ -87,8 +88,8 @@ func mainLoop() bool {
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
-		&freepsbluetooth.Bluetooth{},
-		&muteme.MuteMe{},
+		&freepsbluetooth.Bluetooth{GE: ge},
+		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
 		&freepsutils.OpRegexp{},
@@ -100,7 +101,11 @@ func mainLoop() bool {
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
 		&fritz.OpFritz{},
+<<<<<<< HEAD
 		&mqtt.OpMQTT{CR: cr, GE: ge},
+=======
+		&weather.OpWeather{},
+>>>>>>> main
 	}
 
 	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
@@ -144,25 +149,28 @@ func mainLoop() bool {
 
 	logger.Infof("Starting Listeners")
 	ge.StartListening(initCtx)
-	mm, err := muteme.NewMuteMe()
-	if err != nil {
-		logger.Errorf("MuteMe not started: %v", err)
-	}
 
+<<<<<<< HEAD
 	fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
 	if err != nil {
 		logger.Errorf("FreepsBT not started: %v", err)
 	} else if fbt != nil {
 		ge.AddHook(&freepsbluetooth.HookBluetooth{})
+=======
+	m := mqtt.GetInstance()
+	if err := m.Init(logger, cr, ge); err != nil {
+		logger.Errorf("MQTT not started: %v", err)
+	} else {
+		h, _ := mqtt.NewMQTTHook(cr)
+		ge.AddHook(h)
+>>>>>>> main
 	}
 	telg := telegram.NewTelegramBot(cr, ge, cancel)
-	mm.StartListening(ge)
 
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
 		telg.Shutdown(context.TODO())
-		mm.Shutdown()
 	}
 	running := ge.ReloadRequested()
 	logger.Infof("Stopping Listeners")

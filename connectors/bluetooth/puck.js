@@ -26,6 +26,7 @@ function advertise() {
   p.y -= zero.y;
   p.z -= zero.z;
 
+  // need to squeze this value into 1 byte to advertise, precision is not an issue
   var magVal = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) / 50;
   if (magVal > 127) {
     magVal = 127;
@@ -43,14 +44,20 @@ function advertise() {
       blinkRed(200);
     }, 400);
   }
+  batteryState = Puck.getBatteryPercentage();
+  temp = E.getTemperature();
 
-  console.log(magVal);
+  console.log("Magnet: " + magVal);
+  console.log("Battery: " + batteryState);
+  console.log("State: " + intstate);
+  console.log("Temperature: " + temp);
+
   NRF.setAdvertising({
-    0x1809: [Math.round(E.getTemperature())],
-    0x180F: [Math.round(Puck.getBatteryPercentage())],
+    0x1809: [Math.round(temp)],
+    0x180F: [Math.round(batteryState)],
     0x183A: [Math.round(magVal)],
     0x183B: [intstate]
-  }, { name: "Puck.js 54ee", connectable: false, scannable: false, showName: true, discoverable: true, interval: 500 });
+  }, { name: "Badfenster", connectable: false, scannable: false, showName: true, discoverable: true, interval: 500 });
 }
 
 setInterval(advertise, 2 * 60 * 1000);
