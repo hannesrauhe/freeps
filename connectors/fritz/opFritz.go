@@ -179,20 +179,20 @@ func (m *OpFritz) GetDynamicPossibleArgs(fn string) []string {
 	return make([]string, 0)
 }
 
-func (m *OpFritz) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (m *OpFritz) GetDynamicArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	if fn == "upnp" {
 		ret := map[string]string{}
-		if arg == "serviceName" {
+		if arg == "servicename" {
 			svc, _ := m.fl.GetUpnpServicesShort()
 			for _, v := range svc {
 				ret[v] = v
 			}
 			return ret
-		} else if arg == "actionName" {
-			serviceName, ok := otherArgs["serviceName"]
-			if !ok {
+		} else if arg == "actionname" {
+			if !otherArgs.Has("serviceName") {
 				return ret
 			}
+			serviceName := otherArgs.Get("serviceName")
 			actions, _ := m.fl.GetUpnpServiceActions(serviceName)
 			for _, v := range actions {
 				ret[v] = v

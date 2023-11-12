@@ -28,7 +28,7 @@ type FreepsOperatorWithDynamicFunctions interface {
 	// GetDynamicPossibleArgs returns a list of possible arguments for the given function
 	GetDynamicPossibleArgs(fn string) []string
 	// GetDynamicArgSuggestions returns a map of possible arguments for the given function and argument name
-	GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
+	GetDynamicArgSuggestions(fn string, arg string, otherArgs FunctionArguments) map[string]string
 	// ExecuteDynamic executes the given function with the given arguments
 	ExecuteDynamic(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO
 }

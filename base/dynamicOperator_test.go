@@ -49,7 +49,7 @@ func (mt *MyDynamicTestOperator) GetDynamicPossibleArgs(fn string) []string {
 	return []string{}
 }
 
-func (mt *MyDynamicTestOperator) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (mt *MyDynamicTestOperator) GetDynamicArgSuggestions(fn string, arg string, otherArgs FunctionArguments) map[string]string {
 	if arg == "dyntestarg" && fn == "dynfunc" {
 		return map[string]string{"DynTestArgValue": "DynTestArgValue"}
 	}
