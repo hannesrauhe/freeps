@@ -35,6 +35,12 @@ func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name 
 	return op, err
 }
 
+// GetSubscriptions returns a list of all subscriped topics
+func (o *OpMQTT) GetSubscriptions(ctx *base.Context) *base.OperatorIO {
+	topics := o.impl.getTopicSubscriptions()
+	return base.MakeObjectOutput(topics)
+}
+
 func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	args := fa.GetOriginalCaseMap()
 	switch fn {
@@ -64,15 +70,12 @@ func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionAr
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
 		return base.MakeEmptyOutput()
-	case "getSubscriptions":
-		topics := o.impl.getTopicSubscriptions()
-		return base.MakeObjectOutput(topics)
 	}
 	return base.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
 }
 
 func (o *OpMQTT) GetDynamicFunctions() []string {
-	return []string{"publish", "getSubscriptions"}
+	return []string{"publish"}
 }
 
 func (o *OpMQTT) GetDynamicPossibleArgs(fn string) []string {

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -133,7 +132,7 @@ func mainLoop() bool {
 			}
 			oio = base.MakeByteOutput(b)
 		} else if input != "" {
-			content, err := ioutil.ReadFile(input)
+			content, err := os.ReadFile(input)
 			if err != nil {
 				log.Fatal(err)
 			}
