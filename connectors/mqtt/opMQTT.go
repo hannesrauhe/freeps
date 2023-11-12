@@ -25,7 +25,7 @@ var _ base.FreepsOperatorWithHook = &OpMQTT{}
 var _ base.FreepsOperatorWithShutdown = &OpMQTT{}
 
 func (o *OpMQTT) GetDefaultConfig() interface{} {
-	return FreepsMqttConfig{Server: "", Username: "", Password: "", Topics: []TopicConfig{DefaultTopicConfig}}
+	return &FreepsMqttConfig{Enabled: true, Server: "", Username: "", Password: "", Topics: []TopicConfig{}}
 }
 
 func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
@@ -39,6 +39,15 @@ func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name 
 func (o *OpMQTT) GetSubscriptions(ctx *base.Context) *base.OperatorIO {
 	topics := o.impl.getTopicSubscriptions()
 	return base.MakeObjectOutput(topics)
+}
+
+// TriggerSubscriptionChange triggers a change in the subscriptions
+func (o *OpMQTT) TriggerSubscriptionChange(ctx *base.Context) *base.OperatorIO {
+	err := o.impl.startTagSubscriptions()
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	return base.MakeEmptyOutput()
 }
 
 func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
@@ -133,7 +142,7 @@ func (o *OpMQTT) GetHook() interface{} {
 }
 
 func (o *OpMQTT) StartListening(ctx *base.Context) {
-	o.impl.startTagSubscriptions()
+	o.impl.StartListening()
 }
 
 func (o *OpMQTT) Shutdown(ctx *base.Context) {

@@ -29,6 +29,7 @@ type FreepsMqttImpl struct {
 }
 
 type FreepsMqttConfig struct {
+	Enabled     bool
 	Server      string // The full url of the MQTT server to connect to ex: tcp://127.0.0.1:1883
 	Username    string // A username to authenticate to the MQTT server
 	Password    string // Password to match username
@@ -213,7 +214,7 @@ func (fm *FreepsMqttImpl) StartListening() error {
 		if token := fm.client.Connect(); token.Wait() && token.Error() != nil {
 			fm.mqttlogger.Errorf("Error when connecting to %s: %v \n", fm.Config.Server, token.Error().Error())
 		} else {
-			fm.mqttlogger.Infof("Connected to %s", fm.Config.Server)
+			fm.mqttlogger.Infof("Connected to %s, starting to subscribe", fm.Config.Server)
 		}
 	}()
 	return nil
