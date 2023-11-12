@@ -14,9 +14,11 @@ import (
 )
 
 type TelegramConfig struct {
-	Token         string
-	AllowedUsers  []string
-	DebugMessages bool
+	Enabled            bool
+	Token              string
+	AllowedUsers       []string
+	DebugMessages      bool
+	StoreChatNamespace string
 }
 
 type TelegramCallbackResponse struct {
@@ -183,6 +185,8 @@ func (m *OpTelegram) sendStartMessage(msg *tgbotapi.MessageConfig) {
 
 func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText string) {
 	telelogger := log.WithField("telegram", chat.ID)
+	ctx := base.NewContext(telelogger)
+
 	msg := tgbotapi.NewMessage(chat.ID, "Hello "+chat.FirstName+".")
 	allowed := false
 	for _, v := range m.tgc.AllowedUsers {
@@ -194,12 +198,12 @@ func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText
 	if !allowed {
 		msg.Text += " I'm not allowed to talk to you."
 		if _, err := m.bot.Send(msg); err != nil {
-			log.Println(err)
+			ctx.GetLogger().Error(err)
 		}
 		return
 	}
 
-	tcr, ok := m.chatState[chat.ID]
+	tcr, ok := m.getChatState(ctx, *chat)
 	if !ok {
 		tcr = TelegramCallbackResponse{}
 		if callbackData != "" {
@@ -220,7 +224,7 @@ func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText
 	} else {
 		// the user was asked to provide input
 		tcr.C = inputText
-		delete(m.chatState, chat.ID)
+		m.resetChatState(ctx, *chat)
 	}
 	tcr.T = fmt.Sprint(chat.ID)
 	op, gd := m.getCurrentOp(tcr.T)
@@ -231,7 +235,7 @@ func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText
 			return
 		}
 		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}}}, Source: "telegram"}
-		freepsstore.StoreGraph(tcr.T, tpl, "telegram")
+		freepsstore.StoreGraph(tcr.T, tpl, ctx.GetID())
 		op, gd = m.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + gd.Operations[0].Operator
 		msg.ReplyMarkup, _ = m.getFnKeyboard(&tcr)
@@ -239,10 +243,10 @@ func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText
 		if tcr.K {
 			msg.Text = "Type a function for " + gd.Operations[0].Operator
 			tcr.K = false
-			m.chatState[chat.ID] = tcr
+			m.setChatState(ctx, *chat, tcr)
 		} else {
 			gd.Operations[0].Function = tcr.C
-			freepsstore.StoreGraph(tcr.T, *gd, "telegram")
+			freepsstore.StoreGraph(tcr.T, *gd, ctx.GetID())
 		}
 	}
 
@@ -251,20 +255,20 @@ func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText
 		if tcr.K {
 			msg.Text = fmt.Sprintf("Type a Value for %s (%s/%s)", args[tcr.P], gd.Operations[0].Operator, gd.Operations[0].Function)
 			tcr.K = false
-			m.chatState[chat.ID] = tcr
+			m.setChatState(ctx, *chat, tcr)
 		} else {
 			if tcr.P >= 0 {
 				if gd.Operations[0].Arguments == nil {
 					gd.Operations[0].Arguments = make(map[string]string)
 				}
 				gd.Operations[0].Arguments[args[tcr.P]] = tcr.C
-				freepsstore.StoreGraph(tcr.T, *gd, "telegram")
+				freepsstore.StoreGraph(tcr.T, *gd, ctx.GetID())
 			}
 			tcr.C = ""
 			tcr.P++
 			if tcr.P >= len(args) {
 				tcr.F = true
-				freepsstore.StoreGraph(tcr.T, *gd, "telegram")
+				freepsstore.StoreGraph(tcr.T, *gd, ctx.GetID())
 			} else {
 				addVals := ""
 				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], gd.Operations[0].Operator, gd.Operations[0].Function)
@@ -278,11 +282,11 @@ func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText
 	}
 
 	if tcr.F {
-		ctx := base.NewContext(telelogger)
 		gd, err := freepsstore.GetGraph(tcr.T)
 		if err != nil {
 			msg.Text = err.Error()
 		}
+		m.resetChatState(ctx, *chat) // links the context ID of this chat to the execution of the graph
 		io := m.GE.ExecuteAdHocGraph(ctx, "telegram/"+tcr.T, gd, map[string]string{}, base.MakeEmptyOutput())
 		if io.IsError() {
 			msg.Text = fmt.Sprintf("Error when executing operation: %v", io.GetError())

@@ -145,6 +145,7 @@ func mainLoop() bool {
 
 	logger.Infof("Starting Listeners")
 	ge.StartListening(initCtx)
+	logger.Infof("Listeners successfully started")
 
 	keepRunning := true
 	select {

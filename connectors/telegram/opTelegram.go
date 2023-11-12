@@ -10,11 +10,15 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
+type ChatState struct {
+	Chat             *tgbotapi.Chat
+	CallbackResponse *TelegramCallbackResponse
+}
+
 type OpTelegram struct {
 	GE          *freepsgraph.GraphEngine
 	tgc         TelegramConfig
 	lastMessage int
-	chatState   map[int64]TelegramCallbackResponse
 	closeChan   chan int
 	bot         *tgbotapi.BotAPI
 }
@@ -24,12 +28,12 @@ var _ base.FreepsOperatorWithShutdown = &OpTelegram{}
 
 // GetDefaultConfig returns a copy of the default config
 func (m *OpTelegram) GetDefaultConfig() interface{} {
-	return &TelegramConfig{Token: ""}
+	return &TelegramConfig{Enabled: true, Token: "", AllowedUsers: []string{}, DebugMessages: false, StoreChatNamespace: "_telegram_chats"}
 }
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
 func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
-	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), chatState: make(map[int64]TelegramCallbackResponse), closeChan: make(chan int)}
+	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), closeChan: make(chan int)}
 	if newM.tgc.Token == "" {
 		return nil, fmt.Errorf("Telegram token is empty")
 	}
@@ -48,6 +52,11 @@ func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, n
 type PostArgs struct {
 	ChatID int64
 	Text   *string
+}
+
+func (a *PostArgs) ChatIDSuggestions(op base.FreepsOperator) map[string]string {
+	m := op.(*OpTelegram)
+	return m.getRecentChats()
 }
 
 // Post sends a message to a chat
@@ -80,7 +89,7 @@ func (m *OpTelegram) Post(ctx *base.Context, input *base.OperatorIO, args PostAr
 }
 
 func (m *OpTelegram) StartListening(ctx *base.Context) {
-	m.mainLoop()
+	go m.mainLoop()
 }
 
 func (m *OpTelegram) Shutdown(ctx *base.Context) {
