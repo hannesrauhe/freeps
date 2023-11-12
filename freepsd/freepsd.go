@@ -96,11 +96,12 @@ func mainLoop() bool {
 		&freepsutils.OpGraphBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&chaosimradio.OpCiR{},
-		&telegram.OpTelegram{},
+		&telegram.OpTelegram{GE: ge},
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
 		&fritz.OpFritz{},
+		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&weather.OpWeather{},
 	}
 
@@ -108,7 +109,6 @@ func mainLoop() bool {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
 	}
-	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	freepsexec.AddExecOperators(cr, ge)
@@ -145,26 +145,17 @@ func mainLoop() bool {
 
 	logger.Infof("Starting Listeners")
 	ge.StartListening(initCtx)
+	logger.Infof("Listeners successfully started")
 
-	m := mqtt.GetInstance()
-	if err := m.Init(logger, cr, ge); err != nil {
-		logger.Errorf("MQTT not started: %v", err)
-	} else {
-		h, _ := mqtt.NewMQTTHook(cr)
-		ge.AddHook(h)
-	}
-	telg := telegram.NewTelegramBot(cr, ge, cancel)
-
+	keepRunning := true
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
-		m.Shutdown()
-		telg.Shutdown(context.TODO())
+		keepRunning = ge.ReloadRequested()
+		logger.Infof("Stopping Listeners")
+		ge.Shutdown(base.NewContext(logger))
 	}
-	running := ge.ReloadRequested()
-	logger.Infof("Stopping Listeners")
-	ge.Shutdown(base.NewContext(logger))
-	return running
+	return keepRunning
 }
 
 func main() {
