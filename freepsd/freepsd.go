@@ -101,11 +101,8 @@ func mainLoop() bool {
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
 		&fritz.OpFritz{},
-<<<<<<< HEAD
 		&mqtt.OpMQTT{CR: cr, GE: ge},
-=======
 		&weather.OpWeather{},
->>>>>>> main
 	}
 
 	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
@@ -150,21 +147,6 @@ func mainLoop() bool {
 	logger.Infof("Starting Listeners")
 	ge.StartListening(initCtx)
 
-<<<<<<< HEAD
-	fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
-	if err != nil {
-		logger.Errorf("FreepsBT not started: %v", err)
-	} else if fbt != nil {
-		ge.AddHook(&freepsbluetooth.HookBluetooth{})
-=======
-	m := mqtt.GetInstance()
-	if err := m.Init(logger, cr, ge); err != nil {
-		logger.Errorf("MQTT not started: %v", err)
-	} else {
-		h, _ := mqtt.NewMQTTHook(cr)
-		ge.AddHook(h)
->>>>>>> main
-	}
 	telg := telegram.NewTelegramBot(cr, ge, cancel)
 
 	select {
