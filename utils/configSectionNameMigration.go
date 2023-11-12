@@ -8,6 +8,8 @@ func getNewSectionName(name string) string {
 	switch name {
 	case "freepslib":
 		return "fritz"
+	case "freepsmqtt":
+		return "mqtt"
 	case "openweathermap":
 		return "weather"
 	}

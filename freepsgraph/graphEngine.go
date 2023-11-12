@@ -55,7 +55,6 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 		for n := range g {
 			addedGraphs = append(addedGraphs, n)
 		}
-		ge.TriggerGraphChangedHooks(addedGraphs, []string{})
 	}
 
 	return ge
@@ -437,6 +436,7 @@ func (ge *GraphEngine) DeleteGraph(graphName string) (*GraphDesc, error) {
 func (ge *GraphEngine) StartListening(ctx *base.Context) {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
+
 	for _, op := range ge.operators {
 		if op != nil {
 			op.StartListening(ctx)
