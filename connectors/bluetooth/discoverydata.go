@@ -104,7 +104,7 @@ func (d *DiscoveryData) AddServiceData(service string, v interface{}) (string, e
 		}
 	case "00001809":
 		{
-			name = "temperature"
+			name = "temp"
 			isUint = true
 		}
 	default:

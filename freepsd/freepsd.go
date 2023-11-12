@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -88,8 +87,8 @@ func mainLoop() bool {
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
-		&freepsbluetooth.Bluetooth{},
-		&muteme.MuteMe{},
+		&freepsbluetooth.Bluetooth{GE: ge},
+		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
 		&freepsutils.OpRegexp{},
@@ -101,6 +100,7 @@ func mainLoop() bool {
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
 		&fritz.OpFritz{},
+		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&weather.OpWeather{},
 	}
 
@@ -109,7 +109,6 @@ func mainLoop() bool {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
 	}
-	ge.AddOperator(mqtt.NewMQTTOp(cr))
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	freepsexec.AddExecOperators(cr, ge)
@@ -133,7 +132,7 @@ func mainLoop() bool {
 			}
 			oio = base.MakeByteOutput(b)
 		} else if input != "" {
-			content, err := ioutil.ReadFile(input)
+			content, err := os.ReadFile(input)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -146,35 +145,16 @@ func mainLoop() bool {
 
 	logger.Infof("Starting Listeners")
 	ge.StartListening(initCtx)
-	mm, err := muteme.NewMuteMe()
-	if err != nil {
-		logger.Errorf("MuteMe not started: %v", err)
-	}
 
-	m := mqtt.GetInstance()
-	if err := m.Init(logger, cr, ge); err != nil {
-		logger.Errorf("MQTT not started: %v", err)
-	} else {
-		h, _ := mqtt.NewMQTTHook(cr)
-		ge.AddHook(h)
-	}
-	fbt, err := freepsbluetooth.NewBTWatcher(logger, cr, ge)
-	if err != nil {
-		logger.Errorf("FreepsBT not started: %v", err)
-	} else if fbt != nil {
-		ge.AddHook(&freepsbluetooth.HookBluetooth{})
-	}
-
+	keepRunning := true
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
-		m.Shutdown()
-		mm.Shutdown()
+		keepRunning = ge.ReloadRequested()
+		logger.Infof("Stopping Listeners")
+		ge.Shutdown(base.NewContext(logger))
 	}
-	running := ge.ReloadRequested()
-	logger.Infof("Stopping Listeners")
-	ge.Shutdown(base.NewContext(logger))
-	return running
+	return keepRunning
 }
 
 func main() {
