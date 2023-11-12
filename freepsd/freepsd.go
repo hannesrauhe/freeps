@@ -95,7 +95,7 @@ func mainLoop() bool {
 		&freepsutils.OpGraphBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&chaosimradio.OpCiR{},
-		&telegram.OpTelegram{},
+		&telegram.OpTelegram{GE: ge},
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
@@ -145,18 +145,17 @@ func mainLoop() bool {
 
 	logger.Infof("Starting Listeners")
 	ge.StartListening(initCtx)
+	logger.Infof("Listeners successfully started")
 
-	telg := telegram.NewTelegramBot(cr, ge, cancel)
-
+	keepRunning := true
 	select {
 	case <-ctx.Done():
 		// Shutdown the server when the context is canceled
-		telg.Shutdown(context.TODO())
+		keepRunning = ge.ReloadRequested()
+		logger.Infof("Stopping Listeners")
+		ge.Shutdown(base.NewContext(logger))
 	}
-	running := ge.ReloadRequested()
-	logger.Infof("Stopping Listeners")
-	ge.Shutdown(base.NewContext(logger))
-	return running
+	return keepRunning
 }
 
 func main() {
