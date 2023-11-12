@@ -44,7 +44,7 @@ func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, n
 	bot.Debug = m.tgc.DebugMessages
 	newM.bot = bot
 
-	ctx.GetLogger().Infof("Authorized on account %s", bot.Self.UserName)
+	ctx.GetLogger().WithField("component", "telegram").Infof("Authorized on account %s", bot.Self.UserName)
 	return &newM, nil
 }
 

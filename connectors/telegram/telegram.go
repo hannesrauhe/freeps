@@ -184,9 +184,10 @@ func (m *OpTelegram) sendStartMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText string) {
-	telelogger := log.WithField("telegram", chat.ID)
+	telelogger := log.WithField("component", "telegram").WithField("chat", chat.ID)
 	ctx := base.NewContext(telelogger)
 
+	telelogger.Debugf("Received message from %v: %v", chat.UserName, inputText)
 	msg := tgbotapi.NewMessage(chat.ID, "Hello "+chat.FirstName+".")
 	allowed := false
 	for _, v := range m.tgc.AllowedUsers {
