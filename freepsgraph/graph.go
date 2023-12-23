@@ -33,6 +33,7 @@ func NewGraph(ctx *base.Context, graphID string, origGraphDesc *GraphDesc, ge *G
 		return nil, errors.New("No operations defined")
 	}
 	gd := *origGraphDesc
+	gd.GraphID = graphID
 	if gd.DisplayName == "" && len(graphID) > 1 {
 		gd.DisplayName = strings.ToUpper(graphID[0:1]) + graphID[1:]
 	}
