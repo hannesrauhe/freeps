@@ -14,7 +14,7 @@ const ROOT_SYMBOL = "_"
 
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
-	name      string
+	graphID   string
 	context   *base.Context
 	desc      *GraphDesc
 	engine    *GraphEngine
@@ -22,7 +22,7 @@ type Graph struct {
 }
 
 // NewGraph creates a new graph from a graph description
-func NewGraph(ctx *base.Context, name string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
+func NewGraph(ctx *base.Context, graphID string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 	if ge == nil {
 		return nil, errors.New("GraphEngine not set")
 	}
@@ -33,6 +33,9 @@ func NewGraph(ctx *base.Context, name string, origGraphDesc *GraphDesc, ge *Grap
 		return nil, errors.New("No operations defined")
 	}
 	gd := *origGraphDesc
+	if gd.DisplayName == "" && len(graphID) > 1 {
+		gd.DisplayName = strings.ToUpper(graphID[0:1]) + graphID[1:]
+	}
 	gd.Operations = make([]GraphOperationDesc, len(origGraphDesc.Operations))
 
 	outputNames := make(map[string]bool)
@@ -80,7 +83,7 @@ func NewGraph(ctx *base.Context, name string, origGraphDesc *GraphDesc, ge *Grap
 	} else if outputNames[origGraphDesc.OutputFrom] != true {
 		return nil, fmt.Errorf("Graph references unknown outputFrom \"%v\"", origGraphDesc.OutputFrom)
 	}
-	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}, nil
+	return &Graph{graphID: graphID, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}, nil
 }
 
 // GetCompleteDesc returns the GraphDesc that was sanitized and completed when creating the graph
@@ -111,7 +114,7 @@ func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput
 
 func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
 	error := base.MakeOutputError(code, msg, a...)
-	g.engine.TriggerOnExecutionErrorHooks(ctx, input, error, g.name, opDesc)
+	g.engine.TriggerOnExecutionErrorHooks(ctx, input, error, g.graphID, opDesc)
 	return error
 }
 
@@ -175,11 +178,11 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
-		opI := ctx.RecordOperationStart(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
+		opI := ctx.RecordOperationStart(g.graphID, finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
 		g.engine.TriggerOnExecuteOperationHooks(ctx, opI)
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
-			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.name, finalOpDesc)
+			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.graphID, finalOpDesc)
 		}
 		ctx.RecordOperationFinish(opI, output.HTTPCode)
 		return output

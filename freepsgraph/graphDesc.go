@@ -14,10 +14,12 @@ type GraphOperationDesc struct {
 
 // GraphDesc contains a number of operations and defines which output to use
 type GraphDesc struct {
-	Tags       []string
-	Source     string
-	OutputFrom string
-	Operations []GraphOperationDesc
+	GraphID     string `json:",omitempty"` // is only assigned when the graph is added to the engine and will be overwritten
+	DisplayName string
+	Tags        []string
+	Source      string
+	OutputFrom  string
+	Operations  []GraphOperationDesc
 }
 
 // HasAllTags return true if the GraphDesc contains all given tags
