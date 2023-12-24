@@ -221,7 +221,7 @@ func (o *OpStore) GetDynamicPossibleArgs(fn string) []string {
 }
 
 // GetDynamicArgSuggestions returns suggestions for arguments
-func (o *OpStore) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpStore) GetDynamicArgSuggestions(fn string, arg string, dynArgs base.FunctionArguments) map[string]string {
 	switch arg {
 	case "namespace":
 		{
@@ -233,7 +233,7 @@ func (o *OpStore) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[
 		}
 	case "key":
 		{
-			ns := otherArgs["namespace"]
+			ns := dynArgs.Get("namespace")
 			if ns == "" {
 				return map[string]string{}
 			}
@@ -246,14 +246,14 @@ func (o *OpStore) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[
 		}
 	case "value":
 		{
-			ns := otherArgs["namespace"]
+			ns := dynArgs.Get("namespace")
 			if ns == "" {
 				return map[string]string{}
 			}
-			key, ok := otherArgs["key"]
-			if !ok {
+			if !dynArgs.Has("key") {
 				return map[string]string{}
 			}
+			key := dynArgs.Get("key")
 			io := store.GetNamespace(ns).GetValue(key)
 			return map[string]string{io.GetData().GetString(): io.GetData().GetString()}
 		}

@@ -91,7 +91,7 @@ func (o *OpMQTT) GetDynamicPossibleArgs(fn string) []string {
 	return []string{"topic", "msg", "qos", "retain", "server", "username", "password"}
 }
 
-func (o *OpMQTT) GetDynamicArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpMQTT) GetDynamicArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	switch arg {
 	case "retain":
 		return map[string]string{"true": "true", "false": "false"}

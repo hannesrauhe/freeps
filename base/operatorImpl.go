@@ -443,6 +443,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	lowercaseArgs := utils.KeysToLower(otherArgs)
 	res := map[string]string{}
 	lkArgName := utils.StringToLower(argName)
+	fa := NewFunctionArguments(otherArgs)
 
 	var paramStruct reflect.Value
 	var ps FreepsFunctionParameters //TODO(HR): may deprecate this
@@ -451,7 +452,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
-			res = dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), lkArgName, lowercaseArgs)
+			res = dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), lkArgName, fa)
 		}
 	} else {
 		switch ffm.FuncType {
