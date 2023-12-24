@@ -11,6 +11,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/automation"
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	"github.com/hannesrauhe/freeps/connectors/chaosimradio"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
@@ -102,6 +103,7 @@ func mainLoop() bool {
 		&fritz.OpFritz{},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&weather.OpWeather{},
+		&automation.OpAutomation{CR: cr, GE: ge},
 	}
 
 	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now

@@ -523,3 +523,12 @@ func (o *FreepsOperatorWrapper) GetHook() interface{} {
 	}
 	return nil
 }
+
+// GetTriggers returns the triggers of the FreepsOperator if it exists
+func (o *FreepsOperatorWrapper) GetTriggers() []FreepsTrigger {
+	opTriggers, ok := o.opInstance.(FreepsOperatorWithTriggers)
+	if ok {
+		return opTriggers.GetTriggers()
+	}
+	return []FreepsTrigger{}
+}

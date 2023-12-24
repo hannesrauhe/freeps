@@ -341,3 +341,8 @@ func (o *OpEval) Shutdown(ctx *base.Context) {
 func (o *OpEval) GetHook() interface{} {
 	return nil
 }
+
+// GetTriggers returns a list of triggers for this operator
+func (o *OpEval) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{}
+}

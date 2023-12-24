@@ -369,3 +369,8 @@ func (o *OpStore) Shutdown(ctx *base.Context) {
 func (o *OpStore) GetHook() interface{} {
 	return nil
 }
+
+// GetTriggers returns a list of triggers for this operator
+func (o *OpStore) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{}
+}

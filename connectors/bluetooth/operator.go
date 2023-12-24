@@ -22,6 +22,7 @@ type Bluetooth struct {
 var _ base.FreepsOperatorWithConfig = &Bluetooth{}
 var _ base.FreepsOperatorWithShutdown = &Bluetooth{}
 var _ base.FreepsOperatorWithHook = &Bluetooth{}
+var _ base.FreepsOperatorWithTriggers = &Bluetooth{}
 
 // GetDefaultConfig returns a copy of the default config
 func (bt *Bluetooth) GetDefaultConfig() interface{} {
@@ -98,4 +99,25 @@ func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO
 func (bt *Bluetooth) RestartDiscovery(ctx *base.Context) *base.OperatorIO {
 	bt.btw.StopDiscovery(true)
 	return base.MakeEmptyOutput()
+}
+
+type BluetoothTrigger struct {
+}
+
+var _ base.FreepsTrigger = &BluetoothTrigger{}
+
+func (bt *BluetoothTrigger) GetName() string {
+	return "bluetooth"
+}
+
+func (bt *BluetoothTrigger) GetDescription() string {
+	return "Bluetooth Trigger"
+}
+
+func (bt *BluetoothTrigger) GetSuggestions() []string {
+	return []string{"presentDevices"}
+}
+
+func (bt *Bluetooth) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{&BluetoothTrigger{}}
 }

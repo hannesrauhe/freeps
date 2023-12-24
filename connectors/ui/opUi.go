@@ -587,3 +587,8 @@ func (o *OpUI) Shutdown(ctx *base.Context) {
 func (o *OpUI) GetHook() interface{} {
 	return nil
 }
+
+// GetTriggers returns a list of triggers for this operator
+func (o *OpUI) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{}
+}
