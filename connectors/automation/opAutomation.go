@@ -10,9 +10,10 @@ import (
 )
 
 type Rule struct {
-	Name    string
-	Trigger base.FreepsTrigger
-	Graph   string
+	Name         string
+	Trigger      base.FreepsTrigger
+	TriggerValue string
+	Graph        string
 }
 
 // OpAutomation is the operator for automation
@@ -27,9 +28,14 @@ func (oa *OpAutomation) getRulesForTrigger(opName string, triggers []base.Freeps
 	for _, trigger := range triggers {
 		triggerName := trigger.GetName()
 		gm := oa.GE.GetGraphDescByTag([]string{opName, triggerName})
-		for graphName := range gm {
-			r := Rule{Trigger: trigger, Graph: graphName}
-			ret = append(ret, r)
+		for graphName, graphDesc := range gm {
+			for _, tag := range graphDesc.Tags {
+				triggerTag, triggerValue := freepsgraph.SplitTag(tag)
+				if utils.StringCmpIgnoreCase(triggerTag, triggerName) {
+					r := Rule{Trigger: trigger, Graph: graphName, TriggerValue: triggerValue}
+					ret = append(ret, r)
+				}
+			}
 		}
 	}
 	return ret
@@ -168,4 +174,13 @@ func (oa *OpAutomation) CreateRule(ctx *base.Context, mainInput *base.OperatorIO
 	oa.GE.AddGraph(args.Graph, *gd, true)
 
 	return base.MakeEmptyOutput()
+}
+
+// GetRules
+func (oa *OpAutomation) GetRules(ctx *base.Context) *base.OperatorIO {
+	if oa.ruleMap == nil {
+		oa.buildRuleMap()
+	}
+
+	return base.MakeObjectOutput(oa.ruleMap.GetOriginalCaseMap())
 }
