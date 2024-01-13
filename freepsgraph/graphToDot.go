@@ -10,7 +10,7 @@ import (
 
 func (g *Graph) toDot(ctx *base.Context, G *graphviz.Graph, nameIDMap map[string]int, mainInputID int) {
 	for _, v := range g.desc.Operations {
-		nodename := strings.Join([]string{g.graphID, v.Name}, ".")
+		nodename := strings.Join([]string{g.GetGraphID(), v.Name}, ".")
 		for true {
 			if _, ok := nameIDMap[nodename]; ok {
 				nodename = nodename + "."
@@ -23,11 +23,11 @@ func (g *Graph) toDot(ctx *base.Context, G *graphviz.Graph, nameIDMap map[string
 			if v.InputFrom == "_" {
 				G.AddEdge(mainInputID, nameIDMap[nodename], "input")
 			} else {
-				G.AddEdge(nameIDMap[strings.Join([]string{g.graphID, v.InputFrom}, ".")], nameIDMap[nodename], "input")
+				G.AddEdge(nameIDMap[strings.Join([]string{g.GetGraphID(), v.InputFrom}, ".")], nameIDMap[nodename], "input")
 			}
 		}
 		if v.ExecuteOnFailOf != "" {
-			G.AddEdge(nameIDMap[strings.Join([]string{g.graphID, v.ExecuteOnFailOf}, ".")], nameIDMap[nodename], "fail")
+			G.AddEdge(nameIDMap[strings.Join([]string{g.GetGraphID(), v.ExecuteOnFailOf}, ".")], nameIDMap[nodename], "fail")
 		}
 		if v.ArgumentsFrom != "" {
 			if v.ArgumentsFrom == "_" {

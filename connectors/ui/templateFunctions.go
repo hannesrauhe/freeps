@@ -113,20 +113,18 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			}
 			graphByID := o.ge.GetGraphDescByTag(tags)
 			for graphID, v := range graphByID {
-				g, err := freepsgraph.NewGraph(ctx, graphID, &v, o.ge)
 				name := graphID
-				gd := v
+				gd, err := v.GetCompleteDesc(graphID, o.ge)
 				if err != nil {
 					name = graphID + " (Error: " + err.Error() + ")"
 				} else {
-					gd = *g.GetCompleteDesc()
 					name = gd.DisplayName
 				}
 				// add name to graph, if duplicate add id
 				if _, ok := graphByName[name]; ok {
-					graphByName[fmt.Sprintf("%v (%v)", name, graphID)] = gd
+					graphByName[fmt.Sprintf("%v (ID: %v)", name, graphID)] = *gd
 				} else {
-					graphByName[name] = gd
+					graphByName[name] = *gd
 				}
 
 			}

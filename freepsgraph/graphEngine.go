@@ -371,9 +371,9 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, remove
 }
 
 // AddGraph adds a graph from an external source and stores it on disk, after checking if the graph is valid
-func (ge *GraphEngine) AddGraph(graphName string, gd GraphDesc, overwrite bool) error {
+func (ge *GraphEngine) AddGraph(graphID string, gd GraphDesc, overwrite bool) error {
 	// check if graph is valid
-	_, err := NewGraph(nil, graphName, &gd, ge)
+	_, err := gd.GetCompleteDesc(graphID, ge)
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func (ge *GraphEngine) AddGraph(graphName string, gd GraphDesc, overwrite bool) 
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	return ge.addGraphUnderLock(graphName, gd, true, overwrite)
+	return ge.addGraphUnderLock(graphID, gd, true, overwrite)
 }
 
 func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeToDisk bool, overwrite bool) error {

@@ -19,11 +19,12 @@ type GraphFromEngineArgs struct {
 }
 
 // GraphNameSuggestions returns suggestions for graph names
-func (arg *GraphFromEngineArgs) GraphNameSuggestions(m *OpGraphBuilder) []string {
-	graphNames := []string{}
+func (arg *GraphFromEngineArgs) GraphNameSuggestions(m *OpGraphBuilder) map[string]string {
+	graphNames := map[string]string{}
 	res := m.GE.GetAllGraphDesc()
-	for name := range res {
-		graphNames = append(graphNames, name)
+	for id, gd := range res {
+		info, _ := gd.GetCompleteDesc(id, m.GE)
+		graphNames[id] = info.DisplayName
 	}
 	return graphNames
 }
