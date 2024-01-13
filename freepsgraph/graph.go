@@ -2,7 +2,6 @@ package freepsgraph
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,7 +13,6 @@ const ROOT_SYMBOL = "_"
 
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
-	name      string
 	context   *base.Context
 	desc      *GraphDesc
 	engine    *GraphEngine
@@ -22,70 +20,25 @@ type Graph struct {
 }
 
 // NewGraph creates a new graph from a graph description
-func NewGraph(ctx *base.Context, name string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
-	if ge == nil {
-		return nil, errors.New("GraphEngine not set")
-	}
+func NewGraph(ctx *base.Context, graphID string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
 	if origGraphDesc == nil {
 		return nil, errors.New("GraphDesc not set")
 	}
-	if len(origGraphDesc.Operations) == 0 {
-		return nil, errors.New("No operations defined")
+	gd, err := origGraphDesc.GetCompleteDesc(graphID, ge)
+	if err != nil {
+		return nil, err
 	}
-	gd := *origGraphDesc
-	gd.Operations = make([]GraphOperationDesc, len(origGraphDesc.Operations))
-
-	outputNames := make(map[string]bool)
-	outputNames[ROOT_SYMBOL] = true
-	// create a copy of each operation and add it to the graph
-	for i, op := range origGraphDesc.Operations {
-		if op.Name == ROOT_SYMBOL {
-			return nil, errors.New("Operation name cannot be " + ROOT_SYMBOL)
-		}
-		if outputNames[op.Name] {
-			return nil, errors.New("Operation name " + op.Name + " is used multiple times")
-		}
-		if op.Name == "" {
-			op.Name = fmt.Sprintf("#%d", i)
-		}
-		if !ge.HasOperator(op.Operator) {
-			return nil, fmt.Errorf("Operation \"%v\" references unknown operator \"%v\"", op.Name, op.Operator)
-		}
-		if op.ArgumentsFrom != "" && outputNames[op.ArgumentsFrom] != true {
-			return nil, fmt.Errorf("Operation \"%v\" references unknown argumentsFrom \"%v\"", op.Name, op.ArgumentsFrom)
-		}
-		if op.InputFrom == "" && i == 0 {
-			op.InputFrom = ROOT_SYMBOL
-		}
-		if op.InputFrom != "" && outputNames[op.InputFrom] != true {
-			return nil, fmt.Errorf("Operation \"%v\" references unknown inputFrom \"%v\"", op.Name, op.InputFrom)
-		}
-		if op.ExecuteOnFailOf != "" {
-			if outputNames[op.ExecuteOnFailOf] != true {
-				return nil, fmt.Errorf("Operation \"%v\" references unknown ExecuteOnFailOf \"%v\"", op.Name, op.ExecuteOnFailOf)
-			}
-			if op.ExecuteOnFailOf == op.InputFrom {
-				return nil, fmt.Errorf("Operation \"%v\" references the same InputFrom and ExecuteOnFailOf \"%v\"", op.Name, op.ExecuteOnFailOf)
-			}
-		}
-		outputNames[op.Name] = true
-		gd.Operations[i] = op
-
-		// op.args are not copied, because they aren't modified during execution
-	}
-	if origGraphDesc.OutputFrom == "" {
-		if len(origGraphDesc.Operations) == 1 {
-			gd.OutputFrom = gd.Operations[0].Name
-		}
-	} else if outputNames[origGraphDesc.OutputFrom] != true {
-		return nil, fmt.Errorf("Graph references unknown outputFrom \"%v\"", origGraphDesc.OutputFrom)
-	}
-	return &Graph{name: name, context: ctx, desc: &gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}, nil
+	return &Graph{context: ctx, desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}, nil
 }
 
 // GetCompleteDesc returns the GraphDesc that was sanitized and completed when creating the graph
 func (g *Graph) GetCompleteDesc() *GraphDesc {
 	return g.desc
+}
+
+// GetGraphID returns the unique ID for this graph in the graph engine
+func (g *Graph) GetGraphID() string {
+	return g.desc.GraphID
 }
 
 func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
@@ -111,7 +64,7 @@ func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput
 
 func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
 	error := base.MakeOutputError(code, msg, a...)
-	g.engine.TriggerOnExecutionErrorHooks(ctx, input, error, g.name, opDesc)
+	g.engine.TriggerOnExecutionErrorHooks(ctx, input, error, g.GetGraphID(), opDesc)
 	return error
 }
 
@@ -175,11 +128,11 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
-		opI := ctx.RecordOperationStart(g.name, finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
+		opI := ctx.RecordOperationStart(g.GetGraphID(), finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom)
 		g.engine.TriggerOnExecuteOperationHooks(ctx, opI)
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
 		if output.IsError() {
-			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.name, finalOpDesc)
+			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
 		}
 		ctx.RecordOperationFinish(opI, output.HTTPCode)
 		return output

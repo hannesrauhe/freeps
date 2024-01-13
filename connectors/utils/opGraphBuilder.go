@@ -1,6 +1,8 @@
 package freepsutils
 
 import (
+	"fmt"
+
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -15,33 +17,39 @@ var _ base.FreepsOperator = &OpGraphBuilder{}
 
 // GraphFromEngineArgs are the arguments for the GraphBuilder function
 type GraphFromEngineArgs struct {
-	GraphName string
+	GraphID string
 }
 
 // GraphNameSuggestions returns suggestions for graph names
-func (arg *GraphFromEngineArgs) GraphNameSuggestions(m *OpGraphBuilder) []string {
-	graphNames := []string{}
+func (arg *GraphFromEngineArgs) GraphIDSuggestions(m *OpGraphBuilder) map[string]string {
+	graphNames := map[string]string{}
 	res := m.GE.GetAllGraphDesc()
-	for name := range res {
-		graphNames = append(graphNames, name)
+	for id, gd := range res {
+		info, _ := gd.GetCompleteDesc(id, m.GE)
+		_, exists := graphNames[info.DisplayName]
+		if !exists {
+			graphNames[info.DisplayName] = id
+		} else {
+			graphNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
+		}
 	}
 	return graphNames
 }
 
 // GetGraph returns a graph from the graph engine
 func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
-	gd, ok := m.GE.GetGraphDesc(args.GraphName)
+	gd, ok := m.GE.GetGraphDesc(args.GraphID)
 	if !ok {
-		return base.MakeOutputError(404, "Graph not found in Engine: %v", args.GraphName)
+		return base.MakeOutputError(404, "Graph not found in Engine: %v", args.GraphID)
 	}
 	return base.MakeObjectOutput(gd)
 }
 
 // DeleteGraph deletes a graph from the graph engine and stores a backup in the store
 func (m *OpGraphBuilder) DeleteGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
-	backup, err := m.GE.DeleteGraph(args.GraphName)
+	backup, err := m.GE.DeleteGraph(args.GraphID)
 	if backup != nil {
-		freepsstore.StoreGraph("deleted_"+args.GraphName, *backup, ctx.GetID())
+		freepsstore.StoreGraph("deleted_"+args.GraphID, *backup, ctx.GetID())
 	}
 	if err != nil {
 		return base.MakeOutputError(400, "Could not delete graph: %v", err)
