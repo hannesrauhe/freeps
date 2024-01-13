@@ -30,7 +30,7 @@
             {{ range $graphName, $info := graph_GetGraphSortedByNamesByTag $requestedTag }}
             {{ $graphID := $info.GraphID }}
             <tr><td> <a href="/graph/{{ $graphID }}">{{ $graphName }}</a> </td>
-                <td><a href="/graph/{{ $graphID }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $graphID }}">Edit</a>, <a href="/graphBuilder/deleteGraph?name={{ $graphID }}&redirect={{$.selfURL}}" >Delete</a></td>
+                <td><a href="/graph/{{ $graphID }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $graphID }}">Edit</a>, <a href="/graphBuilder/deleteGraph?graphID={{ $graphID }}&redirect={{$.selfURL}}" >Delete</a></td>
                 <td>{{ range $index, $t := $info.Tags }} <a href="/ui/graphInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
             {{ end }}
         </table>

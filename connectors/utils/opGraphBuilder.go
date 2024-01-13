@@ -17,7 +17,7 @@ var _ base.FreepsOperator = &OpGraphBuilder{}
 
 // GraphFromEngineArgs are the arguments for the GraphBuilder function
 type GraphFromEngineArgs struct {
-	GraphName string
+	GraphID string
 }
 
 // GraphNameSuggestions returns suggestions for graph names
@@ -38,18 +38,18 @@ func (arg *GraphFromEngineArgs) GraphNameSuggestions(m *OpGraphBuilder) map[stri
 
 // GetGraph returns a graph from the graph engine
 func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
-	gd, ok := m.GE.GetGraphDesc(args.GraphName)
+	gd, ok := m.GE.GetGraphDesc(args.GraphID)
 	if !ok {
-		return base.MakeOutputError(404, "Graph not found in Engine: %v", args.GraphName)
+		return base.MakeOutputError(404, "Graph not found in Engine: %v", args.GraphID)
 	}
 	return base.MakeObjectOutput(gd)
 }
 
 // DeleteGraph deletes a graph from the graph engine and stores a backup in the store
 func (m *OpGraphBuilder) DeleteGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
-	backup, err := m.GE.DeleteGraph(args.GraphName)
+	backup, err := m.GE.DeleteGraph(args.GraphID)
 	if backup != nil {
-		freepsstore.StoreGraph("deleted_"+args.GraphName, *backup, ctx.GetID())
+		freepsstore.StoreGraph("deleted_"+args.GraphID, *backup, ctx.GetID())
 	}
 	if err != nil {
 		return base.MakeOutputError(400, "Could not delete graph: %v", err)
