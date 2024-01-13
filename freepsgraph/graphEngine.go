@@ -104,20 +104,31 @@ func (ge *GraphEngine) getGraphDescUnlocked(graphName string) (*GraphDesc, bool)
 }
 
 // CheckGraph checks if the graph is valid
-func (ge *GraphEngine) CheckGraph(graphName string) *base.OperatorIO {
-	_, o := ge.prepareGraphExecution(nil, graphName)
+func (ge *GraphEngine) CheckGraph(graphID string) *base.OperatorIO {
+	_, o := ge.prepareGraphExecution(nil, graphID)
 	return o
 }
 
-// GetGraphDesc returns the graph description stored under graphName
-func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
+// GetGraphDesc returns the graph description stored under graphID
+func (ge *GraphEngine) GetGraphDesc(graphID string) (*GraphDesc, bool) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	gi, exists := ge.getGraphDescUnlocked(graphName)
+	gi, exists := ge.getGraphDescUnlocked(graphID)
 	if exists {
 		return gi, exists
 	}
 	return nil, exists
+}
+
+// GetCompleteGraphDesc returns the sanitized, validated and complete graph description stored under graphName
+func (ge *GraphEngine) GetCompleteGraphDesc(graphID string) (*GraphDesc, error) {
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+	gi, exists := ge.getGraphDescUnlocked(graphID)
+	if exists {
+		return gi.GetCompleteDesc(graphID, ge)
+	}
+	return nil, fmt.Errorf("Graph with ID \"%v\" does not exist", graphID)
 }
 
 // GetTags returns a map of all used tags TODO(HR): deprecate

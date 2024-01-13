@@ -1,6 +1,8 @@
 package freepsutils
 
 import (
+	"fmt"
+
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -24,7 +26,12 @@ func (arg *GraphFromEngineArgs) GraphNameSuggestions(m *OpGraphBuilder) map[stri
 	res := m.GE.GetAllGraphDesc()
 	for id, gd := range res {
 		info, _ := gd.GetCompleteDesc(id, m.GE)
-		graphNames[id] = info.DisplayName
+		_, exists := graphNames[info.DisplayName]
+		if !exists {
+			graphNames[info.DisplayName] = id
+		} else {
+			graphNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
+		}
 	}
 	return graphNames
 }
