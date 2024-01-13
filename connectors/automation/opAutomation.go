@@ -134,7 +134,12 @@ func (gta *CreateRuleArgs) TriggerValueSuggestions(oa *OpAutomation) []string {
 		return ret
 	}
 
-	//TODO suggestions from tmap
+	for _, t := range oa.triggerMap.GetArray(gta.Operator) {
+		if t != nil && utils.StringCmpIgnoreCase(gta.Trigger, t.GetName()) {
+			return t.GetSuggestions()
+		}
+	}
+
 	return ret
 }
 
@@ -148,10 +153,6 @@ func (gta *CreateRuleArgs) GraphSuggestions(oa *OpAutomation) []string {
 
 // CreateRule adds tags to a graph so this graph is executed when the given trigger triggers
 func (oa *OpAutomation) CreateRule(ctx *base.Context, mainInput *base.OperatorIO, args CreateRuleArgs) *base.OperatorIO {
-	if oa.ruleMap == nil {
-		oa.buildRuleAndTriggerMap()
-	}
-
 	gd, exists := oa.GE.GetGraphDesc(args.Graph)
 	if !exists {
 		return base.MakeOutputError(http.StatusBadRequest, "Graph \"%v\" does not exist", args.Graph)
@@ -166,10 +167,6 @@ func (oa *OpAutomation) CreateRule(ctx *base.Context, mainInput *base.OperatorIO
 
 // GetRules
 func (oa *OpAutomation) GetRules(ctx *base.Context) *base.OperatorIO {
-	if oa.ruleMap == nil {
-		oa.buildRuleAndTriggerMap()
-	}
-
 	return base.MakeObjectOutput(oa.ruleMap.GetOriginalCaseMap())
 }
 
