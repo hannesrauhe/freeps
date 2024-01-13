@@ -21,7 +21,7 @@ type GraphFromEngineArgs struct {
 }
 
 // GraphNameSuggestions returns suggestions for graph names
-func (arg *GraphFromEngineArgs) GraphNameSuggestions(m *OpGraphBuilder) map[string]string {
+func (arg *GraphFromEngineArgs) GraphIDSuggestions(m *OpGraphBuilder) map[string]string {
 	graphNames := map[string]string{}
 	res := m.GE.GetAllGraphDesc()
 	for id, gd := range res {
