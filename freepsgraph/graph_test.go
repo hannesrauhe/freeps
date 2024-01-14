@@ -163,14 +163,31 @@ func TestGraphStorage(t *testing.T) {
 	err = ge.AddGraph("test2", g, true)
 	assert.NilError(t, err)
 
+	// check proper caps handling and names
+	err = ge.AddGraph("Test2", createValidGraph(), false)
+	assert.NilError(t, err)
+	_, err = os.Stat(path.Join(gdir, "Test2.json"))
+	assert.NilError(t, err)
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 6)
+
+	gdNocap, err := ge.GetCompleteGraphDesc("test2")
+	assert.NilError(t, err)
+	assert.Equal(t, gdNocap.GraphID, "test2")
+	gdCap, err := ge.GetCompleteGraphDesc("Test2")
+	assert.NilError(t, err)
+	assert.Equal(t, gdCap.GraphID, "Test2")
+
+	assert.Equal(t, gdNocap.DisplayName, gdCap.DisplayName)
+
+	// check deletion
 	_, err = ge.DeleteGraph("test2")
 	_, exists = ge.GetGraphDesc("test2")
 	assert.Assert(t, !exists)
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
 
 	_, err = ge.DeleteGraph("test1")
 	assert.NilError(t, err)
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
+	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
 	_, err = os.Stat(path.Join(gdir, "test2.json"))
 	assert.Assert(t, err != nil)
 }

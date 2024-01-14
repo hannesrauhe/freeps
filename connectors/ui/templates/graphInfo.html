@@ -27,9 +27,10 @@
     <div class="row">
         <table>
         <tr><th>Graph</th><th>Actions</th><th>Tags</th></tr>
-            {{ range $value, $info := graph_GetGraphDescByTag $requestedTag }}
-            <tr><td> <a href="/graph/{{ $value }}">{{ $value }}</a> </td>
-                <td><a href="/graph/{{ $value }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $value }}">Edit</a>, <a href="/graphBuilder/deleteGraph?name={{ $value }}&redirect={{$.selfURL}}" >Delete</a></td>
+            {{ range $graphName, $info := graph_GetGraphSortedByNamesByTag $requestedTag }}
+            {{ $graphID := $info.GraphID }}
+            <tr><td> <a href="/graph/{{ $graphID }}">{{ $graphName }}</a> </td>
+                <td><a href="/graph/{{ $graphID }}" target="outputframe">Execute</a>, <a href="/ui/edit?graph={{ $graphID }}">Edit</a>, <a href="/graphBuilder/deleteGraph?graphID={{ $graphID }}&redirect={{$.selfURL}}" >Delete</a></td>
                 <td>{{ range $index, $t := $info.Tags }} <a href="/ui/graphInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
             {{ end }}
         </table>
