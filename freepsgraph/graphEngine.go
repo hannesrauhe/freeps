@@ -453,6 +453,8 @@ func (ge *GraphEngine) StartListening(ctx *base.Context) {
 			op.StartListening(ctx)
 		}
 	}
+
+	ge.TriggerGraphChangedHooks(nil, nil)
 }
 
 // Shutdown should be called for graceful shutdown

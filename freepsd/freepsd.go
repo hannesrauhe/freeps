@@ -113,13 +113,6 @@ func mainLoop() bool {
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	freepsexec.AddExecOperators(cr, ge)
 
-	sh, err := freepsstore.NewStoreHook(cr, ge)
-	if err != nil {
-		logger.Errorf("Store hook not available: %v", err.Error())
-	} else {
-		ge.AddHook(sh)
-	}
-
 	if operator != "" {
 		args, _ := url.ParseQuery(argstring)
 		oio := base.MakeEmptyOutput()

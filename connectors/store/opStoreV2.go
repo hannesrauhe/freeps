@@ -306,3 +306,18 @@ func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSe
 	res := nsStore.GetSearchResultWithMetadata(*args.Key, *args.Value, *args.ModifiedBy, *args.MinAge, *args.MaxAge)
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, res)
 }
+
+// GetHook returns the hook for this operator
+func (o *OpStore) GetHook() interface{} {
+	var eLog, glog, olog StoreNamespace
+	if store.config.ExecutionLogName != "" {
+		eLog = store.GetNamespace(store.config.ExecutionLogName)
+	}
+	if store.config.GraphInfoName != "" {
+		glog = store.GetNamespace(store.config.GraphInfoName)
+	}
+	if store.config.OperatorInfoName != "" {
+		olog = store.GetNamespace(store.config.OperatorInfoName)
+	}
+	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, operatorInfoLogNs: olog, errorLog: NewCollectedErrors(store.config), GE: o.GE}
+}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 type HookStore struct {
@@ -17,24 +16,6 @@ type HookStore struct {
 }
 
 var _ freepsgraph.FreepsHook = &HookStore{}
-
-// NewStoreHook creates a new store Hook
-func NewStoreHook(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) (*HookStore, error) {
-	if store.namespaces == nil || store.config == nil {
-		return nil, fmt.Errorf("Store was not properly initialized")
-	}
-	var eLog, glog, olog StoreNamespace
-	if store.config.ExecutionLogName != "" {
-		eLog = store.GetNamespace(store.config.ExecutionLogName)
-	}
-	if store.config.GraphInfoName != "" {
-		glog = store.GetNamespace(store.config.GraphInfoName)
-	}
-	if store.config.OperatorInfoName != "" {
-		olog = store.GetNamespace(store.config.OperatorInfoName)
-	}
-	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, operatorInfoLogNs: olog, errorLog: NewCollectedErrors(store.config), GE: ge}, nil
-}
 
 // GetName returns the name of the hook
 func (h *HookStore) GetName() string {
