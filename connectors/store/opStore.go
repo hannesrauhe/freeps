@@ -3,10 +3,9 @@ package freepsstore
 import (
 	"math"
 	"net/http"
+	"os"
 	"strings"
 	"time"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -14,58 +13,52 @@ import (
 )
 
 type OpStore struct {
-	cr *utils.ConfigReader
+	CR *utils.ConfigReader
 	GE *freepsgraph.GraphEngine
 }
 
-var _ base.FreepsBaseOperator = &OpStore{}
+var _ base.FreepsOperatorWithConfig = &OpStore{}
+var _ base.FreepsOperatorWithDynamicFunctions = &OpStore{}
 
-// NewOpStore creates a new store operator and re-initializes the store
-func NewOpStore(cr *utils.ConfigReader, ge *freepsgraph.GraphEngine) *OpStore {
-	sc := getDefaultConfig()
-	err := cr.ReadSectionWithDefaults("store", &sc)
+// GetDefaultConfig returns the default config for the http connector
+func (o *OpStore) GetDefaultConfig() interface{} {
+	// get the hostname of this computer
+	hostname, err := os.Hostname()
 	if err != nil {
-		logrus.Fatal(err)
+		panic("could not get hostname")
 	}
+	return &StoreConfig{PostgresConnStr: "", PostgresSchema: "freeps_" + hostname, ExecutionLogInPostgres: true, ExecutionLogName: "_execution_log", GraphInfoName: "_graph_info", ErrorLogName: "_error_log", OperatorInfoName: "_operator_info", MaxErrorLogSize: 1000}
+}
 
+// InitCopyOfOperator creates a copy of the operator
+func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	store.namespaces = map[string]StoreNamespace{}
-	store.config = &sc
-	if sc.PostgresConnStr != "" {
-		err = store.initPostgresStores()
+	store.config = config.(*StoreConfig)
+	if store.config.PostgresConnStr != "" {
+		err := store.initPostgresStores()
 		if err != nil {
-			logrus.Fatal(err)
+			ctx.GetLogger().Fatal(err)
 		}
 	}
 	fns, err := newFileStoreNamespace()
 	if err != nil {
-		logrus.Fatal(err)
+		ctx.GetLogger().Fatal(err)
 	}
 	store.namespaces["_files"] = fns
 
-	cr.WriteBackConfigIfChanged()
-	if err != nil {
-		logrus.Print(err)
-	}
-	return &OpStore{cr: cr, GE: ge}
+	return &OpStore{CR: o.CR, GE: o.GE}, err
 }
 
-// GetName returns the name of the operator
-func (o *OpStore) GetName() string {
-	return "store"
-}
-
-// Execute everything in a single spaghetti - needs cleanup
-func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
-	if fn == "getNamespaces" {
-		return base.MakeObjectOutput(store.GetNamespaces())
-	}
+// ExecuteDynamic is a single spaghetti - needs cleanup ... moving to opStoreV2.go
+func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	args := fa.GetOriginalCaseMap()
 	result := map[string]map[string]*base.OperatorIO{}
 	ns, ok := args["namespace"]
 	if !ok {
 		return base.MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
 	multiNs := strings.Split(ns, ",")
-	if len(multiNs) > 1 && fn == "getAll" {
+	if len(multiNs) > 1 && fn == "getall" {
 		for _, ns := range multiNs {
 			ns = utils.StringToIdentifier(ns)
 			result[ns] = store.GetNamespace(ns).GetAllValues(0)
@@ -74,7 +67,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 	}
 	ns = utils.StringToIdentifier(ns)
 
-	if fn == "createPostgresNamespace" {
+	if fn == "createpostgresnamespace" {
 		err := store.createPostgresNamespace(ns)
 		if err != nil {
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
@@ -87,22 +80,10 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 		keyArgName = "key"
 	}
 	key, ok := args[keyArgName]
-	if fn != "getAll" && fn != "setAll" && fn != "deleteOlder" && fn != "search" && !ok {
+	if fn != "getall" && fn != "setall" && fn != "deleteolder" && fn != "search" && !ok {
 		return base.MakeOutputError(http.StatusBadRequest, "No key given")
 	}
-	// overwrite input and function to treat setSimpleValue like set
-	if fn == "setSimpleValue" {
-		valueArgName := args["valueArgName"]
-		if valueArgName == "" {
-			valueArgName = "value"
-		}
-		val, ok := args[valueArgName]
-		if !ok {
-			return base.MakeOutputError(http.StatusBadRequest, "No value given")
-		}
-		fn = "set"
-		input = base.MakePlainOutput(val)
-	}
+
 	output, ok := args["output"]
 	if !ok {
 		// default is the complete tree
@@ -130,17 +111,15 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 	}
 
 	switch fn {
-	case "search":
+	case "getall":
 		{
-			output = "arguments" // just for completenes, will not be read afterwards
-			fullres := nsStore.GetSearchResultWithMetadata(args["key"], args["value"], args["modifiedBy"], minAge, maxAge)
-			return base.MakeObjectOutput(fullres)
+			r := nsStore.GetSearchResultWithMetadata(key, args["value"], args["modifiedBy"], minAge, maxAge)
+			result[ns] = map[string]*base.OperatorIO{}
+			for k, v := range r {
+				result[ns][k] = v.data
+			}
 		}
-	case "getAll":
-		{
-			result[ns] = nsStore.GetAllFiltered(key, args["value"], args["modifiedBy"], minAge, maxAge)
-		}
-	case "setAll":
+	case "setall":
 		{
 			key = ""
 			output = "empty"
@@ -151,62 +130,7 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 			}
 			nsStore.SetAll(m, ctx.GetID())
 		}
-	case "get":
-		{
-			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, DefaultValue: nil}
-			if maxAgeRequest {
-				argsStruct.MaxAge = &maxAge
-			}
-			val, ok := args["defaultValue"]
-			if ok {
-				argsStruct.DefaultValue = &val
-			}
-			return o.Get(ctx, input, argsStruct)
-		}
-	case "equals":
-		{
-			argsStruct := StoreGetArgs{Namespace: ns, Key: key, Output: output, MaxAge: nil, Value: nil}
-			if maxAgeRequest {
-				argsStruct.MaxAge = &maxAge
-			}
-			val, ok := args["value"]
-			if ok {
-				argsStruct.Value = &val
-			}
-			return o.Equals(ctx, input, argsStruct)
-		}
-	case "set":
-		{
-			if maxAgeRequest {
-				io := nsStore.OverwriteValueIfOlder(key, input, maxAge, ctx.GetID())
-				if io.IsError() {
-					return io
-				}
-			}
-			io := nsStore.SetValue(key, input, ctx.GetID())
-			if io.IsError() {
-				return io
-			}
-			result[ns] = map[string]*base.OperatorIO{key: input}
-		}
-	case "compareAndSwap":
-		{
-			val, ok := args["value"]
-			if !ok {
-				return base.MakeOutputError(http.StatusBadRequest, "No expected value given")
-			}
-			io := nsStore.CompareAndSwap(key, val, input, ctx.GetID())
-			if io.IsError() {
-				return io
-			}
-			result[ns] = map[string]*base.OperatorIO{key: input}
-		}
-	case "del", "delete", "remove":
-		{
-			nsStore.DeleteValue(key)
-			return base.MakeEmptyOutput()
-		}
-	case "deleteOlder":
+	case "deleteolder":
 		{
 			if !maxAgeRequest {
 				return base.MakeOutputError(http.StatusBadRequest, "No maxAge given")
@@ -258,8 +182,8 @@ func (o *OpStore) Execute(ctx *base.Context, fn string, args map[string]string, 
 	return base.MakeOutputError(http.StatusBadRequest, "Unknown output type '%v'", output)
 }
 
-// GetFunctions returns the functions of this operator
-func (o *OpStore) GetFunctions() []string {
+// GetDynamicFunctions returns the functions of this operator
+func (o *OpStore) GetDynamicFunctions() []string {
 	res := []string{"get", "getNamespaces", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder", "search"}
 	if db == nil {
 		return res
@@ -267,8 +191,8 @@ func (o *OpStore) GetFunctions() []string {
 	return append(res, "createPostgresNamespace")
 }
 
-// GetPossibleArgs returns the possible arguments for a function
-func (o *OpStore) GetPossibleArgs(fn string) []string {
+// GetDynamicPossibleArgs returns the possible arguments for a function
+func (o *OpStore) GetDynamicPossibleArgs(fn string) []string {
 	switch fn {
 	case "search":
 		return []string{"namespace", "key", "value", "modifiedBy", "minAge", "maxAge"}
@@ -296,8 +220,8 @@ func (o *OpStore) GetPossibleArgs(fn string) []string {
 	return []string{}
 }
 
-// GetArgSuggestions returns suggestions for arguments
-func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+// GetDynamicArgSuggestions returns suggestions for arguments
+func (o *OpStore) GetDynamicArgSuggestions(fn string, arg string, dynArgs base.FunctionArguments) map[string]string {
 	switch arg {
 	case "namespace":
 		{
@@ -309,7 +233,7 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	case "key":
 		{
-			ns := otherArgs["namespace"]
+			ns := dynArgs.Get("namespace")
 			if ns == "" {
 				return map[string]string{}
 			}
@@ -322,14 +246,14 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	case "value":
 		{
-			ns := otherArgs["namespace"]
+			ns := dynArgs.Get("namespace")
 			if ns == "" {
 				return map[string]string{}
 			}
-			key, ok := otherArgs["key"]
-			if !ok {
+			if !dynArgs.Has("key") {
 				return map[string]string{}
 			}
+			key := dynArgs.Get("key")
 			io := store.GetNamespace(ns).GetValue(key)
 			return map[string]string{io.GetData().GetString(): io.GetData().GetString()}
 		}
@@ -355,17 +279,4 @@ func (o *OpStore) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 		}
 	}
 	return map[string]string{}
-}
-
-// StartListening (noOp)
-func (o *OpStore) StartListening(ctx *base.Context) {
-}
-
-// Shutdown (noOp)
-func (o *OpStore) Shutdown(ctx *base.Context) {
-}
-
-// GetHook (noOp)
-func (o *OpStore) GetHook() interface{} {
-	return nil
 }

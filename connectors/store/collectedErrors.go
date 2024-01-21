@@ -34,11 +34,11 @@ func NewCollectedErrors(config *StoreConfig) *CollectedErrors {
 func (ce *CollectedErrors) AddError(input *base.OperatorIO, err *base.OperatorIO, ctx *base.Context, graphName string, od *freepsgraph.GraphOperationDesc) error {
 	e := &CollectedError{Input: input, Error: err.GetString(), GraphName: graphName, Operation: od}
 	id := ce.errorCounter.Add(1)
-	storeErr := ce.ns.SetValue(fmt.Sprint(id), base.MakeObjectOutput(e), ctx.GetID())
+	storeErr := ce.ns.SetValue(fmt.Sprint(id), base.MakeObjectOutput(e), ctx.GetID()).GetData()
 	if storeErr.IsError() {
 		return storeErr.GetError()
 	}
-	storeErr = ce.ns.SetValue(fmt.Sprintf("%d-input", id), input, ctx.GetID())
+	storeErr = ce.ns.SetValue(fmt.Sprintf("%d-input", id), input, ctx.GetID()).GetData()
 	if storeErr.IsError() {
 		return storeErr.GetError()
 	}
@@ -51,11 +51,11 @@ func (ce *CollectedErrors) AddError(input *base.OperatorIO, err *base.OperatorIO
 
 // GetErrorsSince returns the error that occured in the given duration
 func (ce *CollectedErrors) GetErrorsSince(d time.Duration) []*CollectedError {
-	errors := ce.ns.GetAllFiltered("", "", "", 0, d)
+	errors := ce.ns.GetSearchResultWithMetadata("", "", "", 0, d)
 	ret := make([]*CollectedError, 0, len(errors))
 	for _, sob := range errors {
 		var e CollectedError
-		err := sob.ParseJSON(&e)
+		err := sob.GetData().ParseJSON(&e)
 		if err != nil {
 			logrus.Errorf("Error while parsing error log: %v", err)
 			continue
@@ -68,11 +68,11 @@ func (ce *CollectedErrors) GetErrorsSince(d time.Duration) []*CollectedError {
 
 // GetErrorsForGraph returns the error that occured ion the given duration for the given graph
 func (ce *CollectedErrors) GetErrorsForGraph(d time.Duration, graphName string) []*CollectedError {
-	errors := ce.ns.GetAllFiltered("", graphName, "", 0, d)
+	errors := ce.ns.GetSearchResultWithMetadata("", graphName, "", 0, d)
 	ret := make([]*CollectedError, 0)
 	for _, sob := range errors {
 		var e CollectedError
-		err := sob.ParseJSON(&e)
+		err := sob.GetData().ParseJSON(&e)
 		if err != nil {
 			logrus.Errorf("Error while parsing error log: %v", err)
 			continue

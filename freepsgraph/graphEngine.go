@@ -453,6 +453,9 @@ func (ge *GraphEngine) StartListening(ctx *base.Context) {
 			op.StartListening(ctx)
 		}
 	}
+
+	// TODO: Deadlock problem?
+	// ge.TriggerGraphChangedHooks(nil, nil)
 }
 
 // Shutdown should be called for graceful shutdown

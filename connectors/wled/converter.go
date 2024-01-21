@@ -217,7 +217,7 @@ func (w *WLEDConverter) SendToWLED(cmd *base.OperatorIO, returnPNG bool) *base.O
 
 func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error {
 	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
-	out := wledNs.SetValue(pmName, base.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID())
+	out := wledNs.SetValue(pmName, base.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID()).GetData()
 	if out.IsError() {
 		return out.GetError()
 	}

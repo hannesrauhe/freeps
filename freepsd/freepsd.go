@@ -87,6 +87,7 @@ func mainLoop() bool {
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
+		&freepsstore.OpStore{CR: cr, GE: ge},
 		&freepsbluetooth.Bluetooth{GE: ge},
 		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
@@ -104,7 +105,6 @@ func mainLoop() bool {
 		&weather.OpWeather{},
 	}
 
-	ge.AddOperator(freepsstore.NewOpStore(cr, ge)) //needs to be first for now
 	for _, op := range availableOperators {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
@@ -112,13 +112,6 @@ func mainLoop() bool {
 	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	freepsexec.AddExecOperators(cr, ge)
-
-	sh, err := freepsstore.NewStoreHook(cr, ge)
-	if err != nil {
-		logger.Errorf("Store hook not available: %v", err.Error())
-	} else {
-		ge.AddHook(sh)
-	}
 
 	if operator != "" {
 		args, _ := url.ParseQuery(argstring)

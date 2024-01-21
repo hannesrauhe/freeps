@@ -29,6 +29,11 @@ type ReadableStoreEntry struct {
 // NotFoundEntry is a StoreEntry with a 404 error
 var NotFoundEntry = StoreEntry{base.MakeOutputError(http.StatusNotFound, "Key not found"), time.Unix(0, 0), ""}
 
+// MakeEntryError creates a StoreEntry that contains an error
+func MakeEntryError(code int, format string, args ...interface{}) StoreEntry {
+	return StoreEntry{base.MakeOutputError(code, format, args...), time.Now(), ""}
+}
+
 // GetHumanReadable returns a readable version of the entry
 func (v StoreEntry) GetHumanReadable() ReadableStoreEntry {
 	return ReadableStoreEntry{v.data.GetString(), time.Now().Sub(v.timestamp).String(), v.modifiedBy}
@@ -49,20 +54,22 @@ func (v StoreEntry) GetTimestamp() time.Time { return v.timestamp }
 // GetModifiedBy returns the modifiedBy of the entry
 func (v StoreEntry) GetModifiedBy() string { return v.modifiedBy }
 
+// IsError returns true if the entry contains an error
+func (v StoreEntry) IsError() bool { return v.data != nil && v.data.IsError() }
+
 // StoreNamespace defines all functions to retrieve and modify data in the store
 type StoreNamespace interface {
-	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry
 	DeleteOlder(maxAge time.Duration) int
 	DeleteValue(key string)
-	GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO
 	GetAllValues(limit int) map[string]*base.OperatorIO
 	GetKeys() []string
 	Len() int
 	GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry
 	GetValue(key string) StoreEntry
 	GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry
-	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO
-	SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry
+	SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry
 	SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO
 	UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
 }
