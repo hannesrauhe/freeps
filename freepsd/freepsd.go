@@ -14,6 +14,7 @@ import (
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	"github.com/hannesrauhe/freeps/connectors/chaosimradio"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
+	"github.com/hannesrauhe/freeps/connectors/dlna"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
@@ -103,6 +104,7 @@ func mainLoop() bool {
 		&fritz.OpFritz{},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&weather.OpWeather{},
+		&dlna.OpDLNA{},
 	}
 
 	for _, op := range availableOperators {
