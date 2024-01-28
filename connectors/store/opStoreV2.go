@@ -307,6 +307,19 @@ func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSe
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, res)
 }
 
+type CreatePostgresNamespaceArgs struct {
+	Namespace string
+}
+
+// CreatePostgresNamespace sets up a namespaces backed by PostgreSQL
+func (o *OpStore) CreatePostgresNamespace(ctx *base.Context, input *base.OperatorIO, args CreatePostgresNamespaceArgs) *base.OperatorIO {
+	err := store.createPostgresNamespace(args.Namespace)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	return base.MakeEmptyOutput()
+}
+
 // GetHook returns the hook for this operator
 func (o *OpStore) GetHook() interface{} {
 	var eLog, glog, olog StoreNamespace

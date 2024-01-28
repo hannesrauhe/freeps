@@ -67,13 +67,6 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 	}
 	ns = utils.StringToIdentifier(ns)
 
-	if fn == "createpostgresnamespace" {
-		err := store.createPostgresNamespace(ns)
-		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-		}
-		return base.MakePlainOutput("Namespace %v created", ns)
-	}
 	nsStore := store.GetNamespace(ns)
 	keyArgName := args["keyArgName"]
 	if keyArgName == "" {
