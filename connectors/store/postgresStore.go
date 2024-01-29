@@ -280,7 +280,7 @@ func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.Oper
 func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
 	var execErr error
 	se := StoreEntry{timestamp: time.Now(), data: io, modifiedBy: modifiedBy}
-	insertStart := fmt.Sprintf("insert into %s.%s(key, output_type, content_type, http_code, modified_by, modification_time", p.schema, p.name)
+	insertStart := fmt.Sprintf("insert into %s.%s(\"key\", output_type, content_type, http_code, modified_by, modification_time", p.schema, p.name)
 	if io.IsEmpty() {
 		_, execErr = db.Exec(insertStart+") values($1,$2,$3,$4,$5,$6)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp)
 	} else if io.IsPlain() {
@@ -291,9 +291,9 @@ func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 			return MakeEntryError(http.StatusInternalServerError, "cannot get bytes for insertion in postgres: %v", err)
 		}
 		if io.IsObject() {
-			_, execErr = db.Exec(insertStart+"(, value_json) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
+			_, execErr = db.Exec(insertStart+", value_json) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
 		} else {
-			_, execErr = db.Exec(insertStart+"(, value_bytes) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
+			_, execErr = db.Exec(insertStart+", value_bytes) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
 		}
 	}
 	if execErr != nil {
