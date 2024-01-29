@@ -291,9 +291,9 @@ func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 			return MakeEntryError(http.StatusInternalServerError, "cannot get bytes for insertion in postgres: %v", err)
 		}
 		if io.IsObject() {
-			_, execErr = db.Exec(insertStart+"(, value_json) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
+			_, execErr = db.Exec(insertStart+", value_json) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
 		} else {
-			_, execErr = db.Exec(insertStart+"(, value_bytes) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
+			_, execErr = db.Exec(insertStart+", value_bytes) values($1,$2,$3,$4,$5,$6,$7)", key, io.OutputType, io.ContentType, io.HTTPCode, modifiedBy, se.timestamp, b)
 		}
 	}
 	if execErr != nil {
