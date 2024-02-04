@@ -114,6 +114,10 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
 			}
 		case "postgres":
+			if s.config.PostgresConnStr == "" {
+				// fall back to memory store if there is no postgres connection defined
+				nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+			}
 			if db == nil {
 				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": Postgres connection has not been established.", ns, namespaceConfig.NamespaceType)
 			}
@@ -123,6 +127,8 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 			}
 		case "memory":
 			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+		case "null":
+			nsStore = &NullStoreNamespace{}
 		default:
 			return nil, fmt.Errorf("Cannot create store namespace \"%v\", type \"%v\" is unknown", ns, namespaceConfig.NamespaceType)
 		}
