@@ -55,20 +55,6 @@ func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 		}
 	}
 
-	// eager init
-	/*
-		for namespaceName, namespaceConfig := range store.config.Namespaces {
-			switch namespaceConfig.NamespaceType {
-			case "files":
-				fns, err := newFileStoreNamespace()
-				if err != nil {
-					ctx.GetLogger().Fatal(err)
-				}
-				store.namespaces[namespaceName] = fns
-			}
-		}
-	*/
-
 	return &OpStore{CR: o.CR, GE: o.GE}, nil
 }
 
