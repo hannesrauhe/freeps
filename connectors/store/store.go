@@ -81,16 +81,42 @@ type Store struct {
 	config     *StoreConfig
 }
 
-// GetNamespace from the store, create InMemoryNamespace if it does not exist
-func (s *Store) GetNamespace(ns string) StoreNamespace {
+// GetNamespaceNoError from the store, create InMemoryNamespace if it does not exist
+func (s *Store) GetNamespaceNoError(ns string) StoreNamespace {
+	nsStore, err := s.GetNamespace(ns)
+	if err != nil {
+		panic(err)
+	}
+	return nsStore
+}
+
+// GetNamespaceNoError from the store, create InMemoryNamespace if it does not exist
+func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 	s.globalLock.Lock()
 	defer s.globalLock.Unlock()
 	nsStore, ok := s.namespaces[ns]
-	if !ok {
-		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
-		s.namespaces[ns] = nsStore
+	if ok {
+		return nsStore, nil
 	}
-	return nsStore
+
+	// create new namespace on the fly from config is there is one
+
+	namespaceConfig, hasConfig := s.config.Namespaces[ns]
+	if !hasConfig {
+		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+	} else {
+		switch namespaceConfig.NamespaceType {
+		case "files":
+			var err error
+			nsStore, err = newFileStoreNamespace()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	s.namespaces[ns] = nsStore
+	return nsStore, nil
 }
 
 // GetNamespaces returns all namespaces
@@ -100,6 +126,12 @@ func (s *Store) GetNamespaces() []string {
 	ns := []string{}
 	for n := range s.namespaces {
 		ns = append(ns, n)
+	}
+	for n := range s.config.Namespaces {
+		_, ok := s.namespaces[n]
+		if !ok {
+			ns = append(ns, n)
+		}
 	}
 	return ns
 }

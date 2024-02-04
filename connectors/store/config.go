@@ -2,6 +2,7 @@ package freepsstore
 
 // StoreConfig contains all start-parameters for the store
 type StoreConfig struct {
+	Namespaces             map[string]StoreNamespaceConfig
 	PostgresConnStr        string // The full connection string to the postgres instance
 	PostgresSchema         string // the schema to store namespace-tables in
 	ExecutionLogInPostgres bool   // store the execution log in postgres if available
@@ -10,4 +11,9 @@ type StoreConfig struct {
 	ErrorLogName           string // name of the namespace for the error log
 	OperatorInfoName       string // name of the namespace for the operator info log
 	MaxErrorLogSize        int    // maximum number of entries in the error log
+}
+
+// StoreNamespaceConfig contains the configuration for a single namespace
+type StoreNamespaceConfig struct {
+	NamespaceType string
 }

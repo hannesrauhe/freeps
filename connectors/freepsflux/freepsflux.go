@@ -56,7 +56,7 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 		return nil
 	}
 
-	ns := freepsstore.GetGlobalStore().GetNamespace(ff.config.Namespace)
+	ns := freepsstore.GetGlobalStore().GetNamespaceNoError(ff.config.Namespace)
 	ns.UpdateTransaction(measurement,
 		func(oi *base.OperatorIO) *base.OperatorIO {
 			if oi.IsEmpty() {

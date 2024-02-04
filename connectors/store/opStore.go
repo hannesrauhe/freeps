@@ -27,7 +27,11 @@ func (o *OpStore) GetDefaultConfig() interface{} {
 	if err != nil {
 		panic("could not get hostname")
 	}
-	return &StoreConfig{PostgresConnStr: "", PostgresSchema: "freeps_" + hostname, ExecutionLogInPostgres: true, ExecutionLogName: "_execution_log", GraphInfoName: "_graph_info", ErrorLogName: "_error_log", OperatorInfoName: "_operator_info", MaxErrorLogSize: 1000}
+	namespaces := make(map[string]StoreNamespaceConfig)
+	namespaces["_files"] = StoreNamespaceConfig{
+		NamespaceType: "files",
+	}
+	return &StoreConfig{Namespaces: namespaces, PostgresConnStr: "", PostgresSchema: "freeps_" + hostname, ExecutionLogInPostgres: true, ExecutionLogName: "_execution_log", GraphInfoName: "_graph_info", ErrorLogName: "_error_log", OperatorInfoName: "_operator_info", MaxErrorLogSize: 1000}
 }
 
 // InitCopyOfOperator creates a copy of the operator
@@ -40,13 +44,22 @@ func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 			ctx.GetLogger().Fatal(err)
 		}
 	}
-	fns, err := newFileStoreNamespace()
-	if err != nil {
-		ctx.GetLogger().Fatal(err)
-	}
-	store.namespaces["_files"] = fns
 
-	return &OpStore{CR: o.CR, GE: o.GE}, err
+	// eager init
+	/*
+		for namespaceName, namespaceConfig := range store.config.Namespaces {
+			switch namespaceConfig.NamespaceType {
+			case "files":
+				fns, err := newFileStoreNamespace()
+				if err != nil {
+					ctx.GetLogger().Fatal(err)
+				}
+				store.namespaces[namespaceName] = fns
+			}
+		}
+	*/
+
+	return &OpStore{CR: o.CR, GE: o.GE}, nil
 }
 
 // ExecuteDynamic is a single spaghetti - needs cleanup ... moving to opStoreV2.go
@@ -61,13 +74,13 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 	if len(multiNs) > 1 && fn == "getall" {
 		for _, ns := range multiNs {
 			ns = utils.StringToIdentifier(ns)
-			result[ns] = store.GetNamespace(ns).GetAllValues(0)
+			result[ns] = store.GetNamespaceNoError(ns).GetAllValues(0)
 		}
 		return base.MakeObjectOutput(result)
 	}
 	ns = utils.StringToIdentifier(ns)
 
-	nsStore := store.GetNamespace(ns)
+	nsStore := store.GetNamespaceNoError(ns)
 	keyArgName := args["keyArgName"]
 	if keyArgName == "" {
 		keyArgName = "key"
@@ -230,7 +243,7 @@ func (o *OpStore) GetDynamicArgSuggestions(fn string, arg string, dynArgs base.F
 			if ns == "" {
 				return map[string]string{}
 			}
-			nsStore := store.GetNamespace(ns)
+			nsStore := store.GetNamespaceNoError(ns)
 			keys := map[string]string{}
 			for _, k := range nsStore.GetKeys() {
 				keys[k] = k
@@ -247,7 +260,7 @@ func (o *OpStore) GetDynamicArgSuggestions(fn string, arg string, dynArgs base.F
 				return map[string]string{}
 			}
 			key := dynArgs.Get("key")
-			io := store.GetNamespace(ns).GetValue(key)
+			io := store.GetNamespaceNoError(ns).GetValue(key)
 			return map[string]string{io.GetData().GetString(): io.GetData().GetString()}
 		}
 	case "output":
