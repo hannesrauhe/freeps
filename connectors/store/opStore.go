@@ -20,18 +20,28 @@ type OpStore struct {
 var _ base.FreepsOperatorWithConfig = &OpStore{}
 var _ base.FreepsOperatorWithDynamicFunctions = &OpStore{}
 
-// GetDefaultConfig returns the default config for the http connector
-func (o *OpStore) GetDefaultConfig() interface{} {
+func getDefaultNamespaces() map[string]StoreNamespaceConfig {
+	namespaces := make(map[string]StoreNamespaceConfig)
+	namespaces["_files"] = StoreNamespaceConfig{
+		NamespaceType: "files",
+	}
+
 	// get the hostname of this computer
 	hostname, err := os.Hostname()
 	if err != nil {
 		panic("could not get hostname")
 	}
-	namespaces := make(map[string]StoreNamespaceConfig)
-	namespaces["_files"] = StoreNamespaceConfig{
-		NamespaceType: "files",
+	namespaces["_execution_log"] = StoreNamespaceConfig{
+		NamespaceType: "postgres",
+		SchemaName:    "freeps_" + utils.StringToIdentifier(hostname),
+		TableName:     "_execution_log",
 	}
-	return &StoreConfig{Namespaces: namespaces, PostgresConnStr: "", PostgresSchema: "freeps_" + hostname, ExecutionLogInPostgres: true, ExecutionLogName: "_execution_log", GraphInfoName: "_graph_info", ErrorLogName: "_error_log", OperatorInfoName: "_operator_info", MaxErrorLogSize: 1000}
+	return namespaces
+}
+
+// GetDefaultConfig returns the default config for the http connector
+func (o *OpStore) GetDefaultConfig() interface{} {
+	return &StoreConfig{Namespaces: getDefaultNamespaces(), PostgresConnStr: "", ExecutionLogName: "_execution_log", GraphInfoName: "_graph_info", ErrorLogName: "_error_log", OperatorInfoName: "_operator_info", MaxErrorLogSize: 1000}
 }
 
 // InitCopyOfOperator creates a copy of the operator
@@ -39,7 +49,7 @@ func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 	store.namespaces = map[string]StoreNamespace{}
 	store.config = config.(*StoreConfig)
 	if store.config.PostgresConnStr != "" {
-		err := store.initPostgresStores()
+		err := store.initPostgres()
 		if err != nil {
 			ctx.GetLogger().Fatal(err)
 		}
@@ -191,10 +201,7 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 // GetDynamicFunctions returns the functions of this operator
 func (o *OpStore) GetDynamicFunctions() []string {
 	res := []string{"get", "getNamespaces", "set", "del", "setSimpleValue", "equals", "getAll", "setAll", "compareAndSwap", "deleteOlder", "search"}
-	if db == nil {
-		return res
-	}
-	return append(res, "createPostgresNamespace")
+	return res
 }
 
 // GetDynamicPossibleArgs returns the possible arguments for a function
@@ -209,8 +216,6 @@ func (o *OpStore) GetDynamicPossibleArgs(fn string) []string {
 	case "deleteOlder":
 		return []string{"namespace", "maxAge"}
 	case "setAll":
-		return []string{"namespace"}
-	case "createPostgresNamespace":
 		return []string{"namespace"}
 	case "set":
 		return []string{"namespace", "keyArgName", "key", "output", "maxAge"}

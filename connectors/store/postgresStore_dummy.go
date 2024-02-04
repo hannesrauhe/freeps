@@ -13,7 +13,7 @@ type dummydb struct{}
 
 var db *dummydb = nil
 
-func (s *Store) initPostgresStores() error {
+func (s *Store) initPostgres() error {
 	panic("postgres support not compiled, method should not be called")
 }
 

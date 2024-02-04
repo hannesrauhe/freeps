@@ -2,6 +2,7 @@ package freepsstore
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -102,16 +103,28 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 	// create new namespace on the fly from config is there is one
 
 	namespaceConfig, hasConfig := s.config.Namespaces[ns]
-	if !hasConfig {
+	if !hasConfig || namespaceConfig.NamespaceType == "" {
 		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
 	} else {
+		var err error
 		switch namespaceConfig.NamespaceType {
 		case "files":
-			var err error
-			nsStore, err = newFileStoreNamespace()
+			nsStore, err = newFileStoreNamespace(namespaceConfig)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
 			}
+		case "postgres":
+			if db == nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": Postgres connection has not been established.", ns, namespaceConfig.NamespaceType)
+			}
+			nsStore, err = newPostgresStoreNamespace(ns, namespaceConfig)
+			if err != nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
+			}
+		case "memory":
+			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+		default:
+			return nil, fmt.Errorf("Cannot create store namespace \"%v\", type \"%v\" is unknown", ns, namespaceConfig.NamespaceType)
 		}
 	}
 
