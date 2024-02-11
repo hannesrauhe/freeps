@@ -1,8 +1,6 @@
 package freepsstore
 
 import (
-	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -20,9 +18,8 @@ type CollectedError struct {
 
 // CollectedErrors keeps track of errors that occurred during graph execution
 type CollectedErrors struct {
-	ns           StoreNamespace
-	maxLen       int
-	errorCounter atomic.Uint64
+	ns     StoreNamespace
+	maxLen int
 }
 
 // NewCollectedErrors creates a new CollectedErrors
@@ -33,19 +30,12 @@ func NewCollectedErrors(config *StoreConfig) *CollectedErrors {
 // AddError adds an error to the CollectedErrors
 func (ce *CollectedErrors) AddError(input *base.OperatorIO, err *base.OperatorIO, ctx *base.Context, graphName string, od *freepsgraph.GraphOperationDesc) error {
 	e := &CollectedError{Input: input, Error: err.GetString(), GraphName: graphName, Operation: od}
-	id := ce.errorCounter.Add(1)
-	storeErr := ce.ns.SetValue(fmt.Sprint(id), base.MakeObjectOutput(e), ctx.GetID()).GetData()
-	if storeErr.IsError() {
-		return storeErr.GetError()
-	}
-	storeErr = ce.ns.SetValue(fmt.Sprintf("%d-input", id), input, ctx.GetID()).GetData()
+	storeErr := ce.ns.SetValue("", base.MakeObjectOutput(e), ctx.GetID()).GetData()
 	if storeErr.IsError() {
 		return storeErr.GetError()
 	}
 
-	if ce.ns.Len() > ce.maxLen*2 {
-		ce.ns.DeleteValue(fmt.Sprint(id - uint64(ce.maxLen)))
-	}
+	ce.ns.Trim(ce.maxLen)
 	return nil
 }
 

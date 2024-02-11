@@ -226,8 +226,8 @@ func (s *logStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 	return timeCut
 }
 
-// DeleteOlderThanMaxSize deletes all but the top k records sorted by timestamp
-func (s *logStoreNamespace) DeleteOlderThanMaxSize(k int) int {
+// Trim deletes all but the top k records sorted by timestamp
+func (s *logStoreNamespace) Trim(k int) int {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 

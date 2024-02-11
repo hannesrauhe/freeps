@@ -84,3 +84,7 @@ func (s *NullStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 func (s *NullStoreNamespace) DeleteOlderThanMaxSize(k int) int {
 	return 0
 }
+
+func (s *NullStoreNamespace) Trim(numEntries int) int {
+	return 0
+}

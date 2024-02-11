@@ -62,6 +62,7 @@ func (v StoreEntry) IsError() bool { return v.data != nil && v.data.IsError() }
 type StoreNamespace interface {
 	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry
 	DeleteOlder(maxAge time.Duration) int
+	Trim(k int) int
 	DeleteValue(key string)
 	GetAllValues(limit int) map[string]*base.OperatorIO
 	GetKeys() []string
