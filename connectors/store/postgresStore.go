@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -26,64 +27,39 @@ func closingError(format string, a ...any) error {
 	return fmt.Errorf(format, a...)
 }
 
-func (s *Store) initPostgresStores() error {
+func (s *Store) initPostgres() error {
 	var err error
 	if db, err = sql.Open("postgres", s.config.PostgresConnStr); err != nil {
 		return closingError("init database connection: %v", err)
 	}
 
-	s.config.PostgresSchema = utils.StringToIdentifier(s.config.PostgresSchema)
-	if _, err = db.Exec("create schema if not exists " + s.config.PostgresSchema); err != nil {
-		return closingError("create schema: %v", err)
-	}
+	return nil
+}
 
-	s.config.ExecutionLogName = utils.StringToIdentifier(s.config.ExecutionLogName)
-
-	rows, err := db.Query("select table_name from information_schema.tables where table_schema = $1", s.config.PostgresSchema)
+func newPostgresStoreNamespace(nsName string, nsConfig StoreNamespaceConfig) (*postgresStoreNamespace, error) {
+	hostname, err := os.Hostname()
 	if err != nil {
-		return closingError("query namespaces: %v", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		ns := ""
-		if err := rows.Scan(&ns); err != nil {
-			return closingError("query namespaces: %v", err)
-		}
-		if ns == s.config.ExecutionLogName && !s.config.ExecutionLogInPostgres {
-			// skip the execution log namespace if it was disabled by the user
-			continue
-		}
-		store.namespaces[ns] = newPostgresStoreNamespace(s.config.PostgresSchema, ns)
-	}
-	if err := rows.Err(); err != nil {
-		return closingError("query namespaces: %v", err)
+		panic("could not get hostname")
 	}
 
-	if s.config.ExecutionLogInPostgres {
-		if _, ok := store.namespaces[s.config.ExecutionLogName]; !ok {
-			err = s.createPostgresNamespace(s.config.ExecutionLogName)
-			return err
-		}
+	schemaName := utils.StringToIdentifier(nsConfig.SchemaName)
+	if schemaName == "" {
+		schemaName = "freeps_" + utils.StringToIdentifier(hostname)
+	}
+	if _, err = db.Exec("create schema if not exists " + schemaName); err != nil {
+		return nil, err
 	}
 
-	return nil
-}
-
-func (s *Store) createPostgresNamespace(name string) error {
-	if db == nil {
-		return fmt.Errorf("No active postgres connection")
+	name := utils.StringToIdentifier(nsConfig.TableName)
+	if name == "" {
+		name = utils.StringToIdentifier(nsName)
 	}
-	name = utils.StringToIdentifier(name)
-	if _, err := db.Exec(fmt.Sprintf("create table %s.%s (key text primary key, output_type text not null, content_type text not null, http_code smallint not null, value_bytes bytea default NULL, value_plain text default NULL, value_json json default NULL, modification_time timestamp with time zone default current_timestamp not null, modified_by text not null);", s.config.PostgresSchema, name)); err != nil {
-		return fmt.Errorf("create table: %v", err)
+	if _, err := db.Exec(fmt.Sprintf("create table if not exists %s.%s (key text primary key, output_type text not null, content_type text not null, http_code smallint not null, value_bytes bytea default NULL, value_plain text default NULL, value_json json default NULL, modification_time timestamp with time zone default current_timestamp not null, modified_by text not null);", schemaName, name)); err != nil {
+		return nil, err
 	}
-	store.namespaces[name] = newPostgresStoreNamespace(s.config.PostgresSchema, name)
-	return nil
-}
 
-func newPostgresStoreNamespace(schema string, name string) *postgresStoreNamespace {
-	ns := &postgresStoreNamespace{schema: schema, name: name}
-	return ns
+	ns := &postgresStoreNamespace{schema: nsConfig.SchemaName, name: nsConfig.TableName}
+	return ns, nil
 }
 
 type postgresStoreNamespace struct {

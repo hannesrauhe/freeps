@@ -120,7 +120,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
 			ctx := base.NewContext(fm.mqttlogger)
 			input := base.MakeByteOutput(message.Payload())
-			freepsstore.GetGlobalStore().GetNamespace("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
+			freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
 			out := fm.ge.ExecuteGraphByTags(ctx, tags, map[string]string{"topic": message.Topic(), "subscription": tags[1]}, input)
 			fm.publishResult(topic, ctx, out)
 		}

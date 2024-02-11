@@ -13,10 +13,19 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-func newFileStoreNamespace() (*fileStoreNamespace, error) {
-	dir, err := utils.GetTempDir()
-	if err != nil {
-		return nil, err
+func newFileStoreNamespace(namespaceConfig StoreNamespaceConfig) (*fileStoreNamespace, error) {
+	var err error
+	dir := namespaceConfig.Directory
+	if dir == "" {
+		dir, err = utils.GetTempDir()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = os.MkdirAll(dir, 0777)
+		if err != nil {
+			return nil, err
+		}
 	}
 	ns := &fileStoreNamespace{dir: dir}
 	return ns, nil

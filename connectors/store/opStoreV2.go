@@ -105,7 +105,11 @@ func (p *StoreGetSetEqualArgs) KeySuggestions() []string {
 	if p.Namespace == "" {
 		return []string{}
 	}
-	return store.GetNamespace(p.Namespace).GetKeys()
+	nsStore, _ := store.GetNamespace(p.Namespace)
+	if nsStore == nil {
+		return []string{}
+	}
+	return nsStore.GetKeys()
 }
 
 // ValueSuggestions returns a list of values for the given namespace and key
@@ -116,7 +120,11 @@ func (p *StoreGetSetEqualArgs) ValueSuggestions() []string {
 	if *p.Key == "" {
 		return []string{}
 	}
-	v := store.GetNamespace(p.Namespace).GetValue(*p.Key)
+	nsStore, _ := store.GetNamespace(p.Namespace)
+	if nsStore == nil {
+		return []string{}
+	}
+	v := nsStore.GetValue(*p.Key)
 	if v == NotFoundEntry {
 		return []string{}
 	}
@@ -147,7 +155,10 @@ func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	nsStore := store.GetNamespace(args.Namespace)
+	nsStore, err := store.GetNamespace(args.Namespace)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
 	e := StoreEntry{}
 	if args.MaxAge != nil {
 		e = nsStore.GetValueBeforeExpiration(key, *args.MaxAge)
@@ -168,7 +179,10 @@ func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGe
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	nsStore := store.GetNamespace(args.Namespace)
+	nsStore, err := store.GetNamespace(args.Namespace)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
 	e := StoreEntry{}
 	if args.MaxAge != nil {
 		e = nsStore.GetValueBeforeExpiration(key, *args.MaxAge)
@@ -199,7 +213,10 @@ func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
-	nsStore := store.GetNamespace(args.Namespace)
+	nsStore, err := store.GetNamespace(args.Namespace)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
 	var e StoreEntry
 	if args.MaxAge != nil {
 		e = nsStore.OverwriteValueIfOlder(key, input, *args.MaxAge, ctx.GetID())
@@ -235,7 +252,10 @@ func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreGe
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
-	nsStore := store.GetNamespace(args.Namespace)
+	nsStore, err := store.GetNamespace(args.Namespace)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
 	nsStore.DeleteValue(key)
 	return base.MakeEmptyOutput()
 }
@@ -263,12 +283,20 @@ func (p *CASArgs) KeySuggestions() []string {
 	if p.Namespace == "" {
 		return []string{}
 	}
-	return store.GetNamespace(p.Namespace).GetKeys()
+
+	nsStore, _ := store.GetNamespace(p.Namespace)
+	if nsStore == nil {
+		return []string{}
+	}
+	return nsStore.GetKeys()
 }
 
 // CompareAndSwap sets a value in the store if the current value is equal to the given value
 func (o *OpStore) CompareAndSwap(ctx *base.Context, input *base.OperatorIO, args CASArgs) *base.OperatorIO {
-	nsStore := store.GetNamespace(args.Namespace)
+	nsStore, err := store.GetNamespace(args.Namespace)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
 	e := nsStore.CompareAndSwap(args.Key, args.Value, input, ctx.GetID())
 
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
@@ -302,35 +330,25 @@ var _ base.FreepsFunctionParametersWithInit = &StoreSearchArgs{}
 
 // Search searches the store for values matching the given criteria
 func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSearchArgs) *base.OperatorIO {
-	nsStore := store.GetNamespace(args.Namespace)
-	res := nsStore.GetSearchResultWithMetadata(*args.Key, *args.Value, *args.ModifiedBy, *args.MinAge, *args.MaxAge)
-	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, res)
-}
-
-type CreatePostgresNamespaceArgs struct {
-	Namespace string
-}
-
-// CreatePostgresNamespace sets up a namespaces backed by PostgreSQL
-func (o *OpStore) CreatePostgresNamespace(ctx *base.Context, input *base.OperatorIO, args CreatePostgresNamespaceArgs) *base.OperatorIO {
-	err := store.createPostgresNamespace(args.Namespace)
+	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
-	return base.MakeEmptyOutput()
+	res := nsStore.GetSearchResultWithMetadata(*args.Key, *args.Value, *args.ModifiedBy, *args.MinAge, *args.MaxAge)
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, res)
 }
 
 // GetHook returns the hook for this operator
 func (o *OpStore) GetHook() interface{} {
 	var eLog, glog, olog StoreNamespace
 	if store.config.ExecutionLogName != "" {
-		eLog = store.GetNamespace(store.config.ExecutionLogName)
+		eLog = store.GetNamespaceNoError(store.config.ExecutionLogName)
 	}
 	if store.config.GraphInfoName != "" {
-		glog = store.GetNamespace(store.config.GraphInfoName)
+		glog = store.GetNamespaceNoError(store.config.GraphInfoName)
 	}
 	if store.config.OperatorInfoName != "" {
-		olog = store.GetNamespace(store.config.OperatorInfoName)
+		olog = store.GetNamespaceNoError(store.config.OperatorInfoName)
 	}
 	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, operatorInfoLogNs: olog, errorLog: NewCollectedErrors(store.config), GE: o.GE}
 }

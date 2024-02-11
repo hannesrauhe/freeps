@@ -2,6 +2,7 @@ package freepsstore
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -81,16 +82,60 @@ type Store struct {
 	config     *StoreConfig
 }
 
-// GetNamespace from the store, create InMemoryNamespace if it does not exist
-func (s *Store) GetNamespace(ns string) StoreNamespace {
+// GetNamespaceNoError from the store, create InMemoryNamespace if it does not exist
+func (s *Store) GetNamespaceNoError(ns string) StoreNamespace {
+	nsStore, err := s.GetNamespace(ns)
+	if err != nil {
+		panic(err)
+	}
+	return nsStore
+}
+
+// GetNamespaceNoError from the store, create InMemoryNamespace if it does not exist
+func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 	s.globalLock.Lock()
 	defer s.globalLock.Unlock()
 	nsStore, ok := s.namespaces[ns]
-	if !ok {
-		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
-		s.namespaces[ns] = nsStore
+	if ok {
+		return nsStore, nil
 	}
-	return nsStore
+
+	// create new namespace on the fly from config is there is one
+
+	namespaceConfig, hasConfig := s.config.Namespaces[ns]
+	if !hasConfig || namespaceConfig.NamespaceType == "" {
+		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+	} else {
+		var err error
+		switch namespaceConfig.NamespaceType {
+		case "files":
+			nsStore, err = newFileStoreNamespace(namespaceConfig)
+			if err != nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
+			}
+		case "postgres":
+			if s.config.PostgresConnStr == "" {
+				// fall back to memory store if there is no postgres connection defined
+				nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+			}
+			if db == nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": Postgres connection has not been established.", ns, namespaceConfig.NamespaceType)
+			}
+			nsStore, err = newPostgresStoreNamespace(ns, namespaceConfig)
+			if err != nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
+			}
+		case "memory":
+			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+		case "null":
+			nsStore = &NullStoreNamespace{}
+		default:
+			return nil, fmt.Errorf("Cannot create store namespace \"%v\", type \"%v\" is unknown", ns, namespaceConfig.NamespaceType)
+		}
+	}
+
+	s.namespaces[ns] = nsStore
+	return nsStore, nil
 }
 
 // GetNamespaces returns all namespaces
@@ -100,6 +145,12 @@ func (s *Store) GetNamespaces() []string {
 	ns := []string{}
 	for n := range s.namespaces {
 		ns = append(ns, n)
+	}
+	for n := range s.config.Namespaces {
+		_, ok := s.namespaces[n]
+		if !ok {
+			ns = append(ns, n)
+		}
 	}
 	return ns
 }

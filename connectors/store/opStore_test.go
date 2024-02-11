@@ -217,7 +217,7 @@ func TestStoreUpdateTransaction(t *testing.T) {
 
 	base.MakeFreepsOperators(&OpStore{}, cr, ctx)
 
-	ns := store.GetNamespace("testing")
+	ns := store.GetNamespaceNoError("testing")
 	ns.SetValue("v1", base.MakePlainOutput("old_value"), ctx.GetID())
 	o := ns.UpdateTransaction("v1", func(oldV *base.OperatorIO) *base.OperatorIO {
 		if oldV.GetString() != "old_value" {

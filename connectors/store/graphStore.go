@@ -12,7 +12,7 @@ import (
 
 // GetGraphStore returns the graph store
 func GetGraphStore() StoreNamespace {
-	return store.GetNamespace("_graphs")
+	return store.GetNamespaceNoError("_graphs")
 }
 
 // GetGraph returns a graph from the store

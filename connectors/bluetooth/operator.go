@@ -78,8 +78,8 @@ func (bt *Bluetooth) GetPresentDevices(ctx *base.Context, input *base.OperatorIO
 		maxAge = *gpd.MaxAge
 	}
 
-	res := store.GetNamespace(bt.config.DiscoveredNamespace).GetSearchResultWithMetadata("", "", "", 0, maxAge)
-	m2 := store.GetNamespace(bt.config.KnownNamespace).GetSearchResultWithMetadata("", "", "", 0, maxAge)
+	res := store.GetNamespaceNoError(bt.config.DiscoveredNamespace).GetSearchResultWithMetadata("", "", "", 0, maxAge)
+	m2 := store.GetNamespaceNoError(bt.config.KnownNamespace).GetSearchResultWithMetadata("", "", "", 0, maxAge)
 
 	// merge the results, on conflict the newer entry wins
 	for k, v2 := range m2 {

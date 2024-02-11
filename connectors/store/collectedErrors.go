@@ -27,7 +27,7 @@ type CollectedErrors struct {
 
 // NewCollectedErrors creates a new CollectedErrors
 func NewCollectedErrors(config *StoreConfig) *CollectedErrors {
-	return &CollectedErrors{maxLen: config.MaxErrorLogSize, ns: store.GetNamespace(config.ErrorLogName)}
+	return &CollectedErrors{maxLen: config.MaxErrorLogSize, ns: store.GetNamespaceNoError(config.ErrorLogName)}
 }
 
 // AddError adds an error to the CollectedErrors
