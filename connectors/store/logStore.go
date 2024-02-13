@@ -157,7 +157,7 @@ func (s *logStoreNamespace) DeleteValue(key string) {
 }
 
 func (s *logStoreNamespace) getKeyStringUnlocked(key int) string {
-	l := int(math.Floor(math.Log10(float64(len(s.entries))))) + 1
+	l := int(math.Floor(math.Log10(float64(len(s.entries)+s.offset-1)))) + 1
 	return fmt.Sprintf("%.[1]*[2]d", l, key+s.offset)
 }
 

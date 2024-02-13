@@ -52,8 +52,9 @@ func TestLogExpiration(t *testing.T) {
 	assert.Assert(t, e.IsError())
 
 	s := nsStore.GetKeys()
-	assert.Equal(t, s[0], "5")
 	assert.Equal(t, len(s), 5)
+	assert.Equal(t, s[0], "5")
+	assert.Equal(t, s[4], "9")
 	for i < 30 {
 		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
 		i += 1
@@ -63,4 +64,27 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, nsStore.Len(), 25)
 	assert.Equal(t, len(s), 25)
 	assert.Equal(t, s[0], "05")
+	nsStore.Trim(20)
+	assert.Equal(t, nsStore.Len(), 20)
+	s = nsStore.GetKeys()
+	assert.Equal(t, s[0], "10")
+
+	for i < 101 {
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		i += 1
+	}
+
+	nsStore.Trim(10)
+	s = nsStore.GetKeys()
+	assert.Equal(t, s[0], "091")
+	nsStore.Trim(0)
+	s = nsStore.GetKeys()
+	assert.Equal(t, len(s), 0)
+
+	for i < 102 {
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		i += 1
+	}
+	vm := nsStore.GetAllValues(100)
+	assert.Equal(t, vm["101"].GetString(), "101")
 }
