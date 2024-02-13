@@ -52,6 +52,10 @@ func (*MockOperator) GetHook() interface{} {
 	return nil
 }
 
+func (*MockOperator) GetTriggers() []base.FreepsTrigger {
+	return nil
+}
+
 var _ base.FreepsBaseOperator = &MockOperator{}
 
 func createValidGraph() GraphDesc {
