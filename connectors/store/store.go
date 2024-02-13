@@ -62,6 +62,7 @@ func (v StoreEntry) IsError() bool { return v.data != nil && v.data.IsError() }
 type StoreNamespace interface {
 	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry
 	DeleteOlder(maxAge time.Duration) int
+	Trim(k int) int
 	DeleteValue(key string)
 	GetAllValues(limit int) map[string]*base.OperatorIO
 	GetKeys() []string
@@ -127,6 +128,8 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 			}
 		case "memory":
 			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+		case "log":
+			nsStore = &logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}}
 		case "null":
 			nsStore = &NullStoreNamespace{}
 		default:

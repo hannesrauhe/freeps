@@ -112,6 +112,10 @@ func (p *postgresStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 	panic("not implemented") // TODO: Implement
 }
 
+func (p *postgresStoreNamespace) Trim(k int) int {
+	panic("not implemented") // TODO: Implement
+}
+
 func (p *postgresStoreNamespace) DeleteValue(key string) {
 	panic("not implemented") // TODO: Implement
 }

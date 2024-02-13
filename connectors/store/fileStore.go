@@ -57,6 +57,10 @@ func (p *fileStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 	panic("not implemented") // TODO: Implement
 }
 
+func (p *fileStoreNamespace) Trim(numEntries int) int {
+	panic("not implemented") // TODO: Implement
+}
+
 func (p *fileStoreNamespace) DeleteValue(key string) {
 	path, err := p.getFilePath(key)
 	if err != nil {

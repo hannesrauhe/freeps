@@ -77,3 +77,7 @@ func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(*base.Ope
 func (p *postgresStoreNamespace) Len() int {
 	panic("postgres support not compiled, method should not be called")
 }
+
+func (p *postgresStoreNamespace) Trim(k int) int {
+	panic("postgres support not compiled, method should not be called")
+}

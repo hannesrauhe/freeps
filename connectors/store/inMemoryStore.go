@@ -207,8 +207,8 @@ func (s *inMemoryStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 	return len(deleteKeys)
 }
 
-// DeleteOlderThanMaxSize deletes all but the top k records sorted by timestamp
-func (s *inMemoryStoreNamespace) DeleteOlderThanMaxSize(k int) int {
+// Trim deletes all but the top k records sorted by timestamp
+func (s *inMemoryStoreNamespace) Trim(k int) int {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 
