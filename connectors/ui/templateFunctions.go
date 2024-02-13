@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"html/template"
 	"math"
 	"reflect"
@@ -44,7 +45,7 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return ns
 		},
 		"store_GetKeys": func(namespace string) []string {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			ns := freepsstore.GetGlobalStore().GetNamespaceNoError(namespace)
 			if ns == nil {
 				return nil
 			}
@@ -53,14 +54,14 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return keys
 		},
 		"store_GetAll": func(namespace string) map[string]*base.OperatorIO {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			ns := freepsstore.GetGlobalStore().GetNamespaceNoError(namespace)
 			if ns == nil {
 				return nil
 			}
 			return ns.GetAllValues(100)
 		},
 		"store_Search": func(namespace string, keyPattern string, valuePattern string, modifiedByPattern string, minAgeStr string, maxAgeStr string) map[string]freepsstore.ReadableStoreEntry {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			ns := freepsstore.GetGlobalStore().GetNamespaceNoError(namespace)
 			if ns == nil {
 				return nil
 			}
@@ -79,7 +80,7 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return retMap
 		},
 		"store_Get": func(namespace string, key string) interface{} {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			ns := freepsstore.GetGlobalStore().GetNamespaceNoError(namespace)
 			if ns == nil {
 				return nil
 			}
@@ -87,7 +88,7 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return v.GetData().Output
 		},
 		"store_GetString": func(namespace string, key string) string {
-			ns := freepsstore.GetGlobalStore().GetNamespace(namespace)
+			ns := freepsstore.GetGlobalStore().GetNamespaceNoError(namespace)
 			if ns == nil {
 				return ""
 			}
@@ -103,6 +104,31 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 				tags = strings.Split(tagstr, ",")
 			}
 			return o.ge.GetGraphDescByTag(tags)
+		},
+		"graph_GetGraphSortedByNamesByTag": func(tagstr string) map[string]freepsgraph.GraphDesc {
+			graphByName := map[string]freepsgraph.GraphDesc{}
+			tags := []string{}
+			if tagstr != "" {
+				tags = strings.Split(tagstr, ",")
+			}
+			graphByID := o.ge.GetGraphDescByTag(tags)
+			for graphID, v := range graphByID {
+				name := graphID
+				gd, err := v.GetCompleteDesc(graphID, o.ge)
+				if err != nil {
+					name = graphID + " (Error: " + err.Error() + ")"
+				} else {
+					name = gd.DisplayName
+				}
+				// add name to graph, if duplicate add id
+				if _, ok := graphByName[name]; ok {
+					graphByName[fmt.Sprintf("%v (ID: %v)", name, graphID)] = *gd
+				} else {
+					graphByName[name] = *gd
+				}
+
+			}
+			return graphByName
 		},
 		"graph_ExecuteGraph": func(graphName string, mainArgsStr string) *base.OperatorIO {
 			mainArgs, err := utils.URLParseQuery(mainArgsStr)

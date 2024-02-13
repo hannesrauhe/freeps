@@ -166,7 +166,7 @@ func (w *WLEDConverter) DrawPixelMatrix(pm PixelMatrix) error {
 }
 
 func (w *WLEDConverter) SetPixelMatrix(pmName string) error {
-	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	wledNs := freepsstore.GetGlobalStore().GetNamespaceNoError("_wled")
 	io := wledNs.GetValue(pmName).GetData()
 	if io.IsError() {
 		return fmt.Errorf("No pixelmatrix stored")
@@ -216,8 +216,8 @@ func (w *WLEDConverter) SendToWLED(cmd *base.OperatorIO, returnPNG bool) *base.O
 }
 
 func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error {
-	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
-	out := wledNs.SetValue(pmName, base.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID())
+	wledNs := freepsstore.GetGlobalStore().GetNamespaceNoError("_wled")
+	out := wledNs.SetValue(pmName, base.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID()).GetData()
 	if out.IsError() {
 		return out.GetError()
 	}
@@ -225,7 +225,7 @@ func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error
 }
 
 func (w *WLEDConverter) PrepareStore() error {
-	wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+	wledNs := freepsstore.GetGlobalStore().GetNamespaceNoError("_wled")
 	wledNs.SetValue("last", base.MakeObjectOutput(w.GetPixelMatrix()), "startup")
 	wledNs.SetValue("diagonal", base.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
 	wledNs.SetValue("zigzag", base.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")

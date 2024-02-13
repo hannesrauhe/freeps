@@ -13,12 +13,12 @@ type dummydb struct{}
 
 var db *dummydb = nil
 
-func (s *Store) initPostgresStores() error {
+func (s *Store) initPostgres() error {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (s *Store) createPostgresNamespace(name string) error {
-	return fmt.Errorf("Postgres support not available")
+func newPostgresStoreNamespace(nsName string, nsConfig StoreNamespaceConfig) (*postgresStoreNamespace, error) {
+	return nil, fmt.Errorf("Postgres support not available")
 }
 
 type postgresStoreNamespace struct {
@@ -26,7 +26,7 @@ type postgresStoreNamespace struct {
 
 var _ StoreNamespace = &postgresStoreNamespace{}
 
-func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
@@ -35,10 +35,6 @@ func (p *postgresStoreNamespace) DeleteOlder(maxAge time.Duration) int {
 }
 
 func (p *postgresStoreNamespace) DeleteValue(key string) {
-	panic("postgres support not compiled, method should not be called")
-}
-
-func (p *postgresStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
 	panic("postgres support not compiled, method should not be called")
 }
 
@@ -62,11 +58,11 @@ func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge tim
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
@@ -79,5 +75,9 @@ func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(*base.Ope
 }
 
 func (p *postgresStoreNamespace) Len() int {
+	panic("postgres support not compiled, method should not be called")
+}
+
+func (p *postgresStoreNamespace) Trim(k int) int {
 	panic("postgres support not compiled, method should not be called")
 }

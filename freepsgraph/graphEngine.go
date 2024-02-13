@@ -104,20 +104,31 @@ func (ge *GraphEngine) getGraphDescUnlocked(graphName string) (*GraphDesc, bool)
 }
 
 // CheckGraph checks if the graph is valid
-func (ge *GraphEngine) CheckGraph(graphName string) *base.OperatorIO {
-	_, o := ge.prepareGraphExecution(nil, graphName)
+func (ge *GraphEngine) CheckGraph(graphID string) *base.OperatorIO {
+	_, o := ge.prepareGraphExecution(nil, graphID)
 	return o
 }
 
-// GetGraphDesc returns the graph description stored under graphName
-func (ge *GraphEngine) GetGraphDesc(graphName string) (*GraphDesc, bool) {
+// GetGraphDesc returns the graph description stored under graphID
+func (ge *GraphEngine) GetGraphDesc(graphID string) (*GraphDesc, bool) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	gi, exists := ge.getGraphDescUnlocked(graphName)
+	gi, exists := ge.getGraphDescUnlocked(graphID)
 	if exists {
 		return gi, exists
 	}
 	return nil, exists
+}
+
+// GetCompleteGraphDesc returns the sanitized, validated and complete graph description stored under graphName
+func (ge *GraphEngine) GetCompleteGraphDesc(graphID string) (*GraphDesc, error) {
+	ge.graphLock.Lock()
+	defer ge.graphLock.Unlock()
+	gi, exists := ge.getGraphDescUnlocked(graphID)
+	if exists {
+		return gi.GetCompleteDesc(graphID, ge)
+	}
+	return nil, fmt.Errorf("Graph with ID \"%v\" does not exist", graphID)
 }
 
 // GetTags returns a map of all used tags TODO(HR): deprecate
@@ -371,9 +382,9 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, remove
 }
 
 // AddGraph adds a graph from an external source and stores it on disk, after checking if the graph is valid
-func (ge *GraphEngine) AddGraph(graphName string, gd GraphDesc, overwrite bool) error {
+func (ge *GraphEngine) AddGraph(graphID string, gd GraphDesc, overwrite bool) error {
 	// check if graph is valid
-	_, err := NewGraph(nil, graphName, &gd, ge)
+	_, err := gd.GetCompleteDesc(graphID, ge)
 	if err != nil {
 		return err
 	}
@@ -381,7 +392,7 @@ func (ge *GraphEngine) AddGraph(graphName string, gd GraphDesc, overwrite bool) 
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	return ge.addGraphUnderLock(graphName, gd, true, overwrite)
+	return ge.addGraphUnderLock(graphID, gd, true, overwrite)
 }
 
 func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeToDisk bool, overwrite bool) error {
@@ -442,6 +453,9 @@ func (ge *GraphEngine) StartListening(ctx *base.Context) {
 			op.StartListening(ctx)
 		}
 	}
+
+	// TODO: Deadlock problem?
+	// ge.TriggerGraphChangedHooks(nil, nil)
 }
 
 // Shutdown should be called for graceful shutdown

@@ -30,12 +30,12 @@
       "args": ["-m", "pixeldisplay.albert", "-f", "seteffect", "-a", "fx=90"]
     },
     {
-      "name": "weather",
+      "name": "store",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "weather", "-f", "current"]
+      "args": ["-m", "store", "-f", "getNamespaces"]
     },
     {
       "name": "fritz",

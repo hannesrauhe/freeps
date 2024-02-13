@@ -13,10 +13,19 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-func newFileStoreNamespace() (*fileStoreNamespace, error) {
-	dir, err := utils.GetTempDir()
-	if err != nil {
-		return nil, err
+func newFileStoreNamespace(namespaceConfig StoreNamespaceConfig) (*fileStoreNamespace, error) {
+	var err error
+	dir := namespaceConfig.Directory
+	if dir == "" {
+		dir, err = utils.GetTempDir()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = os.MkdirAll(dir, 0777)
+		if err != nil {
+			return nil, err
+		}
 	}
 	ns := &fileStoreNamespace{dir: dir}
 	return ns, nil
@@ -34,13 +43,21 @@ func (p *fileStoreNamespace) getFilePath(key string) (string, error) {
 	return path.Join(p.dir, key), nil
 }
 
+func makeGenericStoreEntry(io *base.OperatorIO) StoreEntry {
+	return StoreEntry{timestamp: time.Now(), modifiedBy: "", data: io}
+}
+
 var _ StoreNamespace = &fileStoreNamespace{}
 
-func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+	return MakeEntryError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
 func (p *fileStoreNamespace) DeleteOlder(maxAge time.Duration) int {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *fileStoreNamespace) Trim(numEntries int) int {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -96,10 +113,6 @@ func fileMatches(de fs.DirEntry, keyPattern, valuePattern, modifiedByPattern str
 	return &i
 }
 
-func (p *fileStoreNamespace) GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO {
-	panic("not implemented") // TODO: Implement
-}
-
 func (p *fileStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry {
 	res := map[string]StoreEntry{}
 	dirEntries, err := os.ReadDir(p.dir)
@@ -119,27 +132,23 @@ func (p *fileStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valu
 }
 
 func (p *fileStoreNamespace) GetValue(key string) StoreEntry {
-	e := StoreEntry{timestamp: time.Now(), modifiedBy: "", data: base.MakeEmptyOutput()}
 	path, err := p.getFilePath(key)
 	if err != nil {
-		e.data = base.MakeOutputError(http.StatusBadRequest, err.Error())
-		return e
+		return MakeEntryError(http.StatusBadRequest, err.Error())
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		e.data = base.MakeOutputError(500, "Failed to open file: %v", err.Error())
-		return e
+		return MakeEntryError(500, "Failed to open file: %v", err.Error())
 	}
-	e.data = base.MakeByteOutput(b)
-	return e
+	return makeGenericStoreEntry(base.MakeByteOutput(b))
 }
 
 func (p *fileStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry {
 	return p.GetValue(key)
 }
 
-func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+	return MakeEntryError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
 // Len returns the number of keys in the namespace
@@ -147,25 +156,25 @@ func (p *fileStoreNamespace) Len() int {
 	return len(p.GetKeys())
 }
 
-func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
 	path, err := p.getFilePath(key)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, err.Error())
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, err.Error())
 	}
 	b, err := io.GetBytes()
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, err.Error())
 	}
 	_, err = f.Write(b)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, err.Error())
 	}
-	return io
+	return makeGenericStoreEntry(io)
 }
 
 func (p *fileStoreNamespace) UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {

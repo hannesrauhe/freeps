@@ -2,6 +2,7 @@ package freepsstore
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -29,6 +30,11 @@ type ReadableStoreEntry struct {
 // NotFoundEntry is a StoreEntry with a 404 error
 var NotFoundEntry = StoreEntry{base.MakeOutputError(http.StatusNotFound, "Key not found"), time.Unix(0, 0), ""}
 
+// MakeEntryError creates a StoreEntry that contains an error
+func MakeEntryError(code int, format string, args ...interface{}) StoreEntry {
+	return StoreEntry{base.MakeOutputError(code, format, args...), time.Now(), ""}
+}
+
 // GetHumanReadable returns a readable version of the entry
 func (v StoreEntry) GetHumanReadable() ReadableStoreEntry {
 	return ReadableStoreEntry{v.data.GetString(), time.Now().Sub(v.timestamp).String(), v.modifiedBy}
@@ -49,20 +55,23 @@ func (v StoreEntry) GetTimestamp() time.Time { return v.timestamp }
 // GetModifiedBy returns the modifiedBy of the entry
 func (v StoreEntry) GetModifiedBy() string { return v.modifiedBy }
 
+// IsError returns true if the entry contains an error
+func (v StoreEntry) IsError() bool { return v.data != nil && v.data.IsError() }
+
 // StoreNamespace defines all functions to retrieve and modify data in the store
 type StoreNamespace interface {
-	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry
 	DeleteOlder(maxAge time.Duration) int
+	Trim(k int) int
 	DeleteValue(key string)
-	GetAllFiltered(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]*base.OperatorIO
 	GetAllValues(limit int) map[string]*base.OperatorIO
 	GetKeys() []string
 	Len() int
 	GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry
 	GetValue(key string) StoreEntry
 	GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry
-	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) *base.OperatorIO
-	SetValue(key string, io *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry
+	SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry
 	SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO
 	UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
 }
@@ -74,16 +83,62 @@ type Store struct {
 	config     *StoreConfig
 }
 
-// GetNamespace from the store, create InMemoryNamespace if it does not exist
-func (s *Store) GetNamespace(ns string) StoreNamespace {
+// GetNamespaceNoError from the store, create InMemoryNamespace if it does not exist
+func (s *Store) GetNamespaceNoError(ns string) StoreNamespace {
+	nsStore, err := s.GetNamespace(ns)
+	if err != nil {
+		panic(err)
+	}
+	return nsStore
+}
+
+// GetNamespaceNoError from the store, create InMemoryNamespace if it does not exist
+func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 	s.globalLock.Lock()
 	defer s.globalLock.Unlock()
 	nsStore, ok := s.namespaces[ns]
-	if !ok {
-		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
-		s.namespaces[ns] = nsStore
+	if ok {
+		return nsStore, nil
 	}
-	return nsStore
+
+	// create new namespace on the fly from config is there is one
+
+	namespaceConfig, hasConfig := s.config.Namespaces[ns]
+	if !hasConfig || namespaceConfig.NamespaceType == "" {
+		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+	} else {
+		var err error
+		switch namespaceConfig.NamespaceType {
+		case "files":
+			nsStore, err = newFileStoreNamespace(namespaceConfig)
+			if err != nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
+			}
+		case "postgres":
+			if s.config.PostgresConnStr == "" {
+				// fall back to memory store if there is no postgres connection defined
+				nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+			}
+			if db == nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": Postgres connection has not been established.", ns, namespaceConfig.NamespaceType)
+			}
+			nsStore, err = newPostgresStoreNamespace(ns, namespaceConfig)
+			if err != nil {
+				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
+			}
+		case "memory":
+			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+		case "log":
+			nsStore = &logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}}
+		case "null":
+			nsStore = &NullStoreNamespace{}
+		default:
+			return nil, fmt.Errorf("Cannot create store namespace \"%v\", type \"%v\" is unknown", ns, namespaceConfig.NamespaceType)
+		}
+	}
+
+	s.namespaces[ns] = nsStore
+	return nsStore, nil
 }
 
 // GetNamespaces returns all namespaces
@@ -93,6 +148,12 @@ func (s *Store) GetNamespaces() []string {
 	ns := []string{}
 	for n := range s.namespaces {
 		ns = append(ns, n)
+	}
+	for n := range s.config.Namespaces {
+		_, ok := s.namespaces[n]
+		if !ok {
+			ns = append(ns, n)
+		}
 	}
 	return ns
 }

@@ -346,9 +346,9 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 	}
 
 	// try to parse the GraphDesc and use normalized version for GraphDesc if available
-	g, err := freepsgraph.NewGraph(nil, "temp", gd, o.ge)
-	if g != nil {
-		td.GraphDesc = g.GetCompleteDesc()
+	completeGD, err := gd.GetCompleteDesc("temp", o.ge)
+	if err == nil {
+		td.GraphDesc = completeGD
 	} else {
 		td.Error = err.Error()
 		td.GraphDesc = gd

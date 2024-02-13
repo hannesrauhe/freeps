@@ -149,7 +149,7 @@ func (o *OpWLED) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 		return map[string]string{"true": "true", "false": "false"}
 	case "pixelMatrix":
 		m := map[string]string{}
-		wledNs := freepsstore.GetGlobalStore().GetNamespace("_wled")
+		wledNs := freepsstore.GetGlobalStore().GetNamespaceNoError("_wled")
 		for _, k := range wledNs.GetKeys() {
 			m[k] = k
 		}
