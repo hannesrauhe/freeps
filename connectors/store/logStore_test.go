@@ -50,4 +50,17 @@ func TestLogExpiration(t *testing.T) {
 
 	e = nsStore.GetValue("x")
 	assert.Assert(t, e.IsError())
+
+	s := nsStore.GetKeys()
+	assert.Equal(t, s[0], "5")
+	assert.Equal(t, len(s), 5)
+	for i < 30 {
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		i += 1
+	}
+
+	s = nsStore.GetKeys()
+	assert.Equal(t, nsStore.Len(), 25)
+	assert.Equal(t, len(s), 25)
+	assert.Equal(t, s[0], "05")
 }

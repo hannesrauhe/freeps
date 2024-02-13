@@ -2,6 +2,7 @@ package freepsstore
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -155,8 +156,9 @@ func (s *logStoreNamespace) DeleteValue(key string) {
 	panic("not implemented")
 }
 
-func (s *logStoreNamespace) getKeyString(key int) string {
-	return fmt.Sprintf("%v", key+s.offset)
+func (s *logStoreNamespace) getKeyStringUnlocked(key int) string {
+	l := int(math.Floor(math.Log10(float64(len(s.entries))))) + 1
+	return fmt.Sprintf("%.[1]*[2]d", l, key+s.offset)
 }
 
 // GetKeys returns all keys in the StoreNamespace
@@ -165,7 +167,7 @@ func (s *logStoreNamespace) GetKeys() []string {
 	defer s.nsLock.Unlock()
 	keys := []string{}
 	for k := range s.entries {
-		keys = append(keys, s.getKeyString(k))
+		keys = append(keys, s.getKeyStringUnlocked(k))
 	}
 	return keys
 }
@@ -184,7 +186,7 @@ func (s *logStoreNamespace) GetAllValues(limit int) map[string]*base.OperatorIO 
 	copy := map[string]*base.OperatorIO{}
 	counter := 0
 	for k, v := range s.entries {
-		copy[s.getKeyString(k)] = v.data
+		copy[s.getKeyStringUnlocked(k)] = v.data
 		counter++
 		if limit != 0 && counter >= limit {
 			return copy
@@ -200,8 +202,8 @@ func (s *logStoreNamespace) GetSearchResultWithMetadata(keyPattern, valuePattern
 	tnow := time.Now()
 	copy := map[string]StoreEntry{}
 	for k, v := range s.entries {
-		if matches(s.getKeyString(k), v, keyPattern, valuePattern, modifiedByPattern, minAge, maxAge, tnow) {
-			copy[s.getKeyString(k)] = v
+		if matches(s.getKeyStringUnlocked(k), v, keyPattern, valuePattern, modifiedByPattern, minAge, maxAge, tnow) {
+			copy[s.getKeyStringUnlocked(k)] = v
 		}
 	}
 	return copy
