@@ -174,3 +174,9 @@ func (oa *OpAutomation) GetRules(ctx *base.Context) *base.OperatorIO {
 func (oa *OpAutomation) GetHook() interface{} {
 	return HookAutomation{oa: oa}
 }
+
+func (oa *OpAutomation) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{
+		base.NewFreepTrigger("rule", "Triggers when a rule gets deleted or created via the Automation operator", []string{"created", "edited", "deleted"}),
+	}
+}

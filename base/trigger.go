@@ -9,3 +9,25 @@ type FreepsTrigger interface {
 	// GetSuggestions returns a list of possible trigger values
 	GetSuggestions() []string
 }
+
+type FreepsTriggerImpl struct {
+	name        string
+	desc        string
+	suggestions []string
+}
+
+func NewFreepTrigger(name string, desc string, suggestions []string) *FreepsTriggerImpl {
+	return &FreepsTriggerImpl{name: name, desc: desc, suggestions: suggestions}
+}
+
+func (t *FreepsTriggerImpl) GetName() string {
+	return t.name
+}
+
+func (t *FreepsTriggerImpl) GetDescription() string {
+	return t.desc
+}
+
+func (t *FreepsTriggerImpl) GetSuggestions() []string {
+	return t.suggestions
+}
