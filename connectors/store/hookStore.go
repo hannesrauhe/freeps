@@ -44,7 +44,7 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 	if graphName == "" {
 		return fmt.Errorf("graph name is empty")
 	}
-	out := h.graphInfoLogNs.UpdateTransaction(graphName, func(oldValue *base.OperatorIO) *base.OperatorIO {
+	out := h.graphInfoLogNs.UpdateTransaction(graphName, func(oldValue base.OperatorIO) *base.OperatorIO {
 		oldGraphInfo := GraphInfo{}
 		newGraphInfo := GraphInfo{ExecutionCounter: 1}
 		if mainArgs != nil && len(mainArgs) > 0 {
@@ -53,10 +53,8 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 		if mainInput != nil && !mainInput.IsEmpty() {
 			newGraphInfo.Input = mainInput.GetString()
 		}
-		if oldValue != nil {
-			oldValue.ParseJSON(&oldGraphInfo)
-			newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
-		}
+		oldValue.ParseJSON(&oldGraphInfo)
+		newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
 		return base.MakeObjectOutput(newGraphInfo)
 	}, ctx.GetID())
 	if out.IsError() {
@@ -71,11 +69,9 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 		return fmt.Errorf("no operator info namespace in hook")
 	}
 	opDetails := ctx.GetOperation(operationIndexInContext)
-	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
+	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
 		fnInfo := FunctionInfo{}
-		if oldValue != nil {
-			oldValue.ParseJSON(&fnInfo)
-		}
+		oldValue.ParseJSON(&fnInfo)
 		fnInfo.ExecutionCounter++
 		fnInfo.LastUsedByGraph = opDetails.GraphName
 		return base.MakeObjectOutput(fnInfo)
@@ -105,11 +101,9 @@ func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []s
 	}
 
 	for opDesc, newInfo := range collectedInfo {
-		out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
+		out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
 			fnInfo := FunctionInfo{}
-			if oldValue != nil {
-				oldValue.ParseJSON(&fnInfo)
-			}
+			oldValue.ParseJSON(&fnInfo)
 			fnInfo.ReferenceCounter = newInfo.ReferenceCounter
 			if fnInfo.LastUsedByGraph == "" {
 				fnInfo.LastUsedByGraph = newInfo.LastUsedByGraph
@@ -141,6 +135,10 @@ func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mai
 	if out.IsError() {
 		return out.GetError()
 	}
+	return nil
+}
+
+func (h *HookStore) OnSystemAlert(ctx *base.Context, name string, severity int, err error) error {
 	return nil
 }
 

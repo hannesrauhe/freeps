@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hannesrauhe/freeps/base"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,7 +26,7 @@ func (ge *GraphEngine) GetGraphDir() string {
 	return d
 }
 
-func (ge *GraphEngine) loadStoredAndEmbeddedGraphs() error {
+func (ge *GraphEngine) loadStoredAndEmbeddedGraphs(ctx *base.Context) error {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 
@@ -49,7 +50,7 @@ func (ge *GraphEngine) loadStoredAndEmbeddedGraphs() error {
 		}
 		gd.Source = "embedded"
 
-		err = ge.addGraphUnderLock(e.Name()[:len(e.Name())-5], gd, false, false)
+		err = ge.addGraphUnderLock(ctx, e.Name()[:len(e.Name())-5], gd, false, false)
 		if err != nil {
 			log.Warnf("Could not load embeddedd graph \"%v\": %v", e.Name(), err)
 		}
@@ -76,7 +77,7 @@ func (ge *GraphEngine) loadStoredAndEmbeddedGraphs() error {
 			log.Warnf("Could not load stored graph \"%v\": %v", e.Name(), err)
 		}
 
-		err = ge.addGraphUnderLock(e.Name()[:len(e.Name())-5], gd, false, false)
+		err = ge.addGraphUnderLock(ctx, e.Name()[:len(e.Name())-5], gd, false, false)
 		if err != nil {
 			log.Warnf("Could not load stored graph \"%v\": %v", e.Name(), err)
 		}
@@ -86,7 +87,7 @@ func (ge *GraphEngine) loadStoredAndEmbeddedGraphs() error {
 }
 
 // loadExternalGraphs loads graphs from the configured URLs and files - should probably be deprecated and moved into an operator
-func (ge *GraphEngine) loadExternalGraphs() {
+func (ge *GraphEngine) loadExternalGraphs(ctx *base.Context) {
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 
@@ -99,7 +100,7 @@ func (ge *GraphEngine) loadExternalGraphs() {
 		if err != nil {
 			log.Errorf("Skipping %v, because: %v", fURL, err)
 		}
-		ge.addExternalGraphsWithSource(newGraphs, "url: "+fURL)
+		ge.addExternalGraphsWithSource(ctx, newGraphs, "url: "+fURL)
 	}
 	config.GraphsFromURL = []string{}
 	for _, fName := range config.GraphsFromFile {
@@ -108,16 +109,19 @@ func (ge *GraphEngine) loadExternalGraphs() {
 		if err != nil {
 			log.Errorf("Skipping %v, because: %v", fName, err)
 		}
-		ge.addExternalGraphsWithSource(newGraphs, "file: "+fName)
+		ge.addExternalGraphsWithSource(ctx, newGraphs, "file: "+fName)
 	}
 	config.GraphsFromFile = []string{}
-	ge.cr.WriteSection("graphs", &config, true)
+	err = ge.cr.WriteSection("graphs", &config, true)
+	if err != nil {
+
+	}
 }
 
-func (ge *GraphEngine) addExternalGraphsWithSource(src map[string]GraphDesc, srcName string) {
+func (ge *GraphEngine) addExternalGraphsWithSource(ctx *base.Context, src map[string]GraphDesc, srcName string) {
 	for k, v := range src {
 		v.Source = srcName
-		err := ge.addGraphUnderLock(k, v, true, true)
+		err := ge.addGraphUnderLock(ctx, k, v, true, true)
 		if err != nil {
 			log.Errorf("Skipping graph %v from %v, because: %v", k, srcName, err)
 		}

@@ -35,7 +35,7 @@ type GraphEngine struct {
 }
 
 // NewGraphEngine creates the graph engine from the config
-func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
+func NewGraphEngine(ctx *base.Context, cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEngine {
 	ge := &GraphEngine{cr: cr, graphs: make(map[string]*GraphDesc), reloadRequested: false}
 
 	ge.operators = make(map[string]base.FreepsBaseOperator)
@@ -47,8 +47,8 @@ func NewGraphEngine(cr *utils.ConfigReader, cancel context.CancelFunc) *GraphEng
 	ge.hooks = make(map[string]FreepsHook)
 
 	if cr != nil {
-		ge.loadStoredAndEmbeddedGraphs()
-		ge.loadExternalGraphs()
+		ge.loadStoredAndEmbeddedGraphs(ctx)
+		ge.loadExternalGraphs(ctx)
 
 		g := ge.GetAllGraphDesc()
 		addedGraphs := make([]string, 0, len(g))
@@ -328,7 +328,8 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 	for name, h := range hooks {
 		err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
-			ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecuteHook"+name, 3, err)
+			// ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }
@@ -340,7 +341,8 @@ func (ge *GraphEngine) TriggerOnExecuteOperationHooks(ctx *base.Context, operati
 	for name, h := range hooks {
 		err := h.OnExecuteOperation(ctx, operationIndexInContext)
 		if err != nil {
-			ctx.GetLogger().Errorf("Execution of OperationHook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecuteOperationHook"+name, 3, err)
+			// ctx.GetLogger().Errorf("Execution of OperationHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }
@@ -352,7 +354,8 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 	for name, h := range hooks {
 		err := h.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
-			ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecutionFinishedHook"+name, 3, err)
+			// ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }
@@ -364,38 +367,52 @@ func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *ba
 	for name, h := range hooks {
 		err := h.OnExecutionError(ctx, input, err, graphName, od)
 		if err != nil {
-			ctx.GetLogger().Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecutionErrorHook"+name, 3, err)
+			// ctx.GetLogger().Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }
 
 // TriggerGraphChangedHooks triggers hooks whenever a graph was added or removed
-func (ge *GraphEngine) TriggerGraphChangedHooks(addedGraphNames []string, removedGraphNames []string) {
+func (ge *GraphEngine) TriggerGraphChangedHooks(ctx *base.Context, addedGraphNames []string, removedGraphNames []string) {
 	hooks := ge.getHookMapCopy()
 
-	for _, h := range hooks {
+	for name, h := range hooks {
 		err := h.OnGraphChanged(addedGraphNames, removedGraphNames)
 		if err != nil {
+			ge.SetSystemAlert(ctx, "GraphChangedHook"+name, 3, err)
 			// ctx.GetLogger().Errorf("Execution of GraphChangedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }
 
+// SetSystemAlert triggers the hooks with the same name
+func (ge *GraphEngine) SetSystemAlert(ctx *base.Context, name string, severity int, err error) {
+	hooks := ge.getHookMapCopy()
+
+	for _, h := range hooks {
+		err := h.OnSystemAlert(ctx, name, severity, err)
+		if err != nil {
+			ctx.GetLogger().Errorf("Couldn't set SystemAlert: %v", err.Error())
+		}
+	}
+}
+
 // AddGraph adds a graph from an external source and stores it on disk, after checking if the graph is valid
-func (ge *GraphEngine) AddGraph(graphID string, gd GraphDesc, overwrite bool) error {
+func (ge *GraphEngine) AddGraph(ctx *base.Context, graphID string, gd GraphDesc, overwrite bool) error {
 	// check if graph is valid
 	_, err := gd.GetCompleteDesc(graphID, ge)
 	if err != nil {
 		return err
 	}
-	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
+	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
-	return ge.addGraphUnderLock(graphID, gd, true, overwrite)
+	return ge.addGraphUnderLock(ctx, graphID, gd, true, overwrite)
 }
 
-func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeToDisk bool, overwrite bool) error {
+func (ge *GraphEngine) addGraphUnderLock(ctx *base.Context, graphName string, gd GraphDesc, writeToDisk bool, overwrite bool) error {
 	oldGraph, ok := ge.graphs[graphName]
 	if ok {
 		if overwrite {
@@ -412,6 +429,7 @@ func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeTo
 		fileName := "graphs/" + graphName + ".json"
 		err := ge.cr.WriteObjectToFile(gd, fileName)
 		if err != nil {
+			ge.SetSystemAlert(ctx, "GraphWriteError", 2, err)
 			return fmt.Errorf("Error writing graphs to file %s: %s", fileName, err.Error())
 		}
 	}
@@ -421,12 +439,12 @@ func (ge *GraphEngine) addGraphUnderLock(graphName string, gd GraphDesc, writeTo
 }
 
 // DeleteGraph removes a graph from the engine and from the storage
-func (ge *GraphEngine) DeleteGraph(graphName string) (*GraphDesc, error) {
+func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphName string) (*GraphDesc, error) {
 	if graphName == "" {
 		return nil, errors.New("No name given")
 	}
 
-	defer ge.TriggerGraphChangedHooks([]string{}, []string{})
+	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()

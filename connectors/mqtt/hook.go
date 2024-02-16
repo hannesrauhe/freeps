@@ -41,6 +41,11 @@ func (h *HookMQTT) OnGraphChanged(addedGraphName []string, removedGraphName []st
 	return h.impl.startTagSubscriptions()
 }
 
+// OnGraphChanged checks if subscriptions need to be changed
+func (h *HookMQTT) OnSystemAlert(ctx *base.Context, name string, severity int, err error) error {
+	return nil
+}
+
 // Shutdown gets called on graceful shutdown
 func (h *HookMQTT) Shutdown() error {
 	return nil

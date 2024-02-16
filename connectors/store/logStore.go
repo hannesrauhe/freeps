@@ -106,7 +106,7 @@ func (s *logStoreNamespace) CompareAndSwap(keyStr string, expected string, newVa
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *logStoreNamespace) UpdateTransaction(keyStr string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (s *logStoreNamespace) UpdateTransaction(keyStr string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 
@@ -120,7 +120,7 @@ func (s *logStoreNamespace) UpdateTransaction(keyStr string, fn func(*base.Opera
 		oldV = oldEntry.data
 	}
 
-	out := fn(oldV)
+	out := fn(*oldV)
 	if out.IsError() {
 		return out
 	}

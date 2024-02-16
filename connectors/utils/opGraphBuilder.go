@@ -47,7 +47,7 @@ func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, arg
 
 // DeleteGraph deletes a graph from the graph engine and stores a backup in the store
 func (m *OpGraphBuilder) DeleteGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
-	backup, err := m.GE.DeleteGraph(args.GraphID)
+	backup, err := m.GE.DeleteGraph(ctx, args.GraphID)
 	if backup != nil {
 		freepsstore.StoreGraph("deleted_"+args.GraphID, *backup, ctx.GetID())
 	}
@@ -144,7 +144,7 @@ func (m *OpGraphBuilder) RestoreDeletedGraphFromStore(ctx *base.Context, input *
 	if err != nil {
 		return base.MakeOutputError(400, "Could not restore graph: %v", err)
 	}
-	err = m.GE.AddGraph(args.GraphName, gd, false)
+	err = m.GE.AddGraph(ctx, args.GraphName, gd, false)
 	if err != nil {
 		return base.MakeOutputError(400, "Could not restore graph: %v", err)
 	}

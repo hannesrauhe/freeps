@@ -49,6 +49,10 @@ func (h HookBluetooth) OnGraphChanged(addedGraphName []string, removedGraphName 
 	return nil
 }
 
+func (h HookBluetooth) OnSystemAlert(ctx *base.Context, name string, severity int, err error) error {
+	return nil
+}
+
 // Shutdown gets called on graceful shutdown
 func (h HookBluetooth) Shutdown() error {
 	return nil

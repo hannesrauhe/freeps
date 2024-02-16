@@ -9,5 +9,6 @@ type FreepsHook interface {
 	OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) error
 	OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
 	OnGraphChanged(addedGraphName []string, removedGraphName []string) error
+	OnSystemAlert(ctx *base.Context, name string, severity int, err error) error
 	Shutdown() error
 }
