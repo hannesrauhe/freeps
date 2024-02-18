@@ -70,7 +70,24 @@ func (oc *OpAlert) CategorySuggestions() []string {
 	return ret
 }
 
-// SetAlert creates an stores a new alert
+func (oc *OpAlert) NameSuggestions() []string {
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	if err != nil {
+		return []string{}
+	}
+	ret := []string{}
+	for _, k := range ns.GetKeys() {
+		c, n, found := strings.Cut(k, ".")
+		if found {
+			ret = append(ret, n)
+		} else {
+			ret = append(ret, c)
+		}
+	}
+	return ret
+}
+
+// SetAlert creates and stores a new alert
 func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
@@ -123,20 +140,17 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 	return base.MakeObjectOutput(a)
 }
 
-type GetAlertStringArgs struct {
+type GetAlertArgs struct {
 	Severity *int
 	Category *string
 }
 
-// GetShortAlertString returns a single string describing all active alerts of a given severity
-func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertStringArgs) *base.OperatorIO {
+func (oc *OpAlert) getActiveAlerts(args GetAlertArgs) ([]AlertWithMetadata, error) {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+		return make([]AlertWithMetadata, 0), fmt.Errorf("Error getting store: %v", err)
 	}
 	activeAlerts := make([]AlertWithMetadata, 0)
-	alertNames := make([]string, 0)
-	categories := make(map[string]int, 0)
 	for _, entry := range ns.GetAllValues(1000) {
 		var a AlertWithMetadata
 		entry.ParseJSON(&a)
@@ -151,6 +165,28 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 		}
 
 		activeAlerts = append(activeAlerts, a)
+	}
+	return activeAlerts, nil
+}
+
+// GetActiveString returns a single string describing all active alerts of a given severity
+func (oc *OpAlert) GetActiveAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
+	activeAlerts, err := oc.getActiveAlerts(args)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	return base.MakeObjectOutput(activeAlerts)
+}
+
+// GetShortAlertString returns a single string describing all active alerts of a given severity
+func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
+	activeAlerts, err := oc.getActiveAlerts(args)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	alertNames := make([]string, 0)
+	categories := make(map[string]int, 0)
+	for _, a := range activeAlerts {
 		if a.Category != nil {
 			categories[*a.Category] = 1
 		}
