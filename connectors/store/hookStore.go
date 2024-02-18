@@ -17,11 +17,6 @@ type HookStore struct {
 
 var _ freepsgraph.FreepsHook = &HookStore{}
 
-// GetName returns the name of the hook
-func (h *HookStore) GetName() string {
-	return "store"
-}
-
 // GraphInfo keeps information about a graph execution
 type GraphInfo struct {
 	ExecutionCounter uint64
@@ -135,14 +130,5 @@ func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mai
 	if out.IsError() {
 		return out.GetError()
 	}
-	return nil
-}
-
-func (h *HookStore) OnSystemAlert(ctx *base.Context, name string, severity int, err error) error {
-	return nil
-}
-
-// Shutdown gets called on graceful shutdown
-func (h *HookStore) Shutdown() error {
 	return nil
 }

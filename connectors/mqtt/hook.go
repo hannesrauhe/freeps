@@ -11,11 +11,6 @@ type HookMQTT struct {
 
 var _ freepsgraph.FreepsHook = &HookMQTT{}
 
-// GetName returns the name of the hook
-func (h *HookMQTT) GetName() string {
-	return "mqtt"
-}
-
 // OnExecute does nothing
 func (h *HookMQTT) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	return nil
@@ -39,14 +34,4 @@ func (h *HookMQTT) OnExecutionFinished(ctx *base.Context, graphName string, main
 // OnGraphChanged checks if subscriptions need to be changed
 func (h *HookMQTT) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
 	return h.impl.startTagSubscriptions()
-}
-
-// OnGraphChanged checks if subscriptions need to be changed
-func (h *HookMQTT) OnSystemAlert(ctx *base.Context, name string, severity int, err error) error {
-	return nil
-}
-
-// Shutdown gets called on graceful shutdown
-func (h *HookMQTT) Shutdown() error {
-	return nil
 }

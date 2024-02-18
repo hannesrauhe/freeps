@@ -27,7 +27,7 @@ type GraphEngine struct {
 	cr              *utils.ConfigReader
 	graphs          map[string]*GraphDesc
 	operators       map[string]base.FreepsBaseOperator
-	hooks           map[string]FreepsHook
+	hooks           map[string]GraphEngineHook
 	reloadRequested bool
 	graphLock       sync.Mutex
 	operatorLock    sync.Mutex
@@ -44,7 +44,7 @@ func NewGraphEngine(ctx *base.Context, cr *utils.ConfigReader, cancel context.Ca
 	ge.operators["system"] = NewSytemOp(ge, cancel)
 	ge.operators["eval"] = &OpEval{}
 
-	ge.hooks = make(map[string]FreepsHook)
+	ge.hooks = make(map[string]GraphEngineHook)
 
 	if cr != nil {
 		ge.loadStoredAndEmbeddedGraphs(ctx)
@@ -61,10 +61,10 @@ func NewGraphEngine(ctx *base.Context, cr *utils.ConfigReader, cancel context.Ca
 }
 
 // getHookMapCopy returns a copy of the hook-map to reduce locking time (hook map does not need to be locked while hook is executed)
-func (ge *GraphEngine) getHookMapCopy() map[string]FreepsHook {
+func (ge *GraphEngine) getHookMapCopy() map[string]GraphEngineHook {
 	ge.hookMapLock.Lock()
 	defer ge.hookMapLock.Unlock()
-	r := make(map[string]FreepsHook)
+	r := make(map[string]GraphEngineHook)
 	for k, v := range ge.hooks {
 		if v == nil {
 			continue
@@ -256,15 +256,7 @@ func (ge *GraphEngine) GetGraphDescByTagExtended(tagGroups [][]string) map[strin
 
 // AddOperator adds an operator to the graph engine
 func (ge *GraphEngine) AddOperator(op base.FreepsBaseOperator) {
-	ge.operatorLock.Lock()
-	defer ge.operatorLock.Unlock()
-	if op != nil {
-		ge.operators[utils.StringToLower(op.GetName())] = op
-		h := op.GetHook()
-		if h != nil {
-			ge.AddHook(h.(FreepsHook))
-		}
-	}
+	ge.AddOperators([]base.FreepsBaseOperator{op})
 }
 
 // AddOperators adds multiple operators to the graph engine
@@ -279,7 +271,7 @@ func (ge *GraphEngine) AddOperators(ops []base.FreepsBaseOperator) {
 		ge.operators[utils.StringToLower(op.GetName())] = op
 		h := op.GetHook()
 		if h != nil {
-			ge.AddHook(h.(FreepsHook))
+			ge.AddHook(h.(GraphEngineHook))
 		}
 	}
 }
@@ -315,7 +307,7 @@ func (ge *GraphEngine) GetOperator(opName string) base.FreepsBaseOperator {
 }
 
 // AddHook adds a hook to the graph engine
-func (ge *GraphEngine) AddHook(h FreepsHook) {
+func (ge *GraphEngine) AddHook(h GraphEngineHook) {
 	ge.hookMapLock.Lock()
 	defer ge.hookMapLock.Unlock()
 	ge.hooks[h.GetName()] = h
@@ -326,9 +318,13 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		err := h.OnExecute(ctx, graphName, mainArgs, mainInput)
+		fh, ok := h.(FreepsHook)
+		if !ok {
+			continue
+		}
+		err := fh.OnExecute(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecuteHook"+name, 3, err)
+			ge.SetSystemAlert(ctx, "ExecuteHook"+name, "system", 3, err)
 			// ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
@@ -339,9 +335,13 @@ func (ge *GraphEngine) TriggerOnExecuteOperationHooks(ctx *base.Context, operati
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		err := h.OnExecuteOperation(ctx, operationIndexInContext)
+		fh, ok := h.(FreepsHook)
+		if !ok {
+			continue
+		}
+		err := fh.OnExecuteOperation(ctx, operationIndexInContext)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecuteOperationHook"+name, 3, err)
+			ge.SetSystemAlert(ctx, "ExecuteOperationHook"+name, "system", 3, err)
 			// ctx.GetLogger().Errorf("Execution of OperationHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
@@ -352,9 +352,13 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		err := h.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
+		fh, ok := h.(FreepsHook)
+		if !ok {
+			continue
+		}
+		err := fh.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecutionFinishedHook"+name, 3, err)
+			ge.SetSystemAlert(ctx, "ExecutionFinishedHook"+name, "system", 3, err)
 			// ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
@@ -365,9 +369,13 @@ func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *ba
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		err := h.OnExecutionError(ctx, input, err, graphName, od)
+		fh, ok := h.(FreepsHook)
+		if !ok {
+			continue
+		}
+		err := fh.OnExecutionError(ctx, input, err, graphName, od)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecutionErrorHook"+name, 3, err)
+			ge.SetSystemAlert(ctx, "ExecutionErrorHook"+name, "system", 3, err)
 			// ctx.GetLogger().Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
@@ -378,20 +386,28 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(ctx *base.Context, addedGraphNam
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		err := h.OnGraphChanged(addedGraphNames, removedGraphNames)
+		fh, ok := h.(FreepsHook)
+		if !ok {
+			continue
+		}
+		err := fh.OnGraphChanged(addedGraphNames, removedGraphNames)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "GraphChangedHook"+name, 3, err)
+			ge.SetSystemAlert(ctx, "GraphChangedHook"+name, "system", 3, err)
 			// ctx.GetLogger().Errorf("Execution of GraphChangedHook \"%v\" failed with error: %v", name, err.Error())
 		}
 	}
 }
 
 // SetSystemAlert triggers the hooks with the same name
-func (ge *GraphEngine) SetSystemAlert(ctx *base.Context, name string, severity int, err error) {
+func (ge *GraphEngine) SetSystemAlert(ctx *base.Context, name string, category string, severity int, err error) {
 	hooks := ge.getHookMapCopy()
 
 	for _, h := range hooks {
-		err := h.OnSystemAlert(ctx, name, severity, err)
+		fh, ok := h.(FreepsAlertHook)
+		if !ok {
+			continue
+		}
+		err := fh.OnSystemAlert(ctx, name, category, severity, err)
 		if err != nil {
 			ctx.GetLogger().Errorf("Couldn't set SystemAlert: %v", err.Error())
 		}
@@ -429,7 +445,7 @@ func (ge *GraphEngine) addGraphUnderLock(ctx *base.Context, graphName string, gd
 		fileName := "graphs/" + graphName + ".json"
 		err := ge.cr.WriteObjectToFile(gd, fileName)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "GraphWriteError", 2, err)
+			ge.SetSystemAlert(ctx, "GraphWriteError", "system", 2, err)
 			return fmt.Errorf("Error writing graphs to file %s: %s", fileName, err.Error())
 		}
 	}
@@ -478,14 +494,8 @@ func (ge *GraphEngine) StartListening(ctx *base.Context) {
 
 // Shutdown should be called for graceful shutdown
 func (ge *GraphEngine) Shutdown(ctx *base.Context) {
-	ge.hookMapLock.Lock()
-	defer ge.hookMapLock.Unlock()
-
-	for _, h := range ge.hooks {
-		if h != nil {
-			h.Shutdown()
-		}
-	}
+	ge.operatorLock.Lock()
+	defer ge.operatorLock.Unlock()
 
 	for _, op := range ge.operators {
 		if op != nil {
