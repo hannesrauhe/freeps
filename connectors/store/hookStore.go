@@ -34,7 +34,7 @@ type FunctionInfo struct {
 // OnExecute gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	if h.graphInfoLogNs == nil {
-		return fmt.Errorf("no graph info namespace in hook")
+		return fmt.Errorf("graph info namespace missing")
 	}
 	if graphName == "" {
 		return fmt.Errorf("graph name is empty")
@@ -61,7 +61,7 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 // OnExecuteOperation gets called when freepsgraph starts executing an Operation
 func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
 	if h.operatorInfoLogNs == nil {
-		return fmt.Errorf("no operator info namespace in hook")
+		return fmt.Errorf("operator info namespace missing")
 	}
 	opDetails := ctx.GetOperation(operationIndexInContext)
 	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
@@ -80,7 +80,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 // OnGraphChanged analyzes all graphs and updates the operator info
 func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
 	if h.operatorInfoLogNs == nil {
-		return fmt.Errorf("no operator info namespace in hook")
+		return fmt.Errorf("operator info namespace missing")
 	}
 
 	collectedInfo := map[string]FunctionInfo{}
@@ -121,7 +121,7 @@ func (h *HookStore) OnExecutionError(ctx *base.Context, input *base.OperatorIO, 
 // OnExecutionFinished gets called when freepsgraph is finished executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	if h.executionLogNs == nil {
-		return fmt.Errorf("no executionLog namespace in hook")
+		return fmt.Errorf("executionLog namespace missing")
 	}
 	if !ctx.IsRootContext() {
 		return nil

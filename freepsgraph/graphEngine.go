@@ -335,8 +335,8 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 		}
 		err := fh.OnExecute(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecuteHook"+name, "system", 3, err, &ge.config.AlertDuration)
-			// ctx.GetLogger().Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
+			upErr := fmt.Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecuteHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
 		}
 	}
 }
@@ -352,8 +352,8 @@ func (ge *GraphEngine) TriggerOnExecuteOperationHooks(ctx *base.Context, operati
 		}
 		err := fh.OnExecuteOperation(ctx, operationIndexInContext)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecuteOperationHook"+name, "system", 3, err, &ge.config.AlertDuration)
-			// ctx.GetLogger().Errorf("Execution of OperationHook \"%v\" failed with error: %v", name, err.Error())
+			upErr := fmt.Errorf("Execution of OperationHook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecuteOperationHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
 		}
 	}
 }
@@ -369,8 +369,8 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 		}
 		err := fh.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecutionFinishedHook"+name, "system", 3, err, &ge.config.AlertDuration)
-			// ctx.GetLogger().Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
+			upErr := fmt.Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecutionFinishedHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
 		}
 	}
 }
@@ -386,8 +386,8 @@ func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *ba
 		}
 		err := fh.OnExecutionError(ctx, input, err, graphName, od)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "ExecutionErrorHook"+name, "system", 3, err, &ge.config.AlertDuration)
-			// ctx.GetLogger().Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
+			upErr := fmt.Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "ExecutionErrorHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
 		}
 	}
 }
@@ -403,8 +403,8 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(ctx *base.Context, addedGraphNam
 		}
 		err := fh.OnGraphChanged(addedGraphNames, removedGraphNames)
 		if err != nil {
-			ge.SetSystemAlert(ctx, "GraphChangedHook"+name, "system", 3, err, &ge.config.AlertDuration)
-			// ctx.GetLogger().Errorf("Execution of GraphChangedHook \"%v\" failed with error: %v", name, err.Error())
+			upErr := fmt.Errorf("Execution of GraphChangedHook \"%v\" failed with error: %v", name, err.Error())
+			ge.SetSystemAlert(ctx, "GraphChangedHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
 		}
 	}
 }
