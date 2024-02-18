@@ -38,7 +38,7 @@ func (s *NullStoreNamespace) CompareAndSwap(key string, expected string, newValu
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *NullStoreNamespace) UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (s *NullStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	return base.MakeEmptyOutput()
 }
 

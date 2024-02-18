@@ -62,7 +62,7 @@ func (bt *Bluetooth) GetHook() interface{} {
 	if bt.btw == nil {
 		return nil
 	}
-	return HookBluetooth{btw: bt.btw}
+	return &HookBluetooth{btw: bt.btw}
 }
 
 // GetPresentDevicesParams are the parameters for the GetPresentDevices Function

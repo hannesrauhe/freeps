@@ -11,6 +11,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
+	opalert "github.com/hannesrauhe/freeps/connectors/alert"
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	"github.com/hannesrauhe/freeps/connectors/chaosimradio"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
@@ -83,7 +84,7 @@ func mainLoop() bool {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ge := freepsgraph.NewGraphEngine(cr, cancel)
+	ge := freepsgraph.NewGraphEngine(initCtx, cr, cancel)
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
@@ -100,8 +101,9 @@ func mainLoop() bool {
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
-		&fritz.OpFritz{},
+		&fritz.OpFritz{CR: cr, GE: ge},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
+		&opalert.OpAlert{CR: cr, GE: ge},
 		&weather.OpWeather{},
 	}
 

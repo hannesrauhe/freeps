@@ -73,7 +73,7 @@ type StoreNamespace interface {
 	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry
 	SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry
 	SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO
-	UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
 }
 
 // Store is a collection of different namespaces in which values can be stored

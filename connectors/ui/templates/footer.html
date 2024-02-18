@@ -1,4 +1,6 @@
 <footer style="clear: both" class="text-center">
+  {{ $alerts := graph_ExecuteOperator "alert" "GetShortAlertString" "severity=3"}}
+  <p class="bg-error"> {{ $alerts.GetString }}</p>
   <a href="/ui">Home</a> 
   <a href="/ui/edit">New Graph</a> 
   <a href="/ui/editconfig.html">Edit Config</a> 

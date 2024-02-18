@@ -17,11 +17,6 @@ type HookStore struct {
 
 var _ freepsgraph.FreepsHook = &HookStore{}
 
-// GetName returns the name of the hook
-func (h *HookStore) GetName() string {
-	return "store"
-}
-
 // GraphInfo keeps information about a graph execution
 type GraphInfo struct {
 	ExecutionCounter uint64
@@ -39,12 +34,12 @@ type FunctionInfo struct {
 // OnExecute gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	if h.graphInfoLogNs == nil {
-		return fmt.Errorf("no graph info namespace in hook")
+		return fmt.Errorf("graph info namespace missing")
 	}
 	if graphName == "" {
 		return fmt.Errorf("graph name is empty")
 	}
-	out := h.graphInfoLogNs.UpdateTransaction(graphName, func(oldValue *base.OperatorIO) *base.OperatorIO {
+	out := h.graphInfoLogNs.UpdateTransaction(graphName, func(oldValue base.OperatorIO) *base.OperatorIO {
 		oldGraphInfo := GraphInfo{}
 		newGraphInfo := GraphInfo{ExecutionCounter: 1}
 		if mainArgs != nil && len(mainArgs) > 0 {
@@ -53,10 +48,8 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 		if mainInput != nil && !mainInput.IsEmpty() {
 			newGraphInfo.Input = mainInput.GetString()
 		}
-		if oldValue != nil {
-			oldValue.ParseJSON(&oldGraphInfo)
-			newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
-		}
+		oldValue.ParseJSON(&oldGraphInfo)
+		newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
 		return base.MakeObjectOutput(newGraphInfo)
 	}, ctx.GetID())
 	if out.IsError() {
@@ -68,14 +61,12 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 // OnExecuteOperation gets called when freepsgraph starts executing an Operation
 func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
 	if h.operatorInfoLogNs == nil {
-		return fmt.Errorf("no operator info namespace in hook")
+		return fmt.Errorf("operator info namespace missing")
 	}
 	opDetails := ctx.GetOperation(operationIndexInContext)
-	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
+	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
 		fnInfo := FunctionInfo{}
-		if oldValue != nil {
-			oldValue.ParseJSON(&fnInfo)
-		}
+		oldValue.ParseJSON(&fnInfo)
 		fnInfo.ExecutionCounter++
 		fnInfo.LastUsedByGraph = opDetails.GraphName
 		return base.MakeObjectOutput(fnInfo)
@@ -89,7 +80,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 // OnGraphChanged analyzes all graphs and updates the operator info
 func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
 	if h.operatorInfoLogNs == nil {
-		return fmt.Errorf("no operator info namespace in hook")
+		return fmt.Errorf("operator info namespace missing")
 	}
 
 	collectedInfo := map[string]FunctionInfo{}
@@ -105,11 +96,9 @@ func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []s
 	}
 
 	for opDesc, newInfo := range collectedInfo {
-		out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue *base.OperatorIO) *base.OperatorIO {
+		out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
 			fnInfo := FunctionInfo{}
-			if oldValue != nil {
-				oldValue.ParseJSON(&fnInfo)
-			}
+			oldValue.ParseJSON(&fnInfo)
 			fnInfo.ReferenceCounter = newInfo.ReferenceCounter
 			if fnInfo.LastUsedByGraph == "" {
 				fnInfo.LastUsedByGraph = newInfo.LastUsedByGraph
@@ -132,7 +121,7 @@ func (h *HookStore) OnExecutionError(ctx *base.Context, input *base.OperatorIO, 
 // OnExecutionFinished gets called when freepsgraph is finished executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	if h.executionLogNs == nil {
-		return fmt.Errorf("no executionLog namespace in hook")
+		return fmt.Errorf("executionLog namespace missing")
 	}
 	if !ctx.IsRootContext() {
 		return nil
@@ -141,10 +130,5 @@ func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mai
 	if out.IsError() {
 		return out.GetError()
 	}
-	return nil
-}
-
-// Shutdown gets called on graceful shutdown
-func (h *HookStore) Shutdown() error {
 	return nil
 }
