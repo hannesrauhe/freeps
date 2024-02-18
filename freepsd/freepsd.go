@@ -101,7 +101,7 @@ func mainLoop() bool {
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
 		&optime.OpTime{},
-		&fritz.OpFritz{},
+		&fritz.OpFritz{CR: cr, GE: ge},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&opalert.OpAlert{CR: cr, GE: ge},
 		&weather.OpWeather{},

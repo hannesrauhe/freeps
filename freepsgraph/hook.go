@@ -2,6 +2,7 @@ package freepsgraph
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
@@ -20,7 +21,8 @@ type FreepsHook interface {
 }
 
 type FreepsAlertHook interface {
-	OnSystemAlert(ctx *base.Context, name string, category string, severity int, err error) error
+	OnSystemAlert(ctx *base.Context, name string, category string, severity int, err error, expiresIn *time.Duration) error
+	OnResetSystemAlert(ctx *base.Context, name string, category string) error
 }
 
 type FreepsHookWrapper struct {
@@ -84,10 +86,18 @@ func (h *FreepsHookWrapper) OnGraphChanged(addedGraphName []string, removedGraph
 	return nil
 }
 
-func (h *FreepsHookWrapper) OnSystemAlert(ctx *base.Context, name string, category string, severity int, err error) error {
+func (h *FreepsHookWrapper) OnSystemAlert(ctx *base.Context, name string, category string, severity int, err error, expiresIn *time.Duration) error {
 	i, ok := h.hookImpl.(FreepsAlertHook)
 	if ok {
-		i.OnSystemAlert(ctx, name, category, severity, err)
+		i.OnSystemAlert(ctx, name, category, severity, err, expiresIn)
+	}
+	return nil
+}
+
+func (h *FreepsHookWrapper) OnResetSystemAlert(ctx *base.Context, name string, category string) error {
+	i, ok := h.hookImpl.(FreepsAlertHook)
+	if ok {
+		i.OnResetSystemAlert(ctx, name, category)
 	}
 	return nil
 }

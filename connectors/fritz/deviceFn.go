@@ -1,6 +1,9 @@
 package fritz
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freepslib"
 	log "github.com/sirupsen/logrus"
@@ -58,6 +61,25 @@ func (m *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	}
 	for _, dev := range devl.Device {
 		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), modified_by)
+		m.checkDeviceForAlerts(ctx, dev)
 	}
 	return devl, nil
+}
+
+// checkDeviceForAlerts set system alerts for certain conditions
+func (m *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice) {
+	if device.HKR != nil {
+		if device.HKR.Batterylow {
+			dur := BatterylowAlertDuration
+			m.GE.SetSystemAlert(ctx, "BatteryLow"+device.AIN, AlertCategory, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
+		} else {
+			m.GE.ResetSystemAlert(ctx, "BatteryLow"+device.AIN, AlertCategory)
+		}
+		if device.HKR.Windowopenactive {
+			dur := 15 * time.Minute // TODO: time(device.HKR.Windowopenactiveendtime).Sub(time.Now())
+			m.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, AlertCategory, WindowOpenSeverity, fmt.Errorf("%v detected an open Window", device.Name), &dur)
+		} else {
+			m.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, AlertCategory)
+		}
+	}
 }

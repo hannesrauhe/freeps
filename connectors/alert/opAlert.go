@@ -21,10 +21,10 @@ var _ base.FreepsOperator = &OpAlert{}
 
 type Alert struct {
 	Name      string
-	Category  *string        `json:",omitempty"`
-	Desc      *string        `json:",omitempty"`
-	Severity  *int           `json:",omitempty"`
-	ExpiresIn *time.Duration `json:",omitempty"`
+	Category  *string    `json:",omitempty"`
+	Desc      *string    `json:",omitempty"`
+	Severity  *int       `json:",omitempty"`
+	ExpiresAt *time.Time `json:",omitempty"`
 }
 
 type AlertWithMetadata struct {
@@ -35,7 +35,7 @@ type AlertWithMetadata struct {
 }
 
 func (a *AlertWithMetadata) IsExpired() bool {
-	return a.ExpiresIn != nil && a.Last.Add(*a.ExpiresIn).After(time.Now())
+	return a.ExpiresAt != nil && a.ExpiresAt.After(time.Now())
 }
 
 // SetAlert creates an stores a new alert
@@ -48,12 +48,38 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 	ns.UpdateTransaction(args.Name, func(oi base.OperatorIO) *base.OperatorIO {
 		oi.ParseJSON(&a)
 
-		if oi.IsEmpty() || a.IsExpired() {
-			// has expired
+		if oi.IsEmpty() {
 			a = AlertWithMetadata{First: time.Now()}
+		}
+		if a.IsExpired() {
+			a.Counter = 0
 		}
 		a.Counter++
 		a.Last = time.Now()
+
+		a.Alert = args
+		return base.MakeObjectOutput(a)
+	}, ctx.GetID())
+	return base.MakeObjectOutput(a)
+}
+
+// SetAlert creates an stores a new alert
+func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert) *base.OperatorIO {
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+	}
+	var a AlertWithMetadata
+	ns.UpdateTransaction(args.Name, func(oi base.OperatorIO) *base.OperatorIO {
+		oi.ParseJSON(&a)
+
+		if oi.IsEmpty() {
+			a = AlertWithMetadata{First: time.Now()}
+		}
+		if !a.IsExpired() {
+			eTime := time.Now()
+			a.ExpiresAt = &eTime
+		}
 
 		a.Alert = args
 		return base.MakeObjectOutput(a)
