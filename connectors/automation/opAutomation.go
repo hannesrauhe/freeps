@@ -160,7 +160,7 @@ func (oa *OpAutomation) CreateRule(ctx *base.Context, mainInput *base.OperatorIO
 	opTag := utils.StringToLower(args.Operator)
 	triggerTag := fmt.Sprintf("%v:%v", utils.StringToLower(args.Trigger), args.TriggerValue)
 	gd.AddTags(opTag, triggerTag)
-	oa.GE.AddGraph(args.Graph, *gd, true)
+	oa.GE.AddGraph(ctx, args.Graph, *gd, true)
 
 	return base.MakeEmptyOutput()
 }
