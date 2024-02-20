@@ -316,7 +316,7 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 			if td.GraphName == "" {
 				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
 			}
-			err := o.ge.AddGraph(td.GraphName, *gd, true)
+			err := o.ge.AddGraph(ctx, td.GraphName, *gd, true)
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}

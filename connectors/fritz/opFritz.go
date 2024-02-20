@@ -8,6 +8,8 @@ import (
 	"time"
 
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -15,8 +17,14 @@ import (
 )
 
 const maxAge = time.Second * 100
+const BatterylowSeverity = 5
+const BatterylowAlertDuration = 5 * time.Minute
+const WindowOpenSeverity = 2
+const AlertCategory = "fritz"
 
 type OpFritz struct {
+	CR   *utils.ConfigReader
+	GE   *freepsgraph.GraphEngine
 	name string
 	fl   *freepslib.Freeps
 	fc   *freepslib.FBconfig
@@ -36,7 +44,7 @@ func (m *OpFritz) GetDefaultConfig() interface{} {
 func (m *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	cfg := config.(*freepslib.FBconfig)
 	f, err := freepslib.NewFreepsLib(cfg)
-	op := &OpFritz{name: name, fl: f, fc: cfg}
+	op := &OpFritz{CR: m.CR, GE: m.GE, name: name, fl: f, fc: cfg}
 	return op, err
 }
 

@@ -73,7 +73,7 @@ type StoreNamespace interface {
 	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry
 	SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry
 	SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO
-	UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
 }
 
 // Store is a collection of different namespaces in which values can be stored
@@ -97,13 +97,16 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 	s.globalLock.Lock()
 	defer s.globalLock.Unlock()
 	nsStore, ok := s.namespaces[ns]
-	if ok {
+	if ok { // namespace exists or no config given (testing)
 		return nsStore, nil
 	}
 
 	// create new namespace on the fly from config is there is one
-
-	namespaceConfig, hasConfig := s.config.Namespaces[ns]
+	hasConfig := false
+	var namespaceConfig StoreNamespaceConfig
+	if s.config != nil { // may not be initialized in testing
+		namespaceConfig, hasConfig = s.config.Namespaces[ns]
+	}
 	if !hasConfig || namespaceConfig.NamespaceType == "" {
 		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
 	} else {

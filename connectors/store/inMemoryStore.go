@@ -85,7 +85,7 @@ func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, new
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(*base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	oldEntry, exists := s.entries[key]
@@ -96,7 +96,7 @@ func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(*base.Ope
 		oldV = oldEntry.data
 	}
 
-	out := fn(oldV)
+	out := fn(*oldV)
 	if out.IsError() {
 		return out
 	}
