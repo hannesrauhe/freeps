@@ -21,11 +21,11 @@ type OpAlert struct {
 var _ base.FreepsOperator = &OpAlert{}
 
 type Alert struct {
-	Name      string
-	Category  *string    `json:",omitempty"`
-	Desc      *string    `json:",omitempty"`
-	Severity  int        `json:",omitempty"`
-	ExpiresAt *time.Time `json:",omitempty"`
+	Name              string
+	Category          *string `json:",omitempty"`
+	Desc              *string `json:",omitempty"`
+	Severity          int
+	ExpiresInDuration *time.Duration `json:",omitempty"`
 }
 
 type AlertWithMetadata struct {
@@ -36,7 +36,11 @@ type AlertWithMetadata struct {
 }
 
 func (a *AlertWithMetadata) IsExpired() bool {
-	return a.ExpiresAt != nil && a.ExpiresAt.Before(time.Now())
+	if a.ExpiresInDuration == nil {
+		return false
+	}
+	expiresAt := a.Last.Add(*a.ExpiresInDuration)
+	return expiresAt.Before(time.Now())
 }
 
 func (a *Alert) GetFullName() string {
@@ -112,27 +116,33 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 	return base.MakeObjectOutput(a)
 }
 
+type ResetAlertArgs struct {
+	Name     string
+	Category *string
+}
+
 // ResetAlert resets an alerts
-func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert) *base.OperatorIO {
+func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, args ResetAlertArgs) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
 	}
+	tempAlert := Alert{Name: args.Name, Category: args.Category, Severity: 5} // just to get the name
 	var a AlertWithMetadata
-	ns.UpdateTransaction(args.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
+	ns.UpdateTransaction(tempAlert.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
 		oi.ParseJSON(&a)
 
 		if oi.IsEmpty() {
 			a = AlertWithMetadata{
-				Alert:   args,
+				Alert:   tempAlert,
 				Counter: 0,
 				First:   time.Time{},
 				Last:    time.Time{},
 			}
 		}
-		if a.ExpiresAt == nil || !a.IsExpired() {
-			eTime := time.Now()
-			a.ExpiresAt = &eTime
+		if a.ExpiresInDuration == nil || !a.IsExpired() {
+			eTime := time.Now().Sub(a.Last)
+			a.ExpiresInDuration = &eTime
 		}
 
 		return base.MakeObjectOutput(a)
@@ -219,6 +229,18 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 		}
 	}
 	return base.MakePlainOutput("%d alerts in %d categories%v", len(activeAlerts), len(categories), alertListStr)
+}
+
+// HasAlerts returns an empty output if there are any active alerts matching the criteria
+func (oc *OpAlert) HasAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
+	activeAlerts, err := oc.getActiveAlerts(args)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	if len(activeAlerts) > 0 {
+		return base.MakeEmptyOutput()
+	}
+	return base.MakeOutputError(http.StatusExpectationFailed, "no alerts")
 }
 
 func (o *OpAlert) GetHook() interface{} {

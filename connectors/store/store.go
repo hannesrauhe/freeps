@@ -97,13 +97,16 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 	s.globalLock.Lock()
 	defer s.globalLock.Unlock()
 	nsStore, ok := s.namespaces[ns]
-	if ok {
+	if ok { // namespace exists or no config given (testing)
 		return nsStore, nil
 	}
 
 	// create new namespace on the fly from config is there is one
-
-	namespaceConfig, hasConfig := s.config.Namespaces[ns]
+	hasConfig := false
+	var namespaceConfig StoreNamespaceConfig
+	if s.config != nil { // may not be initialized in testing
+		namespaceConfig, hasConfig = s.config.Namespaces[ns]
+	}
 	if !hasConfig || namespaceConfig.NamespaceType == "" {
 		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
 	} else {
