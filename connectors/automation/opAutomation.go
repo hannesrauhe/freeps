@@ -172,7 +172,7 @@ func (oa *OpAutomation) GetRules(ctx *base.Context) *base.OperatorIO {
 
 // GetHook returns the hook for this operator
 func (oa *OpAutomation) GetHook() interface{} {
-	return HookAutomation{oa: oa}
+	return &HookAutomation{oa: oa}
 }
 
 func (oa *OpAutomation) GetTriggers() []base.FreepsTrigger {

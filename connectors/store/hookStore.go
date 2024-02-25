@@ -15,7 +15,8 @@ type HookStore struct {
 	GE                *freepsgraph.GraphEngine
 }
 
-var _ freepsgraph.FreepsHook = &HookStore{}
+var _ freepsgraph.FreepsExecutionHook = &HookStore{}
+var _ freepsgraph.FreepsGraphChangedHook = &HookStore{}
 
 // GraphInfo keeps information about a graph execution
 type GraphInfo struct {
@@ -78,7 +79,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 }
 
 // OnGraphChanged analyzes all graphs and updates the operator info
-func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
+func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
 	if h.operatorInfoLogNs == nil {
 		return fmt.Errorf("operator info namespace missing")
 	}
