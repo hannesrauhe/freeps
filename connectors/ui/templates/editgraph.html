@@ -1,4 +1,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    /* Define styles for the info icon */
+    .info-icon {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+    }
+
+    /* Define styles for the tooltip */
+    .info-icon .tooltip {
+        display: none;
+        position: absolute;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        padding: 5px;
+        border-radius: 3px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 1;
+        width: 150px;
+    }
+
+    /* Define styles for the tooltip arrow */
+    .info-icon .tooltip::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #fff transparent transparent transparent;
+    }
+
+    /* Show tooltip on hover */
+    .info-icon:hover .tooltip {
+        display: block;
+    }
+</style>
+</head>
+<body>
+
 <form action="#" method="POST">
 	<input type="hidden" name="selectednumop" value="{{ .Numop }}" />
 	<div>
@@ -13,7 +54,12 @@
 			<a href="#ModifyOp">Edit below</a>
 			{{ end }}
 			<button type="submit" name="graphOutput" value="{{ $value.Name }}" {{ if (eq $value.Name $.GraphDesc.OutputFrom) }} disabled="true" {{ end }}>Set Output</button>
-			<button type="submit" name="deleteOp" value="{{ $key }}">-</button>
+			<button type="submit" name="deleteOp" value="{{ $key }}">-</button>			
+			<!-- Define the info icon and tooltip -->
+			<div class="info-icon">
+				<button type="submit" disabled="disabled">Last Arguments</button>
+				<div class="tooltip">{{ printf "%v.%v.Arguments" $.GraphName $value.Name | store_GetString "_graph_info" }}</div>
+			</div>
 			</div>
 			<table>
 				<tr><td>Operator / Function</td>
