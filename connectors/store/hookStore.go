@@ -64,15 +64,24 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 		return fmt.Errorf("operator info namespace missing")
 	}
 	opDetails := ctx.GetOperation(operationIndexInContext)
-	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
+	out1 := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
 		fnInfo := FunctionInfo{}
 		oldValue.ParseJSON(&fnInfo)
 		fnInfo.ExecutionCounter++
 		fnInfo.LastUsedByGraph = opDetails.GraphName
 		return base.MakeObjectOutput(fnInfo)
 	}, ctx.GetID())
-	if out.IsError() {
-		return out.GetError()
+
+	out2 := h.graphInfoLogNs.SetValue(fmt.Sprintf("%s.%s.Arguments", opDetails.GraphName, opDetails.OpName), base.MakeObjectOutput(opDetails.Arguments), ctx.GetID())
+	out3 := h.graphInfoLogNs.SetValue(fmt.Sprintf("%s.%s.ExecutionDuration", opDetails.GraphName, opDetails.OpName), base.MakeObjectOutput(opDetails.ExecutionDuration), ctx.GetID())
+	if out1.IsError() {
+		return out1.GetError()
+	}
+	if out2.IsError() {
+		return out2.GetError()
+	}
+	if out3.IsError() {
+		return out3.GetError()
 	}
 	return nil
 }
