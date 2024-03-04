@@ -58,7 +58,7 @@
 			<!-- Define the info icon and tooltip -->
 			<div class="info-icon">
 				<button type="submit" disabled="disabled">Last Arguments</button>
-				<div class="tooltip">{{ printf "%v.%v.Arguments" $.GraphName $value.Name | store_GetString "_graph_info" }}</div>
+				<div class="tooltip">{{ printf "OperationArguments:%v.%v" $.GraphName $value.Name | store_GetString "_debug" }}</div>
 			</div>
 			</div>
 			<table>
@@ -73,7 +73,16 @@
 				{{ end }}
 				</td></tr>
 				{{ if not (eq $value.InputFrom "") }}
-				<tr><td>InputFrom</td><td> {{ $value.InputFrom }} </td></tr>
+				<tr><td>InputFrom</td><td> 
+					{{ if (eq $value.InputFrom "_") }}
+					<div class="info-icon">
+						_
+						<div class="tooltip">{{ printf "GraphInput:%v" $.GraphName | store_GetString "_debug" }}</div>
+					</div>
+					{{else}}
+						{{ $value.InputFrom }} 
+					{{end}}
+				</td></tr>
 				{{ end }}
 				{{ if not (eq $value.ExecuteOnFailOf "") }}
 				<tr><td>ExecuteOnFailOf</td><td> {{ $value.ExecuteOnFailOf }}</td></tr>

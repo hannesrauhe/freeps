@@ -340,25 +340,15 @@ func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSe
 
 // GetHook returns the hook for this operator
 func (o *OpStore) GetHook() interface{} {
-	var eLog, glog, olog StoreNamespace
-	var err error
-	if store.config.ExecutionLogName != "" {
-		eLog, err = store.GetNamespace(store.config.ExecutionLogName)
-	}
+	eLog, err := store.GetNamespace(executionLogNamespace)
 	if err != nil {
 		// set alert
 	}
-	if store.config.GraphInfoName != "" {
-		glog, err = store.GetNamespace(store.config.GraphInfoName)
-	}
+
+	debugNs, err := store.GetNamespace(debugNamespace)
 	if err != nil {
 		// set alert
 	}
-	if store.config.OperatorInfoName != "" {
-		olog, err = store.GetNamespace(store.config.OperatorInfoName)
-	}
-	if err != nil {
-		// set alert
-	}
-	return &HookStore{executionLogNs: eLog, graphInfoLogNs: glog, operatorInfoLogNs: olog, errorLog: NewCollectedErrors(store.config), GE: o.GE}
+
+	return &HookStore{executionLogNs: eLog, debugNs: debugNs, errorLog: NewCollectedErrors(store.config), GE: o.GE}
 }
