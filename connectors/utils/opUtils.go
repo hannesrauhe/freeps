@@ -142,8 +142,9 @@ func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args Extrac
 
 // EchoArgs are the arguments for the Echo function
 type EchoArgs struct {
-	Output *string
-	Silent *bool
+	Output   *string
+	Silent   *bool
+	AsString *bool
 }
 
 // Echo returns the given output or an empty string if no output is given
@@ -153,6 +154,10 @@ func (m *OpUtils) Echo(ctx *base.Context, input *base.OperatorIO, args EchoArgs)
 	}
 	if args.Silent != nil && *args.Silent {
 		return base.MakeEmptyOutput()
+	}
+
+	if args.AsString != nil && *args.AsString {
+		return base.MakePlainOutput(input.GetString())
 	}
 
 	return input
