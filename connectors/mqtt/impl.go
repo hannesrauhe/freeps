@@ -122,7 +122,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 			input := base.MakeByteOutput(message.Payload())
 			args := map[string]string{"topic": message.Topic(), "subscription": tags[1]}
 			freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
-			tParts := strings.Split(topic, "/")
+			tParts := strings.Split(message.Topic(), "/")
 			for ti, tp := range tParts {
 				args[fmt.Sprintf("topic%d", ti)] = tp
 			}
