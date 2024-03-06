@@ -83,9 +83,8 @@ func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args Flatte
 
 // ExtractArgs are the arguments for the Extract function
 type ExtractArgs struct {
-	Key    string
-	NewKey *string
-	Type   *string
+	Key  string
+	Type *string
 }
 
 // TypeSuggestions returns a list of possible types for the given key
@@ -138,13 +137,7 @@ func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args Extrac
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err)
 	}
-	if args.NewKey == nil {
-		return base.MakeObjectOutput(outputObject)
-	} else {
-		outputMap := map[string]interface{}{}
-		outputMap[*args.NewKey] = outputObject
-		return base.MakeObjectOutput(outputMap)
-	}
+	return base.MakeObjectOutput(outputObject)
 }
 
 // EchoArgs are the arguments for the Echo function
