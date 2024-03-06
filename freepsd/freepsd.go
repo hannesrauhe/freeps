@@ -13,7 +13,6 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	opalert "github.com/hannesrauhe/freeps/connectors/alert"
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
-	"github.com/hannesrauhe/freeps/connectors/chaosimradio"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
@@ -96,7 +95,6 @@ func mainLoop() bool {
 		&freepsutils.OpRegexp{},
 		&freepsutils.OpGraphBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
-		&chaosimradio.OpCiR{},
 		&telegram.OpTelegram{GE: ge},
 		&pixeldisplay.OpPixelDisplay{},
 		&opconfig.OpConfig{CR: cr, GE: ge},
