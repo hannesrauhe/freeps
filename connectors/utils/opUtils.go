@@ -142,7 +142,7 @@ func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args Extrac
 		return base.MakeObjectOutput(outputObject)
 	} else {
 		outputMap := map[string]interface{}{}
-		outputMap[*args.NewKey] = outputObject}
+		outputMap[*args.NewKey] = outputObject
 		return base.MakeObjectOutput(outputMap)
 	}
 }
