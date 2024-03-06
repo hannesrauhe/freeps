@@ -6,15 +6,16 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
+var fileNamespace = "_files"
+var debugNamespace = "_debug"
+var executionLogNamespace = "_execution_log"
+var errorNamespace = "_error_log"
+
 // StoreConfig contains all start-parameters for the store
 type StoreConfig struct {
-	Namespaces       map[string]StoreNamespaceConfig
-	PostgresConnStr  string // The full connection string to the postgres instance
-	ExecutionLogName string // name of the namespace for the execution log
-	GraphInfoName    string // name of the namespace for the execution log
-	ErrorLogName     string // name of the namespace for the error log
-	OperatorInfoName string // name of the namespace for the operator info log
-	MaxErrorLogSize  int    // maximum number of entries in the error log
+	Namespaces      map[string]StoreNamespaceConfig
+	PostgresConnStr string // The full connection string to the postgres instance
+	MaxErrorLogSize int    // maximum number of entries in the error log
 }
 
 // StoreNamespaceConfig contains the configuration for a single namespace
@@ -31,7 +32,7 @@ type StoreNamespaceConfig struct {
 
 func getDefaultNamespaces() map[string]StoreNamespaceConfig {
 	namespaces := make(map[string]StoreNamespaceConfig)
-	namespaces["_files"] = StoreNamespaceConfig{
+	namespaces[fileNamespace] = StoreNamespaceConfig{
 		NamespaceType: "files",
 	}
 
@@ -40,13 +41,16 @@ func getDefaultNamespaces() map[string]StoreNamespaceConfig {
 	if err != nil {
 		panic("could not get hostname")
 	}
-	namespaces["_execution_log"] = StoreNamespaceConfig{
+	namespaces[executionLogNamespace] = StoreNamespaceConfig{
 		NamespaceType: "postgres",
 		SchemaName:    "freeps_" + utils.StringToIdentifier(hostname),
 		TableName:     "_execution_log",
 	}
-	namespaces["_error_log"] = StoreNamespaceConfig{
+	namespaces[errorNamespace] = StoreNamespaceConfig{
 		NamespaceType: "log",
+	}
+	namespaces[debugNamespace] = StoreNamespaceConfig{
+		NamespaceType: "memory",
 	}
 	return namespaces
 }

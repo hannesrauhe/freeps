@@ -1,6 +1,7 @@
 package freepsutils
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -163,28 +164,43 @@ type BoolParams struct {
 	Key *string
 }
 
-// IsTrue returns the input if it is true
-func (m *OpUtils) IsTrue(ctx *base.Context, input *base.OperatorIO, args BoolParams) *base.OperatorIO {
+func (m *OpUtils) boolConv(ctx *base.Context, input *base.OperatorIO, args BoolParams) (bool, error) {
 	var err error
-	var v bool
 	if args.Key != nil {
 		argsmap, ferr := m.flatten(ctx, input)
-		if ferr != nil {
-			return ferr
+		if err != nil {
+			return false, ferr.GetError()
 		}
 		vi, ok := argsmap[*args.Key]
 		if !ok {
-			return base.MakeOutputError(http.StatusExpectationFailed, "key %s not found", *args.Key)
+			return false, fmt.Errorf("key %s not found", *args.Key)
 		}
-		v, err = utils.ConvertToBool(vi)
-	} else {
-		v, err = utils.ConvertToBool(input.Output)
+		return utils.ConvertToBool(vi)
 	}
+
+	return utils.ConvertToBool(input.Output)
+}
+
+// IsTrue returns the input if it is true
+func (m *OpUtils) IsTrue(ctx *base.Context, input *base.OperatorIO, args BoolParams) *base.OperatorIO {
+	v, err := m.boolConv(ctx, input, args)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "input cannot be converted to bool: %v", err)
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	if v {
 		return input
 	}
 	return base.MakeOutputError(http.StatusExpectationFailed, "input is not true")
+}
+
+// IsFalse returns the input if the input is false
+func (m *OpUtils) IsFalse(ctx *base.Context, input *base.OperatorIO, args BoolParams) *base.OperatorIO {
+	v, err := m.boolConv(ctx, input, args)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+	if !v {
+		return input
+	}
+	return base.MakeOutputError(http.StatusExpectationFailed, "input is not false")
 }

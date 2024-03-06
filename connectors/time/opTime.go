@@ -83,9 +83,9 @@ type NowParameter struct {
 // Now returns the current time
 func (o *OpTime) Now(ctx *base.Context, input *base.OperatorIO, n NowParameter) *base.OperatorIO {
 	if n.Format != nil {
-		return base.MakePlainOutput("%v", time.Now().Format(*n.Format))
+		return base.MakeSprintfOutput("%v", time.Now().Format(*n.Format))
 	}
-	return base.MakePlainOutput("%v", time.Now())
+	return base.MakeSprintfOutput("%v", time.Now())
 }
 
 // TimeOfDayParameter is a struct to hold the start and end of a range in hours and minutes

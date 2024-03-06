@@ -138,7 +138,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			log.Printf("Waking Up %v", netdev)
 			err := m.fl.WakeUpDevice(netdev)
 			if err == nil {
-				return base.MakePlainOutput("Woke up %s", netdev)
+				return base.MakeSprintfOutput("Woke up %s", netdev)
 			}
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}

@@ -54,9 +54,6 @@
 
 	<div style="clear: both">
 		<button type="submit" name="Execute" value="Execute">Execute</button>
-		<input type="text" name="GraphName" value="{{ .GraphName }}" />
-		<button type="submit" name="SaveTemp">Save Temporarily</button>
-		<button type="submit" name="SaveGraph">Save Graph</button>
 		<button type="submit" name="GraphJSON" value="" />Reset</button>
 	</div>	
 </form>
@@ -68,16 +65,9 @@
 	</p>
 {{ end }}
 
-{{ $TestInput := "" }}
-{{ if eq $op.Operator "graph" }}
-	{{ $gi := store_Get "_graph_info" $op.Function }}
-	{{ if hasField $gi "Input" }}
-		{{ $TestInput = $gi.Input }}
-	{{ end }}
-{{ end }}
 	<p>
 		<label for="textarea_input">Input: </label>
-		<textarea id="textarea_input" name="input" cols="50" rows="10" >{{ $TestInput }}</textarea>
+		<textarea id="textarea_input" name="input" cols="50" rows="10" >{{ printf "GraphInput:%v" $op.Function | store_Get "_debug" }}</textarea>
 	</p>
 	<p>
 		<label for="input_input_content-type">Content-Type (optional):</label>

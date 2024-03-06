@@ -208,12 +208,12 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 	if len(activeAlerts) == 1 {
 		a := activeAlerts[0]
 		if a.Desc != nil {
-			return base.MakePlainOutput("Alert: %v", *a.Desc)
+			return base.MakeSprintfOutput("Alert: %v", *a.Desc)
 		}
 		if a.Category == nil {
-			return base.MakePlainOutput("Alert: %v", a.Name)
+			return base.MakeSprintfOutput("Alert: %v", a.Name)
 		}
-		return base.MakePlainOutput("Alert %v in category %v", a.Name, *a.Category)
+		return base.MakeSprintfOutput("Alert %v in category %v", a.Name, *a.Category)
 	}
 
 	alertListStr := ""
@@ -221,14 +221,14 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 		alertListStr = ": " + strings.Join(alertNames, ",")
 	}
 	if len(categories) == 0 {
-		return base.MakePlainOutput("%d alerts%v", len(activeAlerts), alertListStr)
+		return base.MakeSprintfOutput("%d alerts%v", len(activeAlerts), alertListStr)
 	}
 	if len(categories) == 1 {
 		for c := range categories {
-			return base.MakePlainOutput("%d alerts in category %v%v", len(activeAlerts), c, alertListStr)
+			return base.MakeSprintfOutput("%d alerts in category %v%v", len(activeAlerts), c, alertListStr)
 		}
 	}
-	return base.MakePlainOutput("%d alerts in %d categories%v", len(activeAlerts), len(categories), alertListStr)
+	return base.MakeSprintfOutput("%d alerts in %d categories%v", len(activeAlerts), len(categories), alertListStr)
 }
 
 // HasAlerts returns an empty output if there are any active alerts matching the criteria
