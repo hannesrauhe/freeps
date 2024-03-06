@@ -5,6 +5,7 @@ package freepsflux
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
@@ -86,6 +87,7 @@ type JsonArgs struct {
 func changeFieldType(fieldValue interface{}, fieldType string) (interface{}, error) {
 	var value interface{}
 	var err error
+	fieldType = strings.ToLower(fieldType)
 	switch fieldType {
 	case "float", "float64":
 		value, err = utils.ConvertToFloat(fieldValue)
@@ -113,34 +115,55 @@ func (o *OperatorFlux) PushFields(ctx *base.Context, input *base.OperatorIO) *ba
 	}
 	for k, v := range args.Fields {
 		fields[k], err = changeFieldType(v, args.DefaultFieldType)
+		if err != nil {
+			return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
+		}
 	}
 	for k, v := range args.FieldsWithType {
 		fields[k], err = changeFieldType(v.FieldValue, v.FieldType)
+		if err != nil {
+			return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
+		}
 	}
 
 	err = o.ff.PushFields(args.Measurement, args.Tags, fields, ctx)
-	if err == nil {
-		return base.MakePlainOutput("Pushed to influx: %v %v %v", args.Measurement, args.Tags, fields)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
-	return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
+	return base.MakeEmptyOutput()
 }
 
 type PushArguments struct {
 	Measurement string
-	Field       *string
+	Field       string
+	FieldType   *string
+}
+
+func (o *OperatorFlux) FieldTypeSuggestions() []string {
+	return []string{"float", "float64", "int", "int64", "bool"}
 }
 
 func (o *OperatorFlux) PushSingleField(ctx *base.Context, input *base.OperatorIO, args PushArguments, tags map[string]string) *base.OperatorIO {
-	if args.Field == nil {
-		return base.MakeOutputError(http.StatusBadRequest, "Please specify a field name")
+	fields := map[string]interface{}{}
+	var err error
+	if args.FieldType == nil {
+		fields[args.Field] = input.Output
+	} else {
+		fields[args.Field], err = changeFieldType(input.Output, *args.FieldType)
 	}
-	fields := map[string]interface{}{*args.Field: input.Output}
-
-	err := o.ff.PushFields(args.Measurement, tags, fields, ctx)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
-	return base.MakePlainOutput("Pushed to influx: %v %v", args, fields)
+
+	err = o.ff.PushFields(args.Measurement, tags, fields, ctx)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
+	}
+	return base.MakeEmptyOutput()
+}
+
+type PushMeasurementArguments struct {
+	Measurement string
 }
 
 func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO, args PushArguments, tags map[string]string) *base.OperatorIO {
@@ -160,5 +183,5 @@ func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
-	return base.MakePlainOutput("Pushed to influx: %v %v", args, fields)
+	return base.MakeEmptyOutput()
 }
