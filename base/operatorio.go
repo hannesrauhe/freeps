@@ -38,8 +38,12 @@ func MakeEmptyOutput() *OperatorIO {
 	return &OperatorIO{OutputType: Empty, HTTPCode: 200, Output: nil}
 }
 
-func MakePlainOutput(msg string, a ...interface{}) *OperatorIO {
+func MakeSprintfOutput(msg string, a ...interface{}) *OperatorIO {
 	return &OperatorIO{OutputType: PlainText, HTTPCode: 200, Output: fmt.Sprintf(msg, a...)}
+}
+
+func MakePlainOutput(msg string) *OperatorIO {
+	return &OperatorIO{OutputType: PlainText, HTTPCode: 200, Output: msg}
 }
 
 func MakeByteOutput(output []byte) *OperatorIO {

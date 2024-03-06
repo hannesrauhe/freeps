@@ -46,7 +46,7 @@ func TestStringReplace(t *testing.T) {
 
 	o := base.MakeFreepsOperators(&OpUtils{}, nil, ctx)[0]
 	args := map[string]string{
-		"InputString": "%a% + %b% = %c%",
+		"InputString": "%a%% + %b%% = %c%%",
 		"a":           "1",
 		"b":           "2",
 		"c":           "3",
@@ -56,5 +56,5 @@ func TestStringReplace(t *testing.T) {
 
 	// include regexp: all keys that start with "params", exclude regexp: all keys that contain "icon"
 	out := o.Execute(ctx, "StringReplaceMulti", args, input)
-	assert.Equal(t, out.GetString(), "1 + 2 = 3")
+	assert.Equal(t, out.GetString(), "1% + 2% = 3%")
 }

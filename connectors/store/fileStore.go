@@ -126,7 +126,7 @@ func (p *fileStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valu
 			continue
 		}
 		info := *i
-		res[d.Name()] = StoreEntry{data: base.MakePlainOutput("File of size: %v", info.Size()), timestamp: info.ModTime()}
+		res[d.Name()] = StoreEntry{data: base.MakeSprintfOutput("File of size: %v", info.Size()), timestamp: info.ModTime()}
 	}
 	return res
 }

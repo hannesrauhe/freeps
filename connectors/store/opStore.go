@@ -117,7 +117,7 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 			if !maxAgeRequest {
 				return base.MakeOutputError(http.StatusBadRequest, "No maxAge given")
 			}
-			return base.MakePlainOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
+			return base.MakeSprintfOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
 		}
 	default:
 		return base.MakeOutputError(http.StatusBadRequest, "Unknown function")

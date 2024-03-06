@@ -39,11 +39,11 @@ func (o *OperatorFlux) PushFreepsDeviceList(ctx *base.Context, input *base.Opera
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
-	err, lp := o.ff.PushFreepsDeviceList(&devicelist, args.GetLowerCaseMap())
+	err, _ = o.ff.PushFreepsDeviceList(&devicelist, args.GetLowerCaseMap())
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}
-	return base.MakePlainOutput("%v", lp)
+	return base.MakeEmptyOutput()
 }
 
 func (o *OperatorFlux) PushFreepsData(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -52,11 +52,11 @@ func (o *OperatorFlux) PushFreepsData(ctx *base.Context, input *base.OperatorIO)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
-	err, lp := o.ff.PushFreepsNetDeviceList(&devicelist)
+	err, _ = o.ff.PushFreepsNetDeviceList(&devicelist)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error when pushing netdevice list: %v", err)
 	}
-	return base.MakePlainOutput("%v", lp)
+	return base.MakeEmptyOutput()
 }
 
 func (o *OperatorFlux) PushFreepsMetrics(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -65,11 +65,11 @@ func (o *OperatorFlux) PushFreepsMetrics(ctx *base.Context, input *base.Operator
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
-	err, lp := o.ff.PushFreepsMetrics(&metrics)
+	err, _ = o.ff.PushFreepsMetrics(&metrics)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}
-	return base.MakePlainOutput("%v", lp)
+	return base.MakeEmptyOutput()
 }
 
 type FieldWithType struct {
