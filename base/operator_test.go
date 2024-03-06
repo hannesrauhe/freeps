@@ -78,11 +78,11 @@ func (mt *MyTestOperator) Simple2(ctx *Context) *OperatorIO {
 }
 
 func (mt *MyTestOperator) Counter(ctx *Context, mainInput *OperatorIO) *OperatorIO {
-	return MakePlainOutput("%v", mt.counter)
+	return MakeSprintfOutput("%v", mt.counter)
 }
 
 func (mt *MyTestOperator) CounterWithDynamicArgs(ctx *Context, mainInput *OperatorIO, args FunctionArguments) *OperatorIO {
-	return MakePlainOutput("%v, %v", args.Size(), mt.counter)
+	return MakeSprintfOutput("%v, %v", args.Size(), mt.counter)
 }
 
 func (mt *MyTestOperator) AnotherUnusedFunctionWrongReturn(ctx *Context, mainInput *OperatorIO) int {
