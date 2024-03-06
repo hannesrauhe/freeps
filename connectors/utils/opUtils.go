@@ -224,12 +224,17 @@ func (m *OpUtils) RemapKeys(ctx *base.Context, input *base.OperatorIO, args Echo
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string: %v", err)
 	}
-	output := map[string]interface{}{}
+	output := map[string]string{}
 	for k, v := range oldArgs {
-		if newKey, ok := mapping[k]; ok {
-			output[newKey] = v
+		if newKeys, ok := mapping[k]; ok {
+			for _, newKey := range strings.Split(newKeys, ",") {
+				output[newKey] = v
+			}
 		} else {
-			output[k] = v
+			_, oldKeyExists := output[k]
+			if !oldKeyExists {
+				output[k] = v
+			}
 		}
 	}
 	return base.MakeObjectOutput(output)
