@@ -96,7 +96,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 }
 
 // OnGraphChanged analyzes all graphs and updates the operator info
-func (h *HookStore) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
+func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}
