@@ -58,11 +58,11 @@ func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionAr
 			return base.MakeOutputError(http.StatusBadRequest, "publish: topic not specified")
 		}
 		msg := fa.GetOrDefault("msg", input.GetString())
-		qos, err := strconv.Atoi(fa.Get("qos"))
+		qos, err := utils.ConvertToInt64(fa.Get("qos"))
 		if err != nil {
 			qos = 0
 		}
-		retain, err := strconv.ParseBool(fa.Get("retain"))
+		retain, err := utils.ConvertToBool(fa.Get("retain"))
 		if err != nil {
 			retain = false
 		}
@@ -100,7 +100,7 @@ func (o *OpMQTT) GetDynamicArgSuggestions(fn string, arg string, otherArgs base.
 }
 
 // publish on a new connection to a defined server
-func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg interface{}, qos int, retain bool) *base.OperatorIO {
+func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg interface{}, qos int64, retain bool) *base.OperatorIO {
 	server := args["server"]
 	username := args["username"]
 	password := args["password"]
