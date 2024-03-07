@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 // GraphOperationDesc defines which operator to execute with Arguments and where to take the input from
@@ -39,7 +41,7 @@ func (gd *GraphDesc) HasAllTags(expectedTags []string) bool {
 		found := false
 		for _, tag := range gd.Tags {
 			tagKey, tagValue := SplitTag(tag)
-			if tagKey == expectedTagKey && (tagValue == expectedTagValue || expectedTagValue == "") {
+			if utils.StringCmpIgnoreCase(tagKey, expectedTagKey) && (tagValue == expectedTagValue || expectedTagValue == "") {
 				found = true
 			}
 		}
@@ -60,7 +62,7 @@ func (gd *GraphDesc) HasAtLeastOneTag(expectedTags []string) bool {
 		expectedTagKey, expectedTagValue := SplitTag(expectedTag)
 		for _, tag := range gd.Tags {
 			tagKey, tagValue := SplitTag(tag)
-			if tagKey == expectedTagKey && (tagValue == expectedTagValue || expectedTagValue == "") {
+			if utils.StringCmpIgnoreCase(tagKey, expectedTagKey) && (tagValue == expectedTagValue || expectedTagValue == "") {
 				return true
 			}
 		}

@@ -51,28 +51,23 @@ func (o *OpMQTT) TriggerSubscriptionChange(ctx *base.Context) *base.OperatorIO {
 }
 
 func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
-	args := fa.GetOriginalCaseMap()
 	switch fn {
 	case "publish":
-		topic, ok := args["topic"]
-		if !ok {
+		topic := fa.Get("topic")
+		if topic == "" {
 			return base.MakeOutputError(http.StatusBadRequest, "publish: topic not specified")
 		}
-		msg, ok := args["msg"]
-		if !ok {
-			msg = input.GetString()
-		}
-		qos, err := strconv.Atoi(args["qos"])
+		msg := fa.GetOrDefault("msg", input.GetString())
+		qos, err := strconv.Atoi(fa.Get("qos"))
 		if err != nil {
 			qos = 0
 		}
-		retain, err := strconv.ParseBool(args["retain"])
+		retain, err := strconv.ParseBool(fa.Get("retain"))
 		if err != nil {
 			retain = false
 		}
-		_, ok = args["server"]
-		if ok {
-			return o.publishToExternal(args, topic, msg, qos, retain)
+		if fa.Has("server") {
+			return o.publishToExternal(fa.GetLowerCaseMapOnlyFirst(), topic, msg, qos, retain)
 		}
 		err = o.impl.publish(topic, msg, qos, retain)
 		if err != nil {
