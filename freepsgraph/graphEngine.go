@@ -448,7 +448,7 @@ func (ge *GraphEngine) AddGraph(ctx *base.Context, graphID string, gd GraphDesc,
 	if err != nil {
 		return err
 	}
-	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
+	defer ge.TriggerGraphChangedHooks(ctx, []string{graphID}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
@@ -487,7 +487,7 @@ func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphName string) (*GraphD
 		return nil, errors.New("No name given")
 	}
 
-	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
+	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{graphName})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
@@ -506,6 +506,7 @@ func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphName string) (*GraphD
 
 // StartListening starts all listening operators
 func (ge *GraphEngine) StartListening(ctx *base.Context) {
+	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 
@@ -514,9 +515,6 @@ func (ge *GraphEngine) StartListening(ctx *base.Context) {
 			op.StartListening(ctx)
 		}
 	}
-
-	// TODO: Deadlock problem?
-	// ge.TriggerGraphChangedHooks(nil, nil)
 }
 
 // Shutdown should be called for graceful shutdown

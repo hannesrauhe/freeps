@@ -2,6 +2,7 @@ package freepsstore
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -96,7 +97,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContex
 }
 
 // OnGraphChanged analyzes all graphs and updates the operator info
-func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
+func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, removedGraphs []string) error {
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}
@@ -125,6 +126,13 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphName []string, r
 		}, "")
 		if out.IsError() {
 			return out.GetError()
+		}
+	}
+
+	for _, graphId := range addedGraphs {
+		gd, found := h.GE.GetGraphDesc(graphId)
+		if found {
+			StoreGraph(fmt.Sprintf("%s.%d", graphId, time.Now().Unix()), *gd, ctx.GetID())
 		}
 	}
 
