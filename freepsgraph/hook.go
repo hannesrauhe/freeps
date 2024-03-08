@@ -12,12 +12,15 @@ type GraphEngineHook interface {
 	GetName() string
 }
 
-type FreepsHook interface {
+type FreepsExecutionHook interface {
 	OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
 	OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error
 	OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) error
 	OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
-	OnGraphChanged(addedGraphName []string, removedGraphName []string) error
+}
+
+type FreepsGraphChangedHook interface {
+	OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error
 }
 
 type FreepsAlertHook interface {
@@ -30,7 +33,8 @@ type FreepsHookWrapper struct {
 }
 
 var _ GraphEngineHook = &FreepsHookWrapper{}
-var _ FreepsHook = &FreepsHookWrapper{}
+var _ FreepsExecutionHook = &FreepsHookWrapper{}
+var _ FreepsGraphChangedHook = &FreepsHookWrapper{}
 var _ FreepsAlertHook = &FreepsHookWrapper{}
 
 func NewFreepsHookWrapper(hookImpl interface{}) *FreepsHookWrapper {
@@ -47,7 +51,7 @@ func (h *FreepsHookWrapper) GetName() string {
 }
 
 func (h *FreepsHookWrapper) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
-	i, ok := h.hookImpl.(FreepsHook)
+	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
 		return i.OnExecute(ctx, graphName, mainArgs, mainInput)
 	}
@@ -55,7 +59,7 @@ func (h *FreepsHookWrapper) OnExecute(ctx *base.Context, graphName string, mainA
 }
 
 func (h *FreepsHookWrapper) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
-	i, ok := h.hookImpl.(FreepsHook)
+	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
 		return i.OnExecuteOperation(ctx, operationIndexInContext)
 	}
@@ -63,7 +67,7 @@ func (h *FreepsHookWrapper) OnExecuteOperation(ctx *base.Context, operationIndex
 }
 
 func (h *FreepsHookWrapper) OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) error {
-	i, ok := h.hookImpl.(FreepsHook)
+	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
 		return i.OnExecutionError(ctx, input, err, graphName, od)
 	}
@@ -71,17 +75,17 @@ func (h *FreepsHookWrapper) OnExecutionError(ctx *base.Context, input *base.Oper
 }
 
 func (h *FreepsHookWrapper) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
-	i, ok := h.hookImpl.(FreepsHook)
+	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
 		return i.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
 	}
 	return nil
 }
 
-func (h *FreepsHookWrapper) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
-	i, ok := h.hookImpl.(FreepsHook)
+func (h *FreepsHookWrapper) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
+	i, ok := h.hookImpl.(FreepsGraphChangedHook)
 	if ok {
-		return i.OnGraphChanged(addedGraphName, removedGraphName)
+		return i.OnGraphChanged(ctx, addedGraphName, removedGraphName)
 	}
 	return nil
 }

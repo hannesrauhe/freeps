@@ -166,7 +166,7 @@ type PushMeasurementArguments struct {
 	Measurement string
 }
 
-func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO, args PushArguments, tags map[string]string) *base.OperatorIO {
+func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO, args PushMeasurementArguments, tags map[string]string) *base.OperatorIO {
 	if input.IsEmpty() {
 		return base.MakeOutputError(http.StatusBadRequest, "no input")
 	}

@@ -329,7 +329,7 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		fh, ok := h.(FreepsHook)
+		fh, ok := h.(FreepsExecutionHook)
 		if !ok {
 			continue
 		}
@@ -346,7 +346,7 @@ func (ge *GraphEngine) TriggerOnExecuteOperationHooks(ctx *base.Context, operati
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		fh, ok := h.(FreepsHook)
+		fh, ok := h.(FreepsExecutionHook)
 		if !ok {
 			continue
 		}
@@ -363,7 +363,7 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		fh, ok := h.(FreepsHook)
+		fh, ok := h.(FreepsExecutionHook)
 		if !ok {
 			continue
 		}
@@ -380,7 +380,7 @@ func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *ba
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		fh, ok := h.(FreepsHook)
+		fh, ok := h.(FreepsExecutionHook)
 		if !ok {
 			continue
 		}
@@ -397,11 +397,11 @@ func (ge *GraphEngine) TriggerGraphChangedHooks(ctx *base.Context, addedGraphNam
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
-		fh, ok := h.(FreepsHook)
+		fh, ok := h.(FreepsGraphChangedHook)
 		if !ok {
 			continue
 		}
-		err := fh.OnGraphChanged(addedGraphNames, removedGraphNames)
+		err := fh.OnGraphChanged(ctx, addedGraphNames, removedGraphNames)
 		if err != nil {
 			upErr := fmt.Errorf("Execution of GraphChangedHook \"%v\" failed with error: %v", name, err.Error())
 			ge.SetSystemAlert(ctx, "GraphChangedHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
