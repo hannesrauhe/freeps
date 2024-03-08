@@ -101,23 +101,8 @@ func (bt *Bluetooth) RestartDiscovery(ctx *base.Context) *base.OperatorIO {
 	return base.MakeEmptyOutput()
 }
 
-type BluetoothTrigger struct {
-}
-
-var _ base.FreepsTrigger = &BluetoothTrigger{}
-
-func (bt *BluetoothTrigger) GetName() string {
-	return "bluetooth"
-}
-
-func (bt *BluetoothTrigger) GetDescription() string {
-	return "Bluetooth Trigger"
-}
-
-func (bt *BluetoothTrigger) GetSuggestions() []string {
-	return []string{"presentDevices"}
-}
-
 func (bt *Bluetooth) GetTriggers() []base.FreepsTrigger {
-	return []base.FreepsTrigger{&BluetoothTrigger{}}
+	return []base.FreepsTrigger{
+		base.NewFreepTrigger("device", "Triggers when a message from a specified device is received", []string{}),
+	}
 }

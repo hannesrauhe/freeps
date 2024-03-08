@@ -145,23 +145,8 @@ func (o *OpMQTT) Shutdown(ctx *base.Context) {
 	o.impl.Shutdown()
 }
 
-type TopicTrigger struct {
-}
-
-var _ base.FreepsTrigger = &TopicTrigger{}
-
-func (bt *TopicTrigger) GetName() string {
-	return "topic"
-}
-
-func (bt *TopicTrigger) GetDescription() string {
-	return "Triggers when a message for a certain topic is received"
-}
-
-func (bt *TopicTrigger) GetSuggestions() []string {
-	return []string{"foo"}
-}
-
 func (bt *OpMQTT) GetTriggers() []base.FreepsTrigger {
-	return []base.FreepsTrigger{&TopicTrigger{}}
+	return []base.FreepsTrigger{
+		base.NewFreepTrigger("topic", "Triggers when a message for a certain topic is received", []string{}),
+	}
 }
