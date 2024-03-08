@@ -6,8 +6,10 @@ import "strings"
 type CIMap[Val any] interface {
 	// Has returns true if map contains a key
 	Has(key string) bool
-	// Get returns the first value stored for key or the default value if key is not in mpa
+	// Get returns the first value stored for key or the default value if key is not in map
 	Get(key string) Val
+	// GetOrDefault returns the first value stored for key or the given default value if key is not in map
+	GetOrDefault(key string, defaultVal Val) Val
 	// GetArray returns all values stored for key
 	GetArray(key string) []Val
 
@@ -17,7 +19,8 @@ type CIMap[Val any] interface {
 	GetKeys() []string
 
 	GetOriginalCase(key string) string
-	GetLowerCaseMap() map[string][]Val
+	GetOriginalCaseMapOnlyFirst() map[string]Val
+	GetLowerCaseMapOnlyFirst() map[string]Val
 	GetOriginalCaseMap() map[string][]Val
 	Size() int
 }
@@ -101,6 +104,14 @@ func (fa *CIMapImpl[Val]) Get(key string) Val {
 	return fa.DefaultValue
 }
 
+// GetOrDefault returns the first value for the given key
+func (fa *CIMapImpl[Val]) GetOrDefault(key string, defaultVal Val) Val {
+	if v, ok := fa.LcMap[strings.ToLower(key)]; ok {
+		return v[0]
+	}
+	return defaultVal
+}
+
 // GetArray returns all values for the given key
 func (fa *CIMapImpl[Val]) GetArray(key string) []Val {
 	if v, ok := fa.LcMap[strings.ToLower(key)]; ok {
@@ -144,11 +155,29 @@ func (fa *CIMapImpl[Val]) GetLowerCaseMap() map[string][]Val {
 	return ret
 }
 
+// GetLowerCaseMapOnlyFirst returns a map of all keys in lower case
+func (fa *CIMapImpl[Val]) GetLowerCaseMapOnlyFirst() map[string]Val {
+	ret := make(map[string]Val)
+	for k, v := range fa.LcMap {
+		ret[k] = v[0]
+	}
+	return ret
+}
+
 // GetOriginalCaseMap returns a map of all keys in the original case (this will contain only one case-variant if multiple key with different cases were inserted)
 func (fa *CIMapImpl[Val]) GetOriginalCaseMap() map[string][]Val {
 	ret := make(map[string][]Val)
 	for k, v := range fa.KeyMapping {
 		ret[k] = fa.LcMap[v]
+	}
+	return ret
+}
+
+// GetOriginalCaseMap returns a map of all keys in the original case (this will contain only one case-variant if multiple key with different cases were inserted)
+func (fa *CIMapImpl[Val]) GetOriginalCaseMapOnlyFirst() map[string]Val {
+	ret := make(map[string]Val)
+	for k, v := range fa.KeyMapping {
+		ret[k] = fa.LcMap[v][0]
 	}
 	return ret
 }

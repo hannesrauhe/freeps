@@ -10,12 +10,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// OperationLog is an entry description of a Graph Operation
-type OperationLog struct {
+// OperationLogEntry is an entry description of a Graph Operation
+type OperationLogEntry struct {
 	GraphName         string
 	OpDesc            string
 	OpName            string
 	InputFrom         string
+	Arguments         map[string]string
 	StartTime         time.Time
 	ExecutionDuration time.Duration
 	HTTPResponseCode  int
@@ -34,7 +35,7 @@ type OperationLogNoTime struct {
 	NestingLevel      int
 }
 
-func (o OperationLog) toNoTime() OperationLogNoTime {
+func (o OperationLogEntry) toNoTime() OperationLogNoTime {
 	return OperationLogNoTime{
 		GraphName:         o.GraphName,
 		OpDesc:            o.OpDesc,
@@ -48,7 +49,7 @@ func (o OperationLog) toNoTime() OperationLogNoTime {
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
-func (o OperationLog) MarshalJSON() ([]byte, error) {
+func (o OperationLogEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(o.toNoTime())
 }
 
@@ -58,7 +59,7 @@ type Context struct {
 	logger       log.FieldLogger
 	Created      time.Time
 	Finished     time.Time
-	Operations   []OperationLog
+	Operations   []OperationLogEntry
 	CurrentLevel int
 }
 
@@ -91,7 +92,7 @@ func (c Context) MarshalJSON() ([]byte, error) {
 // NewContext creates a Context with a given logger
 func NewContext(logger log.FieldLogger) *Context {
 	u := uuid.New()
-	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Created: time.Now(), Operations: make([]OperationLog, 0)}
+	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Created: time.Now(), Operations: make([]OperationLogEntry, 0)}
 }
 
 // GetID returns the string represantation of the ID for this execution tree
@@ -118,19 +119,21 @@ func (c *Context) IsRootContext() bool {
 }
 
 // RecordOperationStart records a new entry in the execution log of this context and returns the index
-func (c *Context) RecordOperationStart(graphName string, opDesc string, opName string, inputFrom string) int {
-	op := OperationLog{GraphName: graphName,
+func (c *Context) RecordOperationStart(graphName string, opDesc string, opName string, inputFrom string, arguments map[string]string) int {
+	op := OperationLogEntry{GraphName: graphName,
 		OpDesc:       opDesc,
 		StartTime:    time.Now(),
 		OpName:       opName,
 		InputFrom:    inputFrom,
-		NestingLevel: c.CurrentLevel}
+		NestingLevel: c.CurrentLevel,
+		Arguments:    arguments,
+	}
 	c.Operations = append(c.Operations, op)
 	return len(c.Operations) - 1
 }
 
 // GetOperation returns the OperationLog for the given index
-func (c *Context) GetOperation(opIndex int) OperationLog {
+func (c *Context) GetOperation(opIndex int) OperationLogEntry {
 	return c.Operations[opIndex]
 }
 

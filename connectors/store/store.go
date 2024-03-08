@@ -58,6 +58,15 @@ func (v StoreEntry) GetModifiedBy() string { return v.modifiedBy }
 // IsError returns true if the entry contains an error
 func (v StoreEntry) IsError() bool { return v.data != nil && v.data.IsError() }
 
+// GetError returns an error, if StoreEntry contains one
+func (v StoreEntry) GetError() error {
+	if v.data != nil {
+		return v.data.GetError()
+	} else {
+		return nil
+	}
+}
+
 // StoreNamespace defines all functions to retrieve and modify data in the store
 type StoreNamespace interface {
 	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry

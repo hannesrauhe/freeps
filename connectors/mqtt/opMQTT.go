@@ -52,28 +52,23 @@ func (o *OpMQTT) TriggerSubscriptionChange(ctx *base.Context) *base.OperatorIO {
 }
 
 func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
-	args := fa.GetOriginalCaseMap()
 	switch fn {
 	case "publish":
-		topic, ok := args["topic"]
-		if !ok {
+		topic := fa.Get("topic")
+		if topic == "" {
 			return base.MakeOutputError(http.StatusBadRequest, "publish: topic not specified")
 		}
-		msg, ok := args["msg"]
-		if !ok {
-			msg = input.GetString()
-		}
-		qos, err := strconv.Atoi(args["qos"])
+		msg := fa.GetOrDefault("msg", input.GetString())
+		qos, err := utils.ConvertToInt64(fa.Get("qos"))
 		if err != nil {
 			qos = 0
 		}
-		retain, err := strconv.ParseBool(args["retain"])
+		retain, err := utils.ConvertToBool(fa.Get("retain"))
 		if err != nil {
 			retain = false
 		}
-		_, ok = args["server"]
-		if ok {
-			return o.publishToExternal(args, topic, msg, qos, retain)
+		if fa.Has("server") {
+			return o.publishToExternal(fa.GetLowerCaseMapOnlyFirst(), topic, msg, qos, retain)
 		}
 		err = o.impl.publish(topic, msg, qos, retain)
 		if err != nil {
@@ -106,7 +101,7 @@ func (o *OpMQTT) GetDynamicArgSuggestions(fn string, arg string, otherArgs base.
 }
 
 // publish on a new connection to a defined server
-func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg interface{}, qos int, retain bool) *base.OperatorIO {
+func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg interface{}, qos int64, retain bool) *base.OperatorIO {
 	server := args["server"]
 	username := args["username"]
 	password := args["password"]

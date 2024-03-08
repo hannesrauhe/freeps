@@ -8,11 +8,10 @@ import (
 )
 
 type HookStore struct {
-	executionLogNs    StoreNamespace
-	graphInfoLogNs    StoreNamespace
-	operatorInfoLogNs StoreNamespace
-	errorLog          *CollectedErrors
-	GE                *freepsgraph.GraphEngine
+	executionLogNs StoreNamespace
+	debugNs        StoreNamespace
+	errorLog       *CollectedErrors
+	GE             *freepsgraph.GraphEngine
 }
 
 var _ freepsgraph.FreepsExecutionHook = &HookStore{}
@@ -34,13 +33,13 @@ type FunctionInfo struct {
 
 // OnExecute gets called when freepsgraph starts executing a Graph
 func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
-	if h.graphInfoLogNs == nil {
-		return fmt.Errorf("graph info namespace missing")
+	if h.debugNs == nil {
+		return fmt.Errorf("missing debug namespace")
 	}
 	if graphName == "" {
 		return fmt.Errorf("graph name is empty")
 	}
-	out := h.graphInfoLogNs.UpdateTransaction(graphName, func(oldValue base.OperatorIO) *base.OperatorIO {
+	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("GraphInfo:%s", graphName), func(oldValue base.OperatorIO) *base.OperatorIO {
 		oldGraphInfo := GraphInfo{}
 		newGraphInfo := GraphInfo{ExecutionCounter: 1}
 		if mainArgs != nil && len(mainArgs) > 0 {
@@ -53,35 +52,53 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 		newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
 		return base.MakeObjectOutput(newGraphInfo)
 	}, ctx.GetID())
-	if out.IsError() {
-		return out.GetError()
+
+	out2 := h.debugNs.SetValue(fmt.Sprintf("GraphInput:%s", graphName), mainInput, ctx.GetID())
+	out3 := h.debugNs.SetValue(fmt.Sprintf("GraphArguments:%s.", graphName), base.MakeObjectOutput(mainArgs), ctx.GetID())
+	if out1.IsError() {
+		return out1.GetError()
+	}
+	if out2.IsError() {
+		return out2.GetError()
+	}
+	if out3.IsError() {
+		return out3.GetError()
 	}
 	return nil
 }
 
 // OnExecuteOperation gets called when freepsgraph starts executing an Operation
 func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
-	if h.operatorInfoLogNs == nil {
-		return fmt.Errorf("operator info namespace missing")
+	if h.debugNs == nil {
+		return fmt.Errorf("missing debug namespace")
 	}
 	opDetails := ctx.GetOperation(operationIndexInContext)
-	out := h.operatorInfoLogNs.UpdateTransaction(opDetails.OpDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
+	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s", opDetails.OpDesc), func(oldValue base.OperatorIO) *base.OperatorIO {
 		fnInfo := FunctionInfo{}
 		oldValue.ParseJSON(&fnInfo)
 		fnInfo.ExecutionCounter++
 		fnInfo.LastUsedByGraph = opDetails.GraphName
 		return base.MakeObjectOutput(fnInfo)
 	}, ctx.GetID())
-	if out.IsError() {
-		return out.GetError()
+
+	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", opDetails.GraphName, opDetails.OpName), base.MakeObjectOutput(opDetails.Arguments), ctx.GetID())
+	out3 := h.debugNs.SetValue(fmt.Sprintf("OperationDuration:%s.%s.", opDetails.GraphName, opDetails.OpName), base.MakeObjectOutput(opDetails.ExecutionDuration), ctx.GetID())
+	if out1.IsError() {
+		return out1.GetError()
+	}
+	if out2.IsError() {
+		return out2.GetError()
+	}
+	if out3.IsError() {
+		return out3.GetError()
 	}
 	return nil
 }
 
 // OnGraphChanged analyzes all graphs and updates the operator info
 func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
-	if h.operatorInfoLogNs == nil {
-		return fmt.Errorf("operator info namespace missing")
+	if h.debugNs == nil {
+		return fmt.Errorf("missing debug namespace")
 	}
 
 	collectedInfo := map[string]FunctionInfo{}
@@ -97,7 +114,7 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphName []string, r
 	}
 
 	for opDesc, newInfo := range collectedInfo {
-		out := h.operatorInfoLogNs.UpdateTransaction(opDesc, func(oldValue base.OperatorIO) *base.OperatorIO {
+		out := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s", opDesc), func(oldValue base.OperatorIO) *base.OperatorIO {
 			fnInfo := FunctionInfo{}
 			oldValue.ParseJSON(&fnInfo)
 			fnInfo.ReferenceCounter = newInfo.ReferenceCounter

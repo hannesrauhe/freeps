@@ -3,7 +3,6 @@ package freepsstore
 import (
 	"math"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -21,7 +20,7 @@ var _ base.FreepsOperatorWithDynamicFunctions = &OpStore{}
 
 // GetDefaultConfig returns the default config for the http connector
 func (o *OpStore) GetDefaultConfig() interface{} {
-	return &StoreConfig{Namespaces: getDefaultNamespaces(), PostgresConnStr: "", ExecutionLogName: "_execution_log", GraphInfoName: "_graph_info", ErrorLogName: "_error_log", OperatorInfoName: "_operator_info", MaxErrorLogSize: 1000}
+	return &StoreConfig{Namespaces: getDefaultNamespaces(), PostgresConnStr: "", MaxErrorLogSize: 1000}
 }
 
 // InitCopyOfOperator creates a copy of the operator
@@ -40,43 +39,39 @@ func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 
 // ExecuteDynamic is a single spaghetti - needs cleanup ... moving to opStoreV2.go
 func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
-	args := fa.GetOriginalCaseMap()
 	result := map[string]map[string]*base.OperatorIO{}
-	ns, ok := args["namespace"]
-	if !ok {
+
+	multiNs := fa.GetArray("namespace")
+	if len(multiNs) == 0 {
 		return base.MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}
-	multiNs := strings.Split(ns, ",")
-	if len(multiNs) > 1 && fn == "getall" {
+	if len(multiNs) > 1 {
+		if fn != "getall" {
+			return base.MakeOutputError(http.StatusBadRequest, "Expected a single Namespace")
+		}
 		for _, ns := range multiNs {
 			ns = utils.StringToIdentifier(ns)
 			result[ns] = store.GetNamespaceNoError(ns).GetAllValues(0)
 		}
 		return base.MakeObjectOutput(result)
 	}
-	ns = utils.StringToIdentifier(ns)
+	ns := utils.StringToIdentifier(multiNs[0])
 
 	nsStore := store.GetNamespaceNoError(ns)
-	keyArgName := args["keyArgName"]
-	if keyArgName == "" {
-		keyArgName = "key"
+	keyArgName := fa.GetOrDefault("keyArgName", "key")
+	if fn != "getall" && fn != "setall" && fn != "deleteolder" && fn != "search" && !fa.Has(keyArgName) {
+		return base.MakeOutputError(http.StatusBadRequest, "Expected an argument called %v", keyArgName)
 	}
-	key, ok := args[keyArgName]
-	if fn != "getall" && fn != "setall" && fn != "deleteolder" && fn != "search" && !ok {
-		return base.MakeOutputError(http.StatusBadRequest, "No key given")
-	}
+	key := fa.Get(keyArgName)
 
-	output, ok := args["output"]
-	if !ok {
-		// default is the complete tree
-		output = "hierarchy"
-	}
+	// default output shows the complete tree
+	output := fa.GetOrDefault("output", "hierarchy")
 
 	var err error
 	maxAge := time.Duration(math.MaxInt64)
 	minAge := time.Duration(0)
 	maxAgeRequest := false
-	maxAgeStr := args["maxAge"]
+	maxAgeStr := fa.Get("maxAge")
 	if maxAgeStr != "" {
 		maxAgeRequest = true
 		maxAge, err = time.ParseDuration(maxAgeStr)
@@ -84,7 +79,7 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 			return base.MakeOutputError(http.StatusBadRequest, "Cannot parse maxAge \"%v\" because of error: \"%v\"", maxAgeStr, err)
 		}
 	}
-	minAgeStr := args["minAge"]
+	minAgeStr := fa.Get("minAge")
 	if minAgeStr != "" {
 		minAge, err = time.ParseDuration(minAgeStr)
 		if err != nil {
@@ -95,7 +90,7 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 	switch fn {
 	case "getall":
 		{
-			r := nsStore.GetSearchResultWithMetadata(key, args["value"], args["modifiedBy"], minAge, maxAge)
+			r := nsStore.GetSearchResultWithMetadata(key, fa.Get("value"), fa.Get("modifiedBy"), minAge, maxAge)
 			result[ns] = map[string]*base.OperatorIO{}
 			for k, v := range r {
 				result[ns][k] = v.data
@@ -117,7 +112,7 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 			if !maxAgeRequest {
 				return base.MakeOutputError(http.StatusBadRequest, "No maxAge given")
 			}
-			return base.MakePlainOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
+			return base.MakeSprintfOutput("Deleted %v records", nsStore.DeleteOlder(maxAge))
 		}
 	default:
 		return base.MakeOutputError(http.StatusBadRequest, "Unknown function")

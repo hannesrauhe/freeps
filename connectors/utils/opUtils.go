@@ -142,8 +142,9 @@ func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args Extrac
 
 // EchoArgs are the arguments for the Echo function
 type EchoArgs struct {
-	Output *string
-	Silent *bool
+	Output   *string
+	Silent   *bool
+	AsString *bool
 }
 
 // Echo returns the given output or an empty string if no output is given
@@ -153,6 +154,10 @@ func (m *OpUtils) Echo(ctx *base.Context, input *base.OperatorIO, args EchoArgs)
 	}
 	if args.Silent != nil && *args.Silent {
 		return base.MakeEmptyOutput()
+	}
+
+	if args.AsString != nil && *args.AsString {
+		return base.MakePlainOutput(input.GetString())
 	}
 
 	return input
@@ -219,12 +224,17 @@ func (m *OpUtils) RemapKeys(ctx *base.Context, input *base.OperatorIO, args Echo
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string: %v", err)
 	}
-	output := map[string]interface{}{}
+	output := map[string]string{}
 	for k, v := range oldArgs {
-		if newKey, ok := mapping[k]; ok {
-			output[newKey] = v
+		if newKeys, ok := mapping[k]; ok {
+			for _, newKey := range strings.Split(newKeys, ",") {
+				output[newKey] = v
+			}
 		} else {
-			output[k] = v
+			_, oldKeyExists := output[k]
+			if !oldKeyExists {
+				output[k] = v
+			}
 		}
 	}
 	return base.MakeObjectOutput(output)
