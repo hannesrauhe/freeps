@@ -66,7 +66,7 @@ func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [
 
 	// ctx.GetLogger().Infof("Executing graph by tags: %v", tagGroups)
 
-	tg := ge.GetGraphDescByTagExtended(tagGroups)
+	tg := ge.GetGraphDescByTagExtended(tagGroups...)
 	if len(tg) <= 1 {
 		for n := range tg {
 			return ge.ExecuteGraph(ctx, n, args, input)

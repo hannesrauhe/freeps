@@ -244,17 +244,17 @@ func (ge *GraphEngine) GetGraphDescByTag(tags []string) map[string]GraphDesc {
 	for _, t := range tags {
 		taggroups = append(taggroups, []string{t})
 	}
-	return ge.GetGraphDescByTagExtended(taggroups)
+	return ge.GetGraphDescByTagExtended(taggroups...)
 }
 
 // GetGraphDescByTagExtended returns the GraphInfo for all Graphs that contain at least one tag of each group
-func (ge *GraphEngine) GetGraphDescByTagExtended(tagGroups [][]string) map[string]GraphDesc {
+func (ge *GraphEngine) GetGraphDescByTagExtended(tagGroups ...[]string) map[string]GraphDesc {
 	r := make(map[string]GraphDesc)
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 
 	for n, g := range ge.graphs {
-		if g.HasAtLeastOneTagPerGroup(tagGroups) {
+		if g.HasAtLeastOneTagPerGroup(tagGroups...) {
 			r[n] = *g
 		}
 	}
