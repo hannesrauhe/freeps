@@ -3,6 +3,7 @@ package automation
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
@@ -20,8 +21,9 @@ type Rule struct {
 type OpAutomation struct {
 	CR         *utils.ConfigReader
 	GE         *freepsgraph.GraphEngine
-	ruleMap    utils.CIMap[Rule]               // will be initialized by Hook
-	triggerMap utils.CIMap[base.FreepsTrigger] // will be initialized by Hook
+	ruleMap    utils.CIMap[Rule]
+	triggerMap utils.CIMap[base.FreepsTrigger]
+	mapLock    sync.Mutex
 }
 
 func (oa *OpAutomation) getRulesForTrigger(opName string, triggers []base.FreepsTrigger) []Rule {
@@ -43,6 +45,8 @@ func (oa *OpAutomation) getRulesForTrigger(opName string, triggers []base.Freeps
 }
 
 func (oa *OpAutomation) buildRuleAndTriggerMap() {
+	oa.mapLock.Lock()
+	defer oa.mapLock.Unlock()
 	rMap := make(map[string][]Rule)
 	tMap := make(map[string][]base.FreepsTrigger)
 	for _, op := range oa.GE.GetOperators() {
@@ -58,6 +62,20 @@ func (oa *OpAutomation) buildRuleAndTriggerMap() {
 	oa.triggerMap = utils.NewCIMapFromValues(tMap, nil)
 }
 
+func (oa *OpAutomation) getRuleMap() utils.CIMap[Rule] {
+	if oa.ruleMap == nil {
+		oa.buildRuleAndTriggerMap()
+	}
+	return oa.ruleMap
+}
+
+func (oa *OpAutomation) getTriggerMap() utils.CIMap[base.FreepsTrigger] {
+	if oa.triggerMap == nil {
+		oa.buildRuleAndTriggerMap()
+	}
+	return oa.triggerMap
+}
+
 var _ base.FreepsOperator = &OpAutomation{}
 
 type GetTriggerArgs struct {
@@ -66,18 +84,18 @@ type GetTriggerArgs struct {
 }
 
 func (gta *GetTriggerArgs) OperatorSuggestions(oa *OpAutomation) []string {
-	return oa.ruleMap.GetKeys()
+	return oa.getRuleMap().GetKeys()
 }
 
 func (gta *GetTriggerArgs) TriggerSuggestions(oa *OpAutomation) []string {
 	ret := []string{}
 	if gta.Operator != "" {
-		for _, r := range oa.ruleMap.GetArray(gta.Operator) {
+		for _, r := range oa.getRuleMap().GetArray(gta.Operator) {
 			ret = append(ret, r.Trigger.GetName())
 		}
 	}
 
-	for _, rule := range oa.ruleMap.GetOriginalCaseMap() {
+	for _, rule := range oa.getRuleMap().GetOriginalCaseMap() {
 		if len(rule) > 0 {
 			ret = append(ret, rule[0].Trigger.GetName())
 		}
@@ -108,19 +126,19 @@ type CreateRuleArgs struct {
 }
 
 func (gta *CreateRuleArgs) OperatorSuggestions(oa *OpAutomation) []string {
-	return oa.ruleMap.GetKeys()
+	return oa.getRuleMap().GetKeys()
 }
 
 func (gta *CreateRuleArgs) TriggerSuggestions(oa *OpAutomation) []string {
 	ret := []string{}
 	if gta.Operator != "" {
-		for _, r := range oa.ruleMap.GetArray(gta.Operator) {
+		for _, r := range oa.getRuleMap().GetArray(gta.Operator) {
 			ret = append(ret, r.Trigger.GetName())
 		}
 		return ret
 	}
 
-	for _, rules := range oa.ruleMap.GetOriginalCaseMap() {
+	for _, rules := range oa.getRuleMap().GetOriginalCaseMap() {
 		if len(rules) > 0 {
 			ret = append(ret, rules[0].Trigger.GetName())
 		}
@@ -134,7 +152,7 @@ func (gta *CreateRuleArgs) TriggerValueSuggestions(oa *OpAutomation) []string {
 		return ret
 	}
 
-	for _, t := range oa.triggerMap.GetArray(gta.Operator) {
+	for _, t := range oa.getTriggerMap().GetArray(gta.Operator) {
 		if t != nil && utils.StringCmpIgnoreCase(gta.Trigger, t.GetName()) {
 			return t.GetSuggestions()
 		}
@@ -167,7 +185,8 @@ func (oa *OpAutomation) CreateRule(ctx *base.Context, mainInput *base.OperatorIO
 
 // GetRules
 func (oa *OpAutomation) GetRules(ctx *base.Context) *base.OperatorIO {
-	return base.MakeObjectOutput(oa.ruleMap.GetOriginalCaseMap())
+	oa.buildRuleAndTriggerMap()
+	return base.MakeObjectOutput(oa.getRuleMap().GetOriginalCaseMap())
 }
 
 // GetHook returns the hook for this operator
