@@ -13,30 +13,10 @@ type HookBluetooth struct {
 	btw *FreepsBluetooth
 }
 
-var _ freepsgraph.FreepsHook = &HookBluetooth{}
-
-// OnExecute does nothing
-func (h *HookBluetooth) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
-	return nil
-}
-
-// OnExecuteOperation does nothing
-func (h *HookBluetooth) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
-	return nil
-}
-
-// OnExecutionError does nothing
-func (h *HookBluetooth) OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *freepsgraph.GraphOperationDesc) error {
-	return nil
-}
-
-// OnExecutionFinished does nothing
-func (h *HookBluetooth) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
-	return nil
-}
+var _ freepsgraph.FreepsGraphChangedHook = &HookBluetooth{}
 
 // OnGraphChanged checks if subscriptions need to be changed
-func (h *HookBluetooth) OnGraphChanged(addedGraphName []string, removedGraphName []string) error {
+func (h *HookBluetooth) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
 	if h.btw == nil {
 		return fmt.Errorf("Bluetooth watcher uninitialized")
 	}
