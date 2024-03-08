@@ -144,7 +144,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 		}
 	}
 
-	vars := args.GetOriginalCaseMap()
+	vars := args.GetOriginalCaseMapOnlyFirst()
 
 	if fn[0:3] == "set" {
 		err := m.fl.HomeAutoSwitch(fn, dev, vars)

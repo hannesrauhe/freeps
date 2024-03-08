@@ -193,7 +193,7 @@ func newFreepsMqttImpl(logger log.FieldLogger, fmc *FreepsMqttConfig, ge *freeps
 	return fmqtt, nil
 }
 
-func (fm *FreepsMqttImpl) publish(topic string, msg interface{}, qos int, retain bool) error {
+func (fm *FreepsMqttImpl) publish(topic string, msg interface{}, qos int64, retain bool) error {
 	if fm.client == nil {
 		return fmt.Errorf("MQTT client is uninitialized")
 	}

@@ -39,7 +39,7 @@ func (o *OperatorFlux) PushFreepsDeviceList(ctx *base.Context, input *base.Opera
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Error when parsing JSON: %v", err)
 	}
-	err, _ = o.ff.PushFreepsDeviceList(&devicelist, args.GetLowerCaseMap())
+	err, _ = o.ff.PushFreepsDeviceList(&devicelist, args.GetLowerCaseMapOnlyFirst())
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error when pushing device list: %v", err)
 	}
