@@ -1,4 +1,4 @@
-//go:build nopostgress
+//go:build nopostgres
 
 package freepsstore
 
