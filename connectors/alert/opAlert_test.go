@@ -72,7 +72,7 @@ func TestTriggers(t *testing.T) {
 	err = ge.AddGraph(ctx, "testgraph", createTestGraph(), false)
 	assert.NilError(t, err)
 
-	out := op.SetAlertTrigger(ctx, base.MakeEmptyOutput(), AlertTrigger{Severity: 2, GraphID: "testgraph"})
+	out := op.SetSeverityTrigger(ctx, base.MakeEmptyOutput(), SeverityTrigger{Severity: 2, GraphID: "testgraph"})
 	assert.Assert(t, !out.IsError())
 
 	dur := time.Minute
