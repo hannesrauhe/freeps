@@ -244,6 +244,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 			gopd.ExecuteOnFailOf = v
 		} else if k == "useMainArgs" {
 			gopd.UseMainArgs = utils.ParseBool(v)
+			gopd.IgnoreMainArgs = !gopd.UseMainArgs // backward compatibility
 		} else if k == "opName" && len(v) > 0 && !utils.StringStartsWith(v, "#") {
 			if gopd.Name == "" {
 				gopd.Name = fmt.Sprintf("#%d", targetNum)
