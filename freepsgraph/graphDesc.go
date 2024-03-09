@@ -173,6 +173,15 @@ func (gd *GraphDesc) GetCompleteDesc(graphID string, ge *GraphEngine) (*GraphDes
 		if op.InputFrom == "" && i == 0 {
 			op.InputFrom = ROOT_SYMBOL
 		}
+		if op.ArgumentsFrom == "" && i == 0 {
+			op.ArgumentsFrom = ROOT_SYMBOL
+		}
+		if !op.IgnoreMainArgs { // deprecate automatically consuming main arguments with this
+			if op.ArgumentsFrom != ROOT_SYMBOL && op.ArgumentsFrom != "" {
+				return &completeGraphDesc, fmt.Errorf("Operation \"%v\" wants Arguments from \"%v\" and main arguments (deprecated)", op.Name, op.InputFrom)
+			}
+			op.ArgumentsFrom = ROOT_SYMBOL
+		}
 		if op.InputFrom != "" && outputNames[op.InputFrom] != true {
 			return &completeGraphDesc, fmt.Errorf("Operation \"%v\" references unknown inputFrom \"%v\"", op.Name, op.InputFrom)
 		}
