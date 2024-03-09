@@ -136,7 +136,7 @@ func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery 
 
 	// start watcher if requested
 	watchDeviceTags := fbt.getDeviceWatchTags(devData)
-	if len(fbt.ge.GetGraphDescByTagExtended([][]string{{"bluetooth"}, watchDeviceTags})) > 0 {
+	if len(fbt.ge.GetGraphDescByTagExtended([]string{"bluetooth"}, watchDeviceTags)) > 0 {
 		fbt.addMonitor(dev, devData)
 	}
 
@@ -161,7 +161,7 @@ func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 
 	// remove monitors that have no graphs anymore
 	for w, deviceTags := range fbt.getMonitoredTags() {
-		if len(fbt.ge.GetGraphDescByTagExtended([][]string{{"bluetooth"}, deviceTags})) == 0 {
+		if len(fbt.ge.GetGraphDescByTagExtended([]string{"bluetooth"}, deviceTags)) == 0 {
 			fbt.deleteMonitor(w)
 		}
 	}

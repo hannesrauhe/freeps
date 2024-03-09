@@ -17,7 +17,7 @@ var _ freepsgraph.FreepsAlertHook = &HookAlert{}
 func (h *HookAlert) OnSystemAlert(ctx *base.Context, name string, category string, severity int, err error, expiresIn *time.Duration) error {
 	errStr := err.Error()
 	a := Alert{Name: name, Category: &category, Severity: severity, Desc: &errStr, ExpiresInDuration: expiresIn}
-	h.impl.SetAlert(ctx, base.MakeEmptyOutput(), a)
+	h.impl.SetAlert(ctx, base.MakeEmptyOutput(), a, map[string]string{})
 	return nil
 }
 

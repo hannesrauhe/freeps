@@ -244,17 +244,17 @@ func (ge *GraphEngine) GetGraphDescByTag(tags []string) map[string]GraphDesc {
 	for _, t := range tags {
 		taggroups = append(taggroups, []string{t})
 	}
-	return ge.GetGraphDescByTagExtended(taggroups)
+	return ge.GetGraphDescByTagExtended(taggroups...)
 }
 
 // GetGraphDescByTagExtended returns the GraphInfo for all Graphs that contain at least one tag of each group
-func (ge *GraphEngine) GetGraphDescByTagExtended(tagGroups [][]string) map[string]GraphDesc {
+func (ge *GraphEngine) GetGraphDescByTagExtended(tagGroups ...[]string) map[string]GraphDesc {
 	r := make(map[string]GraphDesc)
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 
 	for n, g := range ge.graphs {
-		if g.HasAtLeastOneTagPerGroup(tagGroups) {
+		if g.HasAtLeastOneTagPerGroup(tagGroups...) {
 			r[n] = *g
 		}
 	}
@@ -448,7 +448,7 @@ func (ge *GraphEngine) AddGraph(ctx *base.Context, graphID string, gd GraphDesc,
 	if err != nil {
 		return err
 	}
-	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
+	defer ge.TriggerGraphChangedHooks(ctx, []string{graphID}, []string{})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
@@ -482,23 +482,23 @@ func (ge *GraphEngine) addGraphUnderLock(ctx *base.Context, graphName string, gd
 }
 
 // DeleteGraph removes a graph from the engine and from the storage
-func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphName string) (*GraphDesc, error) {
-	if graphName == "" {
+func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphID string) (*GraphDesc, error) {
+	if graphID == "" {
 		return nil, errors.New("No name given")
 	}
 
-	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
+	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{graphID})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	/* remove the graph from memory*/
-	deletedGraph, exists := ge.graphs[graphName]
+	deletedGraph, exists := ge.graphs[graphID]
 	if !exists {
 		return nil, errors.New("Graph not found")
 	}
-	delete(ge.graphs, graphName)
+	delete(ge.graphs, graphID)
 
-	fname := "graphs/" + graphName + ".json"
+	fname := "graphs/" + graphID + ".json"
 	err := ge.cr.RemoveFile(fname)
 
 	return deletedGraph, err
@@ -506,6 +506,7 @@ func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphName string) (*GraphD
 
 // StartListening starts all listening operators
 func (ge *GraphEngine) StartListening(ctx *base.Context) {
+	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{})
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 
@@ -514,9 +515,6 @@ func (ge *GraphEngine) StartListening(ctx *base.Context) {
 			op.StartListening(ctx)
 		}
 	}
-
-	// TODO: Deadlock problem?
-	// ge.TriggerGraphChangedHooks(nil, nil)
 }
 
 // Shutdown should be called for graceful shutdown

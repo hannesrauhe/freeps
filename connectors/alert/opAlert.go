@@ -74,7 +74,7 @@ func (oc *OpAlert) CategorySuggestions() []string {
 	return ret
 }
 
-func (oc *OpAlert) NameSuggestions() []string {
+func (oc *OpAlert) nameSuggestions(category *string) []string {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
 		return []string{}
@@ -82,7 +82,7 @@ func (oc *OpAlert) NameSuggestions() []string {
 	ret := []string{}
 	for _, k := range ns.GetKeys() {
 		c, n, found := strings.Cut(k, ".")
-		if found {
+		if found && (category == nil || *category == "" || c == *category) {
 			ret = append(ret, n)
 		} else {
 			ret = append(ret, c)
@@ -91,8 +91,12 @@ func (oc *OpAlert) NameSuggestions() []string {
 	return ret
 }
 
+func (aa *Alert) NameSuggestions(oc *OpAlert) []string {
+	return oc.nameSuggestions(aa.Category)
+}
+
 // SetAlert creates and stores a new alert
-func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert) *base.OperatorIO {
+func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert, addArgs map[string]string) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
@@ -113,12 +117,20 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 		a.Alert = args
 		return base.MakeObjectOutput(a)
 	}, ctx.GetID())
-	return base.MakeObjectOutput(a)
+	_, noTrigger := addArgs["noTrigger"]
+	if !noTrigger {
+		oc.execTriggers(ctx, a)
+	}
+	return base.MakeEmptyOutput()
 }
 
 type ResetAlertArgs struct {
 	Name     string
 	Category *string
+}
+
+func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) []string {
+	return oc.nameSuggestions(ra.Category)
 }
 
 // ResetAlert resets an alerts
@@ -147,7 +159,7 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 
 		return base.MakeObjectOutput(a)
 	}, ctx.GetID())
-	return base.MakeObjectOutput(a)
+	return base.MakeEmptyOutput()
 }
 
 type GetAlertArgs struct {

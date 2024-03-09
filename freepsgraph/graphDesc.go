@@ -71,7 +71,7 @@ func (gd *GraphDesc) HasAtLeastOneTag(expectedTags []string) bool {
 }
 
 // HasAtLeastOneTagPerGroup returns true if the GraphDesc contains at least one tag of each array
-func (gd *GraphDesc) HasAtLeastOneTagPerGroup(tagGroups [][]string) bool {
+func (gd *GraphDesc) HasAtLeastOneTagPerGroup(tagGroups ...[]string) bool {
 	if tagGroups == nil || len(tagGroups) == 0 {
 		return true
 	}
