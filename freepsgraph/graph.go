@@ -95,7 +95,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 			finalOpDesc.Arguments[k] = v
 		}
 	}
-	if finalOpDesc.IgnoreMainArgs == false {
+	if finalOpDesc.UseMainArgs {
 		for k, v := range mainArgs {
 			if _, ok := finalOpDesc.Arguments[k]; ok {
 				logger.Warnf("Argument %s overwritten by main arg", k)

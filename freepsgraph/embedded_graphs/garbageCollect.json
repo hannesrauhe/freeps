@@ -12,8 +12,7 @@
             "Arguments": {
                 "namespace": "_context",
                 "maxAge": "24h"
-            },
-            "IgnoreMainArgs": true
+            }
         }
     ]
 }

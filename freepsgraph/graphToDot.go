@@ -36,7 +36,7 @@ func (g *Graph) toDot(ctx *base.Context, G *graphviz.Graph, nameIDMap map[string
 				G.AddEdge(nameIDMap[v.ArgumentsFrom], nameIDMap[nodename], "args")
 			}
 		}
-		if !v.IgnoreMainArgs {
+		if v.UseMainArgs {
 			G.AddEdge(mainInputID, nameIDMap[nodename], "args")
 		}
 		if v.Operator == "graph" {
