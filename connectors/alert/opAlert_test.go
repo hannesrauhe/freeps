@@ -48,8 +48,8 @@ func TestOpAlert(t *testing.T) {
 	assert.Assert(t, res.HTTPCode == http.StatusExpectationFailed)
 }
 
-func createTestGraph() freepsgraph.GraphDesc {
-	gd := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: map[string]string{"namespace": "test", "key": "testgraph"}}}}
+func createTestGraph(keyToSet string) freepsgraph.GraphDesc {
+	gd := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: map[string]string{"namespace": "test", "key": keyToSet}}}}
 	return gd
 }
 
@@ -70,10 +70,11 @@ func TestTriggers(t *testing.T) {
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, ctx))
 	}
 
-	err = ge.AddGraph(ctx, "testgraph", createTestGraph(), false)
+	err = ge.AddGraph(ctx, "testgraphSev2", createTestGraph("testgraphSev2"), false)
+	err = ge.AddGraph(ctx, "testgraphSev3", createTestGraph("testgraphSev3"), false)
 	assert.NilError(t, err)
 
-	out := op.SetSeverityTrigger(ctx, base.MakeEmptyOutput(), SeverityTrigger{Severity: 2, GraphID: "testgraph"})
+	out := op.SetSeverityTrigger(ctx, base.MakeEmptyOutput(), SeverityTrigger{Severity: 2, GraphID: "testgraphSev2"})
 	assert.Assert(t, !out.IsError())
 
 	dur := time.Minute
@@ -82,5 +83,6 @@ func TestTriggers(t *testing.T) {
 
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("test")
 	assert.NilError(t, err)
-	assert.Assert(t, ns.GetValue("testgraph") != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testgraphSev2") != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testgraphSev3") == freepsstore.NotFoundEntry)
 }
