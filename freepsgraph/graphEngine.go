@@ -482,23 +482,23 @@ func (ge *GraphEngine) addGraphUnderLock(ctx *base.Context, graphName string, gd
 }
 
 // DeleteGraph removes a graph from the engine and from the storage
-func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphName string) (*GraphDesc, error) {
-	if graphName == "" {
+func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphID string) (*GraphDesc, error) {
+	if graphID == "" {
 		return nil, errors.New("No name given")
 	}
 
-	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{graphName})
+	defer ge.TriggerGraphChangedHooks(ctx, []string{}, []string{graphID})
 
 	ge.graphLock.Lock()
 	defer ge.graphLock.Unlock()
 	/* remove the graph from memory*/
-	deletedGraph, exists := ge.graphs[graphName]
+	deletedGraph, exists := ge.graphs[graphID]
 	if !exists {
 		return nil, errors.New("Graph not found")
 	}
-	delete(ge.graphs, graphName)
+	delete(ge.graphs, graphID)
 
-	fname := "graphs/" + graphName + ".json"
+	fname := "graphs/" + graphID + ".json"
 	err := ge.cr.RemoveFile(fname)
 
 	return deletedGraph, err

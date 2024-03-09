@@ -117,6 +117,7 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 		a.Alert = args
 		return base.MakeObjectOutput(a)
 	}, ctx.GetID())
+	oc.execAlertGraphs(ctx, a)
 	return base.MakeEmptyOutput()
 }
 
@@ -253,14 +254,4 @@ func (oc *OpAlert) HasAlerts(ctx *base.Context, mainInput *base.OperatorIO, args
 
 func (o *OpAlert) GetHook() interface{} {
 	return &HookAlert{o}
-}
-
-type AlertTrigger struct {
-	Severity  int
-	GraphName string
-}
-
-// SetAlertTrigger
-func (oc *OpAlert) SetAlertTrigger(ctx *base.Context, mainInput *base.OperatorIO, args AlertTrigger) *base.OperatorIO {
-	return base.MakeEmptyOutput()
 }
