@@ -23,7 +23,8 @@ func TestOpAlert(t *testing.T) {
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
-	op := OpAlert{CR: cr, GE: nil}
+	ge := freepsgraph.NewGraphEngine(ctx, cr, func() {})
+	op := OpAlert{CR: cr, GE: ge}
 	ops := base.MakeFreepsOperators(&op, cr, ctx)
 	opA := ops[0]
 
@@ -36,7 +37,7 @@ func TestOpAlert(t *testing.T) {
 
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
 	assert.Assert(t, res.GetString() == "[]")
-	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "foo", Severity: 2})
+	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "foo", Severity: 2}, map[string]string{})
 	assert.Assert(t, !res.IsError())
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
 	assert.Assert(t, !res.IsError() && len(res.GetString()) > 5)

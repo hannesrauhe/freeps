@@ -37,7 +37,7 @@ func (oc *OpAlert) SetSeverityTrigger(ctx *base.Context, mainInput *base.Operato
 }
 
 func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetadata) {
-	triggerTags := []string{fmt.Sprintf("severity:%v", alert.Severity)} //TODO(HR): +lower severities
+	triggerTags := []string{fmt.Sprintf("severity:%v", alert.Severity)}
 	tagGroups := [][]string{{"alert"}, triggerTags}
 	args, err := utils.ObjectToArgsMap(alert)
 	if err == nil {
