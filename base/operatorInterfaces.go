@@ -13,6 +13,8 @@ type FreepsBaseOperator interface {
 	GetHook() interface{}
 	StartListening(*Context)
 	Shutdown(*Context)
+
+	GetTriggers() []FreepsTrigger
 }
 
 // FreepsOperator is the interface structs need to implement so FreepsOperatorWrapper can create a FreepsOperator from them
@@ -58,13 +60,20 @@ type FreepsOperatorWithHook interface {
 	GetHook() interface{}
 }
 
+// FreepsOperatorWithTriggers adds the GetTriggers() method to FreepsOperator
+type FreepsOperatorWithTriggers interface {
+	FreepsOperator
+	// GetTriggers returns a list of triggers for this operator
+	GetTriggers() []FreepsTrigger
+}
+
 // FreepsFunctionParametersWithInit adds the Init() method to FreepsFunctionParameters
 type FreepsFunctionParametersWithInit interface {
 	Init(ctx *Context, operator FreepsOperator, fn string)
 }
 
 // FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
-type FreepsFunctionParameters interface {
+type FreepsFunctionParameters interface { // deprecated
 	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
 	GetArgSuggestions(operator FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	opalert "github.com/hannesrauhe/freeps/connectors/alert"
+	"github.com/hannesrauhe/freeps/connectors/automation"
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
@@ -103,6 +104,7 @@ func mainLoop() bool {
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&opalert.OpAlert{CR: cr, GE: ge},
 		&weather.OpWeather{},
+		&automation.OpAutomation{CR: cr, GE: ge},
 	}
 
 	for _, op := range availableOperators {

@@ -98,6 +98,11 @@ func (o *OpGraph) GetHook() interface{} {
 	return nil
 }
 
+// GetTriggers returns a list of triggers for this operator
+func (o *OpGraph) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{}
+}
+
 /*** By Tag ****/
 
 func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
@@ -153,4 +158,9 @@ func (o *OpGraphByTag) Shutdown(*base.Context) {
 // GetHook returns the hook for this operator
 func (o *OpGraphByTag) GetHook() interface{} {
 	return nil
+}
+
+// GetTriggers returns a list of triggers for this operator
+func (o *OpGraphByTag) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{}
 }

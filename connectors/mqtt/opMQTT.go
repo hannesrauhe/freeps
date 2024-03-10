@@ -23,6 +23,7 @@ var _ base.FreepsOperatorWithDynamicFunctions = &OpMQTT{}
 var _ base.FreepsOperatorWithConfig = &OpMQTT{}
 var _ base.FreepsOperatorWithHook = &OpMQTT{}
 var _ base.FreepsOperatorWithShutdown = &OpMQTT{}
+var _ base.FreepsOperatorWithTriggers = &OpMQTT{}
 
 func (o *OpMQTT) GetDefaultConfig() interface{} {
 	return &FreepsMqttConfig{Enabled: true, Server: "", Username: "", Password: "", Topics: []TopicConfig{}}
@@ -142,4 +143,10 @@ func (o *OpMQTT) StartListening(ctx *base.Context) {
 
 func (o *OpMQTT) Shutdown(ctx *base.Context) {
 	o.impl.Shutdown()
+}
+
+func (bt *OpMQTT) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{
+		base.NewFreepTrigger("topic", "Triggers when a message for a certain topic is received", []string{}),
+	}
 }

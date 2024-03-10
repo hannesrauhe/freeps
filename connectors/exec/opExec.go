@@ -282,6 +282,11 @@ func (o *OpExec) GetHook() interface{} {
 	return nil
 }
 
+// GetTriggers returns a list of triggers for this operator
+func (o *OpExec) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{}
+}
+
 // AddExecOperators adds executables to the config
 func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngine) error {
 	execConfig := DefaultConfig

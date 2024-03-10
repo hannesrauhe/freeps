@@ -283,20 +283,25 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 	o.functionMetaDataMap = make(map[string]FreepsFunctionMetaData)
 	t := reflect.TypeOf(o.opInstance)
 	v := reflect.ValueOf(o.opInstance)
+	baseOpT := reflect.ValueOf(o)
 	for i := 0; i < t.NumMethod(); i++ {
+		mName := t.Method(i).Name
+		if baseOpT.MethodByName(mName).IsValid() {
+			continue
+		}
 		ffType, err := getFreepsFunctionType(t.Method(i).Type)
 		if err != nil {
-			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", t.Method(i).Name, o.GetName(), err)
+			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", mName, o.GetName(), err)
 			continue
 		}
 		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
 		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
 			paramStruct, ps := o.getInitializedParamStruct(ctx, t.Method(i).Type)
 			if ps == nil && paramStruct.NumMethod() > 0 {
-				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", t.Method(i).Name, o.GetName())
+				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", mName, o.GetName())
 			}
 		}
-		o.functionMetaDataMap[utils.StringToLower(t.Method(i).Name)] = FreepsFunctionMetaData{Name: t.Method(i).Name, FuncValue: v.Method(i), FuncType: ffType}
+		o.functionMetaDataMap[utils.StringToLower(mName)] = FreepsFunctionMetaData{Name: mName, FuncValue: v.Method(i), FuncType: ffType}
 	}
 }
 
@@ -522,4 +527,13 @@ func (o *FreepsOperatorWrapper) GetHook() interface{} {
 		return opHook.GetHook()
 	}
 	return nil
+}
+
+// GetTriggers returns the triggers of the FreepsOperator if it exists
+func (o *FreepsOperatorWrapper) GetTriggers() []FreepsTrigger {
+	opTriggers, ok := o.opInstance.(FreepsOperatorWithTriggers)
+	if ok {
+		return opTriggers.GetTriggers()
+	}
+	return []FreepsTrigger{}
 }

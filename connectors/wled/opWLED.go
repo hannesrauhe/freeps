@@ -249,3 +249,8 @@ func (o *OpWLED) Shutdown(ctx *base.Context) {
 func (o *OpWLED) GetHook() interface{} {
 	return nil
 }
+
+// GetTriggers returns a list of triggers for this operator
+func (o *OpWLED) GetTriggers() []base.FreepsTrigger {
+	return []base.FreepsTrigger{}
+}
