@@ -17,7 +17,8 @@ type GraphOperationDesc struct {
 	InputFrom       string            `json:",omitempty"`
 	ExecuteOnFailOf string            `json:",omitempty"`
 	ArgumentsFrom   string            `json:",omitempty"`
-	IgnoreMainArgs  bool              `json:",omitempty"`
+	IgnoreMainArgs  bool              `json:",omitempty"` // deprecate
+	UseMainArgs     bool              `json:",omitempty"`
 }
 
 // GraphDesc contains a number of operations and defines which output to use
@@ -172,6 +173,9 @@ func (gd *GraphDesc) GetCompleteDesc(graphID string, ge *GraphEngine) (*GraphDes
 		}
 		if op.InputFrom == "" && i == 0 {
 			op.InputFrom = ROOT_SYMBOL
+		}
+		if i == 0 || !op.IgnoreMainArgs { // deprecate automatically consuming main arguments with this
+			op.UseMainArgs = true
 		}
 		if op.InputFrom != "" && outputNames[op.InputFrom] != true {
 			return &completeGraphDesc, fmt.Errorf("Operation \"%v\" references unknown inputFrom \"%v\"", op.Name, op.InputFrom)

@@ -16,13 +16,11 @@
         {
             "Operator": "system",
             "Function": "contextToDot",
-            "ignoreMainArgs": true,
             "InputFrom": "#0"
         },
         {
             "Operator": "graphviz",
             "Function": "run",
-            "ignoreMainArgs": true,
             "InputFrom": "#1"
         }
     ]

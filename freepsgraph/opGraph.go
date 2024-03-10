@@ -49,7 +49,7 @@ func (o *OpGraph) GetPossibleArgs(fn string) []string {
 	}
 	possibleArgs := make([]string, 0)
 	for _, op := range agd.Operations {
-		if op.IgnoreMainArgs {
+		if !op.UseMainArgs {
 			continue
 		}
 		thisOpArgs := o.ge.GetOperator(op.Operator).GetPossibleArgs(op.Function)
@@ -66,7 +66,7 @@ func (o *OpGraph) GetArgSuggestions(fn string, arg string, otherArgs map[string]
 	}
 	possibleValues := make(map[string]string, 0)
 	for _, op := range agd.Operations {
-		if op.IgnoreMainArgs {
+		if !op.UseMainArgs {
 			continue
 		}
 		// build a map of all arguments that will be passed to this operation on execution
