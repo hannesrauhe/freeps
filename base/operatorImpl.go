@@ -286,7 +286,8 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 	baseOpT := reflect.ValueOf(&FreepsExampleOperator{})
 	for i := 0; i < t.NumMethod(); i++ {
 		mName := t.Method(i).Name
-		if baseOpT.MethodByName(mName).IsValid() {
+		// skip methods that are not to be exported as freeps functions
+		if baseOpT.MethodByName(mName).IsValid() || utils.StringEndsWith(mName, "Suggestions") {
 			continue
 		}
 		ffType, err := getFreepsFunctionType(t.Method(i).Type)
