@@ -1,9 +1,13 @@
 package freepsutils
 
 import (
+	"os"
+	"path"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -57,4 +61,23 @@ func TestStringReplace(t *testing.T) {
 	// include regexp: all keys that start with "params", exclude regexp: all keys that contain "icon"
 	out := o.Execute(ctx, "StringReplaceMulti", args, input)
 	assert.Equal(t, out.GetString(), "1% + 2% = 3%")
+}
+
+func TestLogging(t *testing.T) {
+	tdir := t.TempDir()
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	logger.SetOutput(os.Stdout)
+	cr, err := utils.NewConfigReader(logger, path.Join(tdir, "test_config.json"))
+	ctx := base.NewContext(logger)
+	assert.NilError(t, err)
+	ge := freepsgraph.NewGraphEngine(ctx, cr, func() {})
+	availableOperators := []base.FreepsOperator{
+		&freepsstore.OpStore{CR: cr, GE: ge},
+		&OpUtils{},
+	}
+
+	for _, op := range availableOperators {
+		ge.AddOperators(base.MakeFreepsOperators(op, cr, ctx))
+	}
 }
