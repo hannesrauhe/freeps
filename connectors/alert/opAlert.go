@@ -96,7 +96,7 @@ func (aa *Alert) NameSuggestions(oc *OpAlert) []string {
 }
 
 // SetAlert creates and stores a new alert
-func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert, addArgs map[string]string) *base.OperatorIO {
+func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert, addArgs base.FunctionArguments) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
@@ -117,8 +117,7 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 		a.Alert = args
 		return base.MakeObjectOutput(a)
 	}, ctx.GetID())
-	_, noTrigger := addArgs["noTrigger"]
-	if !noTrigger {
+	if addArgs.Has("noTrigger") {
 		oc.execTriggers(ctx, a)
 	}
 	return base.MakeEmptyOutput()

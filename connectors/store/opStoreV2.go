@@ -149,8 +149,8 @@ func (p *StoreGetSetEqualArgs) GetKey(fa base.FunctionArguments) (string, error)
 }
 
 // Get returns a value from the store that is not older than the given maxAge; returns the default value or an error if the value is older or not found
-func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
-	key, err := args.GetKey(base.NewFunctionArguments(vars))
+func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
+	key, err := args.GetKey(vars)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
@@ -173,8 +173,8 @@ func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 }
 
 // Equals returns an error if the value from the store is not equal to the given value
-func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
-	key, err := args.GetKey(base.NewFunctionArguments(vars))
+func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
+	key, err := args.GetKey(vars)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
@@ -207,8 +207,8 @@ func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGe
 }
 
 // Set sets a value in the store
-func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
-	key, err := args.GetKey(base.NewFunctionArguments(vars))
+func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
+	key, err := args.GetKey(vars)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
@@ -229,7 +229,7 @@ func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 }
 
 // SetSimpleValue sets a value based on a parameter and ignores the input
-func (o *OpStore) SetSimpleValue(ctx *base.Context, input *base.OperatorIO, p StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+func (o *OpStore) SetSimpleValue(ctx *base.Context, input *base.OperatorIO, p StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
 	value := ""
 	if p.ValueArgName == nil {
 		if p.Value == nil {
@@ -237,18 +237,17 @@ func (o *OpStore) SetSimpleValue(ctx *base.Context, input *base.OperatorIO, p St
 		}
 		value = *p.Value
 	} else {
-		fa := base.NewFunctionArguments(vars)
-		if !fa.Has(*p.ValueArgName) {
+		if !vars.Has(*p.ValueArgName) {
 			return base.MakeOutputError(http.StatusBadRequest, "No value \"%v\" given", *p.ValueArgName)
 		}
-		value = fa.Get(*p.ValueArgName)
+		value = vars.Get(*p.ValueArgName)
 	}
 	return o.Set(ctx, base.MakePlainOutput(value), p, vars)
 }
 
 // Delete deletes a key from the store
-func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
-	key, err := args.GetKey(base.NewFunctionArguments(vars))
+func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
+	key, err := args.GetKey(vars)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
@@ -261,12 +260,12 @@ func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreGe
 }
 
 // Del deletes a key from the store
-func (o *OpStore) Del(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+func (o *OpStore) Del(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
 	return o.Delete(ctx, input, args, vars)
 }
 
 // Remove deletes a key from the store
-func (o *OpStore) Remove(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars map[string]string) *base.OperatorIO {
+func (o *OpStore) Remove(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
 	return o.Delete(ctx, input, args, vars)
 }
 

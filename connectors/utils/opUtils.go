@@ -187,7 +187,7 @@ type EchoArgumentsArgs struct {
 }
 
 // EchoArguments returns the arguments as a map
-func (m *OpUtils) EchoArguments(ctx *base.Context, input *base.OperatorIO, args EchoArgumentsArgs, otherArgs map[string]string) *base.OperatorIO {
+func (m *OpUtils) EchoArguments(ctx *base.Context, input *base.OperatorIO, args EchoArgumentsArgs, otherArgs base.FunctionArguments) *base.OperatorIO {
 	output := map[string]interface{}{}
 	if !input.IsEmpty() {
 		if args.InputKey != nil {
@@ -202,7 +202,7 @@ func (m *OpUtils) EchoArguments(ctx *base.Context, input *base.OperatorIO, args 
 			}
 		}
 	}
-	for k, v := range otherArgs {
+	for k, v := range otherArgs.GetOriginalCaseMapOnlyFirst() {
 		output[k] = v
 	}
 	return base.MakeObjectOutput(output)
@@ -219,14 +219,15 @@ func (m *OpUtils) MergeInputAndArguments(ctx *base.Context, input *base.Operator
 }
 
 // RemapKeys renames arguments in the input based on the given mapping
-func (m *OpUtils) RemapKeys(ctx *base.Context, input *base.OperatorIO, args EchoArgumentsArgs, mapping map[string]string) *base.OperatorIO {
+func (m *OpUtils) RemapKeys(ctx *base.Context, input *base.OperatorIO, args EchoArgumentsArgs, mapping base.FunctionArguments) *base.OperatorIO {
 	oldArgs, err := input.GetArgsMap()
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "input cannot be converted to map[string]string: %v", err)
 	}
 	output := map[string]string{}
 	for k, v := range oldArgs {
-		if newKeys, ok := mapping[k]; ok {
+		if mapping.Has(k) {
+			newKeys := mapping.Get(k) // TODO(HR): somehow this should be parse without comma I think
 			for _, newKey := range strings.Split(newKeys, ",") {
 				output[newKey] = v
 			}
@@ -280,12 +281,12 @@ type StringReplaceMultiArgs struct {
 }
 
 // StringReplaceMulti replaces given args framed with "%" with their values
-func (m *OpUtils) StringReplaceMulti(ctx *base.Context, input *base.OperatorIO, args StringReplaceMultiArgs, otherArgs map[string]string) *base.OperatorIO {
+func (m *OpUtils) StringReplaceMulti(ctx *base.Context, input *base.OperatorIO, args StringReplaceMultiArgs, otherArgs base.FunctionArguments) *base.OperatorIO {
 	inputStr := input.GetString()
 	if args.InputString != nil {
 		inputStr = *args.InputString
 	}
-	for k, v := range otherArgs {
+	for k, v := range otherArgs.GetOriginalCaseMapOnlyFirst() {
 		searchStr := "%" + k + "%"
 		inputStr = strings.Replace(inputStr, searchStr, v, -1)
 	}

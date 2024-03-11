@@ -8,3 +8,7 @@ type FunctionArguments = utils.CIMap[string]
 func NewFunctionArguments(args map[string]string) FunctionArguments {
 	return utils.NewStringCIMap(args)
 }
+
+func MakeEmptyFunctionArguments() FunctionArguments {
+	return utils.NewStringCIMap(map[string]string{})
+}

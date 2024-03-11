@@ -197,7 +197,7 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 			return FreepsFunctionTypeWithArguments, nil
 		}
 	case 5:
-		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Kind() == reflect.Struct && f.In(4) == reflect.TypeOf(map[string]string{}) {
+		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Kind() == reflect.Struct && f.In(4).Implements(reflect.TypeOf((*FunctionArguments)(nil)).Elem()) {
 			return FreepsFunctionTypeFullSignature, nil
 		}
 	}
@@ -326,10 +326,10 @@ func (o *FreepsOperatorWrapper) GetName() string {
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
 	ffm := o.getFunctionMetaData(function)
+	fa := NewFunctionArguments(args)
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
-			fa := NewFunctionArguments(args)
 			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
 		}
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
@@ -352,8 +352,7 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 		return outValue[0].Interface().(*OperatorIO)
 	}
 
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := utils.KeysToLower(args)
+	lowercaseArgs := fa.GetLowerCaseMapOnlyFirst()
 
 	// create an initialized instance of the parameter struct
 	paramStruct, ps := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
@@ -390,7 +389,8 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 				caseArgs[k] = v
 			}
 		}
-		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(caseArgs)})
+		leftOverFunctionArguments := NewFunctionArguments(caseArgs)
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(leftOverFunctionArguments)})
 		return outValue[0].Interface().(*OperatorIO)
 	}
 
