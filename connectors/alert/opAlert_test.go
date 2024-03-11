@@ -37,7 +37,7 @@ func TestOpAlert(t *testing.T) {
 
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
 	assert.Assert(t, res.GetString() == "[]")
-	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "foo", Severity: 2}, map[string]string{})
+	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "foo", Severity: 2}, base.MakeEmptyFunctionArguments())
 	assert.Assert(t, !res.IsError())
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
 	assert.Assert(t, !res.IsError() && len(res.GetString()) > 5)

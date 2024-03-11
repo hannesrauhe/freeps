@@ -16,7 +16,10 @@ func (oc *OpAlert) setTrigger(ctx *base.Context, graphId string, tags ...string)
 
 	gd.AddTags("alert")
 	gd.AddTags(tags...)
-	oc.GE.AddGraph(ctx, graphId, *gd, true)
+	err := oc.GE.AddGraph(ctx, graphId, *gd, true)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
+	}
 
 	return base.MakeEmptyOutput()
 }

@@ -31,7 +31,7 @@ type MyTestOperator struct {
 	counter int
 }
 
-func (mt *MyTestOperator) MyFavoriteFunction(ctx *Context, mainInput *OperatorIO, mf MyTestFuncParams, args map[string]string) *OperatorIO {
+func (mt *MyTestOperator) MyFavoriteFunction(ctx *Context, mainInput *OperatorIO, mf MyTestFuncParams, args FunctionArguments) *OperatorIO {
 	if mt == nil {
 		return MakeOutputError(500, "The parent object was not passed to the function")
 	}
@@ -62,7 +62,7 @@ func (mt *MyTestOperator) MyFavoriteFunction(ctx *Context, mainInput *OperatorIO
 		return MakePlainOutput("42!")
 	}
 
-	if args != nil && len(args) > 0 {
+	if args != nil && args.Size() > 0 {
 		return MakePlainOutput("other")
 	}
 
