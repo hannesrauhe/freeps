@@ -341,23 +341,6 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 	}
 }
 
-// TriggerOnExecuteOperationHooks executes hooks when an operation is executed
-func (ge *GraphEngine) TriggerOnExecuteOperationHooks(ctx *base.Context, operationIndexInContext int) {
-	hooks := ge.getHookMapCopy()
-
-	for name, h := range hooks {
-		fh, ok := h.(FreepsExecutionHook)
-		if !ok {
-			continue
-		}
-		err := fh.OnExecuteOperation(ctx, operationIndexInContext)
-		if err != nil {
-			upErr := fmt.Errorf("Execution of OperationHook \"%v\" failed with error: %v", name, err.Error())
-			ge.SetSystemAlert(ctx, "ExecuteOperationHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
-		}
-	}
-}
-
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
 func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
 	hooks := ge.getHookMapCopy()
@@ -375,8 +358,8 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 	}
 }
 
-// TriggerOnExecutionErrorHooks executes hooks when Execution of a graph fails
-func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) {
+// TriggerOnExecuteOperationHooks executes hooks immediately after an operation was executed
+func (ge *GraphEngine) TriggerOnExecuteOperationHooks(ctx *base.Context, input *base.OperatorIO, output *base.OperatorIO, graphName string, od *GraphOperationDesc) {
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
@@ -384,7 +367,7 @@ func (ge *GraphEngine) TriggerOnExecutionErrorHooks(ctx *base.Context, input *ba
 		if !ok {
 			continue
 		}
-		err := fh.OnExecutionError(ctx, input, err, graphName, od)
+		err := fh.OnExecuteOperation(ctx, input, output, graphName, od)
 		if err != nil {
 			upErr := fmt.Errorf("Execution of FailedHook \"%v\" failed with error: %v", name, err.Error())
 			ge.SetSystemAlert(ctx, "ExecutionErrorHook"+name, "system", 3, upErr, &ge.config.AlertDuration)

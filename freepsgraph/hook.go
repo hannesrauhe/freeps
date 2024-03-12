@@ -14,8 +14,7 @@ type GraphEngineHook interface {
 
 type FreepsExecutionHook interface {
 	OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
-	OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error
-	OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) error
+	OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, od *GraphOperationDesc) error
 	OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
 }
 
@@ -58,18 +57,10 @@ func (h *FreepsHookWrapper) OnExecute(ctx *base.Context, graphName string, mainA
 	return nil
 }
 
-func (h *FreepsHookWrapper) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
+func (h *FreepsHookWrapper) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, od *GraphOperationDesc) error {
 	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
-		return i.OnExecuteOperation(ctx, operationIndexInContext)
-	}
-	return nil
-}
-
-func (h *FreepsHookWrapper) OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *GraphOperationDesc) error {
-	i, ok := h.hookImpl.(FreepsExecutionHook)
-	if ok {
-		return i.OnExecutionError(ctx, input, err, graphName, od)
+		return i.OnExecuteOperation(ctx, input, opOutput, graphName, od)
 	}
 	return nil
 }

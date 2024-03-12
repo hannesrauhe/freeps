@@ -129,11 +129,11 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
 		opI := ctx.RecordOperationStart(g.GetGraphID(), finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom, finalOpDesc.Arguments)
-		g.engine.TriggerOnExecuteOperationHooks(ctx, opI)
+
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
-		if output.IsError() {
-			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
-		}
+
+		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
+
 		ctx.RecordOperationFinish(opI, output.HTTPCode)
 		return output
 	}
