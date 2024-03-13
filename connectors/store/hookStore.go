@@ -111,8 +111,8 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, remo
 	return nil
 }
 
-// OnExecutionError gets called when freepsgraph encounters an error while executing a Graph
-func (h *HookStore) OnExecutionError(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, opDetails *freepsgraph.GraphOperationDesc) error {
+// OnExecuteOperation gets called when freepsgraph encounters an error while executing a Graph
+func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, opDetails *freepsgraph.GraphOperationDesc) error {
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}

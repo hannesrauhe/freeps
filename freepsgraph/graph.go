@@ -64,7 +64,7 @@ func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput
 
 func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
 	error := base.MakeOutputError(code, msg, a...)
-	g.engine.TriggerOnExecutionErrorHooks(ctx, input, error, g.GetGraphID(), opDesc)
+	g.engine.TriggerOnExecuteOperationHooks(ctx, input, error, g.GetGraphID(), opDesc)
 	return error
 }
 
