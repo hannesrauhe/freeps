@@ -68,34 +68,6 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 	return nil
 }
 
-// OnExecuteOperation gets called when freepsgraph starts executing an Operation
-func (h *HookStore) OnExecuteOperation(ctx *base.Context, operationIndexInContext int) error {
-	if h.debugNs == nil {
-		return fmt.Errorf("missing debug namespace")
-	}
-	opDetails := ctx.GetOperation(operationIndexInContext)
-	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s", opDetails.OpDesc), func(oldValue base.OperatorIO) *base.OperatorIO {
-		fnInfo := FunctionInfo{}
-		oldValue.ParseJSON(&fnInfo)
-		fnInfo.ExecutionCounter++
-		fnInfo.LastUsedByGraph = opDetails.GraphName
-		return base.MakeObjectOutput(fnInfo)
-	}, ctx.GetID())
-
-	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", opDetails.GraphName, opDetails.OpName), base.MakeObjectOutput(opDetails.Arguments), ctx.GetID())
-	out3 := h.debugNs.SetValue(fmt.Sprintf("OperationDuration:%s.%s.", opDetails.GraphName, opDetails.OpName), base.MakeObjectOutput(opDetails.ExecutionDuration), ctx.GetID())
-	if out1.IsError() {
-		return out1.GetError()
-	}
-	if out2.IsError() {
-		return out2.GetError()
-	}
-	if out3.IsError() {
-		return out3.GetError()
-	}
-	return nil
-}
-
 // OnGraphChanged analyzes all graphs and updates the operator info
 func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, removedGraphs []string) error {
 	if h.debugNs == nil {
@@ -139,9 +111,31 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, remo
 	return nil
 }
 
-// OnExecutionError gets called when freepsgraph encounters an error while executing a Graph
-func (h *HookStore) OnExecutionError(ctx *base.Context, input *base.OperatorIO, err *base.OperatorIO, graphName string, od *freepsgraph.GraphOperationDesc) error {
-	return h.errorLog.AddError(input, err, ctx, graphName, od)
+// OnExecuteOperation gets called when freepsgraph encounters an error while executing a Graph
+func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, opDetails *freepsgraph.GraphOperationDesc) error {
+	if h.debugNs == nil {
+		return fmt.Errorf("missing debug namespace")
+	}
+	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s.%s", opDetails.Operator, opDetails.Function), func(oldValue base.OperatorIO) *base.OperatorIO {
+		fnInfo := FunctionInfo{}
+		oldValue.ParseJSON(&fnInfo)
+		fnInfo.ExecutionCounter++
+		fnInfo.LastUsedByGraph = graphName
+		return base.MakeObjectOutput(fnInfo)
+	}, ctx.GetID())
+
+	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", graphName, opDetails.Name), base.MakeObjectOutput(opDetails.Arguments), ctx.GetID())
+	if out1.IsError() {
+		return out1.GetError()
+	}
+	if out2.IsError() {
+		return out2.GetError()
+	}
+
+	if opOutput.IsError() {
+		return h.errorLog.AddError(input, opOutput, ctx, graphName, opDetails)
+	}
+	return nil
 }
 
 // OnExecutionFinished gets called when freepsgraph is finished executing a Graph
