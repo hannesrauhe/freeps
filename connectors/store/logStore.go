@@ -12,9 +12,10 @@ import (
 )
 
 type logStoreNamespace struct {
-	entries []StoreEntry
-	offset  int
-	nsLock  sync.Mutex
+	entries  []StoreEntry
+	offset   int
+	nsLock   sync.Mutex
+	AutoTrim int
 }
 
 var _ StoreNamespace = &logStoreNamespace{}
@@ -23,6 +24,9 @@ func (s *logStoreNamespace) setValueUnlocked(keyStr string, newValue *base.Opera
 	if keyStr == "" {
 		x := StoreEntry{newValue, time.Now(), modifiedBy}
 		s.entries = append(s.entries, x)
+		if s.AutoTrim > 0 && len(s.entries)%(s.AutoTrim/10) == 0 {
+			s.trimUnlocked(s.AutoTrim)
+		}
 		return x
 	}
 	keyNoOffset, err := strconv.Atoi(keyStr)
@@ -48,6 +52,16 @@ func (s *logStoreNamespace) getValueUnlocked(keyStr string) (int, StoreEntry) {
 		return -1, NotFoundEntry
 	}
 	return key, s.entries[key]
+}
+
+func (s *logStoreNamespace) trimUnlocked(k int) int {
+	if k >= len(s.entries) {
+		return 0
+	}
+	timeCut := len(s.entries) - k
+	s.entries = s.entries[timeCut:]
+	s.offset += timeCut
+	return timeCut
 }
 
 // GetValue from the StoreNamespace
@@ -233,11 +247,5 @@ func (s *logStoreNamespace) Trim(k int) int {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 
-	if k >= len(s.entries) {
-		return 0
-	}
-	timeCut := len(s.entries) - k
-	s.entries = s.entries[timeCut:]
-	s.offset += timeCut
-	return timeCut
+	return s.trimUnlocked(k)
 }

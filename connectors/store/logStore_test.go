@@ -88,3 +88,27 @@ func TestLogExpiration(t *testing.T) {
 	vm := nsStore.GetAllValues(100)
 	assert.Equal(t, vm["101"].GetString(), "101")
 }
+
+func TestAutoTrim(t *testing.T) {
+	nsStore := logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}, AutoTrim: 100}
+
+	i := 0
+	for i < 100 {
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		i += 1
+	}
+
+	e := nsStore.GetValue("5")
+	assert.Assert(t, !e.IsError())
+	assert.Equal(t, e.GetData().GetString(), "5")
+
+	assert.Equal(t, nsStore.Len(), 100)
+
+	for i < 130 {
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		i += 1
+		assert.Assert(t, nsStore.Len() < 110)
+	}
+
+	assert.Equal(t, nsStore.Len(), 100)
+}

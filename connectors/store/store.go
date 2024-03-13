@@ -141,7 +141,7 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 		case "memory":
 			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
 		case "log":
-			nsStore = &logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}}
+			nsStore = &logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}, AutoTrim: namespaceConfig.AutoTrim}
 		case "null":
 			nsStore = &NullStoreNamespace{}
 		default:
