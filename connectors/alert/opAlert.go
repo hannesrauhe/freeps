@@ -219,7 +219,7 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 	if len(activeAlerts) == 1 {
 		a := activeAlerts[0]
 		if a.Desc != nil {
-			return base.MakeSprintfOutput("Alert: %v", *a.Desc)
+			return base.MakePlainOutput(*a.Desc)
 		}
 		if a.Category == nil {
 			return base.MakeSprintfOutput("Alert: %v", a.Name)

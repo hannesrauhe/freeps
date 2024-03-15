@@ -75,6 +75,10 @@
 		<button type="submit" name="ExecuteWithInput" value="Execute">Execute</button>
 	</p>
 </form>
+
+{{ if ne .GraphName "" }}
+<a href="/ui/store.html?namespace=_execution_log&modifiedby={{ .GraphName }}">{{ .GraphName }}</a>
+{{ end }}
 {{ if ne .Output "" }}
 <iframe name="outputframe"
 	style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden"

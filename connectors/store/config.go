@@ -1,15 +1,8 @@
 package freepsstore
 
-import (
-	"os"
-
-	"github.com/hannesrauhe/freeps/utils"
-)
-
 var fileNamespace = "_files"
 var debugNamespace = "_debug"
 var executionLogNamespace = "_execution_log"
-var errorNamespace = "_error_log"
 
 // StoreConfig contains all start-parameters for the store
 type StoreConfig struct {
@@ -28,6 +21,9 @@ type StoreNamespaceConfig struct {
 	/* postgres */
 	SchemaName string `json:",omitempty"`
 	TableName  string `json:",omitempty"`
+
+	/* log */
+	AutoTrim int `json:",omitempty"`
 }
 
 func getDefaultNamespaces() map[string]StoreNamespaceConfig {
@@ -37,17 +33,18 @@ func getDefaultNamespaces() map[string]StoreNamespaceConfig {
 	}
 
 	// get the hostname of this computer
-	hostname, err := os.Hostname()
-	if err != nil {
-		panic("could not get hostname")
-	}
+	// hostname, err := os.Hostname()
+	// if err != nil {
+	// 	panic("could not get hostname")
+	// }
+	// namespaces[executionLogNamespace] = StoreNamespaceConfig{
+	// 	NamespaceType: "postgres",
+	// 	SchemaName:    "freeps_" + utils.StringToIdentifier(hostname),
+	// 	TableName:     "_execution_log",
+	// }
 	namespaces[executionLogNamespace] = StoreNamespaceConfig{
-		NamespaceType: "postgres",
-		SchemaName:    "freeps_" + utils.StringToIdentifier(hostname),
-		TableName:     "_execution_log",
-	}
-	namespaces[errorNamespace] = StoreNamespaceConfig{
 		NamespaceType: "log",
+		AutoTrim:      10000,
 	}
 	namespaces[debugNamespace] = StoreNamespaceConfig{
 		NamespaceType: "memory",

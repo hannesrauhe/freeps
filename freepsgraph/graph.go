@@ -42,8 +42,6 @@ func (g *Graph) GetGraphID() string {
 }
 
 func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
-	ctx.IncreaseNesting()
-	defer ctx.DecreaseNesting()
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {
@@ -64,7 +62,7 @@ func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput
 
 func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
 	error := base.MakeOutputError(code, msg, a...)
-	g.engine.TriggerOnExecutionErrorHooks(ctx, input, error, g.GetGraphID(), opDesc)
+	g.engine.TriggerOnExecuteOperationHooks(ctx, input, error, g.GetGraphID(), opDesc)
 	return error
 }
 
@@ -128,13 +126,10 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
-		opI := ctx.RecordOperationStart(g.GetGraphID(), finalOpDesc.Operator+"."+finalOpDesc.Function, finalOpDesc.Name, finalOpDesc.InputFrom, finalOpDesc.Arguments)
-		g.engine.TriggerOnExecuteOperationHooks(ctx, opI)
+
 		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
-		if output.IsError() {
-			g.engine.TriggerOnExecutionErrorHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
-		}
-		ctx.RecordOperationFinish(opI, output.HTTPCode)
+
+		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
 		return output
 	}
 	return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
