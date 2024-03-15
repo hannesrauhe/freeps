@@ -46,7 +46,7 @@ func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArg
 // ExecuteOperatorByName executes an operator directly
 func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
-	return ge.ExecuteAdHocGraph(ctx, name, GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn}}}, mainArgs, mainInput)
+	return ge.ExecuteAdHocGraph(ctx, name, GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn, UseMainArgs: true}}}, mainArgs, mainInput)
 }
 
 // ExecuteGraphByTags executes graphs with given tags
@@ -77,7 +77,7 @@ func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [
 	// need to build a temporary graph containing all graphs with matching tags
 	op := []GraphOperationDesc{}
 	for n := range tg {
-		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n, InputFrom: "_"})
+		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n, InputFrom: "_", UseMainArgs: true})
 	}
 	gd := GraphDesc{Operations: op, Tags: []string{"internal"}}
 	name := fmt.Sprintf("ExecuteGraphByTag/%v", tagGroups)

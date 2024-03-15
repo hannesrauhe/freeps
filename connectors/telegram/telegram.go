@@ -235,7 +235,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.sendStartMessage(&msg)
 			return
 		}
-		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}}}, Source: "telegram"}
+		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}, UseMainArgs: true}}, Source: "telegram"}
 		freepsstore.StoreGraph(tcr.T, tpl, ctx.GetID())
 		op, gd = m.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + gd.Operations[0].Operator
