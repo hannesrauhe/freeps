@@ -34,6 +34,11 @@ func TestDefaultCIMap(t *testing.T) {
 	slices.Sort(a)
 	assert.DeepEqual(t, a, []string{"B", "a"})
 
+	b := m1.GetOriginalCaseMapOnlyFirst()
+	for expectK, expectedV := range testMap {
+		assert.Equal(t, b[expectK], expectedV)
+	}
+
 	var testValue = map[string][]string{
 		// because of map-internal hashing we don't know which one comes first
 		"a": {"vala", "vala2"},
@@ -49,3 +54,25 @@ func TestDefaultCIMap(t *testing.T) {
 	assert.Equal(t, len(m2.GetArray("c")), 0)
 	assert.Assert(t, m2.GetArray("c") != nil)
 }
+
+// func TestMixedInsertCIMap(t *testing.T) {
+// 	var testMap = map[string]string{
+// 		"a": "valA",
+// 		"B": "valB",
+// 		"b": "valb",
+// 	}
+
+// 	m1 := NewStringCIMap(testMap)
+
+// 	// b or B will not appear in map with current impl
+// 	b := m1.GetOriginalCaseMap()
+// 	for expectK, expectedV := range testMap {
+// 		found := false
+// 		for _, v := range b[expectK] {
+// 			if v == expectedV {
+// 				found = true
+// 			}
+// 		}
+// 		assert.Assert(t, found)
+// 	}
+// }
