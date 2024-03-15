@@ -20,7 +20,7 @@ type GraphFromEngineArgs struct {
 	GraphID string
 }
 
-// GraphNameSuggestions returns suggestions for graph names
+// GraphID auggestions returns suggestions for graph names
 func (arg *GraphFromEngineArgs) GraphIDSuggestions(m *OpGraphBuilder) map[string]string {
 	graphNames := map[string]string{}
 	res := m.GE.GetAllGraphDesc()
