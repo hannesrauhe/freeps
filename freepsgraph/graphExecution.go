@@ -80,7 +80,7 @@ func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [
 		op = append(op, GraphOperationDesc{Name: n, Operator: "graph", Function: n, InputFrom: "_"})
 	}
 	gd := GraphDesc{Operations: op, Tags: []string{"internal"}}
-	name := "ExecuteGraphByTag"
+	name := fmt.Sprintf("ExecuteGraphByTag/%v", tagGroups)
 
 	return ge.ExecuteAdHocGraph(ctx, name, gd, args, input)
 }
