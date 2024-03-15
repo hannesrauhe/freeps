@@ -350,5 +350,5 @@ func (o *OpStore) GetHook() interface{} {
 		// set alert
 	}
 
-	return &HookStore{executionLogNs: eLog, debugNs: debugNs, errorLog: NewCollectedErrors(store.config), GE: o.GE}
+	return &HookStore{executionLogNs: eLog, debugNs: debugNs, GE: o.GE}
 }

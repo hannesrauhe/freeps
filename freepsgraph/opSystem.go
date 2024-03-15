@@ -59,17 +59,6 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 		}
 		return base.MakeObjectOutput(gim)
 
-	case "contextToDot":
-		var iCtx base.ContextNoTime
-		if input.IsEmpty() {
-			return base.MakeOutputError(http.StatusBadRequest, "No context to parse")
-		}
-		err := input.ParseJSON(&iCtx)
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "Unable to parse context: %v", err)
-		}
-		return base.MakePlainOutput(iCtx.ToDot())
-
 	case "stats":
 		return o.Stats(ctx, fn, args, input)
 

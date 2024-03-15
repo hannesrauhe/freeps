@@ -11,7 +11,6 @@ import (
 type HookStore struct {
 	executionLogNs StoreNamespace
 	debugNs        StoreNamespace
-	errorLog       *CollectedErrors
 	GE             *freepsgraph.GraphEngine
 }
 
@@ -111,6 +110,14 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, remo
 	return nil
 }
 
+type ExecutionLogEntry struct {
+	Input      string
+	Output     string
+	OutputCode int
+	GraphID    string
+	Operation  *freepsgraph.GraphOperationDesc
+}
+
 // OnExecuteOperation gets called when freepsgraph encounters an error while executing a Graph
 func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, opDetails *freepsgraph.GraphOperationDesc) error {
 	if h.debugNs == nil {
@@ -132,23 +139,18 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO
 		return out2.GetError()
 	}
 
-	if opOutput.IsError() {
-		return h.errorLog.AddError(input, opOutput, ctx, graphName, opDetails)
+	if h.executionLogNs == nil {
+		return fmt.Errorf("executionLog namespace missing")
+	}
+	out := h.executionLogNs.SetValue("", base.MakeObjectOutput(ExecutionLogEntry{Input: input.GetString(), Output: opOutput.GetString(), OutputCode: opOutput.HTTPCode, GraphID: graphName, Operation: opDetails}), ctx.GetID())
+	if out.IsError() {
+		return out.GetError()
 	}
 	return nil
 }
 
 // OnExecutionFinished gets called when freepsgraph is finished executing a Graph
 func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
-	if h.executionLogNs == nil {
-		return fmt.Errorf("executionLog namespace missing")
-	}
-	if !ctx.IsRootContext() {
-		return nil
-	}
-	out := h.executionLogNs.SetValue(ctx.GetID(), base.MakeObjectOutput(ctx), ctx.GetID()).GetData()
-	if out.IsError() {
-		return out.GetError()
-	}
+
 	return nil
 }

@@ -23,6 +23,7 @@ type StoreEntry struct {
 // ReadableStoreEntry is a StoreEntry with a more readable timestamp
 type ReadableStoreEntry struct {
 	Value      string
+	RawValue   interface{}
 	Age        string
 	ModifiedBy string
 }
@@ -37,7 +38,7 @@ func MakeEntryError(code int, format string, args ...interface{}) StoreEntry {
 
 // GetHumanReadable returns a readable version of the entry
 func (v StoreEntry) GetHumanReadable() ReadableStoreEntry {
-	return ReadableStoreEntry{v.data.GetString(), time.Now().Sub(v.timestamp).String(), v.modifiedBy}
+	return ReadableStoreEntry{v.data.GetString(), v.data.Output, time.Now().Sub(v.timestamp).String(), v.modifiedBy}
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
@@ -141,7 +142,7 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 		case "memory":
 			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
 		case "log":
-			nsStore = &logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}}
+			nsStore = &logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}, AutoTrim: namespaceConfig.AutoTrim}
 		case "null":
 			nsStore = &NullStoreNamespace{}
 		default:
