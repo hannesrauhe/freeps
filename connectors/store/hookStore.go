@@ -114,7 +114,7 @@ type ExecutionLogEntry struct {
 	Input      string
 	Output     string
 	OutputCode int
-	GraphName  string
+	GraphID    string
 	Operation  *freepsgraph.GraphOperationDesc
 }
 
@@ -142,7 +142,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO
 	if h.executionLogNs == nil {
 		return fmt.Errorf("executionLog namespace missing")
 	}
-	out := h.executionLogNs.SetValue("", base.MakeObjectOutput(ExecutionLogEntry{Input: input.GetString(), Output: opOutput.GetString(), OutputCode: opOutput.HTTPCode, GraphName: graphName, Operation: opDetails}), ctx.GetID())
+	out := h.executionLogNs.SetValue("", base.MakeObjectOutput(ExecutionLogEntry{Input: input.GetString(), Output: opOutput.GetString(), OutputCode: opOutput.HTTPCode, GraphID: graphName, Operation: opDetails}), ctx.GetID())
 	if out.IsError() {
 		return out.GetError()
 	}
