@@ -38,7 +38,9 @@ func TestDefaultCIMap(t *testing.T) {
 	for expectK, expectedV := range testMap {
 		assert.Equal(t, b[expectK], expectedV)
 	}
+}
 
+func TestMultiValueMap(t *testing.T) {
 	var testValue = map[string][]string{
 		// because of map-internal hashing we don't know which one comes first
 		"a": {"vala", "vala2"},
@@ -47,7 +49,7 @@ func TestDefaultCIMap(t *testing.T) {
 	m2 := NewStringCIMapFromValues(testValue)
 	assert.Equal(t, strings.ToLower(m2.Get("a")), "vala")
 	assert.Equal(t, strings.ToLower(m2.Get("A")), "vala")
-	a = m2.GetArray("A")
+	a := m2.GetArray("A")
 	slices.Sort(a)
 	assert.DeepEqual(t, a, []string{"valA", "vala", "vala2"})
 
@@ -55,24 +57,24 @@ func TestDefaultCIMap(t *testing.T) {
 	assert.Assert(t, m2.GetArray("c") != nil)
 }
 
-// func TestMixedInsertCIMap(t *testing.T) {
-// 	var testMap = map[string]string{
-// 		"a": "valA",
-// 		"B": "valB",
-// 		"b": "valb",
-// 	}
+func TestMixedInsertCIMap(t *testing.T) {
+	var testMap = map[string]string{
+		"a": "valA",
+		"B": "valB",
+		"b": "valb",
+	}
 
-// 	m1 := NewStringCIMap(testMap)
+	m1 := NewStringCIMap(testMap)
 
-// 	// b or B will not appear in map with current impl
-// 	b := m1.GetOriginalCaseMap()
-// 	for expectK, expectedV := range testMap {
-// 		found := false
-// 		for _, v := range b[expectK] {
-// 			if v == expectedV {
-// 				found = true
-// 			}
-// 		}
-// 		assert.Assert(t, found)
-// 	}
-// }
+	// b or B will not appear in map with current impl
+	b := m1.GetOriginalCaseMap()
+	for expectK, expectedV := range testMap {
+		found := false
+		for _, v := range b[expectK] {
+			if v == expectedV {
+				found = true
+			}
+		}
+		assert.Assert(t, found)
+	}
+}
