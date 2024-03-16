@@ -62,48 +62,43 @@ func (op *OpPixelDisplay) Shutdown(ctx *base.Context) {
 	op.display.Shutdown()
 }
 
-// GetDisplay returns the display given by the arguments
-func (op *OpPixelDisplay) GetDisplay() Pixeldisplay {
-	return op.display
-}
-
 func (op *OpPixelDisplay) TurnOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return d.TurnOn()
 }
 
 func (op *OpPixelDisplay) TurnOff(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return d.TurnOff()
 }
 
 func (op *OpPixelDisplay) GetDimensions(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return base.MakeObjectOutput(d.GetDimensions())
 }
 
 func (op *OpPixelDisplay) GetMaxPictureSize(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return base.MakeObjectOutput(d.GetMaxPictureSize())
 }
 
 func (op *OpPixelDisplay) GetColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return base.MakeObjectOutput(d.GetColor())
 }
 
 func (op *OpPixelDisplay) GetBackgroundColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return base.MakeObjectOutput(d.GetBackgroundColor())
 }
 
 func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return base.MakeObjectOutput(d.GetBrightness())
 }
 
 func (op *OpPixelDisplay) IsOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return base.MakeObjectOutput(d.IsOn())
 }
 
@@ -112,7 +107,7 @@ type ColorArgs struct {
 }
 
 func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	c, err := utils.ParseHexColor(args.Color)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
@@ -121,7 +116,7 @@ func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, ar
 }
 
 func (op *OpPixelDisplay) SetBackgroundColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	c, err := utils.ParseHexColor(args.Color)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
@@ -134,7 +129,7 @@ type BrightnessArgs struct {
 }
 
 func (op *OpPixelDisplay) SetBrightness(ctx *base.Context, input *base.OperatorIO, args BrightnessArgs) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return d.SetBrightness(args.Brightness)
 }
 
@@ -143,7 +138,7 @@ type TextArgs struct {
 }
 
 func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, args TextArgs) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	t := NewText2Pixeldisplay(d)
 	text := ""
 	if !input.IsEmpty() {
@@ -160,7 +155,7 @@ type ImageArgs struct {
 }
 
 func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, args ImageArgs) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	var binput []byte
 	var contentType string
 	var img image.Image
@@ -208,6 +203,6 @@ type EffectArgs struct {
 
 // SetEffect sets the effect
 func (op *OpPixelDisplay) SetEffect(ctx *base.Context, input *base.OperatorIO, args EffectArgs) *base.OperatorIO {
-	d := op.GetDisplay()
+	d := op.display
 	return d.SetEffect(args.Fx)
 }

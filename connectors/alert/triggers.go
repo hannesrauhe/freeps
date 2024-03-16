@@ -16,7 +16,10 @@ func (oc *OpAlert) setTrigger(ctx *base.Context, graphId string, tags ...string)
 
 	gd.AddTags("alert")
 	gd.AddTags(tags...)
-	oc.GE.AddGraph(ctx, graphId, *gd, true)
+	err := oc.GE.AddGraph(ctx, graphId, *gd, true)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
+	}
 
 	return base.MakeEmptyOutput()
 }
@@ -24,6 +27,22 @@ func (oc *OpAlert) setTrigger(ctx *base.Context, graphId string, tags ...string)
 type SeverityTrigger struct {
 	Severity int
 	GraphID  string
+}
+
+// GraphID auggestions returns suggestions for graph names
+func (arg *SeverityTrigger) GraphIDSuggestions(m *OpAlert) map[string]string {
+	graphNames := map[string]string{}
+	res := m.GE.GetAllGraphDesc()
+	for id, gd := range res {
+		info, _ := gd.GetCompleteDesc(id, m.GE)
+		_, exists := graphNames[info.DisplayName]
+		if !exists {
+			graphNames[info.DisplayName] = id
+		} else {
+			graphNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
+		}
+	}
+	return graphNames
 }
 
 // SetSeverityTrigger
@@ -44,7 +63,7 @@ func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetada
 		desc := fmt.Sprintf("Cannot parse alert: %v", err)
 		category := "alertOp"
 		// disable triggers so we do not run into endless loops:
-		oc.SetAlert(causedByCtx, base.MakeEmptyOutput(), Alert{Name: "AlertGraphTrigger", Desc: &desc, Category: &category}, map[string]string{"noTrigger": "1"})
+		oc.SetAlert(causedByCtx, base.MakeEmptyOutput(), Alert{Name: "AlertGraphTrigger", Desc: &desc, Category: &category}, base.NewFunctionArguments(map[string]string{"noTrigger": "1"}))
 	}
 
 	oc.GE.ExecuteGraphByTagsExtended(causedByCtx, tagGroups, args, base.MakeEmptyOutput())

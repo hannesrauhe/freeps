@@ -143,7 +143,7 @@ func (o *OperatorFlux) FieldTypeSuggestions() []string {
 	return []string{"float", "float64", "int", "int64", "bool"}
 }
 
-func (o *OperatorFlux) PushSingleField(ctx *base.Context, input *base.OperatorIO, args PushArguments, tags map[string]string) *base.OperatorIO {
+func (o *OperatorFlux) PushSingleField(ctx *base.Context, input *base.OperatorIO, args PushArguments, tags base.FunctionArguments) *base.OperatorIO {
 	fields := map[string]interface{}{}
 	var err error
 	if args.FieldType == nil {
@@ -155,7 +155,7 @@ func (o *OperatorFlux) PushSingleField(ctx *base.Context, input *base.OperatorIO
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
 
-	err = o.ff.PushFields(args.Measurement, tags, fields, ctx)
+	err = o.ff.PushFields(args.Measurement, tags.GetOriginalCaseMapOnlyFirst(), fields, ctx)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
@@ -166,7 +166,7 @@ type PushMeasurementArguments struct {
 	Measurement string
 }
 
-func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO, args PushMeasurementArguments, tags map[string]string) *base.OperatorIO {
+func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO, args PushMeasurementArguments, tags base.FunctionArguments) *base.OperatorIO {
 	if input.IsEmpty() {
 		return base.MakeOutputError(http.StatusBadRequest, "no input")
 	}
@@ -179,7 +179,7 @@ func (o *OperatorFlux) PushMeasurement(ctx *base.Context, input *base.OperatorIO
 		return base.MakeOutputError(http.StatusBadRequest, "empty fields map")
 	}
 
-	err = o.ff.PushFields(args.Measurement, tags, fields, ctx)
+	err = o.ff.PushFields(args.Measurement, tags.GetOriginalCaseMapOnlyFirst(), fields, ctx)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}

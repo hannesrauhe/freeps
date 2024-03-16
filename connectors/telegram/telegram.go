@@ -183,7 +183,7 @@ func (m *OpTelegram) sendStartMessage(msg *tgbotapi.MessageConfig) {
 	m.sendMessage(msg)
 }
 
-func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText string) {
+func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText string) {
 	telelogger := log.WithField("component", "telegram").WithField("chat", chat.ID)
 	ctx := base.NewContext(telelogger)
 
@@ -235,7 +235,7 @@ func (m *OpTelegram) Respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.sendStartMessage(&msg)
 			return
 		}
-		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}}}, Source: "telegram"}
+		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}, UseMainArgs: true}}, Source: "telegram"}
 		freepsstore.StoreGraph(tcr.T, tpl, ctx.GetID())
 		op, gd = m.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + gd.Operations[0].Operator
@@ -322,13 +322,13 @@ func (m *OpTelegram) mainLoop() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			m.Respond(update.CallbackQuery.Message.Chat, update.CallbackQuery.Data, "")
+			m.respond(update.CallbackQuery.Message.Chat, update.CallbackQuery.Data, "")
 			continue
 		}
 		if update.Message == nil { // ignore any non-Message updates
 			continue
 		}
-		m.Respond(update.Message.Chat, "", update.Message.Text)
+		m.respond(update.Message.Chat, "", update.Message.Text)
 	}
 	log.Print("Telegram Main Loop stopped")
 	m.closeChan <- 1

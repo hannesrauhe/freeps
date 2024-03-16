@@ -197,7 +197,7 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 			return FreepsFunctionTypeWithArguments, nil
 		}
 	case 5:
-		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Kind() == reflect.Struct && f.In(4) == reflect.TypeOf(map[string]string{}) {
+		if f.In(1) == reflect.TypeOf(&Context{}) && f.In(2) == reflect.TypeOf(&OperatorIO{}) && f.In(3).Kind() == reflect.Struct && f.In(4).Implements(reflect.TypeOf((*FunctionArguments)(nil)).Elem()) {
 			return FreepsFunctionTypeFullSignature, nil
 		}
 	}
@@ -283,20 +283,26 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 	o.functionMetaDataMap = make(map[string]FreepsFunctionMetaData)
 	t := reflect.TypeOf(o.opInstance)
 	v := reflect.ValueOf(o.opInstance)
+	baseOpT := reflect.ValueOf(&FreepsExampleOperator{})
 	for i := 0; i < t.NumMethod(); i++ {
+		mName := t.Method(i).Name
+		// skip methods that are not to be exported as freeps functions
+		if baseOpT.MethodByName(mName).IsValid() || utils.StringEndsWith(mName, "Suggestions") {
+			continue
+		}
 		ffType, err := getFreepsFunctionType(t.Method(i).Type)
 		if err != nil {
-			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", t.Method(i).Name, o.GetName(), err)
+			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", mName, o.GetName(), err)
 			continue
 		}
 		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
 		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
 			paramStruct, ps := o.getInitializedParamStruct(ctx, t.Method(i).Type)
 			if ps == nil && paramStruct.NumMethod() > 0 {
-				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", t.Method(i).Name, o.GetName())
+				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", mName, o.GetName())
 			}
 		}
-		o.functionMetaDataMap[utils.StringToLower(t.Method(i).Name)] = FreepsFunctionMetaData{Name: t.Method(i).Name, FuncValue: v.Method(i), FuncType: ffType}
+		o.functionMetaDataMap[utils.StringToLower(mName)] = FreepsFunctionMetaData{Name: mName, FuncValue: v.Method(i), FuncType: ffType}
 	}
 }
 
@@ -320,10 +326,10 @@ func (o *FreepsOperatorWrapper) GetName() string {
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
 	ffm := o.getFunctionMetaData(function)
+	fa := NewFunctionArguments(args)
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
-			fa := NewFunctionArguments(args)
 			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
 		}
 		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
@@ -346,8 +352,7 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 		return outValue[0].Interface().(*OperatorIO)
 	}
 
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := utils.KeysToLower(args)
+	lowercaseArgs := fa.GetLowerCaseMapOnlyFirst()
 
 	// create an initialized instance of the parameter struct
 	paramStruct, ps := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
@@ -384,7 +389,8 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 				caseArgs[k] = v
 			}
 		}
-		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(caseArgs)})
+		leftOverFunctionArguments := NewFunctionArguments(caseArgs)
+		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(leftOverFunctionArguments)})
 		return outValue[0].Interface().(*OperatorIO)
 	}
 

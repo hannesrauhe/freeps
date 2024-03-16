@@ -46,7 +46,7 @@ func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {
 		operation := g.desc.Operations[i]
-		output := g.executeOperation(ctx, &operation, mainArgs)
+		output := g.executeOperation(ctx, &operation, base.NewFunctionArguments(mainArgs))
 		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 		g.opOutputs[operation.Name] = output
 	}
@@ -66,7 +66,7 @@ func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.Op
 	return error
 }
 
-func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs map[string]string) *base.OperatorIO {
+func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
 	logger := ctx.GetLogger()
 	input := base.MakeEmptyOutput()
 	if originalOpDesc.InputFrom != "" {
@@ -94,7 +94,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 		}
 	}
 	if finalOpDesc.UseMainArgs {
-		for k, v := range mainArgs {
+		for k, v := range mainArgs.GetOriginalCaseMapOnlyFirst() {
 			if _, ok := finalOpDesc.Arguments[k]; ok {
 				logger.Warnf("Argument %s overwritten by main arg", k)
 			}

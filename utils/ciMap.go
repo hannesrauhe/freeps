@@ -168,7 +168,7 @@ func (fa *CIMapImpl[Val]) GetLowerCaseMapOnlyFirst() map[string]Val {
 func (fa *CIMapImpl[Val]) GetOriginalCaseMap() map[string][]Val {
 	ret := make(map[string][]Val)
 	for k, v := range fa.KeyMapping {
-		ret[k] = fa.LcMap[v]
+		ret[v] = fa.LcMap[k]
 	}
 	return ret
 }
@@ -177,8 +177,8 @@ func (fa *CIMapImpl[Val]) GetOriginalCaseMap() map[string][]Val {
 func (fa *CIMapImpl[Val]) GetOriginalCaseMapOnlyFirst() map[string]Val {
 	ret := make(map[string]Val)
 	for k, v := range fa.KeyMapping {
-		if len(fa.LcMap[v]) > 0 {
-			ret[k] = fa.LcMap[v][0]
+		if len(fa.LcMap[k]) > 0 {
+			ret[v] = fa.LcMap[k][0]
 		}
 	}
 	return ret

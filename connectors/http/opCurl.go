@@ -6,7 +6,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 
@@ -49,13 +48,9 @@ type CurlArgs struct {
 }
 
 // PostForm executes a POST request to the given URL with the given form fields and returns either the response body or information about the downloaded file if an output file is specified
-func (o *OpCurl) PostForm(ctx *base.Context, mainInput *base.OperatorIO, args CurlArgs, formFields map[string]string) *base.OperatorIO {
+func (o *OpCurl) PostForm(ctx *base.Context, mainInput *base.OperatorIO, args CurlArgs, formFields base.FunctionArguments) *base.OperatorIO {
 	c := http.Client{}
-	data := url.Values{}
-	for k, v := range formFields {
-		data.Set(k, v)
-	}
-	resp, err := c.PostForm(args.URL, data)
+	resp, err := c.PostForm(args.URL, formFields.GetOriginalCaseMap())
 	return o.handleResponse(resp, err, ctx, args)
 }
 
