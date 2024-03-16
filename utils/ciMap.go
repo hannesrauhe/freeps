@@ -22,7 +22,7 @@ type CIMap[Val any] interface {
 	GetOriginalCaseMapOnlyFirst() map[string]Val
 	GetLowerCaseMapOnlyFirst() map[string]Val
 	GetOriginalCaseMap() map[string][]Val
-	// Size() int
+	IsEmpty() bool
 }
 
 // CIMapImpl is a struct similar to url.Values that allows case-insensitive comparisons but stores the orignal case
@@ -188,7 +188,7 @@ func (fa *CIMapImpl[Val]) GetOriginalCaseMapOnlyFirst() map[string]Val {
 	return ret
 }
 
-// // Size returns the number of keys
-// func (fa *CIMapImpl[Val]) Size() int {
-// 	return len(fa.OriginalMap)
-// }
+// IsEmpty returns true if there are no keys in the map
+func (fa *CIMapImpl[Val]) IsEmpty() bool {
+	return len(fa.OriginalMap) == 0
+}
