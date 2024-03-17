@@ -1,6 +1,10 @@
 package utils
 
-import "strings"
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
 
 // CIMap is a struct that can be used to pass arguments to a function
 type CIMap[Val any] interface {
@@ -10,8 +14,8 @@ type CIMap[Val any] interface {
 	Get(key string) Val
 	// GetOrDefault returns the first value stored for key or the given default value if key is not in map
 	GetOrDefault(key string, defaultVal Val) Val
-	// GetArray returns all values stored for key
-	GetArray(key string) []Val
+	// GetValues returns all values stored for key
+	GetValues(key string) []Val
 
 	// GetLowerCaseKeys returns the stored keys in lower case
 	GetLowerCaseKeys() []string
@@ -19,9 +23,14 @@ type CIMap[Val any] interface {
 	GetKeys() []string
 
 	GetOriginalCase(key string) string // problematic -> what to do if key does not exist
-	GetOriginalCaseMapOnlyFirst() map[string]Val
-	GetLowerCaseMapOnlyFirst() map[string]Val
+
 	GetOriginalCaseMap() map[string][]Val
+	GetOriginalCaseMapOnlyFirst() map[string]Val
+	GetOriginalCaseMapJoined() map[string]Val
+	GetLowerCaseMap() map[string][]Val
+	GetLowerCaseMapOnlyFirst() map[string]Val
+	GetLowerCaseMapJoined() map[string]Val
+
 	IsEmpty() bool
 }
 
@@ -36,14 +45,34 @@ type CIMapImpl[Val any] struct {
 
 var _ CIMap[string] = &CIMapImpl[string]{}
 
-func appendToMultiMap[Val any](m map[string][]Val, k string, v Val) {
+func appendToMultiMap[Val any](m map[string][]Val, k string, v ...Val) {
 	_, exists := m[k]
 	if exists {
-		m[k] = append(m[k], v)
+		m[k] = append(m[k], v...)
 	} else {
-		m[k] = []Val{v}
+		m[k] = v
 	}
 
+}
+
+func joinMultiMap[Val any](m map[string][]Val) map[string]string {
+	retMap := map[string]string{}
+	for k, vList := range m {
+		if len(vList) > 1 {
+			retStr := ""
+			for i, v := range vList {
+				if i == 0 {
+					retStr = fmt.Sprintf("%v", vList[0])
+				} else {
+					retStr = fmt.Sprintf("%v,%v", retStr, v)
+				}
+			}
+			retMap[k] = retStr
+		} else {
+			retMap[k] = fmt.Sprintf("%v", vList[0])
+		}
+	}
+	return retMap
 }
 
 // NewStringCIMap creates a new CIMap struct from the given map
@@ -57,6 +86,9 @@ func NewStringCIMap(args map[string]string) CIMap[string] {
 		ret.OriginalMap[k] = []string{v}
 		lk := strings.ToLower(k)
 		appendToMultiMap(ret.lowerKeyMapping, lk, k)
+	}
+	for _, kList := range ret.lowerKeyMapping {
+		slices.Sort(kList)
 	}
 	return ret
 }
@@ -72,6 +104,9 @@ func NewStringCIMapFromValues(args map[string][]string) CIMap[string] {
 		ret.OriginalMap[k] = v
 		lk := strings.ToLower(k)
 		appendToMultiMap(ret.lowerKeyMapping, lk, k)
+	}
+	for _, kList := range ret.lowerKeyMapping {
+		slices.Sort(kList)
 	}
 	return ret
 }
@@ -115,8 +150,8 @@ func (fa *CIMapImpl[Val]) GetOrDefault(key string, defaultVal Val) Val {
 	return defaultVal
 }
 
-// GetArray returns all values for the given key
-func (fa *CIMapImpl[Val]) GetArray(key string) []Val {
+// GetValues returns all values for the given key
+func (fa *CIMapImpl[Val]) GetValues(key string) []Val {
 	ret := []Val{}
 	lk := strings.ToLower(key)
 	for _, ak := range fa.lowerKeyMapping[lk] {
@@ -155,16 +190,15 @@ func (fa *CIMapImpl[Val]) GetOriginalCase(key string) string {
 // GetLowerCaseMap returns a map of all keys in lower case
 func (fa *CIMapImpl[Val]) GetLowerCaseMap() map[string][]Val {
 	ret := make(map[string][]Val)
-	for key, vList := range fa.OriginalMap {
-		lk := strings.ToLower(key)
-		for _, v := range vList {
-			appendToMultiMap(ret, lk, v)
+	for lk, kList := range fa.lowerKeyMapping {
+		for _, k := range kList {
+			appendToMultiMap(ret, lk, fa.OriginalMap[k]...)
 		}
 	}
 	return ret
 }
 
-// GetLowerCaseMapOnlyFirst returns a map of all keys in lower case
+// GetLowerCaseMapOnlyFirst returns a map of all keys in lower case with only a single value
 func (fa *CIMapImpl[Val]) GetLowerCaseMapOnlyFirst() map[string]Val {
 	ret := make(map[string]Val)
 	for k, v := range fa.OriginalMap {
@@ -172,6 +206,11 @@ func (fa *CIMapImpl[Val]) GetLowerCaseMapOnlyFirst() map[string]Val {
 		ret[lk] = v[0]
 	}
 	return ret
+}
+
+// GetLowerCaseMapJoined
+func (fa *CIMapImpl[Val]) GetLowerCaseMapJoined() map[string]string {
+	return joinMultiMap(fa.GetLowerCaseMap())
 }
 
 // GetOriginalCaseMap returns a map of all keys in the original case (this will contain only one case-variant if multiple key with different cases were inserted)
@@ -186,6 +225,11 @@ func (fa *CIMapImpl[Val]) GetOriginalCaseMapOnlyFirst() map[string]Val {
 		ret[k] = v[0]
 	}
 	return ret
+}
+
+// GetOriginalCaseMapJoined
+func (fa *CIMapImpl[Val]) GetOriginalCaseMapJoined() map[string]string {
+	return joinMultiMap(fa.GetOriginalCaseMap())
 }
 
 // IsEmpty returns true if there are no keys in the map

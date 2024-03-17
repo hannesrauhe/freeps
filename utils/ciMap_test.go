@@ -43,18 +43,37 @@ func TestDefaultCIMap(t *testing.T) {
 func TestMultiValueMap(t *testing.T) {
 	var testValue = map[string][]string{
 		// because of map-internal hashing we don't know which one comes first
-		"a": {"vala", "vala2"},
-		"A": {"valA"},
+		"a":   {"vala", "vala2"},
+		"A":   {"valA"},
+		"CaH": {"cah4"},
+		"Cah": {"cah5", "cah6", "cah7"},
+		"CAH": {"cah1", "cah2", "cah3"},
+		"D":   {"vald"},
 	}
 	m2 := NewStringCIMapFromValues(testValue)
 	assert.Equal(t, strings.ToLower(m2.Get("a")), "vala")
 	assert.Equal(t, strings.ToLower(m2.Get("A")), "vala")
-	a := m2.GetArray("A")
-	slices.Sort(a)
+	a := m2.GetValues("A")
 	assert.DeepEqual(t, a, []string{"valA", "vala", "vala2"})
 
-	assert.Equal(t, len(m2.GetArray("c")), 0)
-	assert.Assert(t, m2.GetArray("c") != nil)
+	assert.Equal(t, len(m2.GetValues("c")), 0)
+	assert.Assert(t, m2.GetValues("c") != nil)
+
+	assert.Assert(t, m2.Has("cah"))
+	assert.Equal(t, m2.GetOriginalCase("cah"), "CAH")
+
+	assert.Equal(t, m2.GetOrDefault("d", "NOT"), "vald")
+
+	cahl := m2.GetLowerCaseMapJoined()
+	vJoined, ok := cahl["a"]
+	assert.Assert(t, ok)
+	assert.Equal(t, vJoined, strings.Join(a, ","))
+	vJoined, ok = cahl["cah"]
+	assert.Assert(t, ok)
+	assert.Equal(t, vJoined, "cah1,cah2,cah3,cah4,cah5,cah6,cah7")
+	vJoined, ok = cahl["d"]
+	assert.Assert(t, ok)
+	assert.Equal(t, vJoined, "vald")
 }
 
 func TestMixedInsertCIMap(t *testing.T) {

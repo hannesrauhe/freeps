@@ -347,7 +347,6 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[
 		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput)})
 		return outValue[0].Interface().(*OperatorIO)
 	case FreepsFunctionTypeWithDynamicFunctionArguments:
-		fa := NewFunctionArguments(args)
 		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), reflect.ValueOf(fa)})
 		return outValue[0].Interface().(*OperatorIO)
 	}

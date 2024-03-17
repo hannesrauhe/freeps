@@ -1,6 +1,8 @@
 package base
 
-import "github.com/hannesrauhe/freeps/utils"
+import (
+	"github.com/hannesrauhe/freeps/utils"
+)
 
 // FunctionArguments is a struct that can be used to pass arguments to a function
 type FunctionArguments = utils.CIMap[string]
