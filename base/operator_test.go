@@ -82,7 +82,7 @@ func (mt *MyTestOperator) Counter(ctx *Context, mainInput *OperatorIO) *Operator
 }
 
 func (mt *MyTestOperator) CounterWithDynamicArgs(ctx *Context, mainInput *OperatorIO, args FunctionArguments) *OperatorIO {
-	return MakeSprintfOutput("%v, %v", len(args.GetKeys()), mt.counter)
+	return MakeSprintfOutput("%v, %v", len(args.GetOriginalKeys()), mt.counter)
 }
 
 func (mt *MyTestOperator) AnotherUnusedFunctionWrongReturn(ctx *Context, mainInput *OperatorIO) int {

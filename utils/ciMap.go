@@ -19,8 +19,8 @@ type CIMap[Val any] interface {
 
 	// GetLowerCaseKeys returns the stored keys in lower case
 	GetLowerCaseKeys() []string
-	// GetKeys returns the stored key in original case
-	GetKeys() []string
+	// GetOriginalKeys returns the stored key in original case
+	GetOriginalKeys() []string
 
 	GetOriginalCase(key string) string // problematic -> what to do if key does not exist
 
@@ -170,7 +170,7 @@ func (fa *CIMapImpl[Val]) GetLowerCaseKeys() []string {
 }
 
 // GetKeys returns the stored key in original case
-func (fa *CIMapImpl[Val]) GetKeys() []string {
+func (fa *CIMapImpl[Val]) GetOriginalKeys() []string {
 	ret := []string{}
 	for oKey, _ := range fa.OriginalMap {
 		ret = append(ret, oKey)

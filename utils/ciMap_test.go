@@ -30,7 +30,7 @@ func TestDefaultCIMap(t *testing.T) {
 	slices.Sort(a)
 	assert.DeepEqual(t, a, []string{"a", "b"})
 
-	a = m1.GetKeys()
+	a = m1.GetOriginalKeys()
 	slices.Sort(a)
 	assert.DeepEqual(t, a, []string{"B", "a"})
 
@@ -64,6 +64,8 @@ func TestMultiValueMap(t *testing.T) {
 
 	assert.Equal(t, m2.GetOrDefault("d", "NOT"), "vald")
 
+	assert.Equal(t, m2.GetOrDefault("f", "YES"), "YES")
+
 	cahl := m2.GetLowerCaseMapJoined()
 	vJoined, ok := cahl["a"]
 	assert.Assert(t, ok)
@@ -74,6 +76,12 @@ func TestMultiValueMap(t *testing.T) {
 	vJoined, ok = cahl["d"]
 	assert.Assert(t, ok)
 	assert.Equal(t, vJoined, "vald")
+
+	keys := m2.GetLowerCaseKeys()
+	slices.Sort(keys)
+	assert.DeepEqual(t, keys, []string{"a", "cah", "d"})
+
+	assert.Assert(t, !m2.IsEmpty())
 }
 
 func TestMixedInsertCIMap(t *testing.T) {
