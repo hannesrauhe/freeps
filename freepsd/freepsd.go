@@ -131,7 +131,8 @@ func mainLoop() bool {
 			}
 			oio = base.MakeByteOutput(content)
 		}
-		output := ge.ExecuteOperatorByName(base.NewContext(logger), operator, fn, utils.URLArgsToMap(args), oio)
+		fa := base.NewFunctionArgumentsFromURLQuery(args)
+		output := ge.ExecuteOperatorByName(base.NewContext(logger), operator, fn, fa, oio)
 		output.WriteTo(os.Stdout)
 		return false
 	}

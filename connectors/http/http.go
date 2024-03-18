@@ -18,7 +18,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	"github.com/hannesrauhe/freeps/utils"
 	// "net/http/pprof"
 )
 
@@ -30,10 +29,9 @@ type FreepsHttpListener struct {
 	srv         *http.Server
 }
 
-func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs map[string]string, mainInput *base.OperatorIO, err error) {
+func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs base.FunctionArguments, mainInput *base.OperatorIO, err error) {
 	mainInput = base.MakeEmptyOutput()
-	query := req.URL.Query()
-	mainArgs = utils.URLArgsToMap(query)
+	mainArgs = base.NewFunctionArgumentsFromURLQuery(req.URL.Query())
 	var byteinput []byte
 
 	// a simple get request, no input
@@ -91,14 +89,13 @@ func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs map[strin
 	if formData.Has("input-content-type") && formData.Has("input") {
 		mainInput = base.MakeByteOutputWithContentType([]byte(formData.Get("input")), formData.Get("input-content-type"))
 		for k, v := range formData {
-			_, exists := mainArgs[k]
-			if !exists && k != "input" && k != "input-content-type" {
-				mainArgs[k] = v[0]
+			if !mainArgs.Has(k) && k != "input" && k != "input-content-type" {
+				mainArgs.Append(k, v...)
 			}
 		}
 		// if mainArgs is empty, the form data will be passed as args, this way post requests can be sent to the same url as get requests
-	} else if len(mainArgs) == 0 {
-		mainArgs = utils.URLArgsToMap(formData)
+	} else if mainArgs.IsEmpty() {
+		mainArgs = base.NewFunctionArgumentsFromURLQuery(formData)
 	}
 	return
 }
@@ -115,7 +112,7 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	}
 
 	// allows to redirect if an empty success response was returned
-	redirectLocation, redirect := mainArgs["redirect"]
+	redirectLocation := mainArgs.Get("redirect")
 
 	ctx := base.NewContext(httplogger)
 	opio := &base.OperatorIO{}
@@ -127,7 +124,7 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	opio.Log(httplogger)
 
 	w.Header().Set("X-Freeps-ID", ctx.GetID())
-	if redirect && opio.IsEmpty() {
+	if redirectLocation != "" && opio.IsEmpty() {
 		http.Redirect(w, req, redirectLocation, http.StatusFound)
 		return
 	}

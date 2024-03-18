@@ -4,6 +4,7 @@ package base
 // Operators can either implement this interface directly or use MakeFreepsOperator to convert a struct into an operator
 type FreepsBaseOperator interface {
 	Execute(ctx *Context, fn string, mainArgs map[string]string, mainInput *OperatorIO) *OperatorIO
+	Execute2(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO
 
 	GetFunctions() []string // returns a list of functions that this operator can execute
 	GetPossibleArgs(fn string) []string

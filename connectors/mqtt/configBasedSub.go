@@ -79,6 +79,6 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 		}
 	}
 	ctx := base.NewContext(fm.mqttlogger)
-	out := fm.ge.ExecuteGraph(ctx, graphName, map[string]string{"topic": topic}, input)
+	out := fm.ge.ExecuteGraph(ctx, graphName, base.NewFunctionArguments(map[string]string{"topic": topic}), input)
 	fm.publishResult(topic, ctx, out)
 }

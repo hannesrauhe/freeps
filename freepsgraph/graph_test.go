@@ -23,6 +23,10 @@ func (*MockOperator) GetName() string {
 	return "mock"
 }
 
+func (*MockOperator) Execute2(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return input
+}
+
 func (*MockOperator) Execute(ctx *base.Context, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	return mainInput
 }

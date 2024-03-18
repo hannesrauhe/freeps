@@ -18,11 +18,18 @@ type OpGraphByTag struct {
 var _ base.FreepsBaseOperator = &OpGraph{}
 var _ base.FreepsBaseOperator = &OpGraphByTag{}
 
+func (o *OpGraph) Execute2(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	if input.IsError() { // graph has been called by another operator, but the operator returned an error
+		return input
+	}
+	return o.ge.ExecuteGraph(ctx, fn, fa, input)
+}
+
 func (o *OpGraph) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
-	return o.ge.ExecuteGraph(ctx, fn, args, input)
+	return o.ge.ExecuteGraph(ctx, fn, base.NewFunctionArguments(args), input)
 }
 
 // GetName returns the name of the operator
@@ -100,6 +107,10 @@ func (o *OpGraph) GetHook() interface{} {
 
 /*** By Tag ****/
 
+func (o *OpGraphByTag) Execute2(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.Execute(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+}
+
 func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
@@ -113,7 +124,7 @@ func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]str
 		tags = append(tags, strings.Split(addTstr, ",")...)
 	}
 
-	return o.ge.ExecuteGraphByTags(ctx, tags, make(map[string]string), base.MakeEmptyOutput())
+	return o.ge.ExecuteGraphByTags(ctx, tags, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 }
 
 // GetName returns the name of the operator

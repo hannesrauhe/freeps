@@ -11,6 +11,10 @@ func NewFunctionArguments(args map[string]string) FunctionArguments {
 	return utils.NewStringCIMap(args)
 }
 
+func NewFunctionArgumentsFromURLQuery(args map[string][]string) FunctionArguments {
+	return utils.NewStringCIMapFromValues(args)
+}
+
 func MakeEmptyFunctionArguments() FunctionArguments {
 	return utils.NewStringCIMap(map[string]string{})
 }

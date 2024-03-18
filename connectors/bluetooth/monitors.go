@@ -110,7 +110,7 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		input := base.MakeObjectOutput(devData)
 		args := map[string]string{"device": alias, "address": devData.Address, "change": change.Name}
 		taggroups := [][]string{{"bluetooth"}, deviceTags, changeTags}
-		fbt.ge.ExecuteGraphByTagsExtended(ctx, taggroups, args, input)
+		fbt.ge.ExecuteGraphByTagsExtended(ctx, taggroups, base.NewFunctionArguments(args), input)
 
 		debugData := map[string]interface{}{"change": change, "devData": devData, "tags": taggroups}
 		ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), ctx.GetID())

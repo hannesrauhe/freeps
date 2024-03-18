@@ -107,17 +107,17 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 
 			// action:
 			tags := []string{m.config.Tag}
-			args := map[string]string{}
+			args := base.MakeEmptyFunctionArguments()
 			if tpress2.Sub(tpress1) < m.config.MultiTouchDuration {
 				tags = append(tags, m.config.MultiTouchTag)
-				args["TouchCount"] = fmt.Sprint(lastTouchCounter)
+				args.Append("TouchCount", fmt.Sprint(lastTouchCounter))
 			} else {
 				if lastTouchDuration > m.config.LongTouchDuration {
 					tags = append(tags, m.config.LongTouchTag)
 				} else {
 					tags = append(tags, m.config.TouchTag)
 				}
-				args["TouchDuration"] = lastTouchDuration.String()
+				args.Append("TouchDuration", lastTouchDuration.String())
 			}
 			resultIO := ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
 			ignoreUntil = time.Now().Add(time.Second)

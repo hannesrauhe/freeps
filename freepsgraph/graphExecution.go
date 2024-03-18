@@ -22,7 +22,7 @@ func (ge *GraphEngine) prepareGraphExecution(ctx *base.Context, graphName string
 }
 
 // ExecuteAdHocGraph executes a graph directly
-func (ge *GraphEngine) ExecuteAdHocGraph(ctx *base.Context, fullName string, gd GraphDesc, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+func (ge *GraphEngine) ExecuteAdHocGraph(ctx *base.Context, fullName string, gd GraphDesc, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	g, err := NewGraph(ctx, fullName, &gd, ge)
 	if err != nil {
 		return base.MakeOutputError(500, "Graph preparation failed: "+err.Error())
@@ -33,7 +33,7 @@ func (ge *GraphEngine) ExecuteAdHocGraph(ctx *base.Context, fullName string, gd 
 }
 
 // ExecuteGraph executes a graph stored in the engine
-func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	g, o := ge.prepareGraphExecution(ctx, graphName)
 	if g == nil {
 		return o
@@ -44,13 +44,13 @@ func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArg
 }
 
 // ExecuteOperatorByName executes an operator directly
-func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+func (ge *GraphEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
 	return ge.ExecuteAdHocGraph(ctx, name, GraphDesc{Operations: []GraphOperationDesc{{Operator: opName, Function: fn, UseMainArgs: true}}}, mainArgs, mainInput)
 }
 
 // ExecuteGraphByTags executes graphs with given tags
-func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	taggroups := [][]string{}
 	for _, t := range tags {
 		taggroups = append(taggroups, []string{t})
@@ -59,7 +59,7 @@ func (ge *GraphEngine) ExecuteGraphByTags(ctx *base.Context, tags []string, args
 }
 
 // ExecuteGraphByTagsExtended executes all graphs that at least one tag of each group
-func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [][]string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (ge *GraphEngine) ExecuteGraphByTagsExtended(ctx *base.Context, tagGroups [][]string, args base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	if tagGroups == nil || len(tagGroups) == 0 {
 		return base.MakeOutputError(http.StatusBadRequest, "No tags given")
 	}

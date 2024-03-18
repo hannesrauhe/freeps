@@ -325,7 +325,7 @@ func (ge *GraphEngine) AddHook(h GraphEngineHook) {
 }
 
 // TriggerOnExecuteHooks adds a hook to the graph engine
-func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
+func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) {
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
@@ -333,7 +333,7 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 		if !ok {
 			continue
 		}
-		err := fh.OnExecute(ctx, graphName, mainArgs, mainInput)
+		err := fh.OnExecute(ctx, graphName, mainArgs.GetOriginalCaseMapJoined(), mainInput)
 		if err != nil {
 			upErr := fmt.Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
 			ge.SetSystemAlert(ctx, "ExecuteHook"+name, "system", 3, upErr, &ge.config.AlertDuration)
@@ -342,7 +342,7 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 }
 
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
-func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) {
+func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) {
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
@@ -350,7 +350,7 @@ func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphN
 		if !ok {
 			continue
 		}
-		err := fh.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
+		err := fh.OnExecutionFinished(ctx, graphName, mainArgs.GetOriginalCaseMapJoined(), mainInput)
 		if err != nil {
 			upErr := fmt.Errorf("Execution of FinishedHook \"%v\" failed with error: %v", name, err.Error())
 			ge.SetSystemAlert(ctx, "ExecutionFinishedHook"+name, "system", 3, upErr, &ge.config.AlertDuration)

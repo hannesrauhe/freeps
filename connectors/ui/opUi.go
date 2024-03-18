@@ -453,7 +453,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 		}
 		graphName := formdata.Get("ExecuteGraph")
 		if graphName != "" {
-			out := o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), base.MakeEmptyOutput())
+			out := o.ge.ExecuteGraph(ctx, graphName, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 			if out.IsError() {
 				tdata["status_error"] = graphName
 			} else {
@@ -467,6 +467,10 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 		templateName = "simpleTile.html"
 	}
 	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
+}
+
+func (o *OpUI) Execute2(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.Execute(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
 }
 
 func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
@@ -508,10 +512,10 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
 			}
-			executeWithArgs := utils.URLArgsToMap(argQuery)
+			executeWithArgs := base.NewFunctionArgumentsFromURLQuery(argQuery)
 			for k, v := range formInput {
 				if utils.StringStartsWith(k, "ExecuteArg.") {
-					executeWithArgs[k[11:]] = v[0]
+					executeWithArgs.Append(k[11:], v...)
 				}
 			}
 			executeWithInput := base.MakeEmptyOutput()
