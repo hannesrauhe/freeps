@@ -41,7 +41,7 @@ func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	result := map[string]map[string]*base.OperatorIO{}
 
-	multiNs := fa.GetArray("namespace")
+	multiNs := fa.GetValues("namespace")
 	if len(multiNs) == 0 {
 		return base.MakeOutputError(http.StatusBadRequest, "No namespace given")
 	}

@@ -62,7 +62,7 @@ func (mt *MyTestOperator) MyFavoriteFunction(ctx *Context, mainInput *OperatorIO
 		return MakePlainOutput("42!")
 	}
 
-	if args != nil && args.Size() > 0 {
+	if args != nil && !args.IsEmpty() {
 		return MakePlainOutput("other")
 	}
 
@@ -82,7 +82,7 @@ func (mt *MyTestOperator) Counter(ctx *Context, mainInput *OperatorIO) *Operator
 }
 
 func (mt *MyTestOperator) CounterWithDynamicArgs(ctx *Context, mainInput *OperatorIO, args FunctionArguments) *OperatorIO {
-	return MakeSprintfOutput("%v, %v", args.Size(), mt.counter)
+	return MakeSprintfOutput("%v, %v", len(args.GetOriginalKeys()), mt.counter)
 }
 
 func (mt *MyTestOperator) AnotherUnusedFunctionWrongReturn(ctx *Context, mainInput *OperatorIO) int {

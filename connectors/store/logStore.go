@@ -218,6 +218,9 @@ func (s *logStoreNamespace) GetSearchResultWithMetadata(keyPattern, valuePattern
 	for k, v := range s.entries {
 		if matches(s.getKeyStringUnlocked(k), v, keyPattern, valuePattern, modifiedByPattern, minAge, maxAge, tnow) {
 			copy[s.getKeyStringUnlocked(k)] = v
+			if len(copy) > 200 { //TODO(HR): hard-coded limit
+				return copy
+			}
 		}
 	}
 	return copy
