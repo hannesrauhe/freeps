@@ -31,7 +31,7 @@ type FreepsHttpListener struct {
 
 func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs base.FunctionArguments, mainInput *base.OperatorIO, err error) {
 	mainInput = base.MakeEmptyOutput()
-	mainArgs = base.NewFunctionArgumentsFromURLQuery(req.URL.Query())
+	mainArgs = base.NewFunctionArgumentsFromURLValues(req.URL.Query())
 	var byteinput []byte
 
 	// a simple get request, no input
@@ -95,7 +95,7 @@ func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs base.Func
 		}
 		// if mainArgs is empty, the form data will be passed as args, this way post requests can be sent to the same url as get requests
 	} else if mainArgs.IsEmpty() {
-		mainArgs = base.NewFunctionArgumentsFromURLQuery(formData)
+		mainArgs = base.NewFunctionArgumentsFromURLValues(formData)
 	}
 	return
 }

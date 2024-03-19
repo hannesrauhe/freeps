@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -508,11 +507,10 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 			}
 			opName := formInput.Get("ExecuteOperator")
 			graphName := formInput.Get("ExecuteGraph")
-			argQuery, err := url.ParseQuery(formInput.Get("ExecuteArgs"))
+			executeWithArgs, err := base.NewFunctionArgumentsFromURLQuery(formInput.Get("ExecuteArgs"))
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
 			}
-			executeWithArgs := base.NewFunctionArgumentsFromURLQuery(argQuery)
 			for k, v := range formInput {
 				if utils.StringStartsWith(k, "ExecuteArg.") {
 					executeWithArgs.Append(k[11:], v...)

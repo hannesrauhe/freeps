@@ -68,7 +68,7 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 	}
 	input := base.MakeObjectOutput(message.Payload())
 	ctx := base.NewContext(fm.mqttlogger)
-	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], base.NewFunctionArguments(map[string]string{"topic": message.Topic()}), input)
+	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], base.NewSingleFunctionArgument("topic", message.Topic()), input)
 	fm.publishResult(message.Topic(), ctx, out)
 }
 

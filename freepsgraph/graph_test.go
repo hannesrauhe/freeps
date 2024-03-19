@@ -78,7 +78,7 @@ func TestOperatorErrorChain(t *testing.T) {
 	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
 
 	// test that output of single operation is directly returned and not merged
-	oDirect := ge.ExecuteOperatorByName(ctx, "eval", "echo", base.NewFunctionArguments(map[string]string{"output": "true"}), base.MakeEmptyOutput())
+	oDirect := ge.ExecuteOperatorByName(ctx, "eval", "echo", base.NewSingleFunctionArgument("output", "true"), base.MakeEmptyOutput())
 	assert.Assert(t, oDirect.IsPlain(), "unexpected output: %v", oDirect)
 }
 

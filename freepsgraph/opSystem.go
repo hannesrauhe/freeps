@@ -40,9 +40,9 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 		o.cancel()
 		return base.MakeEmptyOutput()
 	case "getGraph", "getGraphDesc", "GetGraphDesc":
-		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "getGraph", base.NewFunctionArguments(map[string]string{"graphName": args["name"]}), base.MakeEmptyOutput())
+		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "getGraph", base.NewSingleFunctionArgument("graphName", args["name"]), base.MakeEmptyOutput())
 	case "deleteGraph":
-		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "deleteGraph", base.NewFunctionArguments(map[string]string{"graphName": args["name"]}), base.MakeEmptyOutput())
+		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "deleteGraph", base.NewSingleFunctionArgument("graphName", args["name"]), base.MakeEmptyOutput())
 	case "toDot":
 		g, out := o.ge.prepareGraphExecution(ctx, args["name"])
 		if out.IsError() {

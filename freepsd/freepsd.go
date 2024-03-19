@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net/url"
 	"os"
 
 	logrus "github.com/sirupsen/logrus"
@@ -114,7 +113,10 @@ func mainLoop() bool {
 	freepsexec.AddExecOperators(cr, ge)
 
 	if operator != "" {
-		args, _ := url.ParseQuery(argstring)
+		fa, err := base.NewFunctionArgumentsFromURLQuery(argstring)
+		if err != nil {
+			log.Fatal(err)
+		}
 		oio := base.MakeEmptyOutput()
 
 		if input == "-" {
@@ -131,7 +133,6 @@ func mainLoop() bool {
 			}
 			oio = base.MakeByteOutput(content)
 		}
-		fa := base.NewFunctionArgumentsFromURLQuery(args)
 		output := ge.ExecuteOperatorByName(base.NewContext(logger), operator, fn, fa, oio)
 		output.WriteTo(os.Stdout)
 		return false
