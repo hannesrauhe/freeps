@@ -59,7 +59,7 @@ func TestStringReplace(t *testing.T) {
 	input := base.MakeEmptyOutput()
 
 	// include regexp: all keys that start with "params", exclude regexp: all keys that contain "icon"
-	out := o.Execute2(ctx, "StringReplaceMulti", args, input)
+	out := o.Execute(ctx, "StringReplaceMulti", args, input)
 	assert.Equal(t, out.GetString(), "1% + 2% = 3%")
 }
 

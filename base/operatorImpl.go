@@ -323,12 +323,12 @@ func (o *FreepsOperatorWrapper) GetName() string {
 	return fullName
 }
 
-func (o *FreepsOperatorWrapper) Execute2(ctx *Context, fn string, fa FunctionArguments, input *OperatorIO) *OperatorIO {
-	return o.Execute(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+func (o *FreepsOperatorWrapper) Execute(ctx *Context, fn string, fa FunctionArguments, input *OperatorIO) *OperatorIO {
+	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
 }
 
 // Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
-func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
+func (o *FreepsOperatorWrapper) ExecuteOld(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
 	ffm := o.getFunctionMetaData(function)
 	fa := NewFunctionArguments(args)
 	if ffm == nil {

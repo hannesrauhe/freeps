@@ -333,7 +333,7 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 		if !ok {
 			continue
 		}
-		err := fh.OnExecute(ctx, graphName, mainArgs.GetOriginalCaseMapJoined(), mainInput)
+		err := fh.OnExecuteOld(ctx, graphName, mainArgs.GetOriginalCaseMapJoined(), mainInput)
 		if err != nil {
 			upErr := fmt.Errorf("Execution of Hook \"%v\" failed with error: %v", name, err.Error())
 			ge.SetSystemAlert(ctx, "ExecuteHook"+name, "system", 3, upErr, &ge.config.AlertDuration)

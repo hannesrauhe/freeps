@@ -32,7 +32,7 @@ func TestOpAlert(t *testing.T) {
 	assert.Assert(t, sug != nil)
 	_, ok := sug["2s"]
 	assert.Assert(t, ok)
-	res := opA.Execute2(ctx, "SetAlert", base.NewSingleFunctionArgument("Name", "test_alert"), base.MakeEmptyOutput())
+	res := opA.Execute(ctx, "SetAlert", base.NewSingleFunctionArgument("Name", "test_alert"), base.MakeEmptyOutput())
 	assert.Assert(t, res.IsError())
 
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})

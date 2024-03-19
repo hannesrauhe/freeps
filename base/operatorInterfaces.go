@@ -3,7 +3,7 @@ package base
 // FreepsBaseOperator provides the interface for all operators used by the graph module
 // Operators can either implement this interface directly or use MakeFreepsOperator to convert a struct into an operator
 type FreepsBaseOperator interface {
-	Execute2(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO
+	Execute(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO
 
 	GetFunctions() []string // returns a list of functions that this operator can execute
 	GetPossibleArgs(fn string) []string

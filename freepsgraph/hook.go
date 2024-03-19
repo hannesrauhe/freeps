@@ -13,7 +13,7 @@ type GraphEngineHook interface {
 }
 
 type FreepsExecutionHook interface {
-	OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
+	OnExecuteOld(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
 	OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, od *GraphOperationDesc) error
 	OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
 }
@@ -49,10 +49,10 @@ func (h *FreepsHookWrapper) GetName() string {
 	return fullName
 }
 
-func (h *FreepsHookWrapper) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
+func (h *FreepsHookWrapper) OnExecuteOld(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
-		return i.OnExecute(ctx, graphName, mainArgs, mainInput)
+		return i.OnExecuteOld(ctx, graphName, mainArgs, mainInput)
 	}
 	return nil
 }

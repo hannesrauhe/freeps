@@ -143,70 +143,70 @@ func TestOpBuilderSuggestions(t *testing.T) {
 
 }
 
-func TestOpBuilderExecute2(t *testing.T) {
+func TestOpBuilderExecute(t *testing.T) {
 	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
 	gop := gops[0]
 	// happy path without any parameters
-	output := gop.Execute2(nil, "simple1", MakeEmptyFunctionArguments(), MakeEmptyOutput())
+	output := gop.Execute(nil, "simple1", MakeEmptyFunctionArguments(), MakeEmptyOutput())
 	assert.Equal(t, output.GetString(), "simple1")
 	// parameters are simply ignored
-	output = gop.Execute2(nil, "simple2", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "simple2", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12"}), MakeEmptyOutput())
 	assert.Equal(t, output.GetString(), "simple2")
 
 	// happy path without optional parameters
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12"}), MakeEmptyOutput())
 	assert.Assert(t, output.IsEmpty(), output.GetString())
 
 	// happy path with optional parameters
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam3": "42"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam3": "42"}), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "3")
 
 	// happy path with optional parameters with JSON names
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"param_1": "test", "param2": "12", "opt_param_3": "42"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"param_1": "test", "param2": "12", "opt_param_3": "42"}), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "3")
 
 	// happy path with optional parameters
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam4": "bla"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam4": "bla"}), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "4")
-	output = gop.Execute2(nil, "myFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam5": "bla"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "myFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam5": "bla"}), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "5")
-	output = gop.Execute2(nil, "MyFavoriteFuNCtion", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "someotheruserparam": "bla"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFuNCtion", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "someotheruserparam": "bla"}), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "other")
-	output = gop.Execute2(nil, "counter", MakeEmptyFunctionArguments(), MakeEmptyOutput())
+	output = gop.Execute(nil, "counter", MakeEmptyFunctionArguments(), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "6")
-	output = gop.Execute2(nil, "counterwithdynamicargs", NewSingleFunctionArgument("x", "y"), MakeEmptyOutput())
+	output = gop.Execute(nil, "counterwithdynamicargs", NewSingleFunctionArgument("x", "y"), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "1, 6")
 
 	// happy path with optional parameters that have names of internal fields
-	output = gop.Execute2(nil, "MyFavoriteFuNCtion", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "neversetvar": "bla", "neversetvarptr": "bla"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFuNCtion", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "neversetvar": "bla", "neversetvarptr": "bla"}), MakeEmptyOutput())
 	assert.Assert(t, !output.IsError(), output.GetString())
 	assert.Equal(t, output.GetString(), "other")
 
 	// happy path with overwritten default value
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "12"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "12"}), MakeEmptyOutput())
 	assert.Equal(t, output.GetString(), "42!")
 
 	// wrong function name
-	output = gop.Execute2(nil, "MyFavoriteFunctionWrong", NewSingleFunctionArgument("Param1", "test"), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunctionWrong", NewSingleFunctionArgument("Param1", "test"), MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 
 	// missing parameter
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewSingleFunctionArgument("Param2", "12"), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewSingleFunctionArgument("Param2", "12"), MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 
 	// wrong type of parameter
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "bla"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "bla"}), MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam3": "notint"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparam3": "notint"}), MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
-	output = gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "blub"}), MakeEmptyOutput())
+	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "blub"}), MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
 }
 
@@ -247,13 +247,13 @@ func (mt *MyTestOperatorWithConfig) MyFavoriteFunction(ctx *Context, mainInput *
 	return MakeEmptyOutput()
 }
 
-func TestOpBuilderExecute2WithConfig(t *testing.T) {
+func TestOpBuilderExecuteWithConfig(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 	gops := MakeFreepsOperators(&MyTestOperatorWithConfig{}, cr, NewContext(logrus.StandardLogger()))
 	gop := gops[0]
 	// happy path without optional parameters
-	output := gop.Execute2(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "3.14", "TimeParam": "12m"}), MakeEmptyOutput())
+	output := gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "3.14", "TimeParam": "12m"}), MakeEmptyOutput())
 	assert.Assert(t, output.IsEmpty(), output.GetString())
 }

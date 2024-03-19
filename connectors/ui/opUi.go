@@ -468,11 +468,11 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
 }
 
-func (o *OpUI) Execute2(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
-	return o.Execute(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+func (o *OpUI) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
 }
 
-func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpUI) ExecuteOld(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	logger := ctx.GetLogger().WithField("component", "UI")
 	withFooter := !utils.ParseBool(args["noFooter"])
 	delete(args, "noFooter")

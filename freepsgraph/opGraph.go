@@ -18,14 +18,14 @@ type OpGraphByTag struct {
 var _ base.FreepsBaseOperator = &OpGraph{}
 var _ base.FreepsBaseOperator = &OpGraphByTag{}
 
-func (o *OpGraph) Execute2(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpGraph) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
 	return o.ge.ExecuteGraph(ctx, fn, fa, input)
 }
 
-func (o *OpGraph) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpGraph) ExecuteOld(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
@@ -107,11 +107,11 @@ func (o *OpGraph) GetHook() interface{} {
 
 /*** By Tag ****/
 
-func (o *OpGraphByTag) Execute2(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
-	return o.Execute(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
 }
 
-func (o *OpGraphByTag) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpGraphByTag) ExecuteOld(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsError() { // graph has been called by another operator, but the operator returned an error
 		return input
 	}
