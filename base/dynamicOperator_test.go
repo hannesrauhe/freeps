@@ -76,19 +76,19 @@ func TestDynmaicOperator(t *testing.T) {
 	ctx := NewContext(logrus.StandardLogger())
 	gops := MakeFreepsOperators(&MyDynamicTestOperator{}, nil, ctx)[0]
 
-	out := gops.Execute(ctx, "DynFunc", make(map[string]string), MakeEmptyOutput())
+	out := gops.Execute2(ctx, "DynFunc", MakeEmptyFunctionArguments(), MakeEmptyOutput())
 	assert.Assert(t, !out.IsError(), "")
-	out = gops.Execute(ctx, "DynFunc2", make(map[string]string), MakeEmptyOutput())
+	out = gops.Execute2(ctx, "DynFunc2", MakeEmptyFunctionArguments(), MakeEmptyOutput())
 	assert.Assert(t, out.IsError(), "")
-	out = gops.Execute(ctx, "Simple1", make(map[string]string), MakeEmptyOutput())
+	out = gops.Execute2(ctx, "Simple1", MakeEmptyFunctionArguments(), MakeEmptyOutput())
 	assert.Assert(t, !out.IsError(), "")
-	out = gops.Execute(ctx, "Simple2", make(map[string]string), MakeEmptyOutput())
+	out = gops.Execute2(ctx, "Simple2", MakeEmptyFunctionArguments(), MakeEmptyOutput())
 	assert.Assert(t, !out.IsError(), "")
-	out = gops.Execute(ctx, "StaticFunc", map[string]string{"Arg1": "test"}, MakeEmptyOutput())
+	out = gops.Execute2(ctx, "StaticFunc", NewSingleFunctionArgument("Arg1", "test"), MakeEmptyOutput())
 	assert.Assert(t, !out.IsError(), "Unexpected error %v", out.GetError())
 
 	// missing arg
-	out = gops.Execute(ctx, "StaticFunc", map[string]string{}, MakeEmptyOutput())
+	out = gops.Execute2(ctx, "StaticFunc", MakeEmptyFunctionArguments(), MakeEmptyOutput())
 	assert.Assert(t, out.IsError(), "")
 
 	fn := gops.GetFunctions()
