@@ -5,6 +5,7 @@ package muteme
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -24,14 +25,12 @@ func (m *MuteMe) setColor(color string) error {
 	}
 
 	_, err := m.dev.Write(b)
-	lColor := m.currentColor.Load().(string)
-	if err == nil && color != lColor {
-		m.currentColor.Store(color)
-	}
 	if err != nil {
 		m.logger.Errorf("Error setting color: %v", err)
+		return err
 	}
-	return err
+	m.currentColor.Store(color)
+	return nil
 }
 
 func (m *MuteMe) blink(blinkColor string, afterColor string) {
@@ -54,13 +53,15 @@ func (m *MuteMe) mainloop(running *bool) {
 	lastTouchDuration := time.Microsecond
 	lastTouchCounter := 0
 	color := "off"
+	alertCategory := "system"
+	alertName := "mutemeOffline"
 
 	if m.dev == nil {
 		// Open the device using the VID and PID.
 		d, err := hid.OpenFirst(m.config.VendorID, m.config.ProductID)
 		if err != nil {
 			alertError := fmt.Errorf("MuteMe is offline because: %w", err)
-			m.GE.SetSystemAlert(base.NewContext(m.logger), "mutemeOffline", "background", 2, alertError, nil)
+			m.GE.SetSystemAlert(base.NewContext(m.logger), alertName, alertCategory, 2, alertError, nil)
 			return
 		}
 		m.dev = d
@@ -93,15 +94,14 @@ func (m *MuteMe) mainloop(running *bool) {
 			continue
 		}
 		if err != nil {
-			// should be a timeout error in normal operation
-			if !errors.Is(err, hid.ErrTimeout) {
-				// it's another error, usually interrupted system call. Nothing to do but ignore
+			// should be a timeout error in normal operation, or an interupt
+			if !errors.Is(err, hid.ErrTimeout) && !strings.Contains(err.Error(), "Interrupted system call") {
 				alertError := fmt.Errorf("MuteMe is offline because: %w", err)
-				m.GE.SetSystemAlert(base.NewContext(m.logger), "mutemeOffline", "background", 2, alertError, nil)
+				m.GE.SetSystemAlert(base.NewContext(m.logger), alertName, alertCategory, 2, alertError, nil)
 				logrus.Errorf("Error getting state: %v", err)
 				break
 			}
-			m.GE.ResetSystemAlert(base.NewContext(m.logger), "mutemeOffline", "background")
+			m.GE.ResetSystemAlert(base.NewContext(m.logger), alertName, alertCategory)
 
 			if lastTouchDuration <= time.Microsecond {
 				// nothing happened
