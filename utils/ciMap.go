@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -122,6 +123,11 @@ func (fa *CIMapImpl[Val]) Append(k string, v ...Val) {
 		appendToMultiMap(fa.lowerKeyMapping, lk, k)
 		slices.Sort(fa.lowerKeyMapping[lk])
 	}
+}
+
+// MarshalJSON provides a custom marshaller with better readable time formats
+func (fa *CIMapImpl[Val]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fa.OriginalMap)
 }
 
 // Has returns true if the given key is present in any variant

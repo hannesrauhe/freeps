@@ -77,7 +77,7 @@ func (m *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDe
 		}
 		if device.HKR.Windowopenactive {
 			dur := 15 * time.Minute // TODO: time(device.HKR.Windowopenactiveendtime).Sub(time.Now())
-			m.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, AlertCategory, WindowOpenSeverity, fmt.Errorf("%v detected an open Window", device.Name), &dur)
+			m.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, AlertCategory, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
 		} else {
 			m.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, AlertCategory)
 		}
