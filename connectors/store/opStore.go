@@ -19,7 +19,7 @@ var _ base.FreepsOperatorWithConfig = &OpStore{}
 var _ base.FreepsOperatorWithDynamicFunctions = &OpStore{}
 
 // GetDefaultConfig returns the default config for the http connector
-func (o *OpStore) GetDefaultConfig() interface{} {
+func (o *OpStore) GetDefaultConfig(fullName string) interface{} {
 	return &StoreConfig{Namespaces: getDefaultNamespaces(), PostgresConnStr: "", MaxErrorLogSize: 1000}
 }
 

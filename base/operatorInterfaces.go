@@ -37,7 +37,7 @@ type FreepsOperatorWithDynamicFunctions interface {
 type FreepsOperatorWithConfig interface {
 	FreepsOperator
 	// GetDefaultConfig returns a copy of the default config
-	GetDefaultConfig() interface{}
+	GetDefaultConfig(fullName string) interface{}
 	// InitCopyOfOperator creates a copy of the operator and initializes it with the given config
 	InitCopyOfOperator(ctx *Context, config interface{}, fullOperatorName string) (FreepsOperatorWithConfig, error)
 }

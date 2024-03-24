@@ -16,7 +16,7 @@ type Bluetooth struct {
 var _ base.FreepsOperatorWithConfig = &Bluetooth{}
 
 // GetDefaultConfig returns a copy of the default config
-func (bt *Bluetooth) GetDefaultConfig() interface{} {
+func (bt *Bluetooth) GetDefaultConfig(fullName string) interface{} {
 	return &BluetoothConfig{Enabled: false}
 }
 

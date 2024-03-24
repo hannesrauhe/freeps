@@ -23,7 +23,7 @@ type OpWeather struct {
 
 var _ base.FreepsOperatorWithConfig = &OpWeather{}
 
-func (o *OpWeather) GetDefaultConfig() interface{} {
+func (o *OpWeather) GetDefaultConfig(fullName string) interface{} {
 	return &OpenWeatherMapConfig{Units: "c", Lang: "en"}
 }
 

@@ -14,6 +14,7 @@ import (
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
+	freepsexecutable "github.com/hannesrauhe/freeps/connectors/executable"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
 	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
@@ -102,6 +103,7 @@ func mainLoop() bool {
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&opalert.OpAlert{CR: cr, GE: ge},
 		&weather.OpWeather{},
+		&freepsexecutable.OpExecutable{CR: cr, GE: ge},
 	}
 
 	for _, op := range availableOperators {

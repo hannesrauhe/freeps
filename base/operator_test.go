@@ -225,7 +225,7 @@ func (mt *MyTestOperatorWithConfig) InitCopyOfOperator(ctx *Context, config inte
 	return &newMt, nil
 }
 
-func (mt *MyTestOperatorWithConfig) GetDefaultConfig() interface{} {
+func (mt *MyTestOperatorWithConfig) GetDefaultConfig(fullName string) interface{} {
 	newC := MyTestOperatorConfig{Enabled: true}
 	return &newC
 }

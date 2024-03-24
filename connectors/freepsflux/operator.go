@@ -21,7 +21,7 @@ type OperatorFlux struct {
 var _ base.FreepsOperatorWithConfig = &OperatorFlux{}
 
 // GetDefaultConfig returns a copy of the default config
-func (o *OperatorFlux) GetDefaultConfig() interface{} {
+func (o *OperatorFlux) GetDefaultConfig(fullName string) interface{} {
 	return &FreepsFluxConfig{[]InfluxdbConfig{}, false, true, "_influx"}
 }
 

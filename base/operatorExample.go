@@ -16,7 +16,7 @@ func (feo *FreepsExampleOperator) GetDynamicArgSuggestions(fn string, arg string
 func (feo *FreepsExampleOperator) ExecuteDynamic(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO {
 	return nil
 }
-func (feo *FreepsExampleOperator) GetDefaultConfig() interface{} { return nil }
+func (feo *FreepsExampleOperator) GetDefaultConfig(fullName string) interface{} { return nil }
 func (feo *FreepsExampleOperator) InitCopyOfOperator(ctx *Context, config interface{}, fullOperatorName string) (FreepsOperatorWithConfig, error) {
 	return nil, nil
 }

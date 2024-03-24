@@ -27,7 +27,7 @@ type OpPixelDisplay struct {
 
 var _ base.FreepsOperatorWithShutdown = &OpPixelDisplay{}
 
-func (op *OpPixelDisplay) GetDefaultConfig() interface{} {
+func (op *OpPixelDisplay) GetDefaultConfig(fullName string) interface{} {
 	return &OpConfig{Enabled: false, WLEDMatrixDisplay: WLEDMatrixDisplayConfig{
 		Address: "http://10.0.0.1",
 		Segments: []WLEDSegmentConfig{
