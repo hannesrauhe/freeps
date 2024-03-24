@@ -5,24 +5,15 @@ package muteme
 import (
 	"errors"
 	"fmt"
-	"sync/atomic"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
 	logrus "github.com/sirupsen/logrus"
 	"github.com/sstallion/go-hid"
 )
 
-type MuteMeImpl struct {
-	dev          *hid.Device
-	currentColor atomic.Value
-	cmd          chan string
-	config       *MuteMeConfig
-	logger       logrus.FieldLogger
-}
-
-func (m *MuteMeImpl) setColor(color string) error {
+func (m *MuteMe) setColor(color string) error {
 	b := make([]byte, 2)
 	b[0] = 0x0
 
@@ -34,17 +25,15 @@ func (m *MuteMeImpl) setColor(color string) error {
 	}
 
 	_, err := m.dev.Write(b)
-	lColor := m.currentColor.Load().(string)
-	if err == nil && color != lColor {
-		m.currentColor.Store(color)
-	}
 	if err != nil {
 		m.logger.Errorf("Error setting color: %v", err)
+		return err
 	}
-	return err
+	m.currentColor.Store(color)
+	return nil
 }
 
-func (m *MuteMeImpl) blink(blinkColor string, afterColor string) {
+func (m *MuteMe) blink(blinkColor string, afterColor string) {
 	for range []int{0, 1, 2, 3} {
 		m.setColor("off")
 		time.Sleep(100 * time.Millisecond)
@@ -54,7 +43,7 @@ func (m *MuteMeImpl) blink(blinkColor string, afterColor string) {
 	m.setColor(afterColor)
 }
 
-func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
+func (m *MuteMe) mainloop(running *bool) {
 	bin := make([]byte, 8)
 	tpress1 := time.Now()
 	tpress2 := time.Now()
@@ -63,19 +52,31 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 	longTouchLightActive := false
 	lastTouchDuration := time.Microsecond
 	lastTouchCounter := 0
-	running := true
 	color := "off"
+	alertCategory := "system"
+	alertName := "mutemeOffline"
+
+	if m.dev == nil {
+		// Open the device using the VID and PID.
+		d, err := hid.OpenFirst(m.config.VendorID, m.config.ProductID)
+		if err != nil {
+			alertError := fmt.Errorf("MuteMe is offline because: %w", err)
+			m.GE.SetSystemAlert(base.NewContext(m.logger), alertName, alertCategory, 2, alertError, nil)
+			return
+		}
+		m.dev = d
+	}
 
 	// indicate startup by blinking:
 	m.blink(m.config.SuccessColor, color)
 
-	for running {
+	for *running {
 		// set the user-requested color unless the indicator light is active
 		if !indicatorLightActive {
 			select {
 			case str, open := <-m.cmd:
 				if !open {
-					running = false
+					*running = false
 				} else {
 					m.setColor(str)
 				}
@@ -93,12 +94,14 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 			continue
 		}
 		if err != nil {
-			// should be a timeout error in normal operation
-			if !errors.Is(err, hid.ErrTimeout) {
-				// it's another error, usually interrupted system call. Nothing to do but ignore
-				// logrus.Errorf("Error getting state: %v", err)
-				continue
+			// should be a timeout error in normal operation, or an interupt
+			if !errors.Is(err, hid.ErrTimeout) && !strings.Contains(err.Error(), "Interrupted system call") {
+				alertError := fmt.Errorf("MuteMe is offline because: %w", err)
+				m.GE.SetSystemAlert(base.NewContext(m.logger), alertName, alertCategory, 2, alertError, nil)
+				logrus.Errorf("Error getting state: %v", err)
+				break
 			}
+			m.GE.ResetSystemAlert(base.NewContext(m.logger), alertName, alertCategory)
 
 			if lastTouchDuration <= time.Microsecond {
 				// nothing happened
@@ -119,7 +122,7 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 				}
 				args["TouchDuration"] = lastTouchDuration.String()
 			}
-			resultIO := ge.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
+			resultIO := m.GE.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
 			ignoreUntil = time.Now().Add(time.Second)
 			m.logger.Debugf("Muteme touched, result: %v", resultIO)
 			if resultIO.IsError() {
@@ -141,7 +144,7 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 			if !indicatorLightActive {
 				// make sure to not change the color multiple times
 				indicatorLightActive = true
-				color = m.GetColor()
+				color = m.getColorImpl()
 				if color != m.config.ProcessColor {
 					m.setColor(m.config.ProcessColor)
 				} else {
@@ -167,52 +170,8 @@ func (m *MuteMeImpl) mainloop(ge *freepsgraph.GraphEngine) {
 		m.logger.Error(err)
 	}
 
+	m.dev = nil
 	if err := hid.Exit(); err != nil {
 		m.logger.Error(err)
 	}
-}
-
-func (m *MuteMeImpl) Shutdown() {
-	// indicate shutdown by blinking:
-	m.blink(m.config.ErrorColor, "off")
-
-	close(m.cmd)
-}
-
-func (m *MuteMeImpl) SetColor(color string) error {
-	if len(m.cmd) >= cap(m.cmd) {
-		return fmt.Errorf("Channel is over capacity")
-	}
-	if _, ok := colors[color]; !ok {
-		return fmt.Errorf("%v is not a valid color", color)
-	}
-
-	select {
-	case m.cmd <- color:
-		return nil
-	default:
-		return fmt.Errorf("Channel was closed")
-	}
-}
-
-func (m *MuteMeImpl) GetColor() string {
-	return m.currentColor.Load().(string)
-}
-
-func newMuteMeImpl(ctx *base.Context, mmc *MuteMeConfig) (*MuteMeImpl, error) {
-	// Initialize the hid package.
-	if err := hid.Init(); err != nil {
-		return nil, err
-	}
-
-	// Open the device using the VID and PID.
-	d, err := hid.OpenFirst(mmc.VendorID, mmc.ProductID)
-	if err != nil {
-		return nil, err
-	}
-
-	m := &MuteMeImpl{dev: d, cmd: make(chan string, 3), config: mmc, logger: ctx.GetLogger()}
-	m.currentColor.Store("off")
-
-	return m, nil
 }

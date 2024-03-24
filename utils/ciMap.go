@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -109,6 +110,11 @@ func NewStringCIMapFromValues(args map[string][]string) CIMap[string] {
 		slices.Sort(kList)
 	}
 	return ret
+}
+
+// MarshalJSON provides a custom marshaller with better readable time formats
+func (fa *CIMapImpl[Val]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fa.OriginalMap)
 }
 
 // Has returns true if the given key is present in any variant
