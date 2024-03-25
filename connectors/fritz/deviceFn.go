@@ -52,8 +52,12 @@ func (m *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map
 func (m *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, error) {
 	devl, err := m.fl.GetDeviceList()
 	if err != nil {
+		dur := 15 * time.Minute
+		ctx.GetLogger().Errorf("Failed to connect to FritzBox to get device list: %w", err)
+		m.GE.SetSystemAlert(ctx, "FailedConnection", AlertCategory, 2, fmt.Errorf("Connection failed"), &dur)
 		return nil, err
 	}
+	m.GE.ResetSystemAlert(ctx, "FailedConnection", AlertCategory)
 	devNs := m.GetDeviceNamespace()
 	modified_by := ""
 	if ctx != nil {
