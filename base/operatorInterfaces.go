@@ -62,12 +62,3 @@ type FreepsOperatorWithHook interface {
 type FreepsFunctionParametersWithInit interface {
 	Init(ctx *Context, operator FreepsOperator, fn string)
 }
-
-// FreepsFunctionParameters is the interface for a paramter struct that can return ArgumentSuggestions
-type FreepsFunctionParameters interface {
-	// GetArgSuggestions returns a map of possible arguments for the given function and argument name
-	GetArgSuggestions(operator FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string
-
-	// VerifyParameters checks if the given parameters are valid
-	VerifyParameters(operator FreepsOperator) *OperatorIO
-}

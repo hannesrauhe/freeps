@@ -206,7 +206,7 @@ func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 
 // getInitializedParamStruct returns the struct that is the third parameter of the function,
 // if it has a function Init([opinstance]), call it to intialize optional values
-func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflect.Type) (reflect.Value, FreepsFunctionParameters) {
+func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflect.Type) reflect.Value {
 	paramStruct := f.In(2)
 
 	paramStructInstance := reflect.New(paramStruct)
@@ -214,11 +214,7 @@ func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflec
 		psI.Init(ctx, o.opInstance, f.Name())
 	}
 
-	if !paramStructInstance.Type().Implements(reflect.TypeOf((*FreepsFunctionParameters)(nil)).Elem()) {
-		return paramStructInstance, nil
-	}
-	ps := paramStructInstance.Interface().(FreepsFunctionParameters)
-	return paramStructInstance, ps
+	return paramStructInstance
 }
 
 // callParamSuggestionFunction : if paramStruct has a function with the Name argName + "Suggestions", execute it and return the result
@@ -295,13 +291,6 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", mName, o.GetName(), err)
 			continue
 		}
-		// check if the third paramter implements the FreepsFunctionParameters interface, if it does not but has methods, log a warning
-		if ffType == FreepsFunctionTypeWithArguments || ffType == FreepsFunctionTypeFullSignature {
-			paramStruct, ps := o.getInitializedParamStruct(ctx, t.Method(i).Type)
-			if ps == nil && paramStruct.NumMethod() > 0 {
-				ctx.logger.Warnf("Function \"%v\" of operator \"%v\" has a third parameter that does not implement the FreepsFunctionParameters interface but has methods", mName, o.GetName())
-			}
-		}
 		o.functionMetaDataMap[utils.StringToLower(mName)] = FreepsFunctionMetaData{Name: mName, FuncValue: v.Method(i), FuncType: ffType}
 	}
 }
@@ -358,7 +347,7 @@ func (o *FreepsOperatorWrapper) ExecuteOld(ctx *Context, function string, args m
 	lowercaseArgs := fa.GetLowerCaseMapOnlyFirst()
 
 	// create an initialized instance of the parameter struct
-	paramStruct, ps := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
+	paramStruct := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
 
 	failOnError := true
 
@@ -370,14 +359,6 @@ func (o *FreepsOperatorWrapper) ExecuteOld(ctx *Context, function string, args m
 	err = o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	if err != nil && failOnError {
 		return err
-	}
-
-	if ps != nil {
-		// verify parameters before executing the function
-		res := ps.VerifyParameters(o.opInstance)
-		if res != nil && res.IsError() {
-			return res
-		}
 	}
 
 	if ffm.FuncType == FreepsFunctionTypeWithArguments {
@@ -455,7 +436,6 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	fa := NewFunctionArguments(otherArgs)
 
 	var paramStruct reflect.Value
-	var ps FreepsFunctionParameters //TODO(HR): may deprecate this
 
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
@@ -470,7 +450,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		}
 
 		// create an initialized instance of the parameter struct
-		paramStruct, ps = o.getInitializedParamStruct(nil, ffm.FuncValue.Type())
+		paramStruct = o.getInitializedParamStruct(nil, ffm.FuncValue.Type())
 
 		//set all required parameters of the FreepsFunction
 		o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
@@ -489,11 +469,6 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	res = o.callParamSuggestionFunction(operatorStruct, lkArgName)
 	if res != nil {
 		return res
-	}
-
-	// if the parameter struct implements FreepsFunctionParameters interface, call its GetArgSuggestions function => deprecate
-	if ps != nil {
-		res = ps.GetArgSuggestions(o.opInstance, utils.StringToLower(function), lkArgName, lowercaseArgs)
 	}
 
 	if (res == nil || len(res) == 0) && ffm != nil {
