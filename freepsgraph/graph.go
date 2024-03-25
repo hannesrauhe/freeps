@@ -41,7 +41,7 @@ func (g *Graph) GetGraphID() string {
 	return g.desc.GraphID
 }
 
-func (g *Graph) ExecuteOld(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+func (g *Graph) execute(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {

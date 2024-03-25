@@ -29,7 +29,7 @@ func (ge *GraphEngine) ExecuteAdHocGraph(ctx *base.Context, fullName string, gd 
 	}
 	ge.TriggerOnExecuteHooks(ctx, fullName, mainArgs, mainInput)
 	defer ge.TriggerOnExecutionFinishedHooks(ctx, fullName, mainArgs, mainInput)
-	return g.ExecuteOld(ctx, mainArgs, mainInput)
+	return g.execute(ctx, mainArgs, mainInput)
 }
 
 // ExecuteGraph executes a graph stored in the engine
@@ -40,7 +40,7 @@ func (ge *GraphEngine) ExecuteGraph(ctx *base.Context, graphName string, mainArg
 	}
 	ge.TriggerOnExecuteHooks(ctx, graphName, mainArgs, mainInput)
 	defer ge.TriggerOnExecutionFinishedHooks(ctx, graphName, mainArgs, mainInput)
-	return g.ExecuteOld(ctx, mainArgs, mainInput)
+	return g.execute(ctx, mainArgs, mainInput)
 }
 
 // ExecuteOperatorByName executes an operator directly

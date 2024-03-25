@@ -27,10 +27,6 @@ func (*MockOperator) Execute(ctx *base.Context, fn string, fa base.FunctionArgum
 	return input
 }
 
-func (*MockOperator) ExecuteOld(ctx *base.Context, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
-	return mainInput
-}
-
 func (*MockOperator) GetFunctions() []string {
 	return []string{"convert", "convertAll"}
 }
