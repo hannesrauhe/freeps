@@ -53,11 +53,11 @@ func (m *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	devl, err := m.fl.GetDeviceList()
 	if err != nil {
 		dur := 15 * time.Minute
-		ctx.GetLogger().Errorf("Failed to connect to FritzBox to get device list: %w", err)
-		m.GE.SetSystemAlert(ctx, "FailedConnection", AlertCategory, 2, fmt.Errorf("Connection failed"), &dur)
+		ctx.GetLogger().Errorf("Failed to connect to FritzBox to get device list: %v", err)
+		m.GE.SetSystemAlert(ctx, "FailedConnection", m.name, 2, fmt.Errorf("Connection failed"), &dur)
 		return nil, err
 	}
-	m.GE.ResetSystemAlert(ctx, "FailedConnection", AlertCategory)
+	m.GE.ResetSystemAlert(ctx, "FailedConnection", m.name)
 	devNs := m.GetDeviceNamespace()
 	modified_by := ""
 	if ctx != nil {
@@ -75,15 +75,15 @@ func (m *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDe
 	if device.HKR != nil {
 		if device.HKR.Batterylow {
 			dur := BatterylowAlertDuration
-			m.GE.SetSystemAlert(ctx, "BatteryLow"+device.AIN, AlertCategory, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
+			m.GE.SetSystemAlert(ctx, "BatteryLow"+device.AIN, m.name, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
 		} else {
-			m.GE.ResetSystemAlert(ctx, "BatteryLow"+device.AIN, AlertCategory)
+			m.GE.ResetSystemAlert(ctx, "BatteryLow"+device.AIN, m.name)
 		}
 		if device.HKR.Windowopenactive {
 			dur := 15 * time.Minute // TODO: time(device.HKR.Windowopenactiveendtime).Sub(time.Now())
-			m.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, AlertCategory, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
+			m.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, m.name, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
 		} else {
-			m.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, AlertCategory)
+			m.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, m.name)
 		}
 	}
 }
