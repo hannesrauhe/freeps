@@ -24,7 +24,7 @@ var _ base.FreepsOperatorWithConfig = &OpMQTT{}
 var _ base.FreepsOperatorWithHook = &OpMQTT{}
 var _ base.FreepsOperatorWithShutdown = &OpMQTT{}
 
-func (o *OpMQTT) GetDefaultConfig() interface{} {
+func (o *OpMQTT) GetDefaultConfig(fullName string) interface{} {
 	return &FreepsMqttConfig{Enabled: true, Server: "", Username: "", Password: "", Topics: []TopicConfig{}}
 }
 

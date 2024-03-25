@@ -28,7 +28,7 @@ var _ base.FreepsOperatorWithConfig = &MuteMe{}
 var _ base.FreepsOperatorWithShutdown = &MuteMe{}
 
 // GetDefaultConfig returns a copy of the default config
-func (mm *MuteMe) GetDefaultConfig() interface{} {
+func (mm *MuteMe) GetDefaultConfig(fullName string) interface{} {
 	newConfig := DefaultConfig
 	return &newConfig
 }

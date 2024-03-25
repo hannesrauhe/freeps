@@ -24,7 +24,7 @@ var _ base.FreepsOperatorWithShutdown = &Bluetooth{}
 var _ base.FreepsOperatorWithHook = &Bluetooth{}
 
 // GetDefaultConfig returns a copy of the default config
-func (bt *Bluetooth) GetDefaultConfig() interface{} {
+func (bt *Bluetooth) GetDefaultConfig(fullName string) interface{} {
 	cfg := defaultBluetoothConfig
 	return &cfg
 }

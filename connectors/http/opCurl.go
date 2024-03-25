@@ -25,7 +25,7 @@ var _ base.FreepsOperatorWithShutdown = &OpCurl{}
 var _ base.FreepsOperatorWithConfig = &OpCurl{}
 
 // GetDefaultConfig returns the default config for the http connector
-func (o *OpCurl) GetDefaultConfig() interface{} {
+func (o *OpCurl) GetDefaultConfig(fullName string) interface{} {
 	return &HTTPConfig{
 		Port:                   8080,
 		EnablePprof:            false,

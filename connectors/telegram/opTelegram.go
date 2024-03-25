@@ -27,7 +27,7 @@ var _ base.FreepsOperatorWithConfig = &OpTelegram{}
 var _ base.FreepsOperatorWithShutdown = &OpTelegram{}
 
 // GetDefaultConfig returns a copy of the default config
-func (m *OpTelegram) GetDefaultConfig() interface{} {
+func (m *OpTelegram) GetDefaultConfig(fullName string) interface{} {
 	return &TelegramConfig{Enabled: true, Token: "", AllowedUsers: []string{}, DebugMessages: false, StoreChatNamespace: "_telegram_chats"}
 }
 

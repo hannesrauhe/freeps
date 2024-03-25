@@ -87,7 +87,7 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 	}
 	opVariationSectionNames = append(opVariationSectionNames, opVariationWrapper0.GetName())
 	for _, opVariationSectionName := range opVariationSectionNames {
-		conf := opVariation0.GetDefaultConfig()
+		conf := opVariation0.GetDefaultConfig(opVariationSectionName)
 		if conf == nil {
 			ops = append(ops, &FreepsOperatorWrapper{opInstance: opVariation0})
 			continue

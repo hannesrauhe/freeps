@@ -35,7 +35,7 @@ var _ base.FreepsOperatorWithConfig = &OpFritz{}
 var _ base.FreepsOperatorWithDynamicFunctions = &OpFritz{}
 
 // GetDefaultConfig returns the default config for the http connector
-func (m *OpFritz) GetDefaultConfig() interface{} {
+func (m *OpFritz) GetDefaultConfig(fullName string) interface{} {
 	conf := freepslib.FBconfig{Verbose: false}
 	return &conf
 }
