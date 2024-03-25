@@ -20,7 +20,6 @@ const maxAge = time.Second * 100
 const BatterylowSeverity = 5
 const BatterylowAlertDuration = 5 * time.Minute
 const WindowOpenSeverity = 2
-const AlertCategory = "fritz"
 
 type OpFritz struct {
 	CR   *utils.ConfigReader
