@@ -32,7 +32,7 @@ type FunctionInfo struct {
 }
 
 // OnExecute gets called when freepsgraph starts executing a Graph
-func (h *HookStore) OnExecuteOld(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
+func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}
