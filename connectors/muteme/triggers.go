@@ -1,3 +1,5 @@
+//go:build !nomuteme && linux
+
 package muteme
 
 import (
