@@ -10,7 +10,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/hannesrauhe/freepslib v1.1.1
+	github.com/hannesrauhe/freepslib v1.2.1
 	github.com/influxdata/influxdb-client-go/v2 v2.13.0
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/keep94/sunrise v1.0.1
@@ -20,7 +20,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/sstallion/go-hid v0.14.1
 	golang.org/x/image v0.15.0
-	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.1
 )
 

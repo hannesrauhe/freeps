@@ -25,7 +25,7 @@ func (m *OpFritz) DeviceSuggestions() map[string]string {
 }
 
 func (m *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map[string]string, error) {
-	devNs := m.GetDeviceNamespace()
+	devNs := m.getDeviceNamespace()
 	devs := devNs.GetAllValues(0)
 	if forceRefresh || len(devs) == 0 {
 		_, err := m.getDeviceList(ctx)
@@ -58,7 +58,7 @@ func (m *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 		return nil, err
 	}
 	m.GE.ResetSystemAlert(ctx, "FailedConnection", m.name)
-	devNs := m.GetDeviceNamespace()
+	devNs := m.getDeviceNamespace()
 	modified_by := ""
 	if ctx != nil {
 		modified_by = ctx.GetID()

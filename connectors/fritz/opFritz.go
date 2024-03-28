@@ -47,19 +47,67 @@ func (m *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 	return op, err
 }
 
-// GetDeviceNamespace returns the namespace for the device cache
-func (m *OpFritz) GetDeviceNamespace() freepsstore.StoreNamespace {
+// getDeviceNamespace returns the namespace for the device cache
+func (m *OpFritz) getDeviceNamespace() freepsstore.StoreNamespace {
 	return freepsstore.GetGlobalStore().GetNamespaceNoError("_" + strings.ToLower(m.name) + "_devices")
 }
 
-// GetNetworkDeviceNamespace returns the namespace for the network device cache
-func (m *OpFritz) GetNetworkDeviceNamespace() freepsstore.StoreNamespace {
+// getNetworkDeviceNamespace returns the namespace for the network device cache
+func (m *OpFritz) getNetworkDeviceNamespace() freepsstore.StoreNamespace {
 	return freepsstore.GetGlobalStore().GetNamespaceNoError("_" + strings.ToLower(m.name) + "_network_devices")
 }
 
-// GetTemplateNamespace returns the namespace for the template cache
-func (m *OpFritz) GetTemplateNamespace() freepsstore.StoreNamespace {
+// getTemplateNamespace returns the namespace for the template cache
+func (m *OpFritz) getTemplateNamespace() freepsstore.StoreNamespace {
 	return freepsstore.GetGlobalStore().GetNamespaceNoError("_" + strings.ToLower(m.name) + "_templates")
+}
+
+type UpnpArgs struct {
+	ServiceName string
+	ActionName  string
+}
+
+func (a *UpnpArgs) ServiceNameSuggestions(m *OpFritz) map[string]string {
+	ret := map[string]string{}
+	svc, _ := m.fl.GetUpnpServicesShort()
+	for _, v := range svc {
+		ret[v] = v
+	}
+	return ret
+}
+
+func (a *UpnpArgs) ActionNameSuggestions(m *OpFritz) map[string]string {
+	ret := map[string]string{}
+	if a.ServiceName == "" {
+		return ret
+	}
+	actions, _ := m.fl.GetUpnpServiceActions(a.ServiceName)
+	for _, v := range actions {
+		ret[v] = v
+	}
+	return ret
+}
+
+// Upnp executes a function as advertised by the FritzBox via Upnp
+func (m *OpFritz) Upnp(ctx *base.Context, input *base.OperatorIO, args UpnpArgs, ActionArgs base.FunctionArguments) *base.OperatorIO {
+	res := map[string]interface{}{}
+	var err error
+	if ActionArgs.IsEmpty() {
+		res, err = m.fl.GetUpnpDataMap(args.ServiceName, args.ActionName)
+	} else {
+		aa := ActionArgs.GetOriginalKeys()
+		res, err = m.fl.CallUpnpActionWithArgument(args.ServiceName, args.ActionName, aa[0], ActionArgs.Get(aa[0]))
+	}
+	if err == nil {
+		return base.MakeObjectOutput(res)
+	}
+	pArgs, err2 := m.fl.GetUpnpServiceActionArguments(args.ServiceName, args.ActionName)
+	if err2 != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error: %v", err.Error())
+	} else {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error: %v, Possible Arguments for this Function: %v", err.Error(), pArgs)
+	}
+
 }
 
 // ExecuteDynamic executes a dynamic function
@@ -67,14 +115,6 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 	dev := args.Get("device")
 
 	switch fn {
-	case "upnp":
-		{
-			m, err := m.fl.GetUpnpDataMap(args.Get("serviceName"), args.Get("actionName"))
-			if err == nil {
-				return base.MakeObjectOutput(m)
-			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-		}
 	case "getmetrics":
 		{
 			met, err := m.fl.GetMetrics()
@@ -125,7 +165,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			if err != nil {
 				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 			}
-			netDevNs := m.GetNetworkDeviceNamespace()
+			netDevNs := m.getNetworkDeviceNamespace()
 			for active := range r.Data.Active {
 				netDevNs.SetValue(r.Data.Active[active].UID, base.MakeObjectOutput(r.Data.Active[active]), ctx.GetID())
 			}
@@ -243,7 +283,7 @@ func (m *OpFritz) GetDynamicArgSuggestions(fn string, arg string, otherArgs base
 
 // GetTemplates returns a map of all templates IDs
 func (m *OpFritz) GetTemplates() map[string]string {
-	tNs := m.GetTemplateNamespace()
+	tNs := m.getTemplateNamespace()
 	keys := tNs.GetAllValues(0)
 	if len(keys) == 0 {
 		m.getTemplateList()
@@ -263,7 +303,7 @@ func (m *OpFritz) GetTemplates() map[string]string {
 
 // GetDeviceByAIN returns the device object for the device with the given AIN
 func (m *OpFritz) GetDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmDevice, error) {
-	devNs := m.GetDeviceNamespace()
+	devNs := m.getDeviceNamespace()
 	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge).GetData()
 	if cachedDev.IsError() {
 		devl, err := m.getDeviceList(ctx)
@@ -290,7 +330,7 @@ func (m *OpFritz) GetDeviceMap(ctx *base.Context) (map[string]freepslib.AvmDevic
 	}
 	r := map[string]freepslib.AvmDevice{}
 
-	devNs := m.GetDeviceNamespace()
+	devNs := m.getDeviceNamespace()
 	for AIN, cachedDev := range devNs.GetAllValues(0) {
 		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
 		if !ok {
@@ -309,7 +349,7 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 		log.Println(err)
 		return nil, err
 	}
-	templNs := m.GetTemplateNamespace()
+	templNs := m.getTemplateNamespace()
 	for _, t := range templ.Template {
 		templNs.SetValue(t.ID, base.MakeObjectOutput(t), "")
 	}
