@@ -24,8 +24,6 @@ type MyTestFuncParams struct {
 	Vars                map[string]string
 }
 
-var _ FreepsFunctionParameters = &MyTestFuncParams{}
-
 type MyTestOperator struct {
 	bla     int
 	counter int
@@ -95,31 +93,24 @@ func (mt *MyTestOperator) AnotherUnusedFunctionWrongArguments(a int, b string) *
 
 var _ FreepsFunctionParametersWithInit = &MyTestFuncParams{}
 
-func (mf *MyTestFuncParams) GetArgSuggestions(op FreepsOperator, fn string, argName string, otherArgs map[string]string) map[string]string {
-	switch argName {
-	case "param1":
-		return map[string]string{
-			"function":  fn,
-			"param2":    fmt.Sprint(mf.Param2),
-			"optparam4": *mf.OptParam4,
-		}
-	case "param2":
-		return map[string]string{
-			"function": fn,
-			"param1":   mf.Param1,
-		}
+func (mf *MyTestFuncParams) Param1Suggestions(op FreepsOperator) map[string]string {
+	return map[string]string{
+		"function":  "foo",
+		"param2":    fmt.Sprint(mf.Param2),
+		"optparam4": *mf.OptParam4,
 	}
+}
 
-	return map[string]string{}
+func (mf *MyTestFuncParams) Param2Suggestions(op FreepsOperator) map[string]string {
+	return map[string]string{
+		"function": "foo",
+		"param1":   mf.Param1,
+	}
 }
 
 func (mf *MyTestFuncParams) Init(ctx *Context, op FreepsOperator, fn string) {
 	mf.OptParamWithDefault = new(int)
 	*mf.OptParamWithDefault = 42
-}
-
-func (mf *MyTestFuncParams) VerifyParameters(op FreepsOperator) *OperatorIO {
-	return MakeEmptyOutput()
 }
 
 func TestOpBuilderSuggestions(t *testing.T) {
@@ -137,7 +128,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 
 	sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{"paRam2": "4", "optparam4": "bla"})
 	assert.Equal(t, len(sug), 3)
-	assert.Equal(t, sug["function"], "myfavoritefunction")
+	assert.Equal(t, sug["function"], "foo")
 	assert.Equal(t, sug["param2"], "4")
 	assert.Equal(t, sug["optparam4"], "bla")
 
