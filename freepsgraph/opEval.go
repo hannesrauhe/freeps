@@ -38,11 +38,15 @@ type DedupArgs struct {
 }
 
 // GetName returns the name of the operator
-func (o *OpEval) GetName() string {
+func (m *OpEval) GetName() string {
 	return "eval"
 }
 
-func (m *OpEval) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (m *OpEval) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return m.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+}
+
+func (m *OpEval) ExecuteOld(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	switch fn {
 	case "echo":
 		if m, ok := vars["output"]; ok {

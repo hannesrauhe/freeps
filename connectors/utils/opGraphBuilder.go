@@ -157,7 +157,7 @@ func (m *OpGraphBuilder) ExecuteGraphFromStore(ctx *base.Context, input *base.Op
 	if err != nil {
 		return base.MakeOutputError(404, "Graph not found in store: %v", err)
 	}
-	return m.GE.ExecuteAdHocGraph(ctx, "ExecuteFromStore/"+args.GraphName, gd, make(map[string]string), input)
+	return m.GE.ExecuteAdHocGraph(ctx, "ExecuteFromStore/"+args.GraphName, gd, base.MakeEmptyFunctionArguments(), input)
 }
 
 // AddGraph adds a graph to the graph engine (unsused)

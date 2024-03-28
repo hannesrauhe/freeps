@@ -30,12 +30,12 @@ func testOutput(t *testing.T, fn string, output string) {
 	input := base.MakePlainOutput("test_value")
 
 	vars["output"] = "empty"
-	out := s.Execute(ctx, "setSimpleValue", vars, input)
+	out := s.Execute(ctx, "setSimpleValue", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
 	vars["output"] = output
-	out = s.Execute(ctx, fn, vars, input)
+	out = s.Execute(ctx, fn, base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out != nil)
 
 	if fn == "del" {
@@ -81,50 +81,50 @@ func TestStoreExpiration(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
 	input := base.MakePlainOutput("test_value")
 
-	out := s.Execute(ctx, "setSimpleValue", vars, input)
+	out := s.Execute(ctx, "setSimpleValue", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
 	vars["maxAge"] = "älter als Papa"
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusBadRequest)
 
 	time.Sleep(time.Millisecond * 5)
 	vars["maxAge"] = "2ms"
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusGone)
 
 	vars["maxAge"] = "2h"
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError())
 	assert.Equal(t, out.GetString(), "test_value")
 
-	out = s.Execute(ctx, "setSimpleValue", vars, input)
+	out = s.Execute(ctx, "setSimpleValue", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusConflict)
 
 	delete(vars, "maxAge")
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError())
 
 	vars["maxAge"] = "2ms"
-	out = s.Execute(ctx, "setSimpleValue", vars, input)
+	out = s.Execute(ctx, "setSimpleValue", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when overwriting value: %v", out)
 
-	out = s.Execute(ctx, "del", vars, input)
+	out = s.Execute(ctx, "del", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when deleting value: %v", out)
 
 	vars["maxAge"] = "2h"
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusNotFound)
 
 	// make sure timestamp is also gone
-	out = s.Execute(ctx, "setSimpleValue", vars, input)
+	out = s.Execute(ctx, "setSimpleValue", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError())
 }
@@ -134,21 +134,21 @@ func TestStoreCompareAndSwap(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "test_value", "output": "direct"}
 	input := base.MakePlainOutput("a_new_value")
 
-	out := s.Execute(ctx, "compareAndSwap", vars, input)
+	out := s.Execute(ctx, "compareAndSwap", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusNotFound)
 
-	out = s.Execute(ctx, "setSimpleValue", vars, input)
+	out = s.Execute(ctx, "setSimpleValue", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
-	out = s.Execute(ctx, "compareAndSwap", vars, input)
+	out = s.Execute(ctx, "compareAndSwap", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError())
 	assert.Equal(t, out.GetString(), "a_new_value")
 
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Equal(t, out.GetString(), "a_new_value")
 
-	out = s.Execute(ctx, "compareAndSwap", vars, input)
+	out = s.Execute(ctx, "compareAndSwap", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusConflict)
 }
@@ -158,21 +158,21 @@ func TestStoreDynamicArgName(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "keyargname": "schluessel", "valueargname": "wert", "schluessel": "test_key", "wert": "test_value", "output": "direct"}
 	input := base.MakePlainOutput("a_new_value")
 
-	out := s.Execute(ctx, "setSimpleValue", vars, input)
+	out := s.Execute(ctx, "setSimpleValue", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Equal(t, out.GetString(), "test_value")
 
-	out = s.Execute(ctx, "del", vars, input)
+	out = s.Execute(ctx, "del", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when deleting value: %v", out)
 
 	vars["wert"] = ""
-	out = s.Execute(ctx, "set", vars, input)
+	out = s.Execute(ctx, "set", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError())
 
 	delete(vars, "wert")
-	out = s.Execute(ctx, "set", vars, input)
+	out = s.Execute(ctx, "set", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError())
 }
 
@@ -181,11 +181,11 @@ func TestStoreGetDefault(t *testing.T) {
 	vars := map[string]string{"namespace": "testing", "key": "test_key", "defaultvalue": "mydefault", "output": "direct"}
 	input := base.MakePlainOutput("a_new_value")
 
-	out := s.Execute(ctx, "set", vars, input)
+	out := s.Execute(ctx, "set", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
 	vars["key"] = "test_key2"
-	out = s.Execute(ctx, "get", vars, input)
+	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Equal(t, out.GetString(), "mydefault")
 }
 
@@ -194,16 +194,16 @@ func TestStoreSetGetAll(t *testing.T) {
 	vars := map[string]string{"namespace": "testing"}
 	input := base.MakeByteOutput([]byte(`{ "v1" : "a_new_value" , "v2" : "second" }`))
 
-	outSet := s.Execute(ctx, "setAll", vars, input)
+	outSet := s.Execute(ctx, "setAll", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !outSet.IsError(), outSet.Output)
 
 	expected := map[string]map[string]*base.OperatorIO{"testing": {}}
 	expected["testing"]["v1"] = base.MakeObjectOutput("a_new_value")
 	expected["testing"]["v2"] = base.MakeObjectOutput("second")
-	outGet := s.Execute(ctx, "getAll", vars, input)
+	outGet := s.Execute(ctx, "getAll", base.NewFunctionArguments(vars), input)
 	assert.DeepEqual(t, outGet, base.MakeObjectOutput(expected))
 
-	searchVars := map[string]string{"namespace": "testing", "key": "2", "value": "s", "maxAge": "1h"}
+	searchVars := base.NewFunctionArguments(map[string]string{"namespace": "testing", "key": "2", "value": "s", "maxAge": "1h"})
 	outSearch := s.Execute(ctx, "search", searchVars, input)
 	assert.Assert(t, !outSearch.IsError())
 }

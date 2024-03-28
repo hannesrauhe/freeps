@@ -23,8 +23,8 @@ func (*MockOperator) GetName() string {
 	return "mock"
 }
 
-func (*MockOperator) Execute(ctx *base.Context, fn string, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
-	return mainInput
+func (*MockOperator) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return input
 }
 
 func (*MockOperator) GetFunctions() []string {
@@ -66,15 +66,15 @@ func TestOperatorErrorChain(t *testing.T) {
 			"valueType": "bool"}},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
 	}, OutputFrom: "echook"}
-	oError := ge.ExecuteGraph(ctx, "test", make(map[string]string), base.MakeEmptyOutput())
+	oError := ge.ExecuteGraph(ctx, "test", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 	assert.Assert(t, oError.IsError(), "unexpected output: %v", oError)
 
 	testInput := base.MakeByteOutput([]byte(`{"FieldsWithType": {"open" : {"FieldValue": "true", "FieldType": "bool"} }}`))
-	oTrue := ge.ExecuteGraph(ctx, "test", make(map[string]string), testInput)
+	oTrue := ge.ExecuteGraph(ctx, "test", base.MakeEmptyFunctionArguments(), testInput)
 	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
 
 	// test that output of single operation is directly returned and not merged
-	oDirect := ge.ExecuteOperatorByName(ctx, "eval", "echo", map[string]string{"output": "true"}, base.MakeEmptyOutput())
+	oDirect := ge.ExecuteOperatorByName(ctx, "eval", "echo", base.NewSingleFunctionArgument("output", "true"), base.MakeEmptyOutput())
 	assert.Assert(t, oDirect.IsPlain(), "unexpected output: %v", oDirect)
 }
 
@@ -224,7 +224,7 @@ func TestGraphExecution(t *testing.T) {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger()), tagGroups, make(map[string]string), base.MakeEmptyOutput()),
+			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger()), tagGroups, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
@@ -234,7 +234,7 @@ func TestGraphExecution(t *testing.T) {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), tags, make(map[string]string), base.MakeEmptyOutput()),
+			ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger()), tags, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
@@ -275,7 +275,7 @@ func TestGraphExecution(t *testing.T) {
 
 	// test the operator once
 	expectOutput(t,
-		ge.ExecuteOperatorByName(base.NewContext(log.StandardLogger()), "graphbytag", "t4", map[string]string{}, base.MakeEmptyOutput()),
+		ge.ExecuteOperatorByName(base.NewContext(log.StandardLogger()), "graphbytag", "t4", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 		200, []string{"test2", "test3", "test4"})
 
 	/* Keytags */

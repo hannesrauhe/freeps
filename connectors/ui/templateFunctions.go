@@ -135,14 +135,14 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			if err != nil {
 				return base.MakeOutputError(400, "Could not parse mainArgs: %v", err)
 			}
-			return o.ge.ExecuteGraph(ctx, graphName, mainArgs, base.MakeEmptyOutput())
+			return o.ge.ExecuteGraph(ctx, graphName, base.NewFunctionArguments(mainArgs), base.MakeEmptyOutput())
 		},
 		"graph_ExecuteOperator": func(op string, fn string, mainArgsStr string) *base.OperatorIO {
 			mainArgs, err := utils.URLParseQuery(mainArgsStr)
 			if err != nil {
 				return base.MakeOutputError(400, "Could not parse mainArgs: %v", err)
 			}
-			return o.ge.ExecuteOperatorByName(ctx, op, fn, mainArgs, base.MakeEmptyOutput())
+			return o.ge.ExecuteOperatorByName(ctx, op, fn, base.NewFunctionArguments(mainArgs), base.MakeEmptyOutput())
 		},
 		"graph_GetTagMap": func() map[string][]string {
 			return o.ge.GetTagMap()

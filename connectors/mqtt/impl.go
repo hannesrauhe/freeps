@@ -68,7 +68,7 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 	}
 	input := base.MakeObjectOutput(message.Payload())
 	ctx := base.NewContext(fm.mqttlogger)
-	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], map[string]string{"topic": message.Topic()}, input)
+	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], base.NewSingleFunctionArgument("topic", message.Topic()), input)
 	fm.publishResult(message.Topic(), ctx, out)
 }
 
@@ -126,7 +126,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 			for ti, tp := range tParts {
 				args[fmt.Sprintf("topic%d", ti)] = tp
 			}
-			out := fm.ge.ExecuteGraphByTags(ctx, tags, args, input)
+			out := fm.ge.ExecuteGraphByTags(ctx, tags, base.NewFunctionArguments(args), input)
 			fm.publishResult(topic, ctx, out)
 		}
 		tokens = append(tokens, c.Subscribe(topic, byte(0), onMessageReceived))

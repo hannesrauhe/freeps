@@ -71,7 +71,7 @@ type OpExec struct {
 	bgOutput    bytes.Buffer
 }
 
-var _ base.FreepsOperator = &OpExec{}
+var _ base.FreepsBaseOperator = &OpExec{}
 
 // GetName returns the name of the Executable as given by the config
 func (o *OpExec) GetName() string {
@@ -183,8 +183,12 @@ func (o *OpExec) stopBackground(ctx *base.Context) *base.OperatorIO {
 	return base.MakeByteOutput(o.bgOutput.Bytes())
 }
 
+func (o *OpExec) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+}
+
 // Execute executes the binary
-func (o *OpExec) Execute(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpExec) ExecuteOld(ctx *base.Context, fn string, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	argsmap := map[string]string{}
 	for k, v := range o.DefaultArguments {
 		argsmap[k] = v

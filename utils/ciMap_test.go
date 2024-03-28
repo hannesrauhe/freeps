@@ -104,4 +104,11 @@ func TestMixedInsertCIMap(t *testing.T) {
 		}
 		assert.Assert(t, found)
 	}
+
+	m1.Append("c", "valc")
+	m1.Append("C", "Valc")
+	m1.Append("B", "valB2")
+
+	assert.DeepEqual(t, m1.GetValues("c"), []string{"Valc", "valc"})
+	assert.DeepEqual(t, m1.GetValues("b"), []string{"valB", "valB2", "valb"})
 }

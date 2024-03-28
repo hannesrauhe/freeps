@@ -41,12 +41,12 @@ func (g *Graph) GetGraphID() string {
 	return g.desc.GraphID
 }
 
-func (g *Graph) execute(ctx *base.Context, mainArgs map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+func (g *Graph) execute(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {
 		operation := g.desc.Operations[i]
-		output := g.executeOperation(ctx, &operation, base.NewFunctionArguments(mainArgs))
+		output := g.executeOperation(ctx, &operation, mainArgs)
 		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 		g.opOutputs[operation.Name] = output
 	}
@@ -127,7 +127,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
 
-		output := op.Execute(g.context, finalOpDesc.Function, finalOpDesc.Arguments, input)
+		output := op.Execute(g.context, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
 
 		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
 		return output

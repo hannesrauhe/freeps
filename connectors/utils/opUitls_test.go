@@ -49,12 +49,12 @@ func TestStringReplace(t *testing.T) {
 	ctx := base.NewContext(logrus.StandardLogger())
 
 	o := base.MakeFreepsOperators(&OpUtils{}, nil, ctx)[0]
-	args := map[string]string{
+	args := base.NewFunctionArguments(map[string]string{
 		"InputString": "%a%% + %b%% = %c%%",
 		"a":           "1",
 		"b":           "2",
 		"c":           "3",
-	}
+	})
 
 	input := base.MakeEmptyOutput()
 

@@ -28,7 +28,11 @@ func (o *OpWLED) GetName() string {
 	return "wled"
 }
 
-func (o *OpWLED) Execute(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
+func (o *OpWLED) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+}
+
+func (o *OpWLED) ExecuteOld(ctx *base.Context, function string, vars map[string]string, mainInput *base.OperatorIO) *base.OperatorIO {
 	activeConnection := o.config.DefaultConnection
 	if vars["config"] != "" {
 		activeConnection = vars["config"]

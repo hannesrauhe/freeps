@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -453,7 +452,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 		}
 		graphName := formdata.Get("ExecuteGraph")
 		if graphName != "" {
-			out := o.ge.ExecuteGraph(ctx, graphName, make(map[string]string), base.MakeEmptyOutput())
+			out := o.ge.ExecuteGraph(ctx, graphName, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 			if out.IsError() {
 				tdata["status_error"] = graphName
 			} else {
@@ -469,7 +468,11 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
 }
 
-func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpUI) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+}
+
+func (o *OpUI) ExecuteOld(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	logger := ctx.GetLogger().WithField("component", "UI")
 	withFooter := !utils.ParseBool(args["noFooter"])
 	delete(args, "noFooter")
@@ -504,14 +507,13 @@ func (o *OpUI) Execute(ctx *base.Context, fn string, args map[string]string, inp
 			}
 			opName := formInput.Get("ExecuteOperator")
 			graphName := formInput.Get("ExecuteGraph")
-			argQuery, err := url.ParseQuery(formInput.Get("ExecuteArgs"))
+			executeWithArgs, err := base.NewFunctionArgumentsFromURLQuery(formInput.Get("ExecuteArgs"))
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
 			}
-			executeWithArgs := utils.URLArgsToMap(argQuery)
 			for k, v := range formInput {
 				if utils.StringStartsWith(k, "ExecuteArg.") {
-					executeWithArgs[k[11:]] = v[0]
+					executeWithArgs.Append(k[11:], v...)
 				}
 			}
 			executeWithInput := base.MakeEmptyOutput()

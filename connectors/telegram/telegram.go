@@ -288,7 +288,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			msg.Text = err.Error()
 		}
 		m.resetChatState(ctx, *chat) // links the context ID of this chat to the execution of the graph
-		io := m.GE.ExecuteAdHocGraph(ctx, "telegram/"+tcr.T, gd, map[string]string{}, base.MakeEmptyOutput())
+		io := m.GE.ExecuteAdHocGraph(ctx, "telegram/"+tcr.T, gd, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 		if io.IsError() {
 			msg.Text = fmt.Sprintf("Error when executing operation: %v", io.GetError())
 		} else if utils.StringStartsWith(io.ContentType, "image") {

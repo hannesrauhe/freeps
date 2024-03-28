@@ -9,6 +9,9 @@ import (
 
 // CIMap is a struct that can be used to pass arguments to a function
 type CIMap[Val any] interface {
+	// Append adds value to the array stored under key, it stores the original case
+	Append(key string, value ...Val)
+
 	// Has returns true if map contains a key
 	Has(key string) bool
 	// Get returns the first value stored for key or the default value if key is not in map
@@ -110,6 +113,16 @@ func NewStringCIMapFromValues(args map[string][]string) CIMap[string] {
 		slices.Sort(kList)
 	}
 	return ret
+}
+
+func (fa *CIMapImpl[Val]) Append(k string, v ...Val) {
+	appendToMultiMap(fa.OriginalMap, k, v...)
+	lk := strings.ToLower(k)
+	_, hasAlready := slices.BinarySearch(fa.lowerKeyMapping[lk], k)
+	if !hasAlready {
+		appendToMultiMap(fa.lowerKeyMapping, lk, k)
+		slices.Sort(fa.lowerKeyMapping[lk])
+	}
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats

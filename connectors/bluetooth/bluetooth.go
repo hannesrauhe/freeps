@@ -128,7 +128,7 @@ func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery 
 	if freshDiscovery {
 		ns := freepsstore.GetGlobalStore().GetNamespaceNoError(fbt.config.DiscoveredNamespace)
 		ns.SetValue(devData.Address, input, ctx.GetID())
-		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, args, input)
+		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, base.NewFunctionArguments(args), input)
 	} else {
 		ns := freepsstore.GetGlobalStore().GetNamespaceNoError(fbt.config.KnownNamespace)
 		ns.SetValue(devData.Address, input, ctx.GetID())

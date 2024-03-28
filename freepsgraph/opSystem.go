@@ -25,7 +25,11 @@ func (o *OpSystem) GetName() string {
 	return "system"
 }
 
-func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
+func (o *OpSystem) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
+}
+
+func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	switch fn {
 	case "stop", "shutdown":
 		o.ge.reloadRequested = false
@@ -36,9 +40,9 @@ func (o *OpSystem) Execute(ctx *base.Context, fn string, args map[string]string,
 		o.cancel()
 		return base.MakeEmptyOutput()
 	case "getGraph", "getGraphDesc", "GetGraphDesc":
-		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "getGraph", map[string]string{"graphName": args["name"]}, base.MakeEmptyOutput())
+		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "getGraph", base.NewSingleFunctionArgument("graphName", args["name"]), base.MakeEmptyOutput())
 	case "deleteGraph":
-		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "deleteGraph", map[string]string{"graphName": args["name"]}, base.MakeEmptyOutput())
+		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "deleteGraph", base.NewSingleFunctionArgument("graphName", args["name"]), base.MakeEmptyOutput())
 	case "toDot":
 		g, out := o.ge.prepareGraphExecution(ctx, args["name"])
 		if out.IsError() {

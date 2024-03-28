@@ -66,5 +66,5 @@ func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetada
 		oc.SetAlert(causedByCtx, base.MakeEmptyOutput(), Alert{Name: "AlertGraphTrigger", Desc: &desc, Category: &category}, base.NewFunctionArguments(map[string]string{"noTrigger": "1"}))
 	}
 
-	oc.GE.ExecuteGraphByTagsExtended(causedByCtx, tagGroups, args, base.MakeEmptyOutput())
+	oc.GE.ExecuteGraphByTagsExtended(causedByCtx, tagGroups, base.NewFunctionArguments(args), base.MakeEmptyOutput())
 }
