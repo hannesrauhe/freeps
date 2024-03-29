@@ -20,6 +20,7 @@ const maxAge = time.Second * 100
 const BatterylowSeverity = 5
 const BatterylowAlertDuration = 5 * time.Minute
 const WindowOpenSeverity = 2
+const DeviceNotPresentSeverity = 2
 
 type OpFritz struct {
 	CR   *utils.ConfigReader

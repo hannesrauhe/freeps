@@ -86,4 +86,10 @@ func (m *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDe
 			m.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, m.name)
 		}
 	}
+	if !device.Present {
+		dur := 15 * time.Minute
+		m.GE.SetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, m.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
+	} else {
+		m.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, m.name)
+	}
 }
