@@ -116,18 +116,9 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 	// subscribe to new Topics
 	for topic := range newTopics {
 		// build the slice here so we don't run into https://go.dev/doc/faq#closures_and_goroutines
-		tags := []string{"mqtt", "topic:" + topic}
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
 			ctx := base.NewContext(fm.mqttlogger)
-			input := base.MakeByteOutput(message.Payload())
-			args := map[string]string{"topic": message.Topic(), "subscription": tags[1]}
-			freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
-			tParts := strings.Split(message.Topic(), "/")
-			for ti, tp := range tParts {
-				args[fmt.Sprintf("topic%d", ti)] = tp
-			}
-			out := fm.ge.ExecuteGraphByTags(ctx, tags, base.NewFunctionArguments(args), input)
-			fm.publishResult(topic, ctx, out)
+			fm.executeTrigger(ctx, topic, message)
 		}
 		tokens = append(tokens, c.Subscribe(topic, byte(0), onMessageReceived))
 		existingTopics[topic] = false
@@ -147,6 +138,44 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 		return nil
 	}
 	return fmt.Errorf("Errors during subscribe/unsubscribe:\n%v", errStr)
+}
+
+func (fm *FreepsMqttImpl) discoverTopics(ctx *base.Context, discoverDuration time.Duration) error {
+	c := fm.client
+	if c == nil || !c.IsConnected() {
+		return fmt.Errorf("client is not connected")
+	}
+
+	fm.topicLock.Lock()
+	defer fm.topicLock.Unlock()
+
+	if _, ok := fm.topics["#"]; ok {
+		return nil
+	}
+
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_mqtt")
+	if err != nil {
+		return fmt.Errorf("Error getting namespace: %v", err)
+	}
+
+	onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+		ns.SetValue(message.Topic(), base.MakeEmptyOutput(), ctx.GetID())
+	}
+	token := c.Subscribe("#", byte(0), onMessageReceived)
+	token.Wait()
+	if err := token.Error(); err != nil {
+		fm.mqttlogger.Errorf("Error when trying to disover new topics: %v", err)
+	}
+
+	time.Sleep(discoverDuration)
+
+	token = c.Unsubscribe("#")
+	token.Wait()
+	if err := token.Error(); err != nil {
+		fm.mqttlogger.Errorf("Error when trying to disover new topics: %v", err)
+	}
+
+	return nil
 }
 
 func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
