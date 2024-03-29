@@ -35,6 +35,14 @@ func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name 
 	return op, err
 }
 
+func (o *OpMQTT) DiscoverTopics(ctx *base.Context) *base.OperatorIO {
+	err := o.impl.discoverTopics(ctx, time.Second)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
+	}
+	return base.MakeEmptyOutput()
+}
+
 // GetSubscriptions returns a list of all subscriped topics
 func (o *OpMQTT) GetSubscriptions(ctx *base.Context) *base.OperatorIO {
 	topics := o.impl.getTopicSubscriptions()

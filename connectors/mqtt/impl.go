@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -137,6 +138,44 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 		return nil
 	}
 	return fmt.Errorf("Errors during subscribe/unsubscribe:\n%v", errStr)
+}
+
+func (fm *FreepsMqttImpl) discoverTopics(ctx *base.Context, discoverDuration time.Duration) error {
+	c := fm.client
+	if c == nil || !c.IsConnected() {
+		return fmt.Errorf("client is not connected")
+	}
+
+	fm.topicLock.Lock()
+	defer fm.topicLock.Unlock()
+
+	if _, ok := fm.topics["#"]; ok {
+		return nil
+	}
+
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_mqtt")
+	if err != nil {
+		return fmt.Errorf("Error getting namespace: %v", err)
+	}
+
+	onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
+		ns.SetValue(message.Topic(), base.MakeEmptyOutput(), ctx.GetID())
+	}
+	token := c.Subscribe("#", byte(0), onMessageReceived)
+	token.Wait()
+	if err := token.Error(); err != nil {
+		fm.mqttlogger.Errorf("Error when trying to disover new topics: %v", err)
+	}
+
+	time.Sleep(discoverDuration)
+
+	token = c.Unsubscribe("#")
+	token.Wait()
+	if err := token.Error(); err != nil {
+		fm.mqttlogger.Errorf("Error when trying to disover new topics: %v", err)
+	}
+
+	return nil
 }
 
 func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
