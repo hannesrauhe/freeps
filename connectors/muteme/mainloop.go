@@ -71,6 +71,7 @@ func (m *MuteMe) mainloop(running *bool) {
 	m.blink(m.config.SuccessColor, color)
 
 	for *running {
+		ctx = base.NewContext(m.logger)
 		// set the user-requested color unless the indicator light is active
 		if !indicatorLightActive {
 			select {
