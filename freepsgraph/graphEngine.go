@@ -343,6 +343,11 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
 func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) {
+	if r := recover(); r != nil {
+		logger := ctx.GetLogger()
+		logger.Errorf("during execution of %v: %v", graphName, r)
+	}
+
 	hooks := ge.getHookMapCopy()
 
 	for name, h := range hooks {
