@@ -5,6 +5,7 @@ package muteme
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 )
@@ -60,21 +61,19 @@ func (mm *MuteMe) SetLongTouchTrigger(ctx *base.Context, mainInput *base.Operato
 	return mm.setTrigger(ctx, args.GraphID, mm.config.LongTouchTag)
 }
 
-/* TODO(HR): call this in mainloop
-func (mm *MuteMe) execTriggers(causedByCtx *base.Context, ) *base.OperatorIO {
+func (mm *MuteMe) execTriggers(ctx *base.Context, touchDuration time.Duration, lastTouchDuration time.Duration, lastTouchCounter int) *base.OperatorIO {
 	tags := []string{mm.config.Tag}
-	args := map[string]string{}
-	if tpress2.Sub(tpress1) < mm.config.MultiTouchDuration {
+	args := base.MakeEmptyFunctionArguments()
+	if touchDuration < mm.config.MultiTouchDuration {
 		tags = append(tags, mm.config.MultiTouchTag)
-		args["TouchCount"] = fmt.Sprint(lastTouchCounter)
+		args.Append("TouchCount", fmt.Sprint(lastTouchCounter))
 	} else {
 		if lastTouchDuration > mm.config.LongTouchDuration {
 			tags = append(tags, mm.config.LongTouchTag)
 		} else {
 			tags = append(tags, mm.config.TouchTag)
 		}
-		args["TouchDuration"] = lastTouchDuration.String()
+		args.Append("TouchDuration", lastTouchDuration.String())
 	}
-	resultIO := m.GE.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
+	return mm.GE.ExecuteGraphByTags(ctx, tags, args, base.MakeEmptyOutput())
 }
-*/

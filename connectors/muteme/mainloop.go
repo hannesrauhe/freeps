@@ -55,13 +55,13 @@ func (m *MuteMe) mainloop(running *bool) {
 	color := "off"
 	alertCategory := "system"
 	alertName := "mutemeOffline"
-
+	ctx := base.NewContext(m.logger)
 	if m.dev == nil {
 		// Open the device using the VID and PID.
 		d, err := hid.OpenFirst(m.config.VendorID, m.config.ProductID)
 		if err != nil {
 			alertError := fmt.Errorf("MuteMe is offline because: %w", err)
-			m.GE.SetSystemAlert(base.NewContext(m.logger), alertName, alertCategory, 2, alertError, nil)
+			m.GE.SetSystemAlert(ctx, alertName, alertCategory, 2, alertError, nil)
 			return
 		}
 		m.dev = d
@@ -71,6 +71,7 @@ func (m *MuteMe) mainloop(running *bool) {
 	m.blink(m.config.SuccessColor, color)
 
 	for *running {
+		ctx = base.NewContext(m.logger)
 		// set the user-requested color unless the indicator light is active
 		if !indicatorLightActive {
 			select {
@@ -97,11 +98,11 @@ func (m *MuteMe) mainloop(running *bool) {
 			// should be a timeout error in normal operation, or an interupt
 			if !errors.Is(err, hid.ErrTimeout) && !strings.Contains(err.Error(), "Interrupted system call") {
 				alertError := fmt.Errorf("MuteMe is offline because: %w", err)
-				m.GE.SetSystemAlert(base.NewContext(m.logger), alertName, alertCategory, 2, alertError, nil)
+				m.GE.SetSystemAlert(ctx, alertName, alertCategory, 2, alertError, nil)
 				logrus.Errorf("Error getting state: %v", err)
 				break
 			}
-			m.GE.ResetSystemAlert(base.NewContext(m.logger), alertName, alertCategory)
+			m.GE.ResetSystemAlert(ctx, alertName, alertCategory)
 
 			if lastTouchDuration <= time.Microsecond {
 				// nothing happened
@@ -109,20 +110,7 @@ func (m *MuteMe) mainloop(running *bool) {
 			}
 
 			// action:
-			tags := []string{m.config.Tag}
-			args := base.MakeEmptyFunctionArguments()
-			if tpress2.Sub(tpress1) < m.config.MultiTouchDuration {
-				tags = append(tags, m.config.MultiTouchTag)
-				args.Append("TouchCount", fmt.Sprint(lastTouchCounter))
-			} else {
-				if lastTouchDuration > m.config.LongTouchDuration {
-					tags = append(tags, m.config.LongTouchTag)
-				} else {
-					tags = append(tags, m.config.TouchTag)
-				}
-				args.Append("TouchDuration", lastTouchDuration.String())
-			}
-			resultIO := m.GE.ExecuteGraphByTags(base.NewContext(m.logger), tags, args, base.MakeEmptyOutput())
+			resultIO := m.execTriggers(ctx, tpress2.Sub(tpress1), lastTouchDuration, lastTouchCounter)
 			ignoreUntil = time.Now().Add(time.Second)
 			m.logger.Debugf("Muteme touched, result: %v", resultIO)
 			if resultIO.IsError() {
