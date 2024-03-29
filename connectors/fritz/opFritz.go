@@ -64,8 +64,10 @@ func (m *OpFritz) getTemplateNamespace() freepsstore.StoreNamespace {
 }
 
 type UpnpArgs struct {
-	ServiceName string
-	ActionName  string
+	ServiceName   string
+	ActionName    string
+	ArgumentName  *string
+	ArgumentValue *string
 }
 
 func (a *UpnpArgs) ServiceNameSuggestions(m *OpFritz) map[string]string {
@@ -89,15 +91,25 @@ func (a *UpnpArgs) ActionNameSuggestions(m *OpFritz) map[string]string {
 	return ret
 }
 
+func (a *UpnpArgs) ArgumentNameSuggestions(m *OpFritz) []string {
+	if a.ServiceName == "" || a.ActionName == "" {
+		return []string{}
+	}
+	ret, err := m.fl.GetUpnpServiceActionArguments(a.ServiceName, a.ActionName)
+	if err != nil {
+		return []string{}
+	}
+	return ret
+}
+
 // Upnp executes a function as advertised by the FritzBox via Upnp
-func (m *OpFritz) Upnp(ctx *base.Context, input *base.OperatorIO, args UpnpArgs, ActionArgs base.FunctionArguments) *base.OperatorIO {
+func (m *OpFritz) Upnp(ctx *base.Context, input *base.OperatorIO, args UpnpArgs) *base.OperatorIO {
 	res := map[string]interface{}{}
 	var err error
-	if ActionArgs.IsEmpty() {
+	if args.ArgumentName != nil && args.ArgumentValue != nil {
 		res, err = m.fl.GetUpnpDataMap(args.ServiceName, args.ActionName)
 	} else {
-		aa := ActionArgs.GetOriginalKeys()
-		res, err = m.fl.CallUpnpActionWithArgument(args.ServiceName, args.ActionName, aa[0], ActionArgs.Get(aa[0]))
+		res, err = m.fl.CallUpnpActionWithArgument(args.ServiceName, args.ActionName, *args.ArgumentName, *args.ArgumentValue)
 	}
 	if err == nil {
 		return base.MakeObjectOutput(res)
