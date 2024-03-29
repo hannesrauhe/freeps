@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -116,18 +115,9 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 	// subscribe to new Topics
 	for topic := range newTopics {
 		// build the slice here so we don't run into https://go.dev/doc/faq#closures_and_goroutines
-		tags := []string{"mqtt", "topic:" + topic}
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
 			ctx := base.NewContext(fm.mqttlogger)
-			input := base.MakeByteOutput(message.Payload())
-			args := map[string]string{"topic": message.Topic(), "subscription": tags[1]}
-			freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
-			tParts := strings.Split(message.Topic(), "/")
-			for ti, tp := range tParts {
-				args[fmt.Sprintf("topic%d", ti)] = tp
-			}
-			out := fm.ge.ExecuteGraphByTags(ctx, tags, base.NewFunctionArguments(args), input)
-			fm.publishResult(topic, ctx, out)
+			fm.executeTrigger(ctx, topic, message)
 		}
 		tokens = append(tokens, c.Subscribe(topic, byte(0), onMessageReceived))
 		existingTopics[topic] = false
