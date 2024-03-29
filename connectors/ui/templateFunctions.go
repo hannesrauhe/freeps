@@ -159,14 +159,31 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			if op == nil {
 				return []string{}
 			}
-			return op.GetPossibleArgs(fn)
+			args := op.GetPossibleArgs(fn)
+			if len(args) > 100 {
+				return args[:100]
+			}
+			return args
 		},
 		"operator_GetArgSuggestions": func(opName string, fn string, arg string) map[string]string {
 			op := o.ge.GetOperator(opName)
 			if op == nil {
 				return map[string]string{}
 			}
-			return op.GetArgSuggestions(fn, arg, map[string]string{})
+			argSugg := op.GetArgSuggestions(fn, arg, map[string]string{})
+			if len(argSugg) > 100 {
+				argSuggShort := map[string]string{}
+				i := 0
+				for k, v := range argSugg {
+					argSuggShort[k] = v
+					i++
+					if i > 100 {
+						break
+					}
+				}
+				return argSuggShort
+			}
+			return argSugg
 		},
 	}
 	return funcMap

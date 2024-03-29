@@ -29,7 +29,7 @@ type TouchTrigger struct {
 	GraphID string
 }
 
-// GraphID auggestions returns suggestions for graph names
+// GraphIDSuggestions returns suggestions for graph names
 func (mm *MuteMe) GraphIDSuggestions() map[string]string {
 	graphNames := map[string]string{}
 	res := mm.GE.GetAllGraphDesc()

@@ -8,6 +8,7 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 func (fm *FreepsMqttImpl) executeTrigger(ctx *base.Context, topic string, message MQTT.Message) *base.OperatorIO {
@@ -43,6 +44,49 @@ func (o *OpMQTT) GraphIDSuggestions() map[string]string {
 type TopicTrigger struct {
 	GraphID string
 	Topic   string
+}
+
+// TopicSuggestions returns known topics
+func (tt *TopicTrigger) TopicSuggestions(o *OpMQTT) []string {
+	maxSize := 20
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_mqtt")
+	if err != nil {
+		return []string{}
+	}
+	allKeys := ns.GetKeys()
+	if len(allKeys) <= maxSize {
+		return allKeys
+	}
+	filteredKeys := allKeys
+	if tt.Topic != "" {
+		filteredKeys = []string{}
+		for _, k := range allKeys {
+			if utils.StringStartsWith(k, tt.Topic) {
+				filteredKeys = append(filteredKeys, k)
+				if len(filteredKeys) >= maxSize {
+					break
+				}
+			}
+		}
+	}
+	if len(filteredKeys) <= maxSize {
+		return filteredKeys
+	}
+
+	h1Keys := []string{}
+	lastPrefix := ""
+	for _, k := range filteredKeys {
+		if lastPrefix != "" && utils.StringStartsWith(k, lastPrefix) {
+			continue
+		}
+		parts := strings.SplitN(k, "/", 2)
+		lastPrefix = parts[0]
+		h1Keys = append(h1Keys, lastPrefix)
+		if len(h1Keys) >= maxSize {
+			break
+		}
+	}
+	return h1Keys
 }
 
 func (o *OpMQTT) SetTopicTrigger(ctx *base.Context, mainInput *base.OperatorIO, args TopicTrigger) *base.OperatorIO {
