@@ -345,7 +345,10 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) {
 	if r := recover(); r != nil {
 		logger := ctx.GetLogger()
-		logger.Errorf("during execution of %v: %v", graphName, r)
+		err := fmt.Errorf("panic during execution of %v: %v", graphName, r)
+		logger.Errorf(err.Error())
+		ge.SetSystemAlert(ctx, "Panic", "system", 2, err, &ge.config.AlertDuration)
+		return
 	}
 
 	hooks := ge.getHookMapCopy()
