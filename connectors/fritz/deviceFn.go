@@ -25,7 +25,7 @@ func (m *OpFritz) DeviceSuggestions() map[string]string {
 }
 
 func (m *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map[string]string, error) {
-	devNs := m.GetDeviceNamespace()
+	devNs := m.getDeviceNamespace()
 	devs := devNs.GetAllValues(0)
 	if forceRefresh || len(devs) == 0 {
 		_, err := m.getDeviceList(ctx)
@@ -58,7 +58,7 @@ func (m *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 		return nil, err
 	}
 	m.GE.ResetSystemAlert(ctx, "FailedConnection", m.name)
-	devNs := m.GetDeviceNamespace()
+	devNs := m.getDeviceNamespace()
 	modified_by := ""
 	if ctx != nil {
 		modified_by = ctx.GetID()
@@ -85,5 +85,11 @@ func (m *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDe
 		} else {
 			m.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, m.name)
 		}
+	}
+	if !device.Present {
+		dur := 15 * time.Minute
+		m.GE.SetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, m.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
+	} else {
+		m.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, m.name)
 	}
 }

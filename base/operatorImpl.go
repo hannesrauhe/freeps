@@ -467,11 +467,11 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	// check if operator itself has Suggestions for this argument
 	operatorStruct := reflect.ValueOf(o.opInstance)
 	res = o.callParamSuggestionFunction(operatorStruct, lkArgName)
-	if res != nil {
+	if res != nil && len(res) > 0 {
 		return res
 	}
 
-	if (res == nil || len(res) == 0) && ffm != nil {
+	if ffm != nil {
 		// common suggestions for all parameters if there are no suggestions for the parameter
 		return ParamListToParamMap(o.GetCommonParameterSuggestions(paramStruct, lkArgName))
 	}
