@@ -106,7 +106,7 @@ func (a *UpnpArgs) ArgumentNameSuggestions(m *OpFritz) []string {
 func (m *OpFritz) Upnp(ctx *base.Context, input *base.OperatorIO, args UpnpArgs) *base.OperatorIO {
 	res := map[string]interface{}{}
 	var err error
-	if args.ArgumentName != nil && args.ArgumentValue != nil {
+	if args.ArgumentName == nil || args.ArgumentValue == nil {
 		res, err = m.fl.GetUpnpDataMap(args.ServiceName, args.ActionName)
 	} else {
 		res, err = m.fl.CallUpnpActionWithArgument(args.ServiceName, args.ActionName, *args.ArgumentName, *args.ArgumentValue)
