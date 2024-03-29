@@ -9,6 +9,7 @@ import (
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -35,12 +36,25 @@ func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name 
 	return op, err
 }
 
-func (o *OpMQTT) DiscoverTopics(ctx *base.Context) *base.OperatorIO {
-	err := o.impl.discoverTopics(ctx, time.Second)
+type DiscoverArgs struct {
+	DiscoverDuration *time.Duration
+}
+
+func (o *OpMQTT) DiscoverTopics(ctx *base.Context, input *base.OperatorIO, args DiscoverArgs) *base.OperatorIO {
+	dur := time.Second
+	if args.DiscoverDuration != nil {
+		dur = *args.DiscoverDuration
+	}
+	err := o.impl.discoverTopics(ctx, dur)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "%v", err)
 	}
-	return base.MakeEmptyOutput()
+
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_mqtt")
+	if err != nil {
+		return base.MakeEmptyOutput()
+	}
+	return base.MakeSprintfOutput("%v topics available", ns.Len())
 }
 
 // GetSubscriptions returns a list of all subscriped topics
