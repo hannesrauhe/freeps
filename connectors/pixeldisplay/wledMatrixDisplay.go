@@ -69,7 +69,7 @@ func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, erro
 			disp.width = segCfg.Width + segCfg.OffsetX
 		}
 	}
-	disp.imgChan = make(chan ImageWithMetadata, cfg.MaxPictureWidthFactor*disp.width)
+	disp.imgChan = make(chan ImageWithMetadata, cfg.MaxPictureWidthFactor)
 	go disp.drawLoop(disp.imgChan, cfg.MinDisplayDuration)
 	return disp, nil
 }
