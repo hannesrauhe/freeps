@@ -147,7 +147,7 @@ func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, ar
 	if args.Text != nil {
 		text = *args.Text
 	}
-	return t.DrawText(text)
+	return t.DrawText(ctx, text)
 }
 
 type ImageArgs struct {
@@ -193,7 +193,7 @@ func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, a
 	// r := image.Rect(0, 0, dim.X, dim.Y)
 	// dst := image.NewRGBA(r)
 	// draw.NearestNeighbor.Scale(dst, r, img, img.Bounds(), draw.Over, nil)
-	return d.DrawImage(img, true)
+	return d.DrawImage(ctx, img, true)
 }
 
 // EffectArgs is a struct to hold the effect to set

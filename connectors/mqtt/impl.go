@@ -115,7 +115,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 
 	// subscribe to new Topics
 	for topic := range newTopics {
-		// build the slice here so we don't run into https://go.dev/doc/faq#closures_and_goroutines
+		topic := topic // see https://go.dev/doc/faq#closures_and_goroutines
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
 			ctx := base.NewContext(fm.mqttlogger)
 			fm.executeTrigger(ctx, topic, message)

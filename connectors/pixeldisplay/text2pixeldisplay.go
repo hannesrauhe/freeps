@@ -23,7 +23,7 @@ func NewText2Pixeldisplay(display Pixeldisplay) *text2pixeldisplay {
 	return &text2pixeldisplay{display: display}
 }
 
-func (t *text2pixeldisplay) DrawText(text string) *base.OperatorIO {
+func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.OperatorIO {
 	const (
 		startingDotX = 1
 		startingDotY = 7
@@ -67,10 +67,10 @@ func (t *text2pixeldisplay) DrawText(text string) *base.OperatorIO {
 	//	}
 	drawer.DrawString(text)
 	dst.Rect.Max.X = startingDotX + drawer.Dot.X.Ceil() // crop the picture
-	first := t.display.DrawImage(dst, true)
+	first := t.display.DrawImage(ctx, dst, true)
 	for dst.Rect.Max.X >= dim.X {
 		shiftPixelsLeft(dst)
-		t.display.DrawImage(dst, false)
+		t.display.DrawImage(ctx, dst, false)
 	}
 
 	return first
