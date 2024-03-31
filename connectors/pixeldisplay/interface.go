@@ -24,7 +24,7 @@ type Pixeldisplay interface {
 	SetEffect(fx int) *base.OperatorIO
 
 	// SetPicture sets the picture of the display
-	DrawImage(image image.Image, returnPNG bool) *base.OperatorIO
+	DrawImage(ctx *base.Context, image image.Image, returnPNG bool) *base.OperatorIO
 	// DrawPixel sets a pixel of the display
 	DrawPixel(x, y int, color color.Color) *base.OperatorIO
 

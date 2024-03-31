@@ -14,6 +14,12 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 )
 
+type ImageWithMetadata struct {
+	Image   image.RGBA
+	Created time.Time
+	Ctx     *base.Context
+}
+
 type WLEDMatrixDisplayConfig struct {
 	Segments              []WLEDSegmentConfig
 	Address               string
@@ -27,7 +33,7 @@ type WLEDMatrixDisplay struct {
 	height   int
 	width    int
 	lastImg  *image.RGBA
-	imgChan  chan image.RGBA
+	imgChan  chan ImageWithMetadata
 	color    color.Color
 	bgColor  color.Color
 }
@@ -63,7 +69,7 @@ func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, erro
 			disp.width = segCfg.Width + segCfg.OffsetX
 		}
 	}
-	disp.imgChan = make(chan image.RGBA, cfg.MaxPictureWidthFactor*disp.width)
+	disp.imgChan = make(chan ImageWithMetadata, cfg.MaxPictureWidthFactor*disp.width)
 	go disp.drawLoop(disp.imgChan, cfg.MinDisplayDuration)
 	return disp, nil
 }
@@ -129,13 +135,13 @@ func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.Operator
 	return base.MakeEmptyOutput()
 }
 
-func (d *WLEDMatrixDisplay) DrawImage(img image.Image, returnPNG bool) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, img image.Image, returnPNG bool) *base.OperatorIO {
 	b := image.Rect(0, 0, d.width, d.height)
 	converted := image.NewRGBA(b)
 	draw.Draw(converted, b, img, b.Min, draw.Src)
 	d.lastImg = converted
 
-	d.imgChan <- *converted
+	d.imgChan <- ImageWithMetadata{Image: *converted, Created: time.Now(), Ctx: ctx}
 	if !returnPNG {
 		return base.MakeEmptyOutput()
 	}
@@ -242,17 +248,28 @@ func (d *WLEDMatrixDisplay) IsOn() bool {
 }
 
 // drawLoop starts a loop that draws an image from a channel to the display and then sleeps for the given duration
-func (d *WLEDMatrixDisplay) drawLoop(c <-chan image.RGBA, duration time.Duration) {
+func (d *WLEDMatrixDisplay) drawLoop(c <-chan ImageWithMetadata, waitDuration time.Duration) {
+	timeoutDuration := 2 * time.Minute
 	for {
 		img, ok := <-c
 		if !ok {
 			return
 		}
-		err := d.drawImageImmediately(&img)
-		if err.IsError() {
-			// TODO(HR): log and/or return to sender
-			fmt.Printf("%v\n", err)
+		delay := time.Now().Sub(img.Created)
+		if delay > timeoutDuration {
+			img.Ctx.GetLogger().Errorf("Timeout when drawing to Pixeldisplay, delay is: %s", delay)
+			continue
 		}
-		time.Sleep(duration)
+
+		start := time.Now()
+		err := d.drawImageImmediately(&img.Image)
+		if err.IsError() {
+			img.Ctx.GetLogger().Errorf("Drawing to PixelDisplay failed: %v\n", err)
+		}
+		processingDuration := time.Now().Sub(start)
+		img.Ctx.GetLogger().Debugf("Drawing took %s, delay from requesting to drawing was: %s", processingDuration, delay)
+		if processingDuration < waitDuration {
+			time.Sleep(waitDuration - processingDuration)
+		}
 	}
 }
