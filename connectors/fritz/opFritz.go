@@ -58,6 +58,11 @@ func (m *OpFritz) getNetworkDeviceNamespace() freepsstore.StoreNamespace {
 	return freepsstore.GetGlobalStore().GetNamespaceNoError("_" + strings.ToLower(m.name) + "_network_devices")
 }
 
+// getHostsNamespace returns the namespace for the discovered hosts
+func (m *OpFritz) getHostsNamespace() freepsstore.StoreNamespace {
+	return freepsstore.GetGlobalStore().GetNamespaceNoError("_" + strings.ToLower(m.name) + "_hosts")
+}
+
 // getTemplateNamespace returns the namespace for the template cache
 func (m *OpFritz) getTemplateNamespace() freepsstore.StoreNamespace {
 	return freepsstore.GetGlobalStore().GetNamespaceNoError("_" + strings.ToLower(m.name) + "_templates")

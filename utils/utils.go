@@ -74,6 +74,16 @@ func ReadObjectFromURL(url string, obj interface{}) error {
 	return nil
 }
 
+// MapToObject converts a map to an object via JSON encode/decode
+func MapToObject(args map[string]interface{}, obj interface{}) error {
+	data, err := json.Marshal(args)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, obj)
+	return err
+}
+
 // ArgsMapToObject converts a string map to an object via JSON encode/decode
 func ArgsMapToObject(args map[string]string, obj interface{}) error {
 	data, err := json.Marshal(args)
