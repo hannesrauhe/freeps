@@ -77,7 +77,7 @@ func (ff *FreepsFlux) PushFields(measurement string, tags map[string]string, fie
 
 			return base.MakeObjectOutput(updatedFields)
 		},
-		ctx.GetID())
+		ctx)
 
 	for _, writeAPI := range ff.writeApis {
 		p := influxdb2.NewPoint(measurement, tags, fields, time.Now())

@@ -20,7 +20,7 @@ type logStoreNamespace struct {
 
 var _ StoreNamespace = &logStoreNamespace{}
 
-func (s *logStoreNamespace) setValueUnlocked(keyStr string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *logStoreNamespace) setValueUnlocked(keyStr string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	if keyStr == "" {
 		x := StoreEntry{newValue, time.Now(), modifiedBy}
 		s.entries = append(s.entries, x)
@@ -87,14 +87,14 @@ func (s *logStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Dur
 }
 
 // SetValue in the StoreNamespace
-func (s *logStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *logStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	return s.setValueUnlocked(key, io, modifiedBy)
 }
 
 // SetAll sets all values in the StoreNamespace
-func (s *logStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+func (s *logStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	for k, v := range valueMap {
@@ -104,7 +104,7 @@ func (s *logStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy s
 }
 
 // CompareAndSwap sets the value if the string representation of the already stored value is as expected
-func (s *logStoreNamespace) CompareAndSwap(keyStr string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *logStoreNamespace) CompareAndSwap(keyStr string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	key, oldV := s.getValueUnlocked(keyStr)
@@ -120,7 +120,7 @@ func (s *logStoreNamespace) CompareAndSwap(keyStr string, expected string, newVa
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *logStoreNamespace) UpdateTransaction(keyStr string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (s *logStoreNamespace) UpdateTransaction(keyStr string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 
@@ -142,7 +142,7 @@ func (s *logStoreNamespace) UpdateTransaction(keyStr string, fn func(base.Operat
 }
 
 // OverwriteValueIfOlder sets the value only if the key does not exist or has been written before maxAge
-func (s *logStoreNamespace) OverwriteValueIfOlder(keyStr string, newValue *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+func (s *logStoreNamespace) OverwriteValueIfOlder(keyStr string, newValue *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	n := time.Now()

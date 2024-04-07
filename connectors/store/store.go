@@ -17,7 +17,7 @@ var store = Store{namespaces: map[string]StoreNamespace{}}
 type StoreEntry struct {
 	data       *base.OperatorIO
 	timestamp  time.Time
-	modifiedBy string
+	modifiedBy *base.Context
 }
 
 // ReadableStoreEntry is a StoreEntry with a more readable timestamp
@@ -26,19 +26,26 @@ type ReadableStoreEntry struct {
 	RawValue   interface{}
 	Age        string
 	ModifiedBy string
+	Reason     string
 }
 
 // NotFoundEntry is a StoreEntry with a 404 error
-var NotFoundEntry = StoreEntry{base.MakeOutputError(http.StatusNotFound, "Key not found"), time.Unix(0, 0), ""}
+var NotFoundEntry = StoreEntry{base.MakeOutputError(http.StatusNotFound, "Key not found"), time.Unix(0, 0), nil}
 
 // MakeEntryError creates a StoreEntry that contains an error
 func MakeEntryError(code int, format string, args ...interface{}) StoreEntry {
-	return StoreEntry{base.MakeOutputError(code, format, args...), time.Now(), ""}
+	return StoreEntry{base.MakeOutputError(code, format, args...), time.Now(), nil}
 }
 
 // GetHumanReadable returns a readable version of the entry
 func (v StoreEntry) GetHumanReadable() ReadableStoreEntry {
-	return ReadableStoreEntry{v.data.GetString(), v.data.Output, time.Now().Sub(v.timestamp).String(), v.modifiedBy}
+	id := ""
+	reason := ""
+	if v.modifiedBy != nil {
+		id = v.modifiedBy.GetID()
+		reason = v.modifiedBy.GetReason()
+	}
+	return ReadableStoreEntry{v.data.GetString(), v.data.Output, time.Now().Sub(v.timestamp).String(), id, reason}
 }
 
 // MarshalJSON provides a custom marshaller with better readable time formats
@@ -54,7 +61,20 @@ func (v StoreEntry) GetData() *base.OperatorIO { return v.data }
 func (v StoreEntry) GetTimestamp() time.Time { return v.timestamp }
 
 // GetModifiedBy returns the modifiedBy of the entry
-func (v StoreEntry) GetModifiedBy() string { return v.modifiedBy }
+func (v StoreEntry) GetModifiedBy() string {
+	if v.modifiedBy == nil {
+		return ""
+	}
+	return v.modifiedBy.GetID()
+}
+
+// GetReason returns the modifiedBy of the entry
+func (v StoreEntry) GetReason() string {
+	if v.modifiedBy == nil {
+		return ""
+	}
+	return v.modifiedBy.GetReason()
+}
 
 // IsError returns true if the entry contains an error
 func (v StoreEntry) IsError() bool { return v.data != nil && v.data.IsError() }
@@ -70,7 +90,7 @@ func (v StoreEntry) GetError() error {
 
 // StoreNamespace defines all functions to retrieve and modify data in the store
 type StoreNamespace interface {
-	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry
+	CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry
 	DeleteOlder(maxAge time.Duration) int
 	Trim(k int) int
 	DeleteValue(key string)
@@ -80,10 +100,10 @@ type StoreNamespace interface {
 	GetSearchResultWithMetadata(keyPattern string, valuePattern string, modifiedByPattern string, minAge time.Duration, maxAge time.Duration) map[string]StoreEntry
 	GetValue(key string) StoreEntry
 	GetValueBeforeExpiration(key string, maxAge time.Duration) StoreEntry
-	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry
-	SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry
-	SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO
-	UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO
+	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry
+	SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry
+	SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO
+	UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO
 }
 
 // Store is a collection of different namespaces in which values can be stored

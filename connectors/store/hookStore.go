@@ -51,10 +51,10 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 		oldValue.ParseJSON(&oldGraphInfo)
 		newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
 		return base.MakeObjectOutput(newGraphInfo)
-	}, ctx.GetID())
+	}, ctx)
 
-	out2 := h.debugNs.SetValue(fmt.Sprintf("GraphInput:%s", graphName), mainInput, ctx.GetID())
-	out3 := h.debugNs.SetValue(fmt.Sprintf("GraphArguments:%s.", graphName), base.MakeObjectOutput(mainArgs), ctx.GetID())
+	out2 := h.debugNs.SetValue(fmt.Sprintf("GraphInput:%s", graphName), mainInput, ctx)
+	out3 := h.debugNs.SetValue(fmt.Sprintf("GraphArguments:%s.", graphName), base.MakeObjectOutput(mainArgs), ctx)
 	if out1.IsError() {
 		return out1.GetError()
 	}
@@ -94,7 +94,7 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, remo
 				fnInfo.LastUsedByGraph = newInfo.LastUsedByGraph
 			}
 			return base.MakeObjectOutput(fnInfo)
-		}, "")
+		}, ctx)
 		if out.IsError() {
 			return out.GetError()
 		}
@@ -103,7 +103,7 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, remo
 	for _, graphId := range addedGraphs {
 		gd, found := h.GE.GetGraphDesc(graphId)
 		if found {
-			StoreGraph(fmt.Sprintf("%s.%d", graphId, time.Now().Unix()), *gd, ctx.GetID())
+			StoreGraph(fmt.Sprintf("%s.%d", graphId, time.Now().Unix()), *gd, ctx)
 		}
 	}
 
@@ -129,9 +129,9 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO
 		fnInfo.ExecutionCounter++
 		fnInfo.LastUsedByGraph = graphName
 		return base.MakeObjectOutput(fnInfo)
-	}, ctx.GetID())
+	}, ctx)
 
-	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", graphName, opDetails.Name), base.MakeObjectOutput(opDetails.Arguments), ctx.GetID())
+	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", graphName, opDetails.Name), base.MakeObjectOutput(opDetails.Arguments), ctx)
 	if out1.IsError() {
 		return out1.GetError()
 	}
@@ -142,7 +142,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO
 	if h.executionLogNs == nil {
 		return fmt.Errorf("executionLog namespace missing")
 	}
-	out := h.executionLogNs.SetValue("", base.MakeObjectOutput(ExecutionLogEntry{Input: input.GetString(), Output: opOutput.GetString(), OutputCode: opOutput.HTTPCode, GraphID: graphName, Operation: opDetails}), ctx.GetID())
+	out := h.executionLogNs.SetValue("", base.MakeObjectOutput(ExecutionLogEntry{Input: input.GetString(), Output: opOutput.GetString(), OutputCode: opOutput.HTTPCode, GraphID: graphName, Operation: opDetails}), ctx)
 	if out.IsError() {
 		return out.GetError()
 	}

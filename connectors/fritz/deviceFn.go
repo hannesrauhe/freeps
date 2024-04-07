@@ -59,12 +59,8 @@ func (m *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	}
 	m.GE.ResetSystemAlert(ctx, "FailedConnection", m.name)
 	devNs := m.getDeviceNamespace()
-	modified_by := ""
-	if ctx != nil {
-		modified_by = ctx.GetID()
-	}
 	for _, dev := range devl.Device {
-		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), modified_by)
+		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), ctx)
 		m.checkDeviceForAlerts(ctx, dev)
 	}
 	return devl, nil

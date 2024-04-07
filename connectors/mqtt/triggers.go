@@ -15,7 +15,7 @@ func (fm *FreepsMqttImpl) executeTrigger(ctx *base.Context, topic string, messag
 	tags := []string{"mqtt", "topic:" + topic}
 	input := base.MakeByteOutput(message.Payload())
 	args := base.NewFunctionArguments(map[string]string{"topic": message.Topic(), "subscription": tags[1]})
-	freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
+	freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx)
 	tParts := strings.Split(message.Topic(), "/")
 	for ti, tp := range tParts {
 		args.Append(fmt.Sprintf("topic%d", ti), tp)

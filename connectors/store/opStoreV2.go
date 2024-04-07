@@ -167,7 +167,7 @@ func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 	}
 
 	if e == NotFoundEntry && args.DefaultValue != nil {
-		e = StoreEntry{base.MakePlainOutput(*args.DefaultValue), time.Now(), ctx.GetID()}
+		e = StoreEntry{base.MakePlainOutput(*args.DefaultValue), time.Now(), ctx}
 	}
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{key: e})
 }
@@ -219,12 +219,12 @@ func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 	}
 	var e StoreEntry
 	if args.MaxAge != nil {
-		e = nsStore.OverwriteValueIfOlder(key, input, *args.MaxAge, ctx.GetID())
+		e = nsStore.OverwriteValueIfOlder(key, input, *args.MaxAge, ctx)
 		if e.GetData().IsError() {
 			return e.GetData()
 		}
 	}
-	e = nsStore.SetValue(key, input, ctx.GetID())
+	e = nsStore.SetValue(key, input, ctx)
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{key: e})
 }
 
@@ -296,7 +296,7 @@ func (o *OpStore) CompareAndSwap(ctx *base.Context, input *base.OperatorIO, args
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
-	e := nsStore.CompareAndSwap(args.Key, args.Value, input, ctx.GetID())
+	e := nsStore.CompareAndSwap(args.Key, args.Value, input, ctx)
 
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
 }

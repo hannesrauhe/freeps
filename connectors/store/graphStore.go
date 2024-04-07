@@ -31,7 +31,7 @@ func GetGraph(name string) (freepsgraph.GraphDesc, error) {
 }
 
 // StoreGraph stores a graph in the store
-func StoreGraph(name string, gd freepsgraph.GraphDesc, modifiedBy string) *base.OperatorIO {
+func StoreGraph(name string, gd freepsgraph.GraphDesc, modifiedBy *base.Context) *base.OperatorIO {
 	b, err := json.MarshalIndent(gd, "", "  ")
 	if err != nil {
 		return base.MakeOutputError(500, "Failed to marshal graph: "+err.Error())

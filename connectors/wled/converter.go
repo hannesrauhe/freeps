@@ -14,6 +14,7 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
@@ -217,7 +218,7 @@ func (w *WLEDConverter) SendToWLED(cmd *base.OperatorIO, returnPNG bool) *base.O
 
 func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error {
 	wledNs := freepsstore.GetGlobalStore().GetNamespaceNoError("_wled")
-	out := wledNs.SetValue(pmName, base.MakeObjectOutput(w.GetPixelMatrix()), ctx.GetID()).GetData()
+	out := wledNs.SetValue(pmName, base.MakeObjectOutput(w.GetPixelMatrix()), ctx).GetData()
 	if out.IsError() {
 		return out.GetError()
 	}
@@ -225,10 +226,11 @@ func (w *WLEDConverter) StorePixelMatrix(ctx *base.Context, pmName string) error
 }
 
 func (w *WLEDConverter) PrepareStore() error {
+	ctx := base.NewContext(logrus.StandardLogger(), "WLED startup")
 	wledNs := freepsstore.GetGlobalStore().GetNamespaceNoError("_wled")
-	wledNs.SetValue("last", base.MakeObjectOutput(w.GetPixelMatrix()), "startup")
-	wledNs.SetValue("diagonal", base.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
-	wledNs.SetValue("zigzag", base.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), "startup")
+	wledNs.SetValue("last", base.MakeObjectOutput(w.GetPixelMatrix()), ctx)
+	wledNs.SetValue("diagonal", base.MakeObjectOutput(MakeDiagonalPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), ctx)
+	wledNs.SetValue("zigzag", base.MakeObjectOutput(MakeZigZagPixelMatrix(w.Width(), w.Height(), "#FF0000", "#000000")), ctx)
 	files, err := staticContent.ReadDir("pixelart")
 	if err != nil {
 		return err
@@ -248,7 +250,7 @@ func (w *WLEDConverter) PrepareStore() error {
 			continue
 		}
 
-		wledNs.SetValue(key, base.MakeObjectOutput(pm), "startup")
+		wledNs.SetValue(key, base.MakeObjectOutput(pm), ctx)
 	}
 	return retErr
 }

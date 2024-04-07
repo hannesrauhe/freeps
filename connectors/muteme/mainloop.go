@@ -55,7 +55,7 @@ func (m *MuteMe) mainloop(running *bool) {
 	color := "off"
 	alertCategory := "system"
 	alertName := "mutemeOffline"
-	ctx := base.NewContext(m.logger)
+	ctx := base.NewContext(m.logger, "MuteMe Init")
 	if m.dev == nil {
 		// Open the device using the VID and PID.
 		d, err := hid.OpenFirst(m.config.VendorID, m.config.ProductID)
@@ -71,7 +71,7 @@ func (m *MuteMe) mainloop(running *bool) {
 	m.blink(m.config.SuccessColor, color)
 
 	for *running {
-		ctx = base.NewContext(m.logger)
+		ctx = base.NewContext(m.logger, "MuteMe loop")
 		// set the user-requested color unless the indicator light is active
 		if !indicatorLightActive {
 			select {

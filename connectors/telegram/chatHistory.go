@@ -39,7 +39,7 @@ func (m *OpTelegram) getChatState(ctx *base.Context, chat tgbotapi.Chat) (Telegr
 	storeEntry := ns.GetValue(fmt.Sprint(chat.ID))
 
 	if storeEntry == freepsstore.NotFoundEntry {
-		ns.SetValue(fmt.Sprint(chat.ID), base.MakeObjectOutput(ChatState{Chat: &chat, CallbackResponse: nil}), ctx.GetID())
+		ns.SetValue(fmt.Sprint(chat.ID), base.MakeObjectOutput(ChatState{Chat: &chat, CallbackResponse: nil}), ctx)
 		return TelegramCallbackResponse{}, false
 	}
 
@@ -59,11 +59,11 @@ func (m *OpTelegram) getChatState(ctx *base.Context, chat tgbotapi.Chat) (Telegr
 func (m *OpTelegram) resetChatState(ctx *base.Context, chat tgbotapi.Chat) {
 	ns := freepsstore.GetGlobalStore().GetNamespaceNoError(m.tgc.StoreChatNamespace)
 	completeState := ChatState{Chat: &chat, CallbackResponse: nil}
-	ns.SetValue(fmt.Sprint(chat.ID), base.MakeObjectOutput(completeState), ctx.GetID())
+	ns.SetValue(fmt.Sprint(chat.ID), base.MakeObjectOutput(completeState), ctx)
 }
 
 func (m *OpTelegram) setChatState(ctx *base.Context, chat tgbotapi.Chat, tcr TelegramCallbackResponse) {
 	ns := freepsstore.GetGlobalStore().GetNamespaceNoError(m.tgc.StoreChatNamespace)
 	completeState := ChatState{Chat: &chat, CallbackResponse: &tcr}
-	ns.SetValue(fmt.Sprint(chat.ID), base.MakeObjectOutput(completeState), ctx.GetID())
+	ns.SetValue(fmt.Sprint(chat.ID), base.MakeObjectOutput(completeState), ctx)
 }

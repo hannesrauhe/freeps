@@ -116,7 +116,7 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 
 		a.Alert = args
 		return base.MakeObjectOutput(a)
-	}, ctx.GetID())
+	}, ctx)
 	if !addArgs.Has("noTrigger") {
 		oc.execTriggers(ctx, a)
 	}
@@ -157,7 +157,7 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 		}
 
 		return base.MakeObjectOutput(a)
-	}, ctx.GetID())
+	}, ctx)
 	return base.MakeEmptyOutput()
 }
 

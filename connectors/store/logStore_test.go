@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
 
@@ -14,7 +15,7 @@ func TestLogExpiration(t *testing.T) {
 
 	i := 0
 	for i < 10 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -37,15 +38,15 @@ func TestLogExpiration(t *testing.T) {
 	e = nsStore.GetValue("5")
 	assert.Assert(t, !e.IsError())
 	assert.Equal(t, e.GetData().GetString(), "5")
-	assert.Equal(t, e.GetModifiedBy(), "modified-5")
+	assert.Equal(t, e.GetReason(), "modified-5")
 	ts := e.GetTimestamp()
 
-	e = nsStore.SetValue("5", base.MakePlainOutput("new-5"), "modified-later")
+	e = nsStore.SetValue("5", base.MakePlainOutput("new-5"), base.NewContext(logrus.StandardLogger(), "modified-later"))
 	assert.Assert(t, !e.IsError())
 	e = nsStore.GetValue("5")
 	assert.Assert(t, !e.IsError())
 	assert.Equal(t, e.GetData().GetString(), "new-5")
-	assert.Equal(t, e.GetModifiedBy(), "modified-later")
+	assert.Equal(t, e.GetReason(), "modified-later")
 	assert.Equal(t, e.GetTimestamp(), ts)
 
 	e = nsStore.GetValue("x")
@@ -56,7 +57,7 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, s[0], "5")
 	assert.Equal(t, s[4], "9")
 	for i < 30 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -70,7 +71,7 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, s[0], "10")
 
 	for i < 101 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -82,7 +83,7 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, len(s), 0)
 
 	for i < 102 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 	vm := nsStore.GetAllValues(100)
@@ -94,7 +95,7 @@ func TestAutoTrim(t *testing.T) {
 
 	i := 0
 	for i < 100 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -105,7 +106,7 @@ func TestAutoTrim(t *testing.T) {
 	assert.Equal(t, nsStore.Len(), 100)
 
 	for i < 130 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), fmt.Sprintf("modified-%d", i))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 		assert.Assert(t, nsStore.Len() < 110)
 	}
