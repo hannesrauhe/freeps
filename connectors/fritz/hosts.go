@@ -32,18 +32,35 @@ func (m *OpFritz) addHost(ctx *base.Context, mac string, ip string, res map[stri
 		host.IPAddress = ip
 	}
 
-	updFn := func(oldHost base.OperatorIO) *base.OperatorIO {
-		if oldHost.IsEmpty() {
-			m.executeTrigger(ctx, host, host.MACAddress)
+	updFn := func(oldHostEntry base.OperatorIO) *base.OperatorIO {
+		if oldHostEntry.IsEmpty() {
+			if host.Active {
+				go m.executeTrigger(ctx, host, "active:"+host.MACAddress)
+			}
+		} else {
+			var oldHost Host
+			err := oldHostEntry.ParseJSON(&oldHost)
+			if err != nil {
+				dur := ParseErrorDuration
+				go m.GE.SetSystemAlert(ctx, "HostParseError", m.name, 2, err, &dur)
+				return base.MakeObjectOutput(host)
+			}
+			if !oldHost.Active && host.Active {
+				go m.executeTrigger(ctx, host, "active:"+host.MACAddress)
+			}
+			if oldHost.Active && !host.Active {
+				go m.executeTrigger(ctx, host, "inactive:"+host.MACAddress)
+			}
 		}
+
 		return base.MakeObjectOutput(host)
 	}
 	ns := m.getHostsNamespace()
 	if host.IPAddress != "" {
-		ns.UpdateTransaction("IP:"+host.IPAddress, updFn, ctx.GetID())
+		ns.UpdateTransaction("IP:"+host.IPAddress, updFn, ctx)
 	}
 	if host.MACAddress != "" {
-		ns.UpdateTransaction(host.MACAddress, updFn, ctx.GetID())
+		ns.UpdateTransaction(host.MACAddress, updFn, ctx)
 	}
 	return host, nil
 }

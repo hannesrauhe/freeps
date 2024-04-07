@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 func (oc *OpAlert) setTrigger(ctx *base.Context, graphId string, tags ...string) *base.OperatorIO {
@@ -58,7 +57,7 @@ func (oc *OpAlert) SetSeverityTrigger(ctx *base.Context, mainInput *base.Operato
 func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetadata) {
 	triggerTags := []string{fmt.Sprintf("severity:%v", alert.Severity)}
 	tagGroups := [][]string{{"alert"}, triggerTags}
-	args, err := utils.ObjectToArgsMap(alert)
+	args, err := base.NewFunctionArgumentsFromObject(alert)
 	if err == nil {
 		desc := fmt.Sprintf("Cannot parse alert: %v", err)
 		category := "alertOp"
@@ -66,5 +65,5 @@ func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetada
 		oc.SetAlert(causedByCtx, base.MakeEmptyOutput(), Alert{Name: "AlertGraphTrigger", Desc: &desc, Category: &category}, base.NewFunctionArguments(map[string]string{"noTrigger": "1"}))
 	}
 
-	oc.GE.ExecuteGraphByTagsExtended(causedByCtx, tagGroups, base.NewFunctionArguments(args), base.MakeEmptyOutput())
+	oc.GE.ExecuteGraphByTagsExtended(causedByCtx, tagGroups, args, base.MakeEmptyOutput())
 }

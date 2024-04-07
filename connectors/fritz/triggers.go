@@ -14,10 +14,25 @@ func (m *OpFritz) executeTrigger(ctx *base.Context, host Host, addTags ...string
 	tags := []string{"fritz"}
 	tags = append(tags, addTags...)
 	input := base.MakeObjectOutput(host)
-	args := base.MakeEmptyFunctionArguments()
+	args, _ := base.NewFunctionArgumentsFromObject(host)
 
 	out := m.GE.ExecuteGraphByTags(ctx, tags, args, input)
 	return out
+}
+
+func (m *OpFritz) setTrigger(ctx *base.Context, graphID string, addTags ...string) *base.OperatorIO {
+	gd, found := m.GE.GetGraphDesc(graphID)
+	if !found {
+		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", graphID)
+	}
+	gd.AddTags("fritz")
+	gd.AddTags(addTags...)
+	err := m.GE.AddGraph(ctx, graphID, *gd, true)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
+	}
+
+	return base.MakeEmptyOutput()
 }
 
 // GraphID auggestions returns suggestions for graph names
@@ -58,16 +73,10 @@ type HostTrigger struct {
 	MACAddress string
 }
 
-func (m *OpFritz) SetHostTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
-	gd, found := m.GE.GetGraphDesc(args.GraphID)
-	if !found {
-		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", args.GraphID)
-	}
-	gd.AddTags("fritz")
-	err := m.GE.AddGraph(ctx, args.GraphID, *gd, true)
-	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
-	}
+func (m *OpFritz) SetHostActiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
+	return m.setTrigger(ctx, args.GraphID, "active:"+args.MACAddress)
+}
 
-	return base.MakeEmptyOutput()
+func (m *OpFritz) SetHostInactiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
+	return m.setTrigger(ctx, args.GraphID, "inactive:"+args.MACAddress)
 }

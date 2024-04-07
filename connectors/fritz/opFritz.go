@@ -21,6 +21,7 @@ const BatterylowSeverity = 5
 const BatterylowAlertDuration = 5 * time.Minute
 const WindowOpenSeverity = 2
 const DeviceNotPresentSeverity = 2
+const ParseErrorDuration = 5 * time.Minute
 
 type OpFritz struct {
 	CR   *utils.ConfigReader
