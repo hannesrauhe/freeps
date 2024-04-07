@@ -218,14 +218,14 @@ func TestStoreUpdateTransaction(t *testing.T) {
 	base.MakeFreepsOperators(&OpStore{}, cr, ctx)
 
 	ns := store.GetNamespaceNoError("testing")
-	ns.SetValue("v1", base.MakePlainOutput("old_value"), ctx.GetID())
+	ns.SetValue("v1", base.MakePlainOutput("old_value"), ctx)
 	o := ns.UpdateTransaction("v1", func(oldV base.OperatorIO) *base.OperatorIO {
 		if oldV.GetString() != "old_value" {
 			t.Errorf("old value is not old_value but %v", oldV.GetString())
 			return base.MakeOutputError(500, "old value is not old_value")
 		}
 		return base.MakePlainOutput("new_value")
-	}, ctx.GetID())
+	}, ctx)
 	if o.IsError() {
 		t.Errorf("Error while updating value: %v", o)
 	}
@@ -238,6 +238,6 @@ func TestStoreUpdateTransaction(t *testing.T) {
 			return base.MakeOutputError(500, "old value is not empty")
 		}
 		return base.MakePlainOutput("new_value_2")
-	}, ctx.GetID())
+	}, ctx)
 	assert.Equal(t, o.GetString(), "new_value_2")
 }

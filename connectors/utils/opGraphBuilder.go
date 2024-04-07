@@ -49,7 +49,7 @@ func (m *OpGraphBuilder) GetGraph(ctx *base.Context, input *base.OperatorIO, arg
 func (m *OpGraphBuilder) DeleteGraph(ctx *base.Context, input *base.OperatorIO, args GraphFromEngineArgs) *base.OperatorIO {
 	backup, err := m.GE.DeleteGraph(ctx, args.GraphID)
 	if backup != nil {
-		freepsstore.StoreGraph("deleted_"+args.GraphID, *backup, ctx.GetID())
+		freepsstore.StoreGraph("deleted_"+args.GraphID, *backup, ctx)
 	}
 	if err != nil {
 		return base.MakeOutputError(400, "Could not delete graph: %v", err)
@@ -94,7 +94,7 @@ func (m *OpGraphBuilder) GetGraphFromStore(ctx *base.Context, input *base.Operat
 		if args.CreateIfMissing == nil || !*args.CreateIfMissing {
 			return base.MakeOutputError(404, "Graph not found in store: %v", err)
 		}
-		freepsstore.StoreGraph(args.GraphName, gd, ctx.GetID())
+		freepsstore.StoreGraph(args.GraphName, gd, ctx)
 	}
 	return base.MakeObjectOutput(gd)
 }
@@ -134,7 +134,7 @@ func (m *OpGraphBuilder) SetOperation(ctx *base.Context, input *base.OperatorIO,
 		}
 		gd.Operations[args.OperationNumber].Arguments[*args.ArgumentName] = *args.ArgumentValue
 	}
-	freepsstore.StoreGraph(args.GraphName, gd, ctx.GetID())
+	freepsstore.StoreGraph(args.GraphName, gd, ctx)
 	return base.MakeEmptyOutput()
 }
 
@@ -185,7 +185,7 @@ func (m *OpGraphBuilder) ExecuteGraphFromStore(ctx *base.Context, input *base.Op
 // 	}
 
 // 	if !save {
-// 		output := freepsstore.StoreGraph("added_"+graphName, gd, ctx.GetID())
+// 		output := freepsstore.StoreGraph("added_"+graphName, gd, ctx)
 // 		return output
 // 	} else {
 // 		err = m.GE.AddGraph(graphName, gd, overwrite)

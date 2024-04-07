@@ -238,7 +238,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			return
 		}
 		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}, UseMainArgs: true}}, Source: "telegram"}
-		freepsstore.StoreGraph(tcr.T, tpl, ctx.GetID())
+		freepsstore.StoreGraph(tcr.T, tpl, ctx)
 		op, gd = m.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + gd.Operations[0].Operator
 		msg.ReplyMarkup, _ = m.getFnKeyboard(&tcr)
@@ -249,7 +249,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.setChatState(ctx, *chat, tcr)
 		} else {
 			gd.Operations[0].Function = tcr.C
-			freepsstore.StoreGraph(tcr.T, *gd, ctx.GetID())
+			freepsstore.StoreGraph(tcr.T, *gd, ctx)
 		}
 	}
 
@@ -265,13 +265,13 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 					gd.Operations[0].Arguments = make(map[string]string)
 				}
 				gd.Operations[0].Arguments[args[tcr.P]] = tcr.C
-				freepsstore.StoreGraph(tcr.T, *gd, ctx.GetID())
+				freepsstore.StoreGraph(tcr.T, *gd, ctx)
 			}
 			tcr.C = ""
 			tcr.P++
 			if tcr.P >= len(args) {
 				tcr.F = true
-				freepsstore.StoreGraph(tcr.T, *gd, ctx.GetID())
+				freepsstore.StoreGraph(tcr.T, *gd, ctx)
 			} else {
 				addVals := ""
 				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], gd.Operations[0].Operator, gd.Operations[0].Function)

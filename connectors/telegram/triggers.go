@@ -14,7 +14,7 @@ func (m *OpTelegram) executeTrigger(ctx *base.Context, message tgbotapi.Message)
 	tags := []string{"telegram"}
 	input := base.MakePlainOutput(message.Text)
 	args := base.MakeEmptyFunctionArguments()
-	// freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx.GetID())
+	// freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx)
 
 	out := m.GE.ExecuteGraphByTags(ctx, tags, args, input)
 	return out

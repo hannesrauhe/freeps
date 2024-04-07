@@ -159,7 +159,7 @@ func (fm *FreepsMqttImpl) discoverTopics(ctx *base.Context, discoverDuration tim
 	}
 
 	onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-		ns.SetValue(message.Topic(), base.MakeEmptyOutput(), ctx.GetID())
+		ns.SetValue(message.Topic(), base.MakeEmptyOutput(), ctx)
 	}
 	token := c.Subscribe("#", byte(0), onMessageReceived)
 	token.Wait()

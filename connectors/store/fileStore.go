@@ -44,12 +44,12 @@ func (p *fileStoreNamespace) getFilePath(key string) (string, error) {
 }
 
 func makeGenericStoreEntry(io *base.OperatorIO) StoreEntry {
-	return StoreEntry{timestamp: time.Now(), modifiedBy: "", data: io}
+	return StoreEntry{timestamp: time.Now(), modifiedBy: nil, data: io}
 }
 
 var _ StoreNamespace = &fileStoreNamespace{}
 
-func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (p *fileStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	return MakeEntryError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
@@ -147,7 +147,7 @@ func (p *fileStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Du
 	return p.GetValue(key)
 }
 
-func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+func (p *fileStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry {
 	return MakeEntryError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
@@ -156,7 +156,7 @@ func (p *fileStoreNamespace) Len() int {
 	return len(p.GetKeys())
 }
 
-func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
+func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	path, err := p.getFilePath(key)
 	if err != nil {
 		return MakeEntryError(http.StatusInternalServerError, err.Error())
@@ -177,10 +177,10 @@ func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedB
 	return makeGenericStoreEntry(io)
 }
 
-func (p *fileStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *fileStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
 	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
-func (p *fileStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+func (p *fileStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO {
 	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
 }

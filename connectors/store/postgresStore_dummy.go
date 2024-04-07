@@ -26,7 +26,7 @@ type postgresStoreNamespace struct {
 
 var _ StoreNamespace = &postgresStoreNamespace{}
 
-func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
@@ -58,19 +58,19 @@ func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge tim
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
+func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO {
 	panic("postgres support not compiled, method should not be called")
 }
 
-func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
 	panic("postgres support not compiled, method should not be called")
 }
 

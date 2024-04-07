@@ -326,7 +326,7 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 			if td.GraphName == "" {
 				td.GraphName = ctx.GetID()
 			}
-			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx.GetID())
+			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx)
 			if err.IsError() {
 				return err
 			}
@@ -337,7 +337,7 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 			if td.GraphName == "" {
 				td.GraphName = ctx.GetID()
 			}
-			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx.GetID())
+			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx)
 			if err.IsError() {
 				return err
 			}

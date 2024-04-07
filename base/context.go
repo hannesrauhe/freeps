@@ -23,6 +23,11 @@ func (c *Context) GetID() string {
 	return c.UUID.String()
 }
 
+// GetReason returns the reason for the creation of this context
+func (c *Context) GetReason() string {
+	return c.Reason
+}
+
 // GetLogger returns a Logger with the proper fields added to identify the context
 func (c *Context) GetLogger() log.FieldLogger {
 	return c.logger

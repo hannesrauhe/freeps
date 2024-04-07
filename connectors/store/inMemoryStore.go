@@ -43,7 +43,7 @@ func (s *inMemoryStoreNamespace) GetValueBeforeExpiration(key string, maxAge tim
 	return e
 }
 
-func (s *inMemoryStoreNamespace) setValueUnlocked(key string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *inMemoryStoreNamespace) setValueUnlocked(key string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	x := StoreEntry{newValue, time.Now(), modifiedBy}
 	s.entries[key] = x
 	return x
@@ -54,14 +54,14 @@ func (s *inMemoryStoreNamespace) deleteValueUnlocked(key string) {
 }
 
 // SetValue in the StoreNamespace
-func (s *inMemoryStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *inMemoryStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	return s.setValueUnlocked(key, io, modifiedBy)
 }
 
 // SetAll sets all values in the StoreNamespace
-func (s *inMemoryStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+func (s *inMemoryStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	for k, v := range valueMap {
@@ -71,7 +71,7 @@ func (s *inMemoryStoreNamespace) SetAll(valueMap map[string]interface{}, modifie
 }
 
 // CompareAndSwap sets the value if the string representation of the already stored value is as expected
-func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	oldV, exists := s.entries[key]
@@ -85,7 +85,7 @@ func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, new
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	oldEntry, exists := s.entries[key]
@@ -104,7 +104,7 @@ func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(base.Oper
 }
 
 // OverwriteValueIfOlder sets the value only if the key does not exist or has been written before maxAge
-func (s *inMemoryStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+func (s *inMemoryStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	n := time.Now()
@@ -169,7 +169,7 @@ func matches(k string, v StoreEntry, keyPattern, valuePattern, modifiedByPattern
 	if valuePattern != "" && !strings.Contains(v.data.GetString(), valuePattern) {
 		return false
 	}
-	if modifiedByPattern != "" && !strings.Contains(v.modifiedBy, modifiedByPattern) {
+	if modifiedByPattern != "" && !strings.Contains(v.modifiedBy.GetID(), modifiedByPattern) {
 		return false
 	}
 	return true
