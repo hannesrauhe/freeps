@@ -11,7 +11,7 @@ import (
 )
 
 func (o *OpFritz) executeTrigger(ctx *base.Context, host Host, addTags ...string) *base.OperatorIO {
-	tags := []string{"fritz"}
+	tags := []string{o.name}
 	tags = append(tags, addTags...)
 	input := base.MakeObjectOutput(host)
 	args, _ := base.NewFunctionArgumentsFromObject(host)
@@ -25,7 +25,7 @@ func (o *OpFritz) setTrigger(ctx *base.Context, graphID string, addTags ...strin
 	if !found {
 		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", graphID)
 	}
-	gd.AddTags("fritz")
+	gd.AddTags(o.name)
 	gd.AddTags(addTags...)
 	err := o.GE.AddGraph(ctx, graphID, *gd, true)
 	if err != nil {

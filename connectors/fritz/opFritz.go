@@ -408,8 +408,8 @@ func (o *OpFritz) loop(initCtx *base.Context) {
 			return
 		}
 
-		monitorMacs := o.GE.GetTagValues("active", "fritz")
-		more := o.GE.GetTagValues("inactive", "fritz")
+		monitorMacs := o.GE.GetTagValues("active", o.name)
+		more := o.GE.GetTagValues("inactive", o.name)
 		monitorMacs = append(monitorMacs, more...)
 		slices.Sort(monitorMacs)
 		monitorMacs = slices.Compact(monitorMacs)
@@ -418,7 +418,10 @@ func (o *OpFritz) loop(initCtx *base.Context) {
 			if o.ticker == nil {
 				return
 			}
-			o.getHostByMac(ctx, mac)
+			_, err := o.getHostByMac(ctx, mac)
+			if err != nil {
+				ctx.GetLogger().Errorf("Cannot monitor host %v: %v", mac, err)
+			}
 		}
 	}
 }

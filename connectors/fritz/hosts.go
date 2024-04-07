@@ -18,7 +18,7 @@ type Host struct {
 	MACAddress         string
 }
 
-func (o *OpFritz) addHost(ctx *base.Context, mac string, ip string, res map[string]interface{}) (Host, error) {
+func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[string]interface{}) (Host, error) {
 	var host Host
 	err := utils.MapToObject(res, &host)
 	if err != nil {
@@ -26,16 +26,17 @@ func (o *OpFritz) addHost(ctx *base.Context, mac string, ip string, res map[stri
 	}
 
 	if host.MACAddress == "" {
-		host.MACAddress = mac
+		host.MACAddress = byMac
 	}
 	if host.IPAddress == "" {
-		host.IPAddress = ip
+		host.IPAddress = byIP
 	}
 
 	updFn := func(oldHostEntry base.OperatorIO) *base.OperatorIO {
+		activeTag := "active:" + host.MACAddress
 		if oldHostEntry.IsEmpty() {
 			if host.Active {
-				go o.executeTrigger(ctx, host, "active:"+host.MACAddress)
+				go o.executeTrigger(ctx, host, activeTag)
 			}
 		} else {
 			var oldHost Host
@@ -46,21 +47,20 @@ func (o *OpFritz) addHost(ctx *base.Context, mac string, ip string, res map[stri
 				return base.MakeObjectOutput(host)
 			}
 			if !oldHost.Active && host.Active {
-				go o.executeTrigger(ctx, host, "active:"+host.MACAddress)
+				go o.executeTrigger(ctx, host, activeTag)
 			}
 			if oldHost.Active && !host.Active {
-				go o.executeTrigger(ctx, host, "inactive:"+host.MACAddress)
+				go o.executeTrigger(ctx, host, "in"+activeTag)
 			}
 		}
 
 		return base.MakeObjectOutput(host)
 	}
 	ns := o.getHostsNamespace()
-	if host.IPAddress != "" {
-		ns.UpdateTransaction("IP:"+host.IPAddress, updFn, ctx)
-	}
 	if host.MACAddress != "" {
 		ns.UpdateTransaction(host.MACAddress, updFn, ctx)
+	} else if host.IPAddress != "" { // for VPN devices MAC is unkown
+		ns.UpdateTransaction("IP:"+host.IPAddress, updFn, ctx)
 	}
 	return host, nil
 }
