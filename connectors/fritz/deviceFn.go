@@ -10,8 +10,8 @@ import (
 )
 
 // GetDevices returns a map of all device AINs
-func (m *OpFritz) GetDevices(ctx *base.Context) *base.OperatorIO {
-	l, err := m.getCachedDeviceList(ctx, true)
+func (o *OpFritz) GetDevices(ctx *base.Context) *base.OperatorIO {
+	l, err := o.getCachedDeviceList(ctx, true)
 	if err != nil {
 		return base.MakeOutputError(500, err.Error())
 	}
@@ -19,16 +19,16 @@ func (m *OpFritz) GetDevices(ctx *base.Context) *base.OperatorIO {
 }
 
 // DeviceSuggestions returns a map of all device names and AINs
-func (m *OpFritz) DeviceSuggestions() map[string]string {
-	l, _ := m.getCachedDeviceList(nil, false)
+func (o *OpFritz) DeviceSuggestions() map[string]string {
+	l, _ := o.getCachedDeviceList(nil, false)
 	return l
 }
 
-func (m *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map[string]string, error) {
-	devNs := m.getDeviceNamespace()
+func (o *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map[string]string, error) {
+	devNs := o.getDeviceNamespace()
 	devs := devNs.GetAllValues(0)
 	if forceRefresh || len(devs) == 0 {
-		_, err := m.getDeviceList(ctx)
+		_, err := o.getDeviceList(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -49,43 +49,43 @@ func (m *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map
 }
 
 // getDeviceList retrieves the devicelist and caches
-func (m *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, error) {
-	devl, err := m.fl.GetDeviceList()
+func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, error) {
+	devl, err := o.fl.GetDeviceList()
 	if err != nil {
 		dur := 15 * time.Minute
 		ctx.GetLogger().Errorf("Failed to connect to FritzBox to get device list: %v", err)
-		m.GE.SetSystemAlert(ctx, "FailedConnection", m.name, 2, fmt.Errorf("Connection to %v failed", m.fc.Address), &dur)
+		o.GE.SetSystemAlert(ctx, "FailedConnection", o.name, 2, fmt.Errorf("Connection to %v failed", o.fc.Address), &dur)
 		return nil, err
 	}
-	m.GE.ResetSystemAlert(ctx, "FailedConnection", m.name)
-	devNs := m.getDeviceNamespace()
+	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
+	devNs := o.getDeviceNamespace()
 	for _, dev := range devl.Device {
 		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), ctx)
-		m.checkDeviceForAlerts(ctx, dev)
+		o.checkDeviceForAlerts(ctx, dev)
 	}
 	return devl, nil
 }
 
 // checkDeviceForAlerts set system alerts for certain conditions
-func (m *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice) {
+func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice) {
 	if device.HKR != nil {
 		if device.HKR.Batterylow {
 			dur := BatterylowAlertDuration
-			m.GE.SetSystemAlert(ctx, "BatteryLow"+device.AIN, m.name, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
+			o.GE.SetSystemAlert(ctx, "BatteryLow"+device.AIN, o.name, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
 		} else {
-			m.GE.ResetSystemAlert(ctx, "BatteryLow"+device.AIN, m.name)
+			o.GE.ResetSystemAlert(ctx, "BatteryLow"+device.AIN, o.name)
 		}
 		if device.HKR.Windowopenactive {
 			dur := 15 * time.Minute // TODO: time(device.HKR.Windowopenactiveendtime).Sub(time.Now())
-			m.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, m.name, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
+			o.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, o.name, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
 		} else {
-			m.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, m.name)
+			o.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, o.name)
 		}
 	}
 	if !device.Present {
 		dur := 15 * time.Minute
-		m.GE.SetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, m.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
+		o.GE.SetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, o.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
 	} else {
-		m.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, m.name)
+		o.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, o.name)
 	}
 }

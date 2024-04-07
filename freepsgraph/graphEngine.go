@@ -170,25 +170,30 @@ func SplitTag(tag string) (string, string) {
 	return "", ""
 }
 
-// GetTagValues returns a slice of all used values for the given tag
-func (ge *GraphEngine) GetTagValues(keytag string) []string {
-	r := []string{}
+// GetTagValues matches all Graphs with the given tags and returns a slice of all used values for the first given tag, every value occurs only once
+func (ge *GraphEngine) GetTagValues(keytagAndOtherTags ...string) []string {
+	r := map[string]int{}
+	keytag := keytagAndOtherTags[0]
 	l := len(keytag)
 	if l == 0 {
-		return r
+		return []string{}
 	}
-	for _, d := range ge.GetAllGraphDesc() {
+	for _, d := range ge.GetGraphDescByTag(keytagAndOtherTags) {
 		if d.Tags == nil {
 			continue
 		}
 		for _, t := range d.Tags {
 			k, v := SplitTag(t)
 			if k == keytag && v != "" {
-				r = append(r, v)
+				r[v] = 1
 			}
 		}
 	}
-	return r
+	resultArray := make([]string, 0, len(r))
+	for k := range r {
+		resultArray = append(resultArray, k)
+	}
+	return resultArray
 }
 
 // GetTagMap returns a map of all used tags and their values (empty array if no value)

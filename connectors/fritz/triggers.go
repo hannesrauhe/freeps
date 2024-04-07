@@ -10,24 +10,24 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-func (m *OpFritz) executeTrigger(ctx *base.Context, host Host, addTags ...string) *base.OperatorIO {
+func (o *OpFritz) executeTrigger(ctx *base.Context, host Host, addTags ...string) *base.OperatorIO {
 	tags := []string{"fritz"}
 	tags = append(tags, addTags...)
 	input := base.MakeObjectOutput(host)
 	args, _ := base.NewFunctionArgumentsFromObject(host)
 
-	out := m.GE.ExecuteGraphByTags(ctx, tags, args, input)
+	out := o.GE.ExecuteGraphByTags(ctx, tags, args, input)
 	return out
 }
 
-func (m *OpFritz) setTrigger(ctx *base.Context, graphID string, addTags ...string) *base.OperatorIO {
-	gd, found := m.GE.GetGraphDesc(graphID)
+func (o *OpFritz) setTrigger(ctx *base.Context, graphID string, addTags ...string) *base.OperatorIO {
+	gd, found := o.GE.GetGraphDesc(graphID)
 	if !found {
 		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", graphID)
 	}
 	gd.AddTags("fritz")
 	gd.AddTags(addTags...)
-	err := m.GE.AddGraph(ctx, graphID, *gd, true)
+	err := o.GE.AddGraph(ctx, graphID, *gd, true)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
 	}
@@ -36,11 +36,11 @@ func (m *OpFritz) setTrigger(ctx *base.Context, graphID string, addTags ...strin
 }
 
 // GraphID auggestions returns suggestions for graph names
-func (m *OpFritz) GraphIDSuggestions() map[string]string {
+func (o *OpFritz) GraphIDSuggestions() map[string]string {
 	graphNames := map[string]string{}
-	res := m.GE.GetAllGraphDesc()
+	res := o.GE.GetAllGraphDesc()
 	for id, gd := range res {
-		info, _ := gd.GetCompleteDesc(id, m.GE)
+		info, _ := gd.GetCompleteDesc(id, o.GE)
 		_, exists := graphNames[info.DisplayName]
 		if !exists {
 			graphNames[info.DisplayName] = id
@@ -51,8 +51,8 @@ func (m *OpFritz) GraphIDSuggestions() map[string]string {
 	return graphNames
 }
 
-func (h *HostTrigger) MACAddressSuggestions(m *OpFritz) map[string]string {
-	res := m.getHostsNamespace().GetSearchResultWithMetadata("", h.MACAddress, "", time.Duration(0), time.Duration(math.MaxInt64))
+func (h *HostTrigger) MACAddressSuggestions(o *OpFritz) map[string]string {
+	res := o.getHostsNamespace().GetSearchResultWithMetadata("", h.MACAddress, "", time.Duration(0), time.Duration(math.MaxInt64))
 	macs := map[string]string{}
 	for mac, hEntry := range res {
 		if utils.StringStartsWith(mac, "IP:") {
@@ -73,10 +73,10 @@ type HostTrigger struct {
 	MACAddress string
 }
 
-func (m *OpFritz) SetHostActiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
-	return m.setTrigger(ctx, args.GraphID, "active:"+args.MACAddress)
+func (o *OpFritz) SetHostActiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
+	return o.setTrigger(ctx, args.GraphID, "active:"+args.MACAddress)
 }
 
-func (m *OpFritz) SetHostInactiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
-	return m.setTrigger(ctx, args.GraphID, "inactive:"+args.MACAddress)
+func (o *OpFritz) SetHostInactiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
+	return o.setTrigger(ctx, args.GraphID, "inactive:"+args.MACAddress)
 }
