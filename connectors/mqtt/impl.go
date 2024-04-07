@@ -67,7 +67,7 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 		return
 	}
 	input := base.MakeObjectOutput(message.Payload())
-	ctx := base.NewContext(fm.mqttlogger)
+	ctx := base.NewContext(fm.mqttlogger, "MQTT topic: "+message.Topic())
 	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], base.NewSingleFunctionArgument("topic", message.Topic()), input)
 	fm.publishResult(message.Topic(), ctx, out)
 }
@@ -117,7 +117,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 	for topic := range newTopics {
 		topic := topic // see https://go.dev/doc/faq#closures_and_goroutines
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-			ctx := base.NewContext(fm.mqttlogger)
+			ctx := base.NewContext(fm.mqttlogger, "MQTT topic: "+topic)
 			fm.executeTrigger(ctx, topic, message)
 		}
 		tokens = append(tokens, c.Subscribe(topic, byte(0), onMessageReceived))

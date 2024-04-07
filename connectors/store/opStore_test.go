@@ -13,7 +13,7 @@ import (
 )
 
 func prepareStore(t *testing.T) (base.FreepsBaseOperator, *base.Context) {
-	ctx := base.NewContext(logrus.StandardLogger())
+	ctx := base.NewContext(logrus.StandardLogger(), "")
 
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
@@ -209,7 +209,7 @@ func TestStoreSetGetAll(t *testing.T) {
 }
 
 func TestStoreUpdateTransaction(t *testing.T) {
-	ctx := base.NewContext(logrus.StandardLogger())
+	ctx := base.NewContext(logrus.StandardLogger(), "")
 
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))

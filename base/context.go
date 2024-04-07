@@ -8,13 +8,14 @@ import (
 // Context keeps the runtime data of a graph execution tree
 type Context struct {
 	UUID   uuid.UUID
+	Reason string
 	logger log.FieldLogger
 }
 
 // NewContext creates a Context with a given logger
-func NewContext(logger log.FieldLogger) *Context {
+func NewContext(logger log.FieldLogger, reason string) *Context {
 	u := uuid.New()
-	return &Context{UUID: u, logger: logger.WithField("uuid", u.String())}
+	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Reason: reason}
 }
 
 // GetID returns the string represantation of the ID for this execution tree

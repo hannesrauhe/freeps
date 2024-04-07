@@ -78,7 +78,7 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 			fm.mqttlogger.WithFields(log.Fields{"topic": topic, "measurement": measurement, "field": field, "value": value}).Info("No field config found")
 		}
 	}
-	ctx := base.NewContext(fm.mqttlogger)
+	ctx := base.NewContext(fm.mqttlogger, "MQTT Topic: "+topic)
 	out := fm.ge.ExecuteGraph(ctx, graphName, base.NewSingleFunctionArgument("topic", topic), input)
 	fm.publishResult(topic, ctx, out)
 }

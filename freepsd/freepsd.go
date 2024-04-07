@@ -70,7 +70,7 @@ func mainLoop() bool {
 	}
 	configureLogging(cr, logger)
 
-	initCtx := base.NewContext(logger.WithField("phase", "init"))
+	initCtx := base.NewContext(logger.WithField("phase", "init"), "freeps init")
 
 	_, err = utils.GetTempDir()
 	if err != nil {
@@ -133,7 +133,7 @@ func mainLoop() bool {
 			}
 			oio = base.MakeByteOutput(content)
 		}
-		output := ge.ExecuteOperatorByName(base.NewContext(logger), operator, fn, fa, oio)
+		output := ge.ExecuteOperatorByName(initCtx, operator, fn, fa, oio)
 		output.WriteTo(os.Stdout)
 		return false
 	}
@@ -148,7 +148,7 @@ func mainLoop() bool {
 		// Shutdown the server when the context is canceled
 		keepRunning = ge.ReloadRequested()
 		logger.Infof("Stopping Listeners")
-		ge.Shutdown(base.NewContext(logger))
+		ge.Shutdown(base.NewContext(logger, "Shutdown Context"))
 	}
 	return keepRunning
 }

@@ -101,7 +101,7 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		}
 		fbt.log.Debugf("Changed properties for \"%s\": %s", alias, change)
 
-		ctx := base.NewContext(fbt.log)
+		ctx := base.NewContext(fbt.log, "Bluetooth device:"+alias)
 
 		changeTags, err := devData.Update(change.Name, change.Value)
 		if err != nil {

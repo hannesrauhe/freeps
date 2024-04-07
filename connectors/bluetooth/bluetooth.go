@@ -116,7 +116,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 
 func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery bool) *DiscoveryData {
 	devData := fbt.parseDeviceProperties(dev.Properties)
-	ctx := base.NewContext(fbt.log)
+	ctx := base.NewContext(fbt.log, "Bluetooth device: "+devData.Alias)
 	input := base.MakeObjectOutput(devData)
 	args := map[string]string{"device": devData.Alias, "address": devData.Address, "RSSI": fmt.Sprint(devData.RSSI)}
 
