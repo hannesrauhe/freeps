@@ -104,7 +104,7 @@ func (p *postgresStoreNamespace) entryToOutput(output *base.OperatorIO, valuePla
 	}
 }
 
-func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (p *postgresStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	return MakeEntryError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
@@ -253,11 +253,11 @@ func (p *postgresStoreNamespace) GetValueBeforeExpiration(key string, maxAge tim
 	}
 }
 
-func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+func (p *postgresStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry {
 	return MakeEntryError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
-func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
+func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	var execErr error
 	se := StoreEntry{timestamp: time.Now(), data: io, modifiedBy: modifiedBy}
 	insertStart := fmt.Sprintf("insert into %s.%s(\"key\", output_type, content_type, http_code, modified_by, modification_time", p.schema, p.name)
@@ -282,11 +282,11 @@ func (p *postgresStoreNamespace) SetValue(key string, io *base.OperatorIO, modif
 	return se
 }
 
-func (p *postgresStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO {
 	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
-func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
 	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 

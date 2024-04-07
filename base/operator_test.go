@@ -114,7 +114,7 @@ func (mf *MyTestFuncParams) Init(ctx *Context, op FreepsOperator, fn string) {
 }
 
 func TestOpBuilderSuggestions(t *testing.T) {
-	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
+	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger(), ""))
 	gop := gops[0]
 	assert.Assert(t, gop != nil, "")
 	assert.Equal(t, gop.GetName(), "MyTestOperator")
@@ -135,7 +135,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 }
 
 func TestOpBuilderExecute(t *testing.T) {
-	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger()))
+	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewContext(logrus.StandardLogger(), ""))
 	gop := gops[0]
 	// happy path without any parameters
 	output := gop.Execute(nil, "simple1", MakeEmptyFunctionArguments(), MakeEmptyOutput())
@@ -242,7 +242,7 @@ func TestOpBuilderExecuteWithConfig(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
-	gops := MakeFreepsOperators(&MyTestOperatorWithConfig{}, cr, NewContext(logrus.StandardLogger()))
+	gops := MakeFreepsOperators(&MyTestOperatorWithConfig{}, cr, NewContext(logrus.StandardLogger(), ""))
 	gop := gops[0]
 	// happy path without optional parameters
 	output := gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "3.14", "TimeParam": "12m"}), MakeEmptyOutput())

@@ -185,7 +185,7 @@ func (m *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			}
 			netDevNs := m.getNetworkDeviceNamespace()
 			for active := range r.Data.Active {
-				netDevNs.SetValue(r.Data.Active[active].UID, base.MakeObjectOutput(r.Data.Active[active]), ctx.GetID())
+				netDevNs.SetValue(r.Data.Active[active].UID, base.MakeObjectOutput(r.Data.Active[active]), ctx)
 			}
 			return base.MakeObjectOutput(r)
 		}
@@ -369,7 +369,7 @@ func (m *OpFritz) getTemplateList() (*freepslib.AvmTemplateList, error) {
 	}
 	templNs := m.getTemplateNamespace()
 	for _, t := range templ.Template {
-		templNs.SetValue(t.ID, base.MakeObjectOutput(t), "")
+		templNs.SetValue(t.ID, base.MakeObjectOutput(t), nil)
 	}
 	return templ, nil
 }

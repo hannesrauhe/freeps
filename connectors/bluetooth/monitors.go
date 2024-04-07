@@ -93,7 +93,8 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 	deviceTags := fbt.getDeviceWatchTags(devData)
 
 	debugData := map[string]interface{}{"change": "initial", "devData": devData, "tags": ""}
-	ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), "")
+	ctx := base.NewContext(fbt.log, "Bluetooth device init:"+alias)
+	ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), ctx)
 
 	for change := range ch {
 		if change == nil {
@@ -101,7 +102,7 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		}
 		fbt.log.Debugf("Changed properties for \"%s\": %s", alias, change)
 
-		ctx := base.NewContext(fbt.log)
+		ctx := base.NewContext(fbt.log, "Bluetooth device:"+alias)
 
 		changeTags, err := devData.Update(change.Name, change.Value)
 		if err != nil {
@@ -113,7 +114,7 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		fbt.ge.ExecuteGraphByTagsExtended(ctx, taggroups, base.NewFunctionArguments(args), input)
 
 		debugData := map[string]interface{}{"change": change, "devData": devData, "tags": taggroups}
-		ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), ctx.GetID())
+		ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), ctx)
 	}
 	fbt.log.Infof("Stop monitoring \"%s\"(\"%v\") for changes", alias, devData.Address)
 }

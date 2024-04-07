@@ -23,27 +23,27 @@ func (s *NullStoreNamespace) GetValueBeforeExpiration(key string, maxAge time.Du
 }
 
 // SetValue in the StoreNamespace
-func (s *NullStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *NullStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	return StoreEntry{io, time.Now(), modifiedBy}
 }
 
 // SetAll sets all values in the StoreNamespace
-func (s *NullStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy string) *base.OperatorIO {
+func (s *NullStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO {
 	return base.MakeEmptyOutput()
 }
 
 // CompareAndSwap sets the value if the string representation of the already stored value is as expected
-func (s *NullStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy string) StoreEntry {
+func (s *NullStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	return NotFoundEntry
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *NullStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy string) *base.OperatorIO {
+func (s *NullStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
 	return base.MakeEmptyOutput()
 }
 
 // OverwriteValueIfOlder sets the value only if the key does not exist or has been written before maxAge
-func (s *NullStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy string) StoreEntry {
+func (s *NullStoreNamespace) OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry {
 	return StoreEntry{io, time.Now(), modifiedBy}
 }
 

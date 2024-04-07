@@ -105,7 +105,7 @@ func (o *OpStore) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionA
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, "Cannot parse input: %v", err)
 			}
-			nsStore.SetAll(m, ctx.GetID())
+			nsStore.SetAll(m, ctx)
 		}
 	case "deleteolder":
 		{
