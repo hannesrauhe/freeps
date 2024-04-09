@@ -66,9 +66,9 @@ func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.Opera
 	//		}
 	//	}
 	drawer.DrawString(text)
-	dst.Rect.Max.X = startingDotX + drawer.Dot.X.Ceil() // crop the picture
+	dst.Rect.Max.X = drawer.Dot.X.Ceil() // crop the picture
 	first := t.display.DrawImage(ctx, dst, true)
-	for dst.Rect.Max.X >= dim.X {
+	for dst.Rect.Max.X > dim.X {
 		shiftPixelsLeft(dst)
 		t.display.DrawImage(ctx, dst, false)
 	}
