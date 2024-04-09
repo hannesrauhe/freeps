@@ -2,7 +2,9 @@ package fritz
 
 import (
 	"fmt"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
@@ -65,6 +67,35 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 	return host, nil
 }
 
+func (o *OpFritz) getHostByMac(ctx *base.Context, mac string) (*Host, error) {
+	res, err := o.fl.CallUpnpActionWithArgument("Hosts", "GetSpecificHostEntry", "NewMACAddress", mac)
+	if err != nil {
+		return nil, fmt.Errorf("Error when retrieving host for mac %v: %w", mac, err)
+	}
+	host, err := o.addHost(ctx, mac, "", res)
+	if err != nil {
+		return nil, fmt.Errorf("Error when adding host for mac %v: %w", mac, err)
+	}
+	return &host, nil
+}
+
+func (o *OpFritz) getHostSuggestions(searchTerm string) map[string]string {
+	res := o.getHostsNamespace().GetSearchResultWithMetadata("", searchTerm, "", time.Duration(0), time.Duration(math.MaxInt64))
+	macs := map[string]string{}
+	for mac, hEntry := range res {
+		if utils.StringStartsWith(mac, "IP:") {
+			continue
+		}
+		var h Host
+		err := hEntry.ParseJSON(&h)
+		if err != nil {
+			continue
+		}
+		macs[fmt.Sprintf("%v (Mac: %v)", h.HostName, mac)] = mac
+	}
+	return macs
+}
+
 // DiscoverHosts retrieves all known hosts from the fritzbox
 func (o *OpFritz) DiscoverHosts(ctx *base.Context) *base.OperatorIO {
 	res, err := o.fl.GetUpnpDataMap("Hosts", "GetHostNumberOfEntries")
@@ -94,14 +125,27 @@ func (o *OpFritz) DiscoverHosts(ctx *base.Context) *base.OperatorIO {
 	return base.MakeSprintfOutput("Discovered %v hosts", numHosts)
 }
 
-func (o *OpFritz) getHostByMac(ctx *base.Context, mac string) (*Host, error) {
-	res, err := o.fl.CallUpnpActionWithArgument("Hosts", "GetSpecificHostEntry", "NewMACAddress", mac)
-	if err != nil {
-		return nil, fmt.Errorf("Error when retrieving host for mac %v: %w", mac, err)
+func (h *HostArgs) MACAddressSuggestions(o *OpFritz) map[string]string {
+	return o.getHostSuggestions(h.MACAddress)
+}
+
+type HostArgs struct {
+	MACAddress string
+}
+
+func (o *OpFritz) IsHostActive(ctx *base.Context, input *base.OperatorIO, args HostArgs) *base.OperatorIO {
+	ns := o.getHostsNamespace()
+	x := ns.GetValue(args.MACAddress)
+	if x.IsError() {
+		return x.GetData()
 	}
-	host, err := o.addHost(ctx, mac, "", res)
+	var h Host
+	err := x.ParseJSON(&h)
 	if err != nil {
-		return nil, fmt.Errorf("Error when adding host for mac %v: %w", mac, err)
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot parse host entry: %v", err)
 	}
-	return &host, nil
+	if h.Active {
+		return base.MakeEmptyOutput()
+	}
+	return base.MakeOutputError(http.StatusExpectationFailed, "Host is inactive: %v", h)
 }

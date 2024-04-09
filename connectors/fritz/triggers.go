@@ -2,12 +2,9 @@ package fritz
 
 import (
 	"fmt"
-	"math"
 	"net/http"
-	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 func (o *OpFritz) executeTrigger(ctx *base.Context, host Host, addTags ...string) *base.OperatorIO {
@@ -52,20 +49,7 @@ func (o *OpFritz) GraphIDSuggestions() map[string]string {
 }
 
 func (h *HostTrigger) MACAddressSuggestions(o *OpFritz) map[string]string {
-	res := o.getHostsNamespace().GetSearchResultWithMetadata("", h.MACAddress, "", time.Duration(0), time.Duration(math.MaxInt64))
-	macs := map[string]string{}
-	for mac, hEntry := range res {
-		if utils.StringStartsWith(mac, "IP:") {
-			continue
-		}
-		var h Host
-		err := hEntry.ParseJSON(&h)
-		if err != nil {
-			continue
-		}
-		macs[fmt.Sprintf("%v (Mac: %v)", h.HostName, mac)] = mac
-	}
-	return macs
+	return o.getHostSuggestions(h.MACAddress)
 }
 
 type HostTrigger struct {

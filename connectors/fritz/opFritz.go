@@ -147,7 +147,7 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 		}
 	case "gettemplates":
 		{
-			return base.MakeObjectOutput(o.GetTemplates())
+			return base.MakeObjectOutput(o.getTemplates())
 		}
 	case "getdevicelistinfos":
 		{
@@ -157,17 +157,9 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			}
 			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 		}
-	case "getdevicemap":
-		{
-			devl, err := o.GetDeviceMap(ctx)
-			if err == nil {
-				return base.MakeObjectOutput(devl)
-			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
-		}
 	case "getdeviceinfos":
 		{
-			devObject, err := o.GetDeviceByAIN(ctx, dev)
+			devObject, err := o.getDeviceByAIN(ctx, dev)
 			if err == nil {
 				return base.MakeObjectOutput(devObject)
 			}
@@ -281,7 +273,7 @@ func (o *OpFritz) GetDynamicArgSuggestions(fn string, arg string, otherArgs base
 		}
 		return ret
 	case "template":
-		return o.GetTemplates()
+		return o.getTemplates()
 	case "onoff":
 		return map[string]string{"On": "1", "Off": "0", "Toggle": "2"}
 	case "param":
@@ -303,8 +295,8 @@ func (o *OpFritz) GetDynamicArgSuggestions(fn string, arg string, otherArgs base
 	return map[string]string{}
 }
 
-// GetTemplates returns a map of all templates IDs
-func (o *OpFritz) GetTemplates() map[string]string {
+// getTemplates returns a map of all templates IDs
+func (o *OpFritz) getTemplates() map[string]string {
 	tNs := o.getTemplateNamespace()
 	keys := tNs.GetAllValues(0)
 	if len(keys) == 0 {
@@ -323,8 +315,8 @@ func (o *OpFritz) GetTemplates() map[string]string {
 	return r
 }
 
-// GetDeviceByAIN returns the device object for the device with the given AIN
-func (o *OpFritz) GetDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmDevice, error) {
+// getDeviceByAIN returns the device object for the device with the given AIN
+func (o *OpFritz) getDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmDevice, error) {
 	devNs := o.getDeviceNamespace()
 	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge).GetData()
 	if cachedDev.IsError() {
@@ -345,10 +337,10 @@ func (o *OpFritz) GetDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmD
 }
 
 // GetDeviceMap returns all devices by AIN
-func (o *OpFritz) GetDeviceMap(ctx *base.Context) (map[string]freepslib.AvmDevice, error) {
+func (o *OpFritz) GetDeviceMap(ctx *base.Context) *base.OperatorIO {
 	devl, err := o.getDeviceList(ctx)
 	if devl == nil || err != nil {
-		return nil, err
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 	r := map[string]freepslib.AvmDevice{}
 
@@ -356,12 +348,12 @@ func (o *OpFritz) GetDeviceMap(ctx *base.Context) (map[string]freepslib.AvmDevic
 	for AIN, cachedDev := range devNs.GetAllValues(0) {
 		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
 		if !ok {
-			return nil, fmt.Errorf("Cached record for %v is invalid", AIN)
+			return base.MakeOutputError(http.StatusInternalServerError, "Cached record for %v is invalid", AIN)
 		}
 		r[AIN] = dev
 	}
 
-	return r, nil
+	return base.MakeObjectOutput(devl)
 }
 
 // getTemplateList retrieves the template list and caches
@@ -397,11 +389,14 @@ func (o *OpFritz) Shutdown(ctx *base.Context) {
 }
 
 func (o *OpFritz) loop(initCtx *base.Context) {
+	o.DiscoverHosts(initCtx)
+
 	if o.ticker == nil {
 		return
 	}
 
 	for range o.ticker.C {
+		start := time.Now()
 		ctx := base.NewContext(initCtx.GetLogger(), "Fritz Loop")
 		o.getDeviceList(ctx)
 		if o.ticker == nil {
@@ -422,6 +417,11 @@ func (o *OpFritz) loop(initCtx *base.Context) {
 			if err != nil {
 				ctx.GetLogger().Errorf("Cannot monitor host %v: %v", mac, err)
 			}
+		}
+		duration := time.Now().Sub(start)
+		if duration > PollDuration {
+			//PoolDuration is longer than a loop duration, that's a bad sign, create an alert and set the expiration to the duration of that loop (as good as any other value)
+			o.GE.SetSystemAlert(ctx, "LongLoopDuration", o.name, 3, fmt.Errorf("Loop ran for %s to monitor %d macs", duration, len(monitorMacs)), &duration)
 		}
 	}
 }
