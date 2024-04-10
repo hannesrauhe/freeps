@@ -85,11 +85,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 
 	newTopics := map[string]bool{}
 	existingTopics := map[string]bool{}
-	for _, topic := range fm.ge.GetTagValues("topic") {
-		if len(fm.ge.GetGraphDescByTag([]string{"mqtt", "topic:" + topic})) == 0 {
-			// make sure graphs with "topic:x" without the mqtt-tag are ignored
-			continue
-		}
+	for _, topic := range fm.ge.GetTagValues("topic", "mqtt") {
 		if topic == fm.Config.ResultTopic {
 			fm.mqttlogger.Errorf("Skipping subscription to result topic to prevent endless loops")
 			continue

@@ -27,7 +27,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "pixeldisplay.albert", "-f", "seteffect", "-a", "fx=90"]
+      "args": ["-m", "pixeldisplay", "-f", "DrawText", "-a", "Text=12:19 <3"]
     },
     {
       "name": "store",

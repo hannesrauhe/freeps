@@ -293,6 +293,21 @@ func (m *OpUtils) StringReplaceMulti(ctx *base.Context, input *base.OperatorIO, 
 	return base.MakePlainOutput(inputStr)
 }
 
+// StringAppendArgs
+type StringAppendArgs struct {
+	InputString    *string
+	StringToAppend string
+}
+
+// StringReplaceMulti replaces given args framed with "%" with their values
+func (m *OpUtils) StringAppend(ctx *base.Context, input *base.OperatorIO, args StringAppendArgs) *base.OperatorIO {
+	inputStr := input.GetString()
+	if args.InputString != nil {
+		inputStr = *args.InputString
+	}
+	return base.MakePlainOutput(inputStr + args.StringToAppend)
+}
+
 // ConvertFormDataToInputArgs are the arguments for the ConvertFormDataToInput function
 type ConvertFormDataToInputArgs struct {
 	InputFieldName *string

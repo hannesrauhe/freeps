@@ -13,6 +13,12 @@ func NewFunctionArguments(args map[string]string) FunctionArguments {
 	return utils.NewStringCIMap(args)
 }
 
+// NewFunctionArgumentsFromObject flattens an object into function arguments
+func NewFunctionArgumentsFromObject(obj interface{}) (FunctionArguments, error) {
+	args, err := utils.ObjectToArgsMap(obj)
+	return utils.NewStringCIMap(args), err
+}
+
 func NewFunctionArgumentsFromURLValues(args map[string][]string) FunctionArguments {
 	return utils.NewStringCIMapFromValues(args)
 }
