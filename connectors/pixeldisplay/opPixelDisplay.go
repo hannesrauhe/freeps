@@ -23,6 +23,7 @@ type OpConfig struct {
 type OpPixelDisplay struct {
 	config  OpConfig
 	display Pixeldisplay
+	last    *image.RGBA
 }
 
 var _ base.FreepsOperatorWithShutdown = &OpPixelDisplay{}
@@ -84,12 +85,12 @@ func (op *OpPixelDisplay) GetMaxPictureSize(ctx *base.Context, input *base.Opera
 
 func (op *OpPixelDisplay) GetColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.GetColor())
+	return base.MakeObjectOutput(utils.GetHexColor(d.GetColor()))
 }
 
 func (op *OpPixelDisplay) GetBackgroundColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.GetBackgroundColor())
+	return base.MakeObjectOutput(utils.GetHexColor(d.GetBackgroundColor()))
 }
 
 func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -108,16 +109,20 @@ type ColorArgs struct {
 
 func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
 	d := op.display
-	c, err := utils.ParseHexColor(args.Color)
+	c, err := utils.ParseColor(args.Color)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
-	return d.SetColor(c)
+	out := d.SetColor(c)
+	if out.IsError() {
+		return out
+	}
+	return base.MakeEmptyOutput()
 }
 
 func (op *OpPixelDisplay) SetBackgroundColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
 	d := op.display
-	c, err := utils.ParseHexColor(args.Color)
+	c, err := utils.ParseColor(args.Color)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
@@ -154,25 +159,28 @@ type ImageArgs struct {
 	Icon *string
 }
 
-func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, args ImageArgs) *base.OperatorIO {
-	d := op.display
+func (op *OpPixelDisplay) getImageFromInput(ctx *base.Context, input *base.OperatorIO, icon *string) (image.Image, *base.OperatorIO) {
 	var binput []byte
 	var contentType string
 	var img image.Image
 	var err error
 
-	if args.Icon != nil {
-		binput, err = freepsstore.GetFileStore().GetValue(*args.Icon).GetData().GetBytes()
+	if icon != nil {
+		iconF := freepsstore.GetFileStore().GetValue(*icon)
+		if iconF.IsError() {
+			return img, iconF.GetData()
+		}
+		binput, err = iconF.GetData().GetBytes()
 		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "Icon %v is not accssible: %v", *args.Icon, err.Error())
+			return img, base.MakeOutputError(http.StatusBadRequest, "Icon %v is not accssible: %v", *icon, err.Error())
 		}
 		contentType = "image/png"
 	} else if input.IsEmpty() {
-		return base.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
+		return img, base.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
 	} else {
 		binput, err = input.GetBytes()
 		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "Could not read input: %v", err.Error())
+			return img, base.MakeOutputError(http.StatusBadRequest, "Could not read input: %v", err.Error())
 		}
 		contentType = input.ContentType
 	}
@@ -186,13 +194,18 @@ func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, a
 		img, _, err = image.Decode(bytes.NewReader(binput))
 	}
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return img, base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
+	return img, base.MakeObjectOutput(img)
+}
 
-	// dim := d.GetDimensions()
-	// r := image.Rect(0, 0, dim.X, dim.Y)
-	// dst := image.NewRGBA(r)
-	// draw.NearestNeighbor.Scale(dst, r, img, img.Bounds(), draw.Over, nil)
+func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, args ImageArgs) *base.OperatorIO {
+	d := op.display
+
+	img, out := op.getImageFromInput(ctx, input, args.Icon)
+	if out.IsError() {
+		return out
+	}
 	return d.DrawImage(ctx, img, true)
 }
 

@@ -25,6 +25,8 @@ type Pixeldisplay interface {
 
 	// SetPicture sets the picture of the display
 	DrawImage(ctx *base.Context, image image.Image, returnPNG bool) *base.OperatorIO
+	// SetBackground sets a picture as background on the Display
+	SetBackgroundImage(ctx *base.Context, image image.Image) *base.OperatorIO
 	// DrawPixel sets a pixel of the display
 	DrawPixel(x, y int, color color.Color) *base.OperatorIO
 

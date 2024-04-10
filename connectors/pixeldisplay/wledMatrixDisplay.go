@@ -28,14 +28,15 @@ type WLEDMatrixDisplayConfig struct {
 }
 
 type WLEDMatrixDisplay struct {
-	segments map[int]*WLEDSegmentHolder
-	conf     *WLEDMatrixDisplayConfig
-	height   int
-	width    int
-	lastImg  *image.RGBA
-	imgChan  chan ImageWithMetadata
-	color    color.Color
-	bgColor  color.Color
+	segments       map[int]*WLEDSegmentHolder
+	conf           *WLEDMatrixDisplayConfig
+	height         int
+	width          int
+	lastImg        *image.RGBA
+	wledBackground *image.RGBA
+	imgChan        chan ImageWithMetadata
+	color          color.Color
+	bgColor        color.Color
 }
 
 type WLEDSegmentResponse struct {
@@ -55,9 +56,9 @@ var _ Pixeldisplay = &WLEDMatrixDisplay{}
 
 // NewWLEDMatrixDisplay creates a connection to a WLED instance with multiple segments
 func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, error) {
-	disp := &WLEDMatrixDisplay{conf: &cfg, color: color.White, bgColor: color.Black, segments: map[int]*WLEDSegmentHolder{}}
+	disp := &WLEDMatrixDisplay{conf: &cfg, color: color.White, bgColor: color.Transparent, segments: map[int]*WLEDSegmentHolder{}}
 	for _, segCfg := range cfg.Segments {
-		seg, err := newWLEDSegmentRoot(segCfg)
+		seg, err := newWLEDSegmentHolder(segCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +128,7 @@ func (d *WLEDMatrixDisplay) Shutdown() {
 
 func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.OperatorIO {
 	for _, seg := range d.segments {
-		err := seg.SendToWLEDSegment(d.conf.Address, *dst)
+		err := seg.SendToWLEDSegment(d.conf.Address, *dst, d.wledBackground)
 		if err.IsError() {
 			return err
 		}
@@ -152,6 +153,20 @@ func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, img image.Image, return
 		return base.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
 	}
 	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
+}
+
+func (d *WLEDMatrixDisplay) SetBackgroundImage(ctx *base.Context, img image.Image) *base.OperatorIO {
+	if img == nil {
+		d.wledBackground = nil
+		return base.MakeEmptyOutput()
+	}
+
+	b := image.Rect(0, 0, d.width, d.height)
+	converted := image.NewRGBA(b)
+	draw.Draw(converted, b, img, b.Min, draw.Src)
+	d.wledBackground = converted
+
+	return base.MakeEmptyOutput()
 }
 
 func (d *WLEDMatrixDisplay) SetEffect(fx int) *base.OperatorIO {

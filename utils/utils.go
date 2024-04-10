@@ -110,6 +110,20 @@ func ClearString(str string) string {
 	return nonAlphanumericRegex.ReplaceAllString(str, "")
 }
 
+func ParseColor(s string) (c color.RGBA, err error) {
+	if s[0] == '#' {
+		return ParseHexColor(s)
+	}
+	c.A = 0xff
+	switch s {
+	case "transparent":
+		c.A = 0x0
+	default:
+		err = fmt.Errorf("Unknown color: %v", s)
+	}
+	return
+}
+
 func ParseHexColor(s string) (c color.RGBA, err error) {
 	c.A = 0xff
 	switch len(s) {
