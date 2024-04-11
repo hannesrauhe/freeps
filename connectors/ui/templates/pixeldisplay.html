@@ -9,19 +9,18 @@
 {{else}}
 {{$nextColor = $.nextColor.Output}}
 {{end}}
-{{if $.arguments.imageName }}
-{{$imgName = $.arguments.imageName}}
+{{if $.arguments.imagename }}
+{{$imgName = $.arguments.imagename}}
 {{end}}
 <form method="GET">
-    <input type="hidden" name="redirect" value="{{$.selfURL}}">
     Color: <input style="clear: both" type="color" value="{{$nextColor}}" name="color" onChange="this.form.submit()">
-    Name: <input type="text" value="{{$imgName}}" name="imageName" label="Pixel Matrix Name">
+    Name: <input type="text" value="{{$imgName}}" name="imagename" label="Pixel Matrix Name">
     <button>Submit</button>
 </form>
 
 <div>
     <div style="background-color: black;">
-{{ $imageOut := graph_ExecuteOperator "pixeldisplay" "GetPixelMatrix" "imageName=last" }}
+{{ $imageOut := printf "imageName=%s" $imgName | graph_ExecuteOperator "pixeldisplay" "GetPixelMatrix" }}
 {{ range $y, $row := $imageOut.Output }}
         <form method="post" action="/pixeldisplay/drawpixel" class="row">
             <input type="hidden" name="redirect" value="{{$.selfURL}}">
