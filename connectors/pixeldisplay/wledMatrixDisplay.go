@@ -137,6 +137,9 @@ func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.Operator
 }
 
 func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, img image.Image, returnPNG bool) *base.OperatorIO {
+	if img == nil {
+		return base.MakeOutputError(http.StatusBadRequest, "no image to draw")
+	}
 	b := image.Rect(0, 0, d.width, d.height)
 	converted := image.NewRGBA(b)
 	draw.Draw(converted, b, img, b.Min, draw.Src)

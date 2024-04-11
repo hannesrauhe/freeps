@@ -1,26 +1,33 @@
 <!-- <link rel="stylesheet" href="/chota.min.css"> -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-{{$pmName := "last"}}
+{{$imgName := "last"}}
 {{$nextColor := graph_ExecuteOperator "pixeldisplay" "GetColor" ""}}
 {{$bgColor := graph_ExecuteOperator "pixeldisplay" "GetBackgroundColor" ""}}
-{{if $.arguments.pixelMatrix }}
-{{$pmName = $.arguments.pixelMatrix}}
+{{if $.arguments.color }}
+{{$nextColor = $.arguments.color}}
+{{else}}
+{{$nextColor = $.nextColor.Output}}
 {{end}}
-<form method="GET" action="/pixeldisplay/setcolor">
+{{if $.arguments.imageName }}
+{{$imgName = $.arguments.imageName}}
+{{end}}
+<form method="GET">
     <input type="hidden" name="redirect" value="{{$.selfURL}}">
-    Color: <input style="clear: both" type="color" value="{{$nextColor.Output}}" name="color" onChange="this.form.submit()">
-    Name: <input type="text" value="{{$pmName}}" name="pixelMatrix" label="Pixel Matrix Name">
+    Color: <input style="clear: both" type="color" value="{{$nextColor}}" name="color" onChange="this.form.submit()">
+    Name: <input type="text" value="{{$imgName}}" name="imageName" label="Pixel Matrix Name">
     <button>Submit</button>
 </form>
 
 <div>
     <div style="background-color: black;">
-{{ $imageOut := graph_ExecuteOperator "pixeldisplay" "GetPixelMatrix" "" }}
+{{ $imageOut := graph_ExecuteOperator "pixeldisplay" "GetPixelMatrix" "imageName=last" }}
 {{ range $y, $row := $imageOut.Output }}
         <form method="post" action="/pixeldisplay/drawpixel" class="row">
             <input type="hidden" name="redirect" value="{{$.selfURL}}">
             <input type="hidden" name="Y" value="{{$y}}">
+            <input type="hidden" name="color" value="{{$nextColor}}">
+            <input type="hidden" name="imageName" value="{{$imgName}}">
 {{ range $x, $color := $row }}
             <button name="X" value="{{$x}}" style="float:left; background-color: {{ $color }};width: 20px;height: 20px;border: solid black, display: block;"> </button>
 {{ end}}
@@ -30,26 +37,15 @@
     </div>
 </div>
 
-<form method="POST">
-    <input type="hidden" name="ExecuteOperator" value="wled">
-    <input type="hidden" name="ExecuteFunction" value="drawPixelMatrix">
-    AnimationType: <input type="text" name="ExecuteArg.AnimationType" value="moveLeft">
-    Name: <input type="text" value="{{$pmName}}" name="ExecuteArg.pixelMatrix" label="Pixel Matrix Name">
-    Repeat: <input type="number" value="0" name="ExecuteArg.repeat">
-    Step: <input type="number" value="200" name="ExecuteArg.stepDurationInMillis">
+<form method="POST" action="/pixeldisplay/drawimage">
+    <input type="hidden" name="redirect" value="{{$.selfURL}}">
+    <input type="hidden" name="imageName" value="{{$imgName}}">
     <button>Draw</button>
 </form>
-<form method="POST">
-    <input type="hidden" name="ExecuteOperator" value="wled">
-    <input type="hidden" name="ExecuteFunction" value="setString">
-    String: <input type="text" value="Freeps" name="ExecuteArg.string">
-    <button>Draw</button>
+<form method="POST" action="/pixeldisplay/drawtext">
+    <input type="hidden" name="redirect" value="{{$.selfURL}}">
+    String: <input type="text" value="" name="Text">
+    <button>Draw Text</button>
 </form>
 
 <br clear="both" />
-<pre>
-    <code>
-{{$.response}}
-    </code>
-</pre>
-<br />
