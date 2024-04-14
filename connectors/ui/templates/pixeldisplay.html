@@ -1,21 +1,24 @@
 <!-- <link rel="stylesheet" href="/chota.min.css"> -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-{{$imgName := "last"}}
+{{$imgName := "last.png"}}
+{{$layerName := "default"}}
 {{$nextColor := graph_ExecuteOperator "pixeldisplay" "GetColor" ""}}
-{{$bgColor := graph_ExecuteOperator "pixeldisplay" "GetBackgroundColor" ""}}
 {{if $.arguments.color }}
 {{$nextColor = $.arguments.color}}
 {{else}}
-{{$nextColor = $.nextColor.Output}}
+{{$nextColor = $nextColor.Output}}
 {{end}}
 {{if $.arguments.imagename }}
 {{$imgName = $.arguments.imagename}}
 {{end}}
+{{if $.arguments.layername }}
+{{$layerName = $.arguments.layername}}
+{{end}}
 <form method="GET">
     Color: <input style="clear: both" type="color" value="{{$nextColor}}" name="color" onChange="this.form.submit()">
-    Name: <input type="text" value="{{$imgName}}" name="imagename" label="Pixel Matrix Name">
-    <button>Submit</button>
+    Save as: <input type="text" value="{{$imgName}}" name="imagename" label="Pixel Matrix Name">
+    <button>Load</button>
 </form>
 
 <div>
@@ -40,6 +43,12 @@
     <input type="hidden" name="redirect" value="{{$.selfURL}}">
     <input type="hidden" name="imageName" value="{{$imgName}}">
     <button>Draw</button>
+</form>
+<form method="POST" action="/pixeldisplay/setbackgroundlayer">
+    <input type="hidden" name="redirect" value="{{$.selfURL}}">
+    <input type="hidden" name="imageName" value="{{$imgName}}">
+    Layer Name: <input type="text" name="layerName" value="{{$layerName}}">
+    <button>Set Background Image</button>
 </form>
 <form method="POST" action="/pixeldisplay/drawtext">
     <input type="hidden" name="redirect" value="{{$.selfURL}}">

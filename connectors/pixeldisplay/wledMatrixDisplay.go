@@ -160,28 +160,34 @@ func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, img image.Image, return
 	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
 }
 
-func (d *WLEDMatrixDisplay) SetBackgroundLayer(ctx *base.Context, img image.Image, layerName string) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) SetBackgroundLayer(ctx *base.Context, img image.Image, layerName string) {
 	d.backgroundLayerLock.Lock()
 	defer d.backgroundLayerLock.Unlock()
 	if img == nil {
 		delete(d.backgroundLayer, layerName)
-		return base.MakeEmptyOutput()
+		return
 	}
 
 	b := image.Rect(0, 0, d.width, d.height)
 	converted := image.NewRGBA(b)
 	draw.Draw(converted, b, img, b.Min, draw.Src)
 	d.backgroundLayer[layerName] = *converted
-
-	return base.MakeEmptyOutput()
 }
 
-func (d *WLEDMatrixDisplay) ResetBackground(ctx *base.Context) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) ResetBackground(ctx *base.Context) {
 	d.backgroundLayerLock.Lock()
 	defer d.backgroundLayerLock.Unlock()
 	d.backgroundLayer = map[string]image.RGBA{}
+}
 
-	return base.MakeEmptyOutput()
+func (d *WLEDMatrixDisplay) GetBackgroundLayerNames() []string {
+	d.backgroundLayerLock.Lock()
+	defer d.backgroundLayerLock.Unlock()
+	keys := make([]string, 0, len(d.backgroundLayer))
+	for k := range d.backgroundLayer {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func (d *WLEDMatrixDisplay) SetEffect(fx int) *base.OperatorIO {
@@ -194,14 +200,12 @@ func (d *WLEDMatrixDisplay) SetBrightness(brightness int) *base.OperatorIO {
 	return d.sendCmd("si", base.MakeByteOutput([]byte(cmd)))
 }
 
-func (d *WLEDMatrixDisplay) SetColor(color color.Color) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) SetColor(color color.Color) {
 	d.color = color
-	return base.MakeObjectOutput(color)
 }
 
-func (d *WLEDMatrixDisplay) SetBackgroundColor(color color.Color) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) SetBackgroundColor(color color.Color) {
 	d.bgColor = color
-	return base.MakeObjectOutput(color)
 }
 
 func (d *WLEDMatrixDisplay) DrawPixel(x, y int, color color.Color) *base.OperatorIO {

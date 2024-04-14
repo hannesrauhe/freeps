@@ -78,8 +78,8 @@ func (op *OpPixelDisplay) GetMaxPictureSize(ctx *base.Context, input *base.Opera
 }
 
 func (op *OpPixelDisplay) GetColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.display
-	return base.MakeObjectOutput(utils.GetHexColor(d.GetColor()))
+	colorStr := utils.GetHexColor(op.display.GetColor())
+	return base.MakePlainOutput(colorStr)
 }
 
 func (op *OpPixelDisplay) GetBackgroundColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -110,10 +110,7 @@ func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, ar
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
-	out := d.SetColor(c)
-	if out.IsError() {
-		return out
-	}
+	d.SetColor(c)
 	return base.MakeEmptyOutput()
 }
 
@@ -123,7 +120,8 @@ func (op *OpPixelDisplay) SetBackgroundColor(ctx *base.Context, input *base.Oper
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
-	return d.SetBackgroundColor(c)
+	d.SetBackgroundColor(c)
+	return base.MakeEmptyOutput()
 }
 
 type BrightnessArgs struct {

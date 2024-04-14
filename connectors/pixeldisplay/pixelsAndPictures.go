@@ -159,19 +159,30 @@ func (op *OpPixelDisplay) SetBackgroundLayer(ctx *base.Context, input *base.Oper
 	if args.LayerName != nil {
 		layer = *args.LayerName
 	}
-	return op.display.SetBackgroundLayer(ctx, img, layer)
+	op.display.SetBackgroundLayer(ctx, img, layer)
+	return base.MakeEmptyOutput()
 }
 
 type ResetBackgroundLayerArgs struct {
 	LayerName string
 }
 
+func (op *OpPixelDisplay) LayerNameSuggestions() []string {
+	return op.display.GetBackgroundLayerNames()
+}
+
 func (op *OpPixelDisplay) ResetBackgroundLayer(ctx *base.Context, input *base.OperatorIO, args ResetBackgroundLayerArgs) *base.OperatorIO {
-	return op.display.SetBackgroundLayer(ctx, nil, args.LayerName)
+	op.display.SetBackgroundLayer(ctx, nil, args.LayerName)
+	return base.MakeEmptyOutput()
 }
 
 func (op *OpPixelDisplay) ResetBackground(ctx *base.Context) *base.OperatorIO {
-	return op.display.ResetBackground(ctx)
+	op.display.ResetBackground(ctx)
+	return base.MakeEmptyOutput()
+}
+
+func (op *OpPixelDisplay) GetBackgroundLayerNames(ctx *base.Context) *base.OperatorIO {
+	return base.MakeObjectOutput(op.display.GetBackgroundLayerNames())
 }
 
 type DrawPixelArg struct {
@@ -187,7 +198,7 @@ func (op *OpPixelDisplay) DrawPixel(ctx *base.Context, input *base.OperatorIO, a
 	pic := op.getDrawablePicture(img) // gives back an empty canvase on error
 
 	c := op.display.GetColor()
-	if args.Color != nil {
+	if args.Color != nil && *args.Color != "" {
 		var err error
 		c, err = utils.ParseColor(*args.Color)
 		if err != nil {

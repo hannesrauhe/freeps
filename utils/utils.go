@@ -111,10 +111,14 @@ func ClearString(str string) string {
 }
 
 func ParseColor(s string) (c color.RGBA, err error) {
+	c.A = 0xff
+	if len(s) == 0 {
+		err = fmt.Errorf("empty color")
+		return
+	}
 	if s[0] == '#' {
 		return ParseHexColor(s)
 	}
-	c.A = 0xff
 	switch s {
 	case "transparent":
 		c.A = 0x0

@@ -13,11 +13,6 @@ type Pixeldisplay interface {
 	TurnOn() *base.OperatorIO
 	// TurnOff turns the display off
 	TurnOff() *base.OperatorIO
-
-	// SetColor sets the color of active pixels on the display
-	SetColor(color color.Color) *base.OperatorIO
-	// SetBackground sets the color of inactive pixels on the display
-	SetBackgroundColor(color color.Color) *base.OperatorIO
 	// SetBrightness sets the brightness of the display
 	SetBrightness(brightness int) *base.OperatorIO
 	// SetEffect sets a pre-defined effect on the display
@@ -25,12 +20,20 @@ type Pixeldisplay interface {
 
 	// SetPicture sets the picture of the display, if image is nil, the layer is deleted
 	DrawImage(ctx *base.Context, image image.Image, returnPNG bool) *base.OperatorIO
-	// SetBackgroundLayer sets a picture as background on the Display
-	SetBackgroundLayer(ctx *base.Context, image image.Image, layerName string) *base.OperatorIO
-	// ResetBackground deletes all background layers
-	ResetBackground(ctx *base.Context) *base.OperatorIO
 	// DrawPixel sets a pixel of the display
 	DrawPixel(x, y int, color color.Color) *base.OperatorIO
+
+	// SetBackgroundLayer sets a picture as background on the Display
+	SetBackgroundLayer(ctx *base.Context, image image.Image, layerName string)
+	// ResetBackground deletes all background layers
+	ResetBackground(ctx *base.Context)
+	// GetBackgroundLayerNames returns the names of active backgrounds
+	GetBackgroundLayerNames() []string
+
+	// SetColor sets the color of active pixels on the display
+	SetColor(color color.Color)
+	// SetBackground sets the color of inactive pixels on the display
+	SetBackgroundColor(color color.Color)
 
 	// GetMaxPictureSize returns the maximum size of a picture that can be displayed
 	GetMaxPictureSize() image.Point
