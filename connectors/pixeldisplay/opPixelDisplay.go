@@ -1,7 +1,6 @@
 package pixeldisplay
 
 import (
-	"image"
 	"net/http"
 	"time"
 
@@ -95,7 +94,10 @@ func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorI
 
 func (op *OpPixelDisplay) IsOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.IsOn())
+	if d.IsOn() {
+		return base.MakeEmptyOutput()
+	}
+	return base.MakeOutputError(http.StatusExpectationFailed, "Display is off")
 }
 
 type ColorArgs struct {
@@ -148,24 +150,6 @@ func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, ar
 		text = *args.Text
 	}
 	return t.DrawText(ctx, text)
-}
-
-type ImageArgs struct {
-	Icon *string
-}
-
-func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, args ImageArgs) *base.OperatorIO {
-	d := op.display
-
-	var img image.Image
-	var out *base.OperatorIO
-	if !input.IsEmpty() {
-		img, out = op.getImageFromInput(ctx, input)
-		if out.IsError() {
-			return out
-		}
-	}
-	return d.DrawImage(ctx, img, true)
 }
 
 // EffectArgs is a struct to hold the effect to set

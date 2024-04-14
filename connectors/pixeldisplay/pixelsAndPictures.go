@@ -91,15 +91,17 @@ func (op *OpPixelDisplay) ImageNameSuggestions() []string {
 // GetPixelMatrix returns the string representation of an image (used in the UI)
 func (op *OpPixelDisplay) GetPixelMatrix(ctx *base.Context, input *base.OperatorIO, args ImageNameArgs) *base.OperatorIO {
 	var pic *image.RGBA
-	if input.IsEmpty() {
+	if args.ImageName != nil {
 		img, _ := op.getImageFromStore(ctx, args.ImageName)
 		pic = op.getDrawablePicture(img) // gives back an empty canvase on error
-	} else {
+	} else if !input.IsEmpty() {
 		img, out := op.getImageFromInput(ctx, input)
 		if out.IsError() {
 			return out
 		}
 		pic = op.getDrawablePicture(img)
+	} else {
+		pic = op.getDrawablePicture(nil)
 	}
 
 	pm := make([][]string, 0)
@@ -111,6 +113,65 @@ func (op *OpPixelDisplay) GetPixelMatrix(ctx *base.Context, input *base.Operator
 		}
 	}
 	return base.MakeObjectOutput(pm)
+}
+
+func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, args ImageNameArgs) *base.OperatorIO {
+	var img image.Image
+	var out *base.OperatorIO
+	if args.ImageName != nil {
+		img, out = op.getImageFromStore(ctx, args.ImageName)
+		if out.IsError() {
+			return out
+		}
+	} else if !input.IsEmpty() {
+		img, out = op.getImageFromInput(ctx, input)
+		if out.IsError() {
+			return out
+		}
+	} else {
+		return base.MakeOutputError(http.StatusBadRequest, "No image provided")
+	}
+	return op.display.DrawImage(ctx, img, true)
+}
+
+type SetBackgroundLayerArgs struct {
+	LayerName *string
+	ImageName *string
+}
+
+func (op *OpPixelDisplay) SetBackgroundLayer(ctx *base.Context, input *base.OperatorIO, args SetBackgroundLayerArgs) *base.OperatorIO {
+	var img image.Image
+	var out *base.OperatorIO
+	if args.ImageName != nil {
+		img, out = op.getImageFromStore(ctx, args.ImageName)
+		if out.IsError() {
+			return out
+		}
+	} else if !input.IsEmpty() {
+		img, out = op.getImageFromInput(ctx, input)
+		if out.IsError() {
+			return out
+		}
+	} else {
+		return base.MakeOutputError(http.StatusBadRequest, "No image provided")
+	}
+	layer := "default"
+	if args.LayerName != nil {
+		layer = *args.LayerName
+	}
+	return op.display.SetBackgroundLayer(ctx, img, layer)
+}
+
+type ResetBackgroundLayerArgs struct {
+	LayerName string
+}
+
+func (op *OpPixelDisplay) ResetBackgroundLayer(ctx *base.Context, input *base.OperatorIO, args ResetBackgroundLayerArgs) *base.OperatorIO {
+	return op.display.SetBackgroundLayer(ctx, nil, args.LayerName)
+}
+
+func (op *OpPixelDisplay) ResetBackground(ctx *base.Context) *base.OperatorIO {
+	return op.display.ResetBackground(ctx)
 }
 
 type DrawPixelArg struct {
@@ -149,24 +210,4 @@ func (op *OpPixelDisplay) DrawPixel(ctx *base.Context, input *base.OperatorIO, a
 		return e.GetData()
 	}
 	return base.MakeEmptyOutput()
-}
-
-func (op *OpPixelDisplay) SetImageAsBackground(ctx *base.Context, input *base.OperatorIO, args ImageNameArgs) *base.OperatorIO {
-	var img image.Image
-	var out *base.OperatorIO
-	if input.IsEmpty() {
-		img, out = op.getImageFromStore(ctx, args.ImageName)
-	} else {
-		img, out = op.getImageFromInput(ctx, input)
-	}
-	if out.IsError() {
-		return out
-	}
-	return op.display.SetBackgroundImage(ctx, img)
-}
-
-func (op *OpPixelDisplay) ResetBackground(ctx *base.Context) *base.OperatorIO {
-	d := op.display
-
-	return d.SetBackgroundImage(ctx, nil)
 }

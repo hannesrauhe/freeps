@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -28,15 +29,15 @@ type WLEDMatrixDisplayConfig struct {
 }
 
 type WLEDMatrixDisplay struct {
-	segments       map[int]*WLEDSegmentHolder
-	conf           *WLEDMatrixDisplayConfig
-	height         int
-	width          int
-	lastImg        *image.RGBA
-	wledBackground *image.RGBA
-	imgChan        chan ImageWithMetadata
-	color          color.Color
-	bgColor        color.Color
+	segments            map[int]*WLEDSegmentHolder
+	conf                *WLEDMatrixDisplayConfig
+	height              int
+	width               int
+	backgroundLayerLock sync.Mutex
+	backgroundLayer     map[string]image.RGBA
+	imgChan             chan ImageWithMetadata
+	color               color.Color
+	bgColor             color.Color
 }
 
 type WLEDSegmentResponse struct {
@@ -56,7 +57,7 @@ var _ Pixeldisplay = &WLEDMatrixDisplay{}
 
 // NewWLEDMatrixDisplay creates a connection to a WLED instance with multiple segments
 func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, error) {
-	disp := &WLEDMatrixDisplay{conf: &cfg, color: color.White, bgColor: color.Transparent, segments: map[int]*WLEDSegmentHolder{}}
+	disp := &WLEDMatrixDisplay{conf: &cfg, color: color.White, bgColor: color.Transparent, segments: map[int]*WLEDSegmentHolder{}, backgroundLayer: make(map[string]image.RGBA), backgroundLayerLock: sync.Mutex{}}
 	for _, segCfg := range cfg.Segments {
 		seg, err := newWLEDSegmentHolder(segCfg)
 		if err != nil {
@@ -127,8 +128,10 @@ func (d *WLEDMatrixDisplay) Shutdown() {
 }
 
 func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.OperatorIO {
+	d.backgroundLayerLock.Lock()
+	defer d.backgroundLayerLock.Unlock()
 	for _, seg := range d.segments {
-		err := seg.SendToWLEDSegment(d.conf.Address, *dst, d.wledBackground)
+		err := seg.SendToWLEDSegment(d.conf.Address, *dst, d.backgroundLayer)
 		if err.IsError() {
 			return err
 		}
@@ -143,7 +146,6 @@ func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, img image.Image, return
 	b := image.Rect(0, 0, d.width, d.height)
 	converted := image.NewRGBA(b)
 	draw.Draw(converted, b, img, b.Min, draw.Src)
-	d.lastImg = converted
 
 	d.imgChan <- ImageWithMetadata{Image: *converted, Created: time.Now(), Ctx: ctx}
 	if !returnPNG {
@@ -158,16 +160,26 @@ func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, img image.Image, return
 	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
 }
 
-func (d *WLEDMatrixDisplay) SetBackgroundImage(ctx *base.Context, img image.Image) *base.OperatorIO {
+func (d *WLEDMatrixDisplay) SetBackgroundLayer(ctx *base.Context, img image.Image, layerName string) *base.OperatorIO {
+	d.backgroundLayerLock.Lock()
+	defer d.backgroundLayerLock.Unlock()
 	if img == nil {
-		d.wledBackground = nil
+		delete(d.backgroundLayer, layerName)
 		return base.MakeEmptyOutput()
 	}
 
 	b := image.Rect(0, 0, d.width, d.height)
 	converted := image.NewRGBA(b)
 	draw.Draw(converted, b, img, b.Min, draw.Src)
-	d.wledBackground = converted
+	d.backgroundLayer[layerName] = *converted
+
+	return base.MakeEmptyOutput()
+}
+
+func (d *WLEDMatrixDisplay) ResetBackground(ctx *base.Context) *base.OperatorIO {
+	d.backgroundLayerLock.Lock()
+	defer d.backgroundLayerLock.Unlock()
+	d.backgroundLayer = map[string]image.RGBA{}
 
 	return base.MakeEmptyOutput()
 }
@@ -243,10 +255,6 @@ func (d *WLEDMatrixDisplay) GetColor() color.Color {
 
 func (d *WLEDMatrixDisplay) GetBackgroundColor() color.Color {
 	return d.bgColor
-}
-
-func (d *WLEDMatrixDisplay) GetImage() *image.RGBA {
-	return d.lastImg
 }
 
 func (d *WLEDMatrixDisplay) GetBrightness() int {

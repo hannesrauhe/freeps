@@ -56,7 +56,7 @@ func (h *WLEDSegmentHolder) convertImageToWLEDRequest(dst image.RGBA, jsonb WLED
 	}
 }
 
-func (h *WLEDSegmentHolder) SendToWLEDSegment(address string, dst image.RGBA, background *image.RGBA) *base.OperatorIO {
+func (h *WLEDSegmentHolder) SendToWLEDSegment(address string, dst image.RGBA, backgroundLayers map[string]image.RGBA) *base.OperatorIO {
 	// TODO(HR): assertion that should probably go somewhere else
 	if h.actualLen > 0 && h.conf.Width*h.conf.Height > h.actualLen {
 		return base.MakeOutputError(http.StatusBadRequest, "Array of length %v for Segment %v longer than expected the %v pixels", h.conf.Width*h.conf.Height, h.conf.SegID, h.actualLen)
@@ -69,8 +69,8 @@ func (h *WLEDSegmentHolder) SendToWLEDSegment(address string, dst image.RGBA, ba
 	jsonob := WLEDRequest{}
 	jsonob.Seg.ID = h.conf.SegID
 	jsonob.Seg.I = make([][3]uint32, h.conf.Width*h.conf.Height)
-	if background != nil {
-		h.convertImageToWLEDRequest(*background, jsonob)
+	for _, background := range backgroundLayers {
+		h.convertImageToWLEDRequest(background, jsonob)
 	}
 	h.convertImageToWLEDRequest(dst, jsonob)
 	b, err := json.Marshal(jsonob)

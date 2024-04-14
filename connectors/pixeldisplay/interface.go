@@ -23,10 +23,12 @@ type Pixeldisplay interface {
 	// SetEffect sets a pre-defined effect on the display
 	SetEffect(fx int) *base.OperatorIO
 
-	// SetPicture sets the picture of the display
+	// SetPicture sets the picture of the display, if image is nil, the layer is deleted
 	DrawImage(ctx *base.Context, image image.Image, returnPNG bool) *base.OperatorIO
-	// SetBackground sets a picture as background on the Display
-	SetBackgroundImage(ctx *base.Context, image image.Image) *base.OperatorIO
+	// SetBackgroundLayer sets a picture as background on the Display
+	SetBackgroundLayer(ctx *base.Context, image image.Image, layerName string) *base.OperatorIO
+	// ResetBackground deletes all background layers
+	ResetBackground(ctx *base.Context) *base.OperatorIO
 	// DrawPixel sets a pixel of the display
 	DrawPixel(x, y int, color color.Color) *base.OperatorIO
 
@@ -41,8 +43,6 @@ type Pixeldisplay interface {
 	// GetBrightness returns the brightness of the display
 	GetBrightness() int
 
-	// GetImage returns the current image of the display
-	GetImage() *image.RGBA
 	// IsOn returns true if the display is on
 	IsOn() bool
 
