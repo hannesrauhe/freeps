@@ -1,15 +1,10 @@
 package pixeldisplay
 
 import (
-	"bytes"
-	"image"
-	"image/jpeg"
-	"image/png"
 	"net/http"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -83,13 +78,13 @@ func (op *OpPixelDisplay) GetMaxPictureSize(ctx *base.Context, input *base.Opera
 }
 
 func (op *OpPixelDisplay) GetColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	d := op.display
-	return base.MakeObjectOutput(d.GetColor())
+	colorStr := utils.GetHexColor(op.display.GetColor())
+	return base.MakePlainOutput(colorStr)
 }
 
 func (op *OpPixelDisplay) GetBackgroundColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.GetBackgroundColor())
+	return base.MakeObjectOutput(utils.GetHexColor(d.GetBackgroundColor()))
 }
 
 func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -99,7 +94,10 @@ func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorI
 
 func (op *OpPixelDisplay) IsOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.IsOn())
+	if d.IsOn() {
+		return base.MakeEmptyOutput()
+	}
+	return base.MakeOutputError(http.StatusExpectationFailed, "Display is off")
 }
 
 type ColorArgs struct {
@@ -108,20 +106,22 @@ type ColorArgs struct {
 
 func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
 	d := op.display
-	c, err := utils.ParseHexColor(args.Color)
+	c, err := utils.ParseColor(args.Color)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
-	return d.SetColor(c)
+	d.SetColor(c)
+	return base.MakeEmptyOutput()
 }
 
 func (op *OpPixelDisplay) SetBackgroundColor(ctx *base.Context, input *base.OperatorIO, args ColorArgs) *base.OperatorIO {
 	d := op.display
-	c, err := utils.ParseHexColor(args.Color)
+	c, err := utils.ParseColor(args.Color)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
-	return d.SetBackgroundColor(c)
+	d.SetBackgroundColor(c)
+	return base.MakeEmptyOutput()
 }
 
 type BrightnessArgs struct {
@@ -148,52 +148,6 @@ func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, ar
 		text = *args.Text
 	}
 	return t.DrawText(ctx, text)
-}
-
-type ImageArgs struct {
-	Icon *string
-}
-
-func (op *OpPixelDisplay) DrawImage(ctx *base.Context, input *base.OperatorIO, args ImageArgs) *base.OperatorIO {
-	d := op.display
-	var binput []byte
-	var contentType string
-	var img image.Image
-	var err error
-
-	if args.Icon != nil {
-		binput, err = freepsstore.GetFileStore().GetValue(*args.Icon).GetData().GetBytes()
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "Icon %v is not accssible: %v", *args.Icon, err.Error())
-		}
-		contentType = "image/png"
-	} else if input.IsEmpty() {
-		return base.MakeOutputError(http.StatusBadRequest, "no input, expecting an image")
-	} else {
-		binput, err = input.GetBytes()
-		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, "Could not read input: %v", err.Error())
-		}
-		contentType = input.ContentType
-	}
-
-	ctx.GetLogger().Debugf("Decoding image of type: %v", contentType)
-	if contentType == "image/png" {
-		img, err = png.Decode(bytes.NewReader(binput))
-	} else if contentType == "image/jpeg" {
-		img, err = jpeg.Decode(bytes.NewReader(binput))
-	} else {
-		img, _, err = image.Decode(bytes.NewReader(binput))
-	}
-	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
-	}
-
-	// dim := d.GetDimensions()
-	// r := image.Rect(0, 0, dim.X, dim.Y)
-	// dst := image.NewRGBA(r)
-	// draw.NearestNeighbor.Scale(dst, r, img, img.Bounds(), draw.Over, nil)
-	return d.DrawImage(ctx, img, true)
 }
 
 // EffectArgs is a struct to hold the effect to set

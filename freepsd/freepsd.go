@@ -26,7 +26,6 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/ui"
 	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 	"github.com/hannesrauhe/freeps/connectors/weather"
-	"github.com/hannesrauhe/freeps/connectors/wled"
 	"github.com/hannesrauhe/freeps/freepsgraph"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -108,7 +107,6 @@ func mainLoop() bool {
 		// this will automatically skip operators that are not enabled in the config
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
 	}
-	ge.AddOperator(wled.NewWLEDOp(cr))
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	freepsexec.AddExecOperators(cr, ge)
 

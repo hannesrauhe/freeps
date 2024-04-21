@@ -1,0 +1,59 @@
+<!-- <link rel="stylesheet" href="/chota.min.css"> -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+{{$imgName := "last.png"}}
+{{$layerName := "default"}}
+{{$nextColor := graph_ExecuteOperator "pixeldisplay" "GetColor" ""}}
+{{if $.arguments.color }}
+{{$nextColor = $.arguments.color}}
+{{else}}
+{{$nextColor = $nextColor.Output}}
+{{end}}
+{{if $.arguments.imagename }}
+{{$imgName = $.arguments.imagename}}
+{{end}}
+{{if $.arguments.layername }}
+{{$layerName = $.arguments.layername}}
+{{end}}
+<form method="GET">
+    Color: <input style="clear: both" type="color" value="{{$nextColor}}" name="color" onChange="this.form.submit()">
+    Save as: <input type="text" value="{{$imgName}}" name="imagename" label="Pixel Matrix Name">
+    <button>Load</button>
+</form>
+
+<div>
+    <div style="background-color: black;">
+{{ $imageOut := printf "imageName=%s" $imgName | graph_ExecuteOperator "pixeldisplay" "GetPixelMatrix" }}
+{{ range $y, $row := $imageOut.Output }}
+        <form method="post" action="/pixeldisplay/drawpixel" class="row">
+            <input type="hidden" name="redirect" value="{{$.selfURL}}">
+            <input type="hidden" name="Y" value="{{$y}}">
+            <input type="hidden" name="color" value="{{$nextColor}}">
+            <input type="hidden" name="imageName" value="{{$imgName}}">
+{{ range $x, $color := $row }}
+            <button name="X" value="{{$x}}" style="float:left; background-color: {{ $color }};width: 20px;height: 20px;border: solid black, display: block;"> </button>
+{{ end}}
+        </form>
+    <br />
+{{ end }}
+    </div>
+</div>
+
+<form method="POST" action="/pixeldisplay/drawimage">
+    <input type="hidden" name="redirect" value="{{$.selfURL}}">
+    <input type="hidden" name="imageName" value="{{$imgName}}">
+    <button>Draw</button>
+</form>
+<form method="POST" action="/pixeldisplay/setbackgroundlayer">
+    <input type="hidden" name="redirect" value="{{$.selfURL}}">
+    <input type="hidden" name="imageName" value="{{$imgName}}">
+    Layer Name: <input type="text" name="layerName" value="{{$layerName}}">
+    <button>Set Background Image</button>
+</form>
+<form method="POST" action="/pixeldisplay/drawtext">
+    <input type="hidden" name="redirect" value="{{$.selfURL}}">
+    String: <input type="text" value="" name="Text">
+    <button>Draw Text</button>
+</form>
+
+<br clear="both" />

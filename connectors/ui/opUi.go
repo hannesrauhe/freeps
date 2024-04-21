@@ -134,20 +134,19 @@ func (o *OpUI) getFileBytes(templateBaseName string, logger *log.Entry) ([]byte,
 	return embeddedFiles.ReadFile(path)
 }
 
-func (o *OpUI) parseTemplate(templateBaseName string, logger *log.Entry) (*template.Template, error) {
+func (o *OpUI) parseTemplate(ctx *base.Context, templateBaseName string) (*template.Template, error) {
 	isCustom, path := o.isCustomTemplate(templateBaseName)
-	t := template.New(templateBaseName).Funcs(o.createTemplateFuncMap(base.NewContext(logger, "UI template")))
+	t := template.New(templateBaseName).Funcs(o.createTemplateFuncMap(ctx))
 	if isCustom {
-		logger.Debugf("found template \"%v\" in config dir", templateBaseName)
 		return t.ParseFiles(path)
 	}
 	return t.ParseFS(embeddedFiles, path)
 }
 
-func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *base.OperatorIO {
+func (o *OpUI) createOutput(ctx *base.Context, templateBaseName string, templateData interface{}, logger *log.Entry, withFooter bool) *base.OperatorIO {
 	/* parse as template if basename is html */
 	if filepath.Ext(templateBaseName) == ".html" || filepath.Ext(templateBaseName) == ".htm" {
-		t, err := o.parseTemplate(templateBaseName, logger)
+		t, err := o.parseTemplate(ctx, templateBaseName)
 		if err != nil {
 			// could be any other error code, but I don't want to parse error strings
 			return base.MakeOutputError(http.StatusBadRequest, "Error with template \"%v\": \"%v\"", templateBaseName, err.Error())
@@ -167,7 +166,7 @@ func (o *OpUI) createOutput(templateBaseName string, templateData interface{}, l
 		}
 
 		if withFooter {
-			tFooter, err := o.parseTemplate("footer.html", logger)
+			tFooter, err := o.parseTemplate(ctx, "footer.html")
 			if err != nil {
 				logger.Errorf("Problem when opening template footer: %v", err)
 				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
@@ -392,10 +391,10 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 		delete(td.TagSuggestions, t)
 	}
 	td.Quicklink = gopd.ToQuicklink()
-	return o.createOutput(tmpl, td, logger, true)
+	return o.createOutput(ctx, tmpl, td, logger, true)
 }
 
-func (o *OpUI) editTemplate(vars map[string]string, input *base.OperatorIO, logger *log.Entry) *base.OperatorIO {
+func (o *OpUI) editTemplate(ctx *base.Context, vars map[string]string, input *base.OperatorIO) *base.OperatorIO {
 	tname := vars["templateName"]
 
 	if !input.IsEmpty() {
@@ -422,11 +421,13 @@ func (o *OpUI) editTemplate(vars map[string]string, input *base.OperatorIO, logg
 		}
 	}
 
+	// TODO(HR): needs to be cleaned up: ctx/logger handling
+	logger := ctx.GetLogger().WithField("", "")
 	b, _ := o.getFileBytes(tname, logger)
 	tdata := make(map[string]interface{})
 	tdata["templateName"] = tname
 	tdata["templateCode"] = template.HTML(b)
-	return o.createOutput(`edittemplate.html`, tdata, logger, true)
+	return o.createOutput(ctx, `edittemplate.html`, tdata, logger, true)
 }
 
 func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *base.Context) *base.OperatorIO {
@@ -465,7 +466,7 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 	if !ok {
 		templateName = "simpleTile.html"
 	}
-	return o.createOutput(templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
+	return o.createOutput(ctx, templateName, tdata, ctx.GetLogger().WithField("component", "UIsimpleTile"), true)
 }
 
 func (o *OpUI) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
@@ -486,7 +487,7 @@ func (o *OpUI) ExecuteOld(ctx *base.Context, fn string, args map[string]string, 
 	case "edit", "editGraph":
 		return o.editGraph(ctx, args, input, logger, "editgraph.html")
 	case "editTemplate":
-		return o.editTemplate(args, input, logger)
+		return o.editTemplate(ctx, args, input)
 	case "deleteTemplate":
 		err := o.deleteTemplateFile(args["templateName"])
 		if err != nil {
@@ -539,7 +540,7 @@ func (o *OpUI) ExecuteOld(ctx *base.Context, fn string, args map[string]string, 
 		}
 		tdata["selfPath"] = "/ui/" + fn
 		tdata["selfURL"] = "/ui/" + fn + "?" + utils.MapToURLArgs(lowercaseArgs).Encode()
-		return o.createOutput(fn, &tdata, logger, withFooter)
+		return o.createOutput(ctx, fn, &tdata, logger, withFooter)
 	}
 }
 
