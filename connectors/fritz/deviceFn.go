@@ -53,7 +53,6 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	devl, err := o.fl.GetDeviceList()
 	if err != nil {
 		dur := 15 * time.Minute
-		ctx.GetLogger().Errorf("Failed to connect to FritzBox to get device list: %v", err)
 		o.GE.SetSystemAlert(ctx, "FailedConnection", o.name, 2, fmt.Errorf("Connection to %v failed", o.fc.Address), &dur)
 		return nil, err
 	}
