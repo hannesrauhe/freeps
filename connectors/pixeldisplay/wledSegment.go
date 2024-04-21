@@ -37,7 +37,7 @@ func newWLEDSegmentHolder(conf WLEDSegmentConfig) (*WLEDSegmentHolder, error) {
 	return &WLEDSegmentHolder{conf: conf, actualLen: 0}, nil
 }
 
-func (h *WLEDSegmentHolder) convertImageToWLEDRequest(dst image.RGBA, jsonb WLEDRequest) {
+func (h *WLEDSegmentHolder) convertImageToWLEDRequest(dst image.RGBA, jsonb *WLEDRequest) {
 	outputIndex := 0
 	for x := 0; x < h.conf.Width; x++ {
 		for y := 0; y < h.conf.Height; y++ {
@@ -49,7 +49,6 @@ func (h *WLEDSegmentHolder) convertImageToWLEDRequest(dst image.RGBA, jsonb WLED
 			_, _, _, a := pixelColor.RGBA()
 			if a != 0 {
 				hc := utils.GetHexColor(pixelColor)
-				// p := [3]uint32{r >> 8, g >> 8, b >> 8}
 				jsonb.Seg.I[outputIndex] = hc[1:]
 			}
 			outputIndex++
@@ -74,9 +73,9 @@ func (h *WLEDSegmentHolder) SendToWLEDSegment(address string, dst image.RGBA, ba
 	jsonob.Seg.ID = h.conf.SegID
 	jsonob.Seg.I = make([]string, segmentLength)
 	for _, background := range backgroundLayers {
-		h.convertImageToWLEDRequest(background, jsonob)
+		h.convertImageToWLEDRequest(background, &jsonob)
 	}
-	h.convertImageToWLEDRequest(dst, jsonob)
+	h.convertImageToWLEDRequest(dst, &jsonob)
 	b, err := json.Marshal(jsonob)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error when trying to prepare request for wled: %v", err.Error())
