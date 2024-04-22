@@ -45,7 +45,7 @@ func (op *OpPixelDisplay) InitCopyOfOperator(ctx *base.Context, config interface
 	if err != nil {
 		return nil, err
 	}
-	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(op.display)}
+	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(disp)}
 	return newOp, nil
 }
 

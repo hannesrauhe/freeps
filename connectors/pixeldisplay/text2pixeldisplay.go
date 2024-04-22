@@ -22,7 +22,7 @@ type text2pixeldisplay struct {
 }
 
 func NewText2Pixeldisplay(display Pixeldisplay) *text2pixeldisplay {
-	return &text2pixeldisplay{display: display}
+	return &text2pixeldisplay{display: display, lock: sync.Mutex{}}
 }
 
 func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.OperatorIO {
