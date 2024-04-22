@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/draw"
 	"net/http"
+	"sync"
 
 	"github.com/hannesrauhe/freeps/base"
 	"golang.org/x/image/font"
@@ -17,6 +18,7 @@ var staticContent embed.FS
 
 type text2pixeldisplay struct {
 	display Pixeldisplay
+	lock    sync.Mutex
 }
 
 func NewText2Pixeldisplay(display Pixeldisplay) *text2pixeldisplay {
@@ -67,6 +69,9 @@ func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.Opera
 	//	}
 	drawer.DrawString(text)
 	dst.Rect.Max.X = drawer.Dot.X.Ceil() // crop the picture
+
+	t.lock.Lock()
+	defer t.lock.Unlock()
 	first := t.display.DrawImage(ctx, dst, true)
 	for dst.Rect.Max.X > dim.X {
 		shiftPixelsLeft(dst)
