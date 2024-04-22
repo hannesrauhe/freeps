@@ -18,6 +18,7 @@ type OpConfig struct {
 type OpPixelDisplay struct {
 	config  OpConfig
 	display Pixeldisplay
+	t2p     *text2pixeldisplay
 }
 
 var _ base.FreepsOperatorWithShutdown = &OpPixelDisplay{}
@@ -44,7 +45,7 @@ func (op *OpPixelDisplay) InitCopyOfOperator(ctx *base.Context, config interface
 	if err != nil {
 		return nil, err
 	}
-	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp}
+	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(op.display)}
 	return newOp, nil
 }
 
@@ -138,8 +139,6 @@ type TextArgs struct {
 }
 
 func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, args TextArgs) *base.OperatorIO {
-	d := op.display
-	t := NewText2Pixeldisplay(d)
 	text := ""
 	if !input.IsEmpty() {
 		text = input.GetString()
@@ -147,7 +146,7 @@ func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, ar
 	if args.Text != nil {
 		text = *args.Text
 	}
-	return t.DrawText(ctx, text)
+	return op.t2p.DrawText(ctx, text)
 }
 
 // EffectArgs is a struct to hold the effect to set
