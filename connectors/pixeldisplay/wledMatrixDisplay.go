@@ -15,17 +15,18 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 )
 
-type ImageWithMetadata struct {
-	Image   image.RGBA
+type ImagesWithMetadata struct {
+	Image   []image.RGBA
 	Created time.Time
 	Ctx     *base.Context
 }
 
 type WLEDMatrixDisplayConfig struct {
-	Segments              []WLEDSegmentConfig
-	Address               string
-	MinDisplayDuration    time.Duration
-	MaxPictureWidthFactor int
+	Segments           []WLEDSegmentConfig
+	Address            string
+	MinDisplayDuration time.Duration
+	ImageQueueSize     int
+	MaxAnimationSize   int
 }
 
 type WLEDMatrixDisplay struct {
@@ -35,7 +36,8 @@ type WLEDMatrixDisplay struct {
 	width               int
 	backgroundLayerLock sync.Mutex
 	backgroundLayer     map[string]image.RGBA
-	imgChan             chan ImageWithMetadata
+	imgChan             chan ImagesWithMetadata
+	drawingDoneChan     chan bool
 	color               color.Color
 	bgColor             color.Color
 }
@@ -71,8 +73,9 @@ func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, erro
 			disp.width = segCfg.Width + segCfg.OffsetX
 		}
 	}
-	disp.imgChan = make(chan ImageWithMetadata, cfg.MaxPictureWidthFactor)
-	go disp.drawLoop(disp.imgChan, cfg.MinDisplayDuration)
+	disp.imgChan = make(chan ImagesWithMetadata, cfg.ImageQueueSize)
+	disp.drawingDoneChan = make(chan bool)
+	go disp.drawLoop(cfg.MinDisplayDuration)
 	return disp, nil
 }
 
@@ -123,8 +126,10 @@ func (d *WLEDMatrixDisplay) sendCmd(file string, cmd *base.OperatorIO) *base.Ope
 	return &base.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: base.Byte, ContentType: resp.Header.Get("Content-Type")}
 }
 
-func (d *WLEDMatrixDisplay) Shutdown() {
+func (d *WLEDMatrixDisplay) Shutdown(ctx *base.Context) {
 	close(d.imgChan)
+	ctx.GetLogger().Debugf("Waiting for drawing to pixeldisplay to finish\n")
+	<-d.drawingDoneChan
 }
 
 func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.OperatorIO {
@@ -139,22 +144,36 @@ func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.Operator
 	return base.MakeEmptyOutput()
 }
 
-func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, img image.Image, returnPNG bool) *base.OperatorIO {
-	if img == nil {
+func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, srcImg image.Image, returnPNG bool) *base.OperatorIO {
+	if srcImg == nil {
 		return base.MakeOutputError(http.StatusBadRequest, "no image to draw")
 	}
-	b := image.Rect(0, 0, d.width, d.height)
-	converted := image.NewRGBA(b)
-	draw.Draw(converted, b, img, b.Min, draw.Src)
 
-	d.imgChan <- ImageWithMetadata{Image: *converted, Created: time.Now(), Ctx: ctx}
-	if !returnPNG {
+	sourceBounds := srcImg.Bounds()
+	destBounds := image.Rect(0, 0, d.width, d.height)
+	animation := []image.RGBA{}
+	nextStartingPoint := destBounds.Min
+	// shift images that are too large
+	for nextStartingPoint.X < sourceBounds.Dx()-d.width && nextStartingPoint.X < d.conf.MaxAnimationSize {
+		converted := image.NewRGBA(destBounds)
+		draw.Draw(converted, destBounds, srcImg, nextStartingPoint, draw.Src)
+		animation = append(animation, *converted)
+		nextStartingPoint.X++
+	}
+
+	select {
+	case d.imgChan <- ImagesWithMetadata{Image: animation, Created: time.Now(), Ctx: ctx}:
+	default:
+		return base.MakeOutputError(http.StatusTooManyRequests, "Too many images in queue")
+	}
+
+	if !returnPNG || 0 == len(animation) {
 		return base.MakeEmptyOutput()
 	}
 	var bout []byte
 	contentType := "image/png"
 	writer := bytes.NewBuffer(bout)
-	if err := png.Encode(writer, converted); err != nil {
+	if err := png.Encode(writer, &animation[0]); err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Encoding to png failed: %v", err.Error())
 	}
 	return base.MakeByteOutputWithContentType(writer.Bytes(), contentType)
@@ -208,10 +227,6 @@ func (d *WLEDMatrixDisplay) SetBackgroundColor(color color.Color) {
 	d.bgColor = color
 }
 
-func (d *WLEDMatrixDisplay) DrawPixel(x, y int, color color.Color) *base.OperatorIO {
-	return d.sendCmd("state", nil)
-}
-
 func (d *WLEDMatrixDisplay) TurnOn() *base.OperatorIO {
 	s, err := d.getState()
 	if err.IsError() {
@@ -250,7 +265,7 @@ func (d *WLEDMatrixDisplay) GetDimensions() image.Point {
 }
 
 func (d *WLEDMatrixDisplay) GetMaxPictureSize() image.Point {
-	return image.Point{X: d.width * d.conf.MaxPictureWidthFactor, Y: d.height}
+	return image.Point{X: d.width + d.conf.ImageQueueSize, Y: d.height}
 }
 
 func (d *WLEDMatrixDisplay) GetColor() color.Color {
@@ -278,28 +293,32 @@ func (d *WLEDMatrixDisplay) IsOn() bool {
 }
 
 // drawLoop starts a loop that draws an image from a channel to the display and then sleeps for the given duration
-func (d *WLEDMatrixDisplay) drawLoop(c <-chan ImageWithMetadata, waitDuration time.Duration) {
+func (d *WLEDMatrixDisplay) drawLoop(waitDuration time.Duration) {
 	timeoutDuration := 2 * time.Minute
 	for {
-		img, ok := <-c
+		animation, ok := <-d.imgChan
 		if !ok {
-			return
-		}
-		delay := time.Now().Sub(img.Created)
-		if delay > timeoutDuration {
-			img.Ctx.GetLogger().Errorf("Timeout when drawing to Pixeldisplay, delay is: %s", delay)
-			continue
+			break
 		}
 
-		start := time.Now()
-		err := d.drawImageImmediately(&img.Image)
-		if err.IsError() {
-			img.Ctx.GetLogger().Errorf("Drawing to PixelDisplay failed: %v\n", err)
-		}
-		processingDuration := time.Now().Sub(start)
-		img.Ctx.GetLogger().Debugf("Drawing took %s, delay from requesting to drawing was: %s", processingDuration, delay)
-		if processingDuration < waitDuration {
-			time.Sleep(waitDuration - processingDuration)
+		for numPic, singleImage := range animation.Image {
+			delay := time.Now().Sub(animation.Created)
+			if delay > timeoutDuration {
+				animation.Ctx.GetLogger().Errorf("Timeout when drawing to Pixeldisplay, delay is: %s, skipping next picture/rest of animation", delay)
+				break
+			}
+
+			start := time.Now()
+			err := d.drawImageImmediately(&singleImage)
+			if err.IsError() {
+				animation.Ctx.GetLogger().Errorf("Drawing to PixelDisplay failed: %v\n", err)
+			}
+			processingDuration := time.Now().Sub(start)
+			animation.Ctx.GetLogger().Debugf("Drawing took %s, delay from requesting first picture of Animation to drawing %v. picture was: %s", processingDuration, numPic, delay)
+			if processingDuration < waitDuration {
+				time.Sleep(waitDuration - processingDuration)
+			}
 		}
 	}
+	d.drawingDoneChan <- true
 }

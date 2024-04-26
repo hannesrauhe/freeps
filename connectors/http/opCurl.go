@@ -133,5 +133,8 @@ func (o *OpCurl) StartListening(ctx *base.Context) {
 
 // Shutdown shuts down the http server
 func (o *OpCurl) Shutdown(ctx *base.Context) {
+	if o.listener == nil {
+		return
+	}
 	o.listener.Shutdown(context.TODO())
 }

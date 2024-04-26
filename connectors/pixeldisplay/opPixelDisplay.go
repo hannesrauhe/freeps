@@ -33,8 +33,9 @@ func (op *OpPixelDisplay) GetDefaultConfig() interface{} {
 				SegID:  0,
 			},
 		},
-		MinDisplayDuration:    200 * time.Millisecond,
-		MaxPictureWidthFactor: 50,
+		MinDisplayDuration: 200 * time.Millisecond,
+		ImageQueueSize:     10, // queue can consist of 10 animations...
+		MaxAnimationSize:   50, // ... with a maximum of 50 pics each
 	},
 	}
 }
@@ -55,7 +56,7 @@ func (op *OpPixelDisplay) StartListening(ctx *base.Context) {
 
 // Shutdown shuts down the display
 func (op *OpPixelDisplay) Shutdown(ctx *base.Context) {
-	op.display.Shutdown()
+	op.display.Shutdown(ctx)
 }
 
 func (op *OpPixelDisplay) TurnOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {

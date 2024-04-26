@@ -348,13 +348,13 @@ func (ge *GraphEngine) TriggerOnExecuteHooks(ctx *base.Context, graphName string
 
 // TriggerOnExecutionFinishedHooks executes hooks when Execution of a graph finishes
 func (ge *GraphEngine) TriggerOnExecutionFinishedHooks(ctx *base.Context, graphName string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) {
-	if r := recover(); r != nil {
-		logger := ctx.GetLogger()
-		err := fmt.Errorf("panic during execution of %v: %v", graphName, r)
-		logger.Errorf(err.Error())
-		ge.SetSystemAlert(ctx, "Panic", "system", 2, err, &ge.config.AlertDuration)
-		return
-	}
+	// if r := recover(); r != nil {
+	// 	logger := ctx.GetLogger()
+	// 	err := fmt.Errorf("panic during execution of %v: %v", graphName, r)
+	// 	logger.Errorf(err.Error())
+	// 	ge.SetSystemAlert(ctx, "Panic", "system", 2, err, &ge.config.AlertDuration)
+	// 	return
+	// }
 
 	hooks := ge.getHookMapCopy()
 

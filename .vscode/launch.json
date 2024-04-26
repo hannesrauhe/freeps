@@ -27,7 +27,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "pixeldisplay", "-f", "DrawText", "-a", "Text=12:19 <3"]
+      "args": ["-m", "pixeldisplay", "-f", "DrawText", "-a", "Text=12:19 <3 too much text in here how far does this even go.... and on and on", "-v"]
     },
     {
       "name": "store",

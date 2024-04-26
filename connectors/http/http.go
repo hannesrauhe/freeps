@@ -143,6 +143,9 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 }
 
 func (r *FreepsHttpListener) Shutdown(ctx context.Context) {
+	if r.srv == nil {
+		return
+	}
 	r.srv.Shutdown(ctx)
 }
 

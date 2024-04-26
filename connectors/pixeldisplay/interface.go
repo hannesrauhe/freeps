@@ -20,8 +20,6 @@ type Pixeldisplay interface {
 
 	// SetPicture sets the picture of the display
 	DrawImage(ctx *base.Context, image image.Image, returnPNG bool) *base.OperatorIO
-	// DrawPixel sets a pixel of the display
-	DrawPixel(x, y int, color color.Color) *base.OperatorIO
 
 	// SetBackgroundLayer sets a picture as background on the Display, if image is nil, the layer is deleted
 	SetBackgroundLayer(ctx *base.Context, image image.Image, layerName string)
@@ -49,5 +47,5 @@ type Pixeldisplay interface {
 	// IsOn returns true if the display is on
 	IsOn() bool
 
-	Shutdown()
+	Shutdown(ctx *base.Context)
 }

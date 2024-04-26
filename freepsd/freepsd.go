@@ -132,7 +132,12 @@ func mainLoop() bool {
 			oio = base.MakeByteOutput(content)
 		}
 		output := ge.ExecuteOperatorByName(initCtx, operator, fn, fa, oio)
-		output.WriteTo(os.Stdout)
+		if output != nil {
+			output.WriteTo(os.Stdout)
+		} else {
+			logger.Error("Output of operator was nil")
+		}
+		ge.Shutdown(base.NewContext(logger, "Shutdown Context"))
 		return false
 	}
 
