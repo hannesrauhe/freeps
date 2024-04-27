@@ -27,7 +27,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "pixeldisplay", "-f", "DrawText", "-a", "Text=12:19 <3IIIII", "-v"]
+      "args": ["-m", "pixeldisplay", "-f", "DrawText", "-a", "Text=12:19&align=center", "-v"]
     },
     {
       "name": "wled SetPixel",
@@ -35,7 +35,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "pixeldisplay", "-f", "DrawPixel", "-a", "Color=%239929ff&ImageName=bla&X=10&Y=1", "-v"]
+      "args": ["-m", "pixeldisplay", "-f", "DrawPixel", "-a", "Color=%239929ff&ImageName=bla&X=12&Y=1", "-v"]
     },
     {
       "name": "store",

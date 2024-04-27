@@ -136,7 +136,8 @@ func (op *OpPixelDisplay) SetBrightness(ctx *base.Context, input *base.OperatorI
 }
 
 type TextArgs struct {
-	Text *string
+	Text  *string
+	Align *TextAlignment
 }
 
 func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, args TextArgs) *base.OperatorIO {
@@ -147,7 +148,11 @@ func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, ar
 	if args.Text != nil {
 		text = *args.Text
 	}
-	return op.t2p.DrawText(ctx, text)
+	align := Left
+	if args.Align != nil {
+		align = *args.Align
+	}
+	return op.t2p.DrawText(ctx, text, align)
 }
 
 // EffectArgs is a struct to hold the effect to set

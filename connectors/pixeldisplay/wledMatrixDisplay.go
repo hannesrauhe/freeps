@@ -152,19 +152,16 @@ func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, srcImg image.Image, ret
 	destBounds := image.Rect(0, 0, d.width, d.height)
 	animation := []image.RGBA{}
 
-	sourceBounds := srcImg.Bounds()
+	srcBounds := srcImg.Bounds()
 	nextStartingPoint := destBounds.Min
-	// shift images that are too large
-	for nextStartingPoint.X < sourceBounds.Dx()-d.width && nextStartingPoint.X < d.conf.MaxAnimationSize {
+	animationSize := srcBounds.Dx() - destBounds.Dx()
+	// always draw the first picture, then draw as many as necessary but never more than configured
+	for nextStartingPoint.X == 0 || (nextStartingPoint.X < animationSize && nextStartingPoint.X < d.conf.MaxAnimationSize) {
 		converted := image.NewRGBA(destBounds)
 		draw.Draw(converted, destBounds, srcImg, nextStartingPoint, draw.Src)
 		animation = append(animation, *converted)
 		nextStartingPoint.X++
 	}
-
-	// converted := image.NewRGBA(destBounds)
-	// draw.Draw(converted, destBounds, srcImg, destBounds.Min, draw.Src)
-	// animation = append(animation, *converted)
 
 	select {
 	case d.imgChan <- ImagesWithMetadata{Animation: animation, Created: time.Now(), Ctx: ctx}:
@@ -270,7 +267,7 @@ func (d *WLEDMatrixDisplay) GetDimensions() image.Point {
 }
 
 func (d *WLEDMatrixDisplay) GetMaxPictureSize() image.Point {
-	return image.Point{X: d.width + d.conf.ImageQueueSize, Y: d.height}
+	return image.Point{X: d.width + d.conf.MaxAnimationSize, Y: d.height}
 }
 
 func (d *WLEDMatrixDisplay) GetColor() color.Color {

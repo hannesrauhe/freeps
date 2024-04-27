@@ -17,6 +17,14 @@ import (
 //go:embed font/*
 var staticContent embed.FS
 
+type TextAlignment string
+
+const (
+	Left   TextAlignment = "left"
+	Center               = "center"
+	Right                = "right"
+)
+
 type text2pixeldisplay struct {
 	display Pixeldisplay
 	lock    sync.Mutex
@@ -26,14 +34,14 @@ func NewText2Pixeldisplay(display Pixeldisplay) *text2pixeldisplay {
 	return &text2pixeldisplay{display: display, lock: sync.Mutex{}}
 }
 
-func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.OperatorIO {
+func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string, align TextAlignment) *base.OperatorIO {
 	const (
 		startingDotX = 1
 		startingDotY = 7
 	)
 
 	maxDim := t.display.GetMaxPictureSize()
-	r := image.Rect(0, 0, maxDim.X, maxDim.Y) // crop the picture later
+	r := image.Rect(0, 0, maxDim.X, maxDim.Y)
 	dst := image.NewRGBA(r)
 	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.Transparent), image.Point{}, draw.Src)
 
@@ -60,15 +68,24 @@ func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.Opera
 		Face: face,
 		Dot:  fixed.P(startingDotX, startingDotY),
 	}
-	//	if alignRight {
-	//		endDot := d.MeasureString(s)
-	//		toMove := width - endDot.Ceil()
-	//		if toMove > 0 {
-	//			d.Dot = fixed.P(startingDotX+toMove, startingDotY)
-	//		}
-	//	}
+	if align != Left {
+		dim := t.display.GetDimensions()
+		endDot := drawer.MeasureString(text)
+		endX := dim.X - endDot.Ceil()
+		if endX > 0 {
+			if align == Right {
+				drawer.Dot = fixed.P(startingDotX+endX, startingDotY)
+			} else if align == Center {
+				drawer.Dot = fixed.P(startingDotX+endX/2, startingDotY)
+			}
+		}
+	}
+
 	drawer.DrawString(text)
-	dst.Rect.Max.X = drawer.Dot.X.Ceil() // crop the picture
+	if drawer.Dot.X.Ceil() < maxDim.X {
+		// crop the generated picture - will not modify the picture itself, just set the bounds
+		dst.Rect.Max.X = drawer.Dot.X.Ceil()
+	}
 
 	first := t.display.DrawImage(ctx, dst, true)
 	if first.IsError() {
