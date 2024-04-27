@@ -16,9 +16,9 @@ import (
 )
 
 type ImagesWithMetadata struct {
-	Image   []image.RGBA
-	Created time.Time
-	Ctx     *base.Context
+	Animation []image.RGBA
+	Created   time.Time
+	Ctx       *base.Context
 }
 
 type WLEDMatrixDisplayConfig struct {
@@ -149,9 +149,10 @@ func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, srcImg image.Image, ret
 		return base.MakeOutputError(http.StatusBadRequest, "no image to draw")
 	}
 
-	sourceBounds := srcImg.Bounds()
 	destBounds := image.Rect(0, 0, d.width, d.height)
 	animation := []image.RGBA{}
+
+	sourceBounds := srcImg.Bounds()
 	nextStartingPoint := destBounds.Min
 	// shift images that are too large
 	for nextStartingPoint.X < sourceBounds.Dx()-d.width && nextStartingPoint.X < d.conf.MaxAnimationSize {
@@ -161,8 +162,12 @@ func (d *WLEDMatrixDisplay) DrawImage(ctx *base.Context, srcImg image.Image, ret
 		nextStartingPoint.X++
 	}
 
+	// converted := image.NewRGBA(destBounds)
+	// draw.Draw(converted, destBounds, srcImg, destBounds.Min, draw.Src)
+	// animation = append(animation, *converted)
+
 	select {
-	case d.imgChan <- ImagesWithMetadata{Image: animation, Created: time.Now(), Ctx: ctx}:
+	case d.imgChan <- ImagesWithMetadata{Animation: animation, Created: time.Now(), Ctx: ctx}:
 	default:
 		return base.MakeOutputError(http.StatusTooManyRequests, "Too many images in queue")
 	}
@@ -296,25 +301,25 @@ func (d *WLEDMatrixDisplay) IsOn() bool {
 func (d *WLEDMatrixDisplay) drawLoop(waitDuration time.Duration) {
 	timeoutDuration := 2 * time.Minute
 	for {
-		animation, ok := <-d.imgChan
+		animationWithMetadata, ok := <-d.imgChan
 		if !ok {
 			break
 		}
 
-		for numPic, singleImage := range animation.Image {
-			delay := time.Now().Sub(animation.Created)
+		for numPic, singleImage := range animationWithMetadata.Animation {
+			delay := time.Now().Sub(animationWithMetadata.Created)
 			if delay > timeoutDuration {
-				animation.Ctx.GetLogger().Errorf("Timeout when drawing to Pixeldisplay, delay is: %s, skipping next picture/rest of animation", delay)
+				animationWithMetadata.Ctx.GetLogger().Errorf("Timeout when drawing to Pixeldisplay, delay is: %s, skipping next picture/rest of animation", delay)
 				break
 			}
 
 			start := time.Now()
 			err := d.drawImageImmediately(&singleImage)
 			if err.IsError() {
-				animation.Ctx.GetLogger().Errorf("Drawing to PixelDisplay failed: %v\n", err)
+				animationWithMetadata.Ctx.GetLogger().Errorf("Drawing to PixelDisplay failed: %v\n", err)
 			}
 			processingDuration := time.Now().Sub(start)
-			animation.Ctx.GetLogger().Debugf("Drawing took %s, delay from requesting first picture of Animation to drawing %v. picture was: %s", processingDuration, numPic, delay)
+			animationWithMetadata.Ctx.GetLogger().Debugf("Drawing took %s, delay from requesting first picture of Animation to drawing %v. picture was: %s", processingDuration, numPic, delay)
 			if processingDuration < waitDuration {
 				time.Sleep(waitDuration - processingDuration)
 			}

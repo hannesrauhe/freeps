@@ -22,12 +22,20 @@
       "args": ["-v"]
     },
     {
+      "name": "wled DrawText",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/freepsd/freepsd.go",
+      "args": ["-m", "pixeldisplay", "-f", "DrawText", "-a", "Text=12:19 <3IIIII", "-v"]
+    },
+    {
       "name": "wled SetPixel",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/freepsd/freepsd.go",
-      "args": ["-m", "pixeldisplay", "-f", "DrawText", "-a", "Text=12:19 <3 too much text in here how far does this even go.... and on and on", "-v"]
+      "args": ["-m", "pixeldisplay", "-f", "DrawPixel", "-a", "Color=%239929ff&ImageName=bla&X=10&Y=1", "-v"]
     },
     {
       "name": "store",

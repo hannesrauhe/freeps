@@ -35,7 +35,7 @@ func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.Opera
 	maxDim := t.display.GetMaxPictureSize()
 	r := image.Rect(0, 0, maxDim.X, maxDim.Y) // crop the picture later
 	dst := image.NewRGBA(r)
-	draw.Draw(dst, dst.Bounds(), image.NewUniform(t.display.GetBackgroundColor()), image.Point{}, draw.Src)
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.Transparent), image.Point{}, draw.Src)
 
 	fontBytes, err := staticContent.ReadFile("font/Grand9K Pixel.ttf")
 	if err != nil {
@@ -56,7 +56,7 @@ func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.Opera
 
 	drawer := font.Drawer{
 		Dst:  dst,
-		Src:  image.NewUniform(color.Transparent),
+		Src:  image.NewUniform(t.display.GetColor()),
 		Face: face,
 		Dot:  fixed.P(startingDotX, startingDotY),
 	}
