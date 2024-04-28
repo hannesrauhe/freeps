@@ -30,9 +30,10 @@ type Alert struct {
 
 type AlertWithMetadata struct {
 	Alert
-	Counter int
-	First   time.Time
-	Last    time.Time // refactor UpdateTransaction to get StoreEntry which contains this info
+	Counter      int
+	First        time.Time
+	Last         time.Time
+	SilenceUntil time.Time
 }
 
 func (a *AlertWithMetadata) IsExpired() bool {
@@ -41,6 +42,10 @@ func (a *AlertWithMetadata) IsExpired() bool {
 	}
 	expiresAt := a.Last.Add(*a.ExpiresInDuration)
 	return expiresAt.Before(time.Now())
+}
+
+func (a *AlertWithMetadata) IsSilenced() bool {
+	return a.SilenceUntil.After(time.Now())
 }
 
 func (a *Alert) GetFullName() string {
@@ -101,15 +106,18 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
 	}
+	execTrigger := false
 	var a AlertWithMetadata
 	ns.UpdateTransaction(args.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
 		oi.ParseJSON(&a)
 
 		if oi.IsEmpty() {
 			a = AlertWithMetadata{First: time.Now()}
+			execTrigger = true
 		}
 		if a.IsExpired() {
 			a.First = time.Now()
+			execTrigger = true
 		}
 		a.Counter++
 		a.Last = time.Now()
@@ -117,9 +125,41 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 		a.Alert = args
 		return base.MakeObjectOutput(a)
 	}, ctx)
-	if !addArgs.Has("noTrigger") {
+
+	if execTrigger && !addArgs.Has("noTrigger") {
 		oc.execTriggers(ctx, a)
 	}
+	return base.MakeEmptyOutput()
+}
+
+type SilenceAlertArgs struct {
+	Name            string
+	Category        *string
+	SilenceDuration time.Duration
+}
+
+func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) []string {
+	return oc.nameSuggestions(sa.Category)
+}
+
+// ResetAlert resets an alerts
+func (oc *OpAlert) SilenceAlert(ctx *base.Context, mainInput *base.OperatorIO, args SilenceAlertArgs) *base.OperatorIO {
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+	}
+	tempAlert := Alert{Name: args.Name, Category: args.Category, Severity: 5} // just to get the name
+	var a AlertWithMetadata
+	ns.UpdateTransaction(tempAlert.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
+		oi.ParseJSON(&a)
+
+		if oi.IsEmpty() {
+			return base.MakeOutputError(http.StatusNotFound, "Alert %v does not exist", tempAlert.GetFullName())
+		}
+		a.SilenceUntil = time.Now().Add(args.SilenceDuration)
+
+		return base.MakeObjectOutput(a)
+	}, ctx)
 	return base.MakeEmptyOutput()
 }
 
@@ -161,9 +201,31 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 	return base.MakeEmptyOutput()
 }
 
+// ResetSilence stops ignoring alerts
+func (oc *OpAlert) ResetSilence(ctx *base.Context, mainInput *base.OperatorIO, args ResetAlertArgs) *base.OperatorIO {
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+	}
+	tempAlert := Alert{Name: args.Name, Category: args.Category, Severity: 5} // just to get the name
+	var a AlertWithMetadata
+	ns.UpdateTransaction(tempAlert.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
+		oi.ParseJSON(&a)
+
+		if oi.IsEmpty() {
+			return base.MakeOutputError(http.StatusNotFound, "Alert %v does not exist", tempAlert.GetFullName())
+		}
+		a.SilenceUntil = time.Now()
+
+		return base.MakeObjectOutput(a)
+	}, ctx)
+	return base.MakeEmptyOutput()
+}
+
 type GetAlertArgs struct {
-	Severity *int
-	Category *string
+	Severity        *int
+	Category        *string
+	IncludeSilenced *bool
 }
 
 func (oc *OpAlert) getActiveAlerts(args GetAlertArgs) ([]AlertWithMetadata, error) {
@@ -182,6 +244,9 @@ func (oc *OpAlert) getActiveAlerts(args GetAlertArgs) ([]AlertWithMetadata, erro
 			continue
 		}
 		if args.Category != nil && (a.Category == nil || *a.Category != *args.Category) {
+			continue
+		}
+		if a.IsSilenced() && (args.IncludeSilenced == nil || *args.IncludeSilenced == false) {
 			continue
 		}
 
