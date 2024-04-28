@@ -34,8 +34,8 @@ func (op *OpPixelDisplay) GetDefaultConfig() interface{} {
 			},
 		},
 		MinDisplayDuration: 200 * time.Millisecond,
-		ImageQueueSize:     10, // queue can consist of 10 animations...
-		MaxAnimationSize:   50, // ... with a maximum of 50 pics each
+		ImageQueueSize:     5,   // queue can consist of 5 animations...
+		MaxAnimationSize:   150, // ... with a maximum of 50 pics each
 	},
 	}
 }
