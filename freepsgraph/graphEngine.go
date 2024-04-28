@@ -520,6 +520,7 @@ func (ge *GraphEngine) Shutdown(ctx *base.Context) {
 
 	for _, op := range ge.operators {
 		if op != nil {
+			ctx.GetLogger().Debugf("Stopping %v", op.GetName())
 			op.Shutdown(ctx)
 		}
 	}

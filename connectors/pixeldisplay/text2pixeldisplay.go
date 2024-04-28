@@ -3,9 +3,9 @@ package pixeldisplay
 import (
 	"embed"
 	"image"
+	"image/color"
 	"image/draw"
 	"net/http"
-	"sync"
 
 	"github.com/hannesrauhe/freeps/base"
 	"golang.org/x/image/font"
@@ -16,26 +16,32 @@ import (
 //go:embed font/*
 var staticContent embed.FS
 
+type TextAlignment string
+
+const (
+	Left   TextAlignment = "left"
+	Center               = "center"
+	Right                = "right"
+)
+
 type text2pixeldisplay struct {
 	display Pixeldisplay
-	lock    sync.Mutex
 }
 
 func NewText2Pixeldisplay(display Pixeldisplay) *text2pixeldisplay {
 	return &text2pixeldisplay{display: display}
 }
 
-func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.OperatorIO {
+func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string, align TextAlignment) *base.OperatorIO {
 	const (
 		startingDotX = 1
 		startingDotY = 7
 	)
 
-	dim := t.display.GetDimensions()
 	maxDim := t.display.GetMaxPictureSize()
-	r := image.Rect(0, 0, maxDim.X, maxDim.Y) // crop the picture later
+	r := image.Rect(0, 0, maxDim.X, maxDim.Y)
 	dst := image.NewRGBA(r)
-	draw.Draw(dst, dst.Bounds(), image.NewUniform(t.display.GetBackgroundColor()), image.Point{}, draw.Src)
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.Transparent), image.Point{}, draw.Src)
 
 	fontBytes, err := staticContent.ReadFile("font/Grand9K Pixel.ttf")
 	if err != nil {
@@ -60,34 +66,29 @@ func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string) *base.Opera
 		Face: face,
 		Dot:  fixed.P(startingDotX, startingDotY),
 	}
-	//	if alignRight {
-	//		endDot := d.MeasureString(s)
-	//		toMove := width - endDot.Ceil()
-	//		if toMove > 0 {
-	//			d.Dot = fixed.P(startingDotX+toMove, startingDotY)
-	//		}
-	//	}
-	drawer.DrawString(text)
-	dst.Rect.Max.X = drawer.Dot.X.Ceil() // crop the picture
-
-	t.lock.Lock()
-	defer t.lock.Unlock()
-	first := t.display.DrawImage(ctx, dst, true)
-	for dst.Rect.Max.X > dim.X {
-		shiftPixelsLeft(dst)
-		t.display.DrawImage(ctx, dst, false)
-	}
-
-	return first
-}
-
-func shiftPixelsLeft(img *image.RGBA) {
-	bounds := img.Bounds()
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X-1; x++ {
-			img.Set(x, y, img.At(x+1, y))
+	if align != Left {
+		dim := t.display.GetDimensions()
+		endDot := drawer.MeasureString(text)
+		endX := dim.X - endDot.Ceil()
+		if endX > 0 {
+			if align == Right {
+				drawer.Dot = fixed.P(startingDotX+endX, startingDotY)
+			} else if align == Center {
+				drawer.Dot = fixed.P(startingDotX+endX/2, startingDotY)
+			}
 		}
 	}
 
-	img.Rect.Max.X--
+	drawer.DrawString(text)
+	if drawer.Dot.X.Ceil() < maxDim.X {
+		// crop the generated picture - will not modify the picture itself, just set the bounds
+		dst.Rect.Max.X = drawer.Dot.X.Ceil()
+	}
+
+	first := t.display.DrawImage(ctx, dst, true)
+	if first.IsError() {
+		return first
+	}
+
+	return first
 }

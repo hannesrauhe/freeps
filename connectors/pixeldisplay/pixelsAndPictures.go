@@ -185,6 +185,13 @@ func (op *OpPixelDisplay) GetBackgroundLayerNames(ctx *base.Context) *base.Opera
 	return base.MakeObjectOutput(op.display.GetBackgroundLayerNames())
 }
 
+func (op *OpPixelDisplay) HasBackgroundLayer(ctx *base.Context) *base.OperatorIO {
+	if len(op.display.GetBackgroundLayerNames()) != 0 {
+		return base.MakeEmptyOutput()
+	}
+	return base.MakeOutputError(http.StatusExpectationFailed, "No background layer")
+}
+
 type DrawPixelArg struct {
 	X         int
 	Y         int
@@ -194,6 +201,10 @@ type DrawPixelArg struct {
 
 // DrawPixel puts a pixel on the image stored under ImageName and displays the Image
 func (op *OpPixelDisplay) DrawPixel(ctx *base.Context, input *base.OperatorIO, args DrawPixelArg) *base.OperatorIO {
+	dim := op.display.GetDimensions()
+	if args.X > dim.X || args.Y > dim.Y {
+		return base.MakeOutputError(http.StatusBadRequest, "Pixel out of bounds: (%v,%v) not in %v", args.X, args.Y, dim)
+	}
 	img, _ := op.getImageFromStore(ctx, &args.ImageName)
 	pic := op.getDrawablePicture(img) // gives back an empty canvase on error
 

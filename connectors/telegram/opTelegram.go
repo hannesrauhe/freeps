@@ -23,6 +23,7 @@ type OpTelegram struct {
 	lastMessage int
 	closeChan   chan int
 	bot         *tgbotapi.BotAPI
+	wasStarted  bool
 }
 
 var _ base.FreepsOperatorWithConfig = &OpTelegram{}
@@ -35,7 +36,7 @@ func (m *OpTelegram) GetDefaultConfig() interface{} {
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
 func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
-	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), closeChan: make(chan int)}
+	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), closeChan: make(chan int), wasStarted: false}
 	if newM.tgc.Token == "" {
 		return nil, fmt.Errorf("Telegram token is empty")
 	}
@@ -91,11 +92,18 @@ func (m *OpTelegram) Post(ctx *base.Context, input *base.OperatorIO, args PostAr
 }
 
 func (m *OpTelegram) StartListening(ctx *base.Context) {
+	m.wasStarted = true
 	go m.mainLoop()
 }
 
 func (m *OpTelegram) Shutdown(ctx *base.Context) {
+	if m.bot == nil {
+		return
+	}
+	if m.wasStarted == false {
+		return
+	}
 	m.bot.StopReceivingUpdates()
 	<-m.closeChan
-	m.bot = nil
+	m.wasStarted = false
 }

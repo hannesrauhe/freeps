@@ -33,8 +33,9 @@ func (op *OpPixelDisplay) GetDefaultConfig() interface{} {
 				SegID:  0,
 			},
 		},
-		MinDisplayDuration:    200 * time.Millisecond,
-		MaxPictureWidthFactor: 50,
+		MinDisplayDuration: 200 * time.Millisecond,
+		ImageQueueSize:     5,   // queue can consist of 5 animations...
+		MaxAnimationSize:   150, // ... with a maximum of 50 pics each
 	},
 	}
 }
@@ -45,7 +46,7 @@ func (op *OpPixelDisplay) InitCopyOfOperator(ctx *base.Context, config interface
 	if err != nil {
 		return nil, err
 	}
-	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(op.display)}
+	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(disp)}
 	return newOp, nil
 }
 
@@ -55,7 +56,7 @@ func (op *OpPixelDisplay) StartListening(ctx *base.Context) {
 
 // Shutdown shuts down the display
 func (op *OpPixelDisplay) Shutdown(ctx *base.Context) {
-	op.display.Shutdown()
+	op.display.Shutdown(ctx)
 }
 
 func (op *OpPixelDisplay) TurnOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
@@ -135,7 +136,8 @@ func (op *OpPixelDisplay) SetBrightness(ctx *base.Context, input *base.OperatorI
 }
 
 type TextArgs struct {
-	Text *string
+	Text  *string
+	Align *TextAlignment
 }
 
 func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, args TextArgs) *base.OperatorIO {
@@ -146,7 +148,11 @@ func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, ar
 	if args.Text != nil {
 		text = *args.Text
 	}
-	return op.t2p.DrawText(ctx, text)
+	align := Left
+	if args.Align != nil {
+		align = *args.Align
+	}
+	return op.t2p.DrawText(ctx, text, align)
 }
 
 // EffectArgs is a struct to hold the effect to set
