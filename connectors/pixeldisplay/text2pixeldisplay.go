@@ -6,7 +6,6 @@ import (
 	"image/color"
 	"image/draw"
 	"net/http"
-	"sync"
 
 	"github.com/hannesrauhe/freeps/base"
 	"golang.org/x/image/font"
@@ -27,11 +26,10 @@ const (
 
 type text2pixeldisplay struct {
 	display Pixeldisplay
-	lock    sync.Mutex
 }
 
 func NewText2Pixeldisplay(display Pixeldisplay) *text2pixeldisplay {
-	return &text2pixeldisplay{display: display, lock: sync.Mutex{}}
+	return &text2pixeldisplay{display: display}
 }
 
 func (t *text2pixeldisplay) DrawText(ctx *base.Context, text string, align TextAlignment) *base.OperatorIO {

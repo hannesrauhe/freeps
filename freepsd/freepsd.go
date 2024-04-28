@@ -153,6 +153,7 @@ func mainLoop() bool {
 		logger.Infof("Stopping Listeners")
 		ge.Shutdown(base.NewContext(logger, "Shutdown Context"))
 	}
+	logger.Infof("All listeners stopped")
 	return keepRunning
 }
 
