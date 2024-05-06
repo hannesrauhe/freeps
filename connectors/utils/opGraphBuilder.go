@@ -86,13 +86,18 @@ func (m *OpGraphBuilder) buildDefaultOperation() freepsgraph.GraphOperationDesc 
 func (m *OpGraphBuilder) GetGraphFromStore(ctx *base.Context, input *base.OperatorIO, args GraphFromStoreArgs) *base.OperatorIO {
 	gd, err := freepsstore.GetGraph(args.GraphName)
 	if err != nil {
-		gd = freepsgraph.GraphDesc{
-			Operations: []freepsgraph.GraphOperationDesc{
-				m.buildDefaultOperation(),
-			},
-		}
-		if args.CreateIfMissing == nil || !*args.CreateIfMissing {
-			return base.MakeOutputError(404, "Graph not found in store: %v", err)
+		gdFromEngine, exists := m.GE.GetGraphDesc(args.GraphName)
+		if !exists {
+			if args.CreateIfMissing == nil || !*args.CreateIfMissing {
+				return base.MakeOutputError(404, "Graph not found in store: %v", err)
+			}
+			gd = freepsgraph.GraphDesc{
+				Operations: []freepsgraph.GraphOperationDesc{
+					m.buildDefaultOperation(),
+				},
+			}
+		} else {
+			gd = *gdFromEngine
 		}
 		freepsstore.StoreGraph(args.GraphName, gd, ctx)
 	}

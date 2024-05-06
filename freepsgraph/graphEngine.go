@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -308,6 +309,7 @@ func (ge *GraphEngine) GetOperators() []string {
 	for _, op := range ge.operators {
 		r = append(r, op.GetName())
 	}
+	slices.Sort(r)
 	return r
 }
 

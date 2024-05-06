@@ -1,0 +1,192 @@
+{{ $requestedGraph := "" }}
+{{ if .arguments.graphname }}
+    {{ $requestedGraph = .arguments.graphname }}
+{{ else }}
+    {{ $requestedGraph = getContextID }}
+{{ end }}
+{{ $requestedOpNum := "0" }}
+{{ if .arguments.operationnumber }}
+    {{ $requestedOpNum = .arguments.operationnumber }}
+{{ end }}
+
+<head>
+<link rel="stylesheet" href="/chota.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+	<div class="container">
+		<div class="row">
+			<div class="col-1"></div>
+			<form method="post" class="col-11">
+				<button name="newOperation">+</button>
+			</form>
+		</div>
+{{ $gdOutput := printf "CreateIfMissing=true&graphName=%v" $requestedGraph | graph_ExecuteOperator "graphBuilder" "getgraphfromstore" }}
+{{ range $opNumInt, $op := $gdOutput.Output.Operations }}
+	{{ $opNum := printf "%d" $opNumInt }}
+	{{ if eq $requestedOpNum $opNum }}
+<!-- BEGIN active operation-->
+		<form method="post" action="/graphBuilder/SetOperation" style="border-color: gray; border-width: 1px; border-style: dashed;">        
+		<input type="hidden" name="redirect" value="{{$.selfPath}}#operation-{{$opNum}}?graphName={{$requestedGraph}}&operationNumber={{$opNum}}">
+		<input type="hidden" name="operationNumber" value="{{$opNum}}">
+		<input type="hidden" name="graphName" value="{{$requestedGraph}}">
+		<div class="row" id="operation-{{$opNum}}">
+			<div class="col-2">
+				<input type="text" value="{{$op.Name}}" id="name-{{$opNum}}">
+			</div>		
+			<div class="col-1">
+				<div class="tag is-large">:=</div>
+			</div>		
+			<div class="col-3">
+				<select name="operator" id="operator-{{$opNum}}" onchange="this.form.submit()">
+					<option value="{{$op.Operator}}" selected="selected">{{$op.Operator}}</option>
+					<option disabled="disabled">--</option>
+				{{ range $i, $op_opt := ge_GetOperators }}
+					{{if ne $op_opt $op.Operator}}
+					<option value="{{$op_opt}}" >{{$op_opt}}</option>
+					{{end}}
+				{{end}}
+				</select>
+			</div>		
+			<div class="col-1">
+				<div class="tag is-large">/</div>
+			</div>		
+			<div class="col-4">
+				<select name="function" id="operator-{{$opNum}}" onchange="this.form.submit()">
+					<option value="{{$op.Function}}" selected="selected">{{$op.Function}}</option>
+					<option disabled="disabled">--</option>
+				{{ range $i, $fn_opt := operator_GetFunctions $op.Operator }}
+					{{if ne $fn_opt $op.Function}}
+                	<option value="{{$fn_opt}}">{{$fn_opt}}</option>
+					{{end}}
+                {{ end }}
+				</select>
+			</div>
+		</div>
+
+<!-- BEGIN active Arguments -->
+    	{{ $j := 0}}
+		{{ range $argName, $argVal := $op.Arguments}}
+		<div class="row">
+			<div class="col-1">	</div>		
+			<div class="col-1">
+			{{ if eq $j 0 }}
+				<div class="tag is-large">(</div>
+			{{end}}
+			</div>		
+			<div class="col-4">
+				<select name="argument" id="argument-{{$opNum}}-{{$j}}">
+					<option value="{{$argName}}">{{$argName}}</option>
+				</select>
+			</div>		
+			<div class="col-1">
+				<div class="tag is-large">:</div>
+			</div>		
+			<div class="col-4">
+				<select name="argument-value" id="argval-{{$opNum}}-{{$j}}">
+					<option value="{{$argVal}}">{{$argVal}}</option>
+				</select>
+			</div>
+			<div class="col-1">
+				<button name="remove-arg">-</button>
+			</div>		
+		</div>
+			{{ $j = add $j 1}}	
+		{{ end }} <!-- END Arguments list-->
+		<div class="row">
+			<div class="col-1">	</div>			
+			<div class="col-1">
+				{{ if eq $j 0 }}
+						<div class="tag is-large">(</div>
+				{{end}}
+			</div>
+			<div class="col-2">
+				<select name="use-main-arg" id="use-main-arg-{{$opNum}}">
+					<option value=""></option>
+					<option value="$main">$main</option>
+				</select>
+			</div>		
+			<div class="col-2">
+				<select name="args-from" id="args-from-{{$opNum}}">
+					<option value=""></option>
+					<option value="{{$op.ArgumentsFrom}}">{{$op.ArgumentsFrom}}</option>
+				</select>
+			</div>		
+			<div class="col-1">
+				<span class="tag is-large">) &lt;=</span>
+			</div>			
+			<div class="col-3">
+				<select name="inputfrom">
+					<option value="{{$op.InputFrom}}">{{$op.InputFrom}}</option>
+				</select>
+			</div>		
+			<div class="col-1">
+				<button name="OperationNumber" value="{{add $opNumInt 1}}">+</button>
+			</div>
+		</div>
+<!-- END active Arguments -->
+		</form>
+
+
+	{{ else }} <!-- END active operation-->
+
+<!-- BEGIN inactive operation-->
+		<div class="row" id="operation-{{$opNum}}">
+			<form method="get" class="col-3" action="{{$.selfPath}}#operation-{{$opNum}}">			
+				<input type="hidden" name="operationNumber" value="{{$opNum}}">
+				<input type="hidden" name="graphName" value="{{$requestedGraph}}">
+				<button>{{$op.Name}}</button>
+			</form>		
+			<div class="col-1">
+				<div class="tag is-large">:=</div>
+			</div>		
+			<div class="col-3">
+				<span class="bd-light">{{$op.Operator}}</span>
+			</div>		
+			<div class="col-1">
+				<div class="tag is-large">/</div>
+			</div>		
+			<div class="col-4">
+				<span class="bd-light">{{$op.Function}}</span>
+			</div>
+		</div>
+
+<!-- BEGIN inactive Arguments -->
+		<div class="row">
+			<div class="col-1">	</div>		
+			<div class="col-1">
+				<div class="tag">(</div>
+			</div>		
+			<div class="col-9">				
+				{{ range $argName, $argVal := $op.Arguments}}
+				<span style="display: inline-block; width: 100px;">{{$argName}}</span><span class="tag">:</span> {{$argVal}}<br>
+				{{ end }} <!-- END Argumentlist -->
+			</div>	
+			<div class="col-1">
+			</div>		
+		</div>
+		
+		<div class="row">
+			<div class="col-2">	</div>		
+			<div class="col-2">
+				<span class="bd-light">{{if $op.UseMainArgs}}$main{{end}}</span>
+			</div>		
+			<div class="col-2">
+				<span class="bd-light">{{$op.ArgumentsFrom}}</span>
+			</div>		
+			<div class="col-1">
+				<span class="tag">) &lt;=</span>
+			</div>						
+			<div class="col-3">
+				<span class="bd-light">{{$op.InputFrom}}</span>
+			</div>		
+			<form method="post" class="col-1">
+				<button name="newOperation">+</button>
+			</form>
+		</div>
+		 <!-- END inactive Arguments -->
+
+	{{ end }} <!-- END inactive operation-->
+{{ end }} <!-- END operation loop-->
+	</div>
+</body>

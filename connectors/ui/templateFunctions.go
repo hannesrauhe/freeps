@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -152,7 +153,9 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			if op == nil {
 				return []string{}
 			}
-			return op.GetFunctions()
+			r := op.GetFunctions()
+			slices.Sort(r)
+			return r
 		},
 		"operator_GetPossigbleArgs": func(opName string, fn string) []string {
 			op := o.ge.GetOperator(opName)
