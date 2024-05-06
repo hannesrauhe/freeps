@@ -19,7 +19,7 @@ require (
 	github.com/muka/go-bluetooth v0.0.0-20240115085408-dfdf79b8f61d
 	github.com/sirupsen/logrus v1.9.3
 	github.com/sstallion/go-hid v0.14.1
-	golang.org/x/image v0.15.0
+	golang.org/x/image v0.16.0
 	gotest.tools/v3 v3.5.1
 )
 
@@ -34,5 +34,5 @@ require (
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 )
