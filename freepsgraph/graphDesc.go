@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -19,6 +20,22 @@ type GraphOperationDesc struct {
 	ArgumentsFrom   string            `json:",omitempty"`
 	IgnoreMainArgs  bool              `json:",omitempty"` // deprecate
 	UseMainArgs     bool              `json:",omitempty"`
+}
+
+// ToQuicklink returns the URL to call a standalone-operation outside of a Graph
+func (gop *GraphOperationDesc) ToQuicklink() string {
+	var s strings.Builder
+	s.WriteString("/" + gop.Operator)
+	if gop.Function != "" {
+		s.WriteString("/" + gop.Function)
+	}
+	if len(gop.Arguments) > 0 {
+		s.WriteString("?")
+	}
+	for k, v := range gop.Arguments {
+		s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
+	}
+	return s.String()
 }
 
 // GraphDesc contains a number of operations and defines which output to use
