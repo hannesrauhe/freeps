@@ -2,7 +2,6 @@ package freepshttp
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"mime"
 	"net/http"
@@ -128,7 +127,7 @@ func (o *OpCurl) handleResponse(resp *http.Response, err error, ctx *base.Contex
 
 // StartListening starts the http server
 func (o *OpCurl) StartListening(ctx *base.Context) {
-	o.listener = NewFreepsHttp(o.Config, o.GE)
+	o.listener = NewFreepsHttp(ctx, o.Config, o.GE)
 }
 
 // Shutdown shuts down the http server
@@ -136,5 +135,5 @@ func (o *OpCurl) Shutdown(ctx *base.Context) {
 	if o.listener == nil {
 		return
 	}
-	o.listener.Shutdown(context.TODO())
+	o.listener.Shutdown(ctx.GoContext)
 }

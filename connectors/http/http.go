@@ -26,6 +26,7 @@ var staticContent embed.FS
 type FreepsHttpListener struct {
 	graphengine *freepsgraph.GraphEngine
 	srv         *http.Server
+	baseContext *base.Context
 }
 
 func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs base.FunctionArguments, mainInput *base.OperatorIO, err error) {
@@ -101,7 +102,6 @@ func (r *FreepsHttpListener) ParseRequest(req *http.Request) (mainArgs base.Func
 
 func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	httplogger := log.WithField("restAPI", req.RemoteAddr)
 
 	mainArgs, mainInput, err := r.ParseRequest(req)
 	if err != nil {
@@ -113,15 +113,14 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	// allows to redirect if an empty success response was returned
 	redirectLocation := mainArgs.Get("redirect")
 
-	//TODO(HR): should have a common base context that can be cancelled on shutdown
-	ctx := base.NewContext(httplogger, "HTTP Request: "+req.RemoteAddr)
+	ctx := base.WithField(r.baseContext, "HTTP Request", req.RemoteAddr)
 	opio := &base.OperatorIO{}
 	if vars["mod"] == "graph" {
 		opio = r.graphengine.ExecuteGraph(ctx, vars["function"], mainArgs, mainInput)
 	} else {
 		opio = r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	}
-	opio.Log(httplogger)
+	opio.Log(ctx.GetLogger())
 
 	w.Header().Set("X-Freeps-ID", ctx.GetID())
 	if redirectLocation != "" && opio.IsEmpty() {
@@ -165,8 +164,8 @@ func (r *FreepsHttpListener) handleStaticContent(w http.ResponseWriter, req *htt
 	w.Write(fc)
 }
 
-func NewFreepsHttp(cfg HTTPConfig, ge *freepsgraph.GraphEngine) *FreepsHttpListener {
-	rest := &FreepsHttpListener{graphengine: ge}
+func NewFreepsHttp(ctx *base.Context, cfg HTTPConfig, ge *freepsgraph.GraphEngine) *FreepsHttpListener {
+	rest := &FreepsHttpListener{graphengine: ge, baseContext: ctx}
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", rest.handleStaticContent)

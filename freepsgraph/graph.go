@@ -2,6 +2,7 @@ package freepsgraph
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -93,7 +94,7 @@ func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mai
 	case <-ctx.Done():
 		alertExpire := 5 * time.Minute
 		output = base.MakeOutputError(http.StatusGatewayTimeout, "Timeout after %v when executing graph \"%v\" with arguments \"%v\"", time.Now().Sub(startTime), g.desc.DisplayName, mainArgs)
-		g.engine.SetSystemAlert(pctx, "graphTimeout", "system", 2, output.GetError(), &alertExpire)
+		g.engine.SetSystemAlert(pctx, fmt.Sprintf("graphTimeout.%s", g.desc.GraphID), "system", 2, output.GetError(), &alertExpire)
 	case output = <-c:
 	}
 
@@ -193,7 +194,7 @@ func (g *Graph) executeOperationWithOptionalTimeout(pctx *base.Context, op base.
 	case <-ctx.Done():
 		alertExpire := 5 * time.Minute
 		output = base.MakeOutputError(http.StatusGatewayTimeout, "Timeout after %v when calling operator \"%v\", Function \"%v\" with arguments \"%v\"", time.Now().Sub(startTime), op.GetName(), fn, mainArgs)
-		g.engine.SetSystemAlert(pctx, "operationTimeout", "system", 2, output.GetError(), &alertExpire)
+		g.engine.SetSystemAlert(pctx, fmt.Sprintf("operationTimeout.%s.%s", op.GetName(), fn), "system", 2, output.GetError(), &alertExpire)
 	case output = <-c:
 	}
 

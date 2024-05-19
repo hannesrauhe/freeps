@@ -2,6 +2,7 @@ package opalert
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -255,13 +256,73 @@ func (oc *OpAlert) getActiveAlerts(args GetAlertArgs) ([]AlertWithMetadata, erro
 	return activeAlerts, nil
 }
 
-// GetActiveString returns a single string describing all active alerts of a given severity
+// GetActiveAlerts returns a single string describing all active alerts of a given severity
 func (oc *OpAlert) GetActiveAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
 	activeAlerts, err := oc.getActiveAlerts(args)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 	return base.MakeObjectOutput(activeAlerts)
+}
+
+type ReadableAlert struct {
+	Name               string
+	Category           string
+	Desc               string
+	Severity           int
+	ExpiresInDuration  time.Duration
+	Counter            int
+	DurationSinceFirst time.Duration
+	DurationSinceLast  time.Duration
+	SilenceDuration    time.Duration
+	ModifiedBy         string
+}
+
+func NewReadableAlert(a AlertWithMetadata, modifiedBy string) ReadableAlert {
+	r := ReadableAlert{Name: a.Name, Severity: a.Severity, Counter: a.Counter, ModifiedBy: modifiedBy}
+	if a.Category != nil {
+		r.Category = *a.Category
+	}
+	if a.Desc != nil {
+		r.Desc = *a.Desc
+	}
+	if a.ExpiresInDuration != nil {
+		r.ExpiresInDuration = *a.ExpiresInDuration
+	}
+	r.DurationSinceFirst = time.Now().Sub(a.First)
+	r.DurationSinceLast = time.Now().Sub(a.Last)
+	if a.SilenceUntil.After(time.Now()) {
+		r.SilenceDuration = a.SilenceUntil.Sub(time.Now())
+	}
+	return r
+}
+
+// GetAlerts returns a single string describing all active alerts of a given severity
+func (oc *OpAlert) GetAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error getting store: %v", err)
+	}
+	alertList := make([]ReadableAlert, 0)
+	for _, entry := range ns.GetSearchResultWithMetadata("", "", "", 0, math.MaxInt64) {
+		var a AlertWithMetadata
+		entry.ParseJSON(&a)
+		if a.IsExpired() {
+			continue
+		}
+		if args.Severity != nil && a.Severity > *args.Severity {
+			continue
+		}
+		if args.Category != nil && (a.Category == nil || *a.Category != *args.Category) {
+			continue
+		}
+		if a.IsSilenced() && (args.IncludeSilenced == nil || *args.IncludeSilenced == false) {
+			continue
+		}
+
+		alertList = append(alertList, NewReadableAlert(a, entry.GetModifiedBy()))
+	}
+	return base.MakeObjectOutput(alertList)
 }
 
 // GetShortAlertString returns a single string describing all active alerts of a given severity

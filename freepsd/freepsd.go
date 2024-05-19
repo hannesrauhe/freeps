@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"flag"
 	"log"
 	"os"
@@ -69,7 +68,8 @@ func mainLoop() bool {
 	}
 	configureLogging(cr, logger)
 
-	initCtx := base.NewContext(logger.WithField("phase", "init"), "freeps init")
+	baseCtx, cancel := base.NewBaseContext(logger)
+	defer cancel()
 
 	_, err = utils.GetTempDir()
 	if err != nil {
@@ -78,10 +78,8 @@ func mainLoop() bool {
 	defer utils.DeleteTempDir()
 
 	logger.Debug("Loading graph engine")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
-	ge := freepsgraph.NewGraphEngine(initCtx, cr, cancel)
+	ge := freepsgraph.NewGraphEngine(baseCtx, cr, cancel)
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
@@ -105,7 +103,7 @@ func mainLoop() bool {
 
 	for _, op := range availableOperators {
 		// this will automatically skip operators that are not enabled in the config
-		ge.AddOperators(base.MakeFreepsOperators(op, cr, initCtx))
+		ge.AddOperators(base.MakeFreepsOperators(op, cr, baseCtx))
 	}
 	ge.AddOperator(ui.NewHTMLUI(cr, ge))
 	freepsexec.AddExecOperators(cr, ge)
@@ -131,7 +129,7 @@ func mainLoop() bool {
 			}
 			oio = base.MakeByteOutput(content)
 		}
-		output := ge.ExecuteOperatorByName(initCtx, operator, fn, fa, oio)
+		output := ge.ExecuteOperatorByName(baseCtx, operator, fn, fa, oio)
 		if output != nil {
 			output.WriteTo(os.Stdout)
 		} else {
@@ -142,13 +140,12 @@ func mainLoop() bool {
 	}
 
 	logger.Infof("Starting Listeners")
-	ge.StartListening(initCtx)
+	ge.StartListening(baseCtx)
 	logger.Infof("Listeners successfully started")
 
 	keepRunning := true
 	select {
-	case <-ctx.Done():
-		// Shutdown the server when the context is canceled
+	case <-baseCtx.Done():
 		keepRunning = ge.ReloadRequested()
 		logger.Infof("Stopping Listeners")
 		ge.Shutdown(base.NewContext(logger, "Shutdown Context"))

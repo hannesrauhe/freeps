@@ -19,13 +19,26 @@ type Context struct {
 // NewContext creates a Context with a given logger
 func NewContext(logger log.FieldLogger, reason string) *Context {
 	u := uuid.New()
-	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Reason: reason, GoContext: context.Background()}
+	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Reason: reason, GoContext: context.TODO()}
+}
+
+// NewBaseContext creates a Context with a given logger
+func NewBaseContext(logger log.FieldLogger) (*Context, context.CancelFunc) {
+	u := uuid.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Context{UUID: u, logger: logger, Reason: "base", GoContext: ctx}, cancel
 }
 
 func WithTimeout(parentContext *Context, timeout time.Duration) (*Context, context.CancelFunc) {
 	goCtx, cancel := context.WithTimeout(parentContext.GoContext, timeout)
 	ctx := &Context{UUID: parentContext.UUID, logger: parentContext.logger, Reason: parentContext.Reason, GoContext: goCtx}
 	return ctx, cancel
+}
+
+func WithField(parentContext *Context, key string, value string) *Context {
+	reason := key + ":" + value
+	u := uuid.New()
+	return &Context{UUID: u, logger: parentContext.logger.WithField(key, value).WithField("uuid", u.String()), Reason: reason, GoContext: parentContext.GoContext}
 }
 
 // GetID returns the string represantation of the ID for this execution tree
