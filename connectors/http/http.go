@@ -173,6 +173,7 @@ func NewFreepsHttp(ctx *base.Context, cfg HTTPConfig, ge *freepsgraph.GraphEngin
 		r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		r.HandleFunc("/debug/pprof/{profile}", pprof.Index)
 		r.HandleFunc("/debug/pprof/", pprof.Index)
 	}
 	r.HandleFunc("/{file}", rest.handleStaticContent)
@@ -188,7 +189,7 @@ func NewFreepsHttp(ctx *base.Context, cfg HTTPConfig, ge *freepsgraph.GraphEngin
 	}
 
 	go func() {
-		log.Println("Starting HTTP Server")
+		ctx.GetLogger().Info("Starting HTTP Server")
 		if err := rest.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
