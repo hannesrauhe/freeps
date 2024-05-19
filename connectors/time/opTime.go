@@ -69,10 +69,19 @@ type SleepParameter struct {
 	Duration time.Duration
 }
 
-// Sleep sleeps for the given duration
+// Sleep sleeps for the given duration unless aborted
 func (o *OpTime) Sleep(ctx *base.Context, input *base.OperatorIO, s SleepParameter) *base.OperatorIO {
-	time.Sleep(s.Duration)
-	return base.MakeEmptyOutput()
+	delay := time.NewTimer(s.Duration)
+
+	select {
+	case <-delay.C:
+		return base.MakeEmptyOutput()
+	case <-ctx.Done():
+		if !delay.Stop() {
+			<-delay.C
+		}
+		return base.MakeOutputError(http.StatusServiceUnavailable, "Execution aborted")
+	}
 }
 
 // NowParameter is a struct to hold the format to use

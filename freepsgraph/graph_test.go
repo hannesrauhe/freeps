@@ -282,6 +282,10 @@ func TestGraphExecution(t *testing.T) {
 
 	g5 := createValidGraph()
 	g5.AddTags("keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man")
+	assert.Equal(t, g5.GetTagValue("keytag1"), "foo")
+	assert.Equal(t, g5.GetTagValue("keyTAG1"), "foo")
+	assert.Equal(t, g5.GetTagValue("footag"), "")
+	assert.Equal(t, g5.GetTagValue("NOPE"), "")
 	ge.AddGraph(ctx, "test5", g5, false)
 	g6 := createValidGraph()
 	g6.AddTags("keytag1:bar", "keytag2:bla")

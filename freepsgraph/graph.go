@@ -10,6 +10,8 @@ import (
 )
 
 const ROOT_SYMBOL = "_"
+const GraphTimeout = time.Minute * 2
+const GraphOperationTimeout = time.Minute
 
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
@@ -43,11 +45,21 @@ func (g *Graph) GetGraphID() string {
 }
 
 func (g *Graph) GetOperationTimeout() time.Duration {
-	return 10 * time.Second
+	ds := g.desc.GetTagValue("operationTimeout")
+	d, err := time.ParseDuration(ds)
+	if ds == "" || err != nil {
+		return GraphOperationTimeout
+	}
+	return d
 }
 
 func (g *Graph) GetTimeout() time.Duration {
-	return 25 * time.Second
+	ds := g.desc.GetTagValue("graphTimeout")
+	d, err := time.ParseDuration(ds)
+	if ds == "" || err != nil {
+		return GraphTimeout
+	}
+	return d
 }
 
 func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
@@ -56,13 +68,12 @@ func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, 
 	for i := 0; i < len(g.desc.Operations); i++ {
 		select {
 		case <-ctx.Done():
-			return base.MakeOutputError(http.StatusAlreadyReported, "Execution aborted")
+			return base.MakeOutputError(http.StatusServiceUnavailable, "Execution aborted")
 		default:
 			operation := g.desc.Operations[i]
 			output := g.executeOperation(ctx, &operation, mainArgs)
 			logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 			g.opOutputs[operation.Name] = output
-
 		}
 	}
 	if g.desc.OutputFrom == "" {
