@@ -3,7 +3,6 @@ package freepsgraph
 import (
 	"errors"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -17,7 +16,6 @@ type Graph struct {
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*base.OperatorIO
-	aborted   atomic.Bool
 }
 
 // NewGraph creates a new graph from a graph description
@@ -29,8 +27,7 @@ func NewGraph(ctx *base.Context, graphID string, origGraphDesc *GraphDesc, ge *G
 	if err != nil {
 		return nil, err
 	}
-	g := Graph{context: ctx, desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO), aborted: atomic.Bool{}}
-	g.aborted.Store(false)
+	g := Graph{context: ctx, desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}
 	return &g, nil
 }
 
@@ -45,24 +42,27 @@ func (g *Graph) GetGraphID() string {
 }
 
 func (g *Graph) GetOperationTimeout() time.Duration {
-	return time.Minute
+	return 10 * time.Second
 }
 
 func (g *Graph) GetTimeout() time.Duration {
-	return 10 * time.Minute
+	return 25 * time.Second
 }
 
 func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {
-		if g.aborted.Load() {
+		select {
+		case <-ctx.Done():
 			return base.MakeOutputError(http.StatusAlreadyReported, "Execution aborted")
+		default:
+			operation := g.desc.Operations[i]
+			output := g.executeOperation(ctx, &operation, mainArgs)
+			logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
+			g.opOutputs[operation.Name] = output
+
 		}
-		operation := g.desc.Operations[i]
-		output := g.executeOperation(ctx, &operation, mainArgs)
-		logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
-		g.opOutputs[operation.Name] = output
 	}
 	if g.desc.OutputFrom == "" {
 		return base.MakeObjectOutput(g.opOutputs)
@@ -74,31 +74,27 @@ func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, 
 	return g.opOutputs[g.desc.OutputFrom]
 }
 
-func (g *Graph) execute(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	if g.GetTimeout() == 0 {
-		return g.executeSync(ctx, mainArgs, mainInput)
+		return g.executeSync(pctx, mainArgs, mainInput)
 	}
 
+	ctx, cancelFunc := base.WithTimeout(pctx, g.GetTimeout())
+	defer cancelFunc()
 	c := make(chan *base.OperatorIO)
 	var output *base.OperatorIO
-	delay := time.NewTimer(g.GetTimeout())
 
+	startTime := time.Now()
 	go func() {
 		c <- g.executeSync(ctx, mainArgs, mainInput)
 	}()
 
 	select {
-	case <-delay.C:
-		g.aborted.Store(true)
+	case <-ctx.Done():
 		alertExpire := 5 * time.Minute
-		output = base.MakeOutputError(http.StatusRequestTimeout, "Timeout when executing graph \"%v\" with arguments \"%v\"", g.desc.DisplayName, mainArgs)
-		g.engine.SetSystemAlert(ctx, "graphTimeout", "system", 2, output.GetError(), &alertExpire)
+		output = base.MakeOutputError(http.StatusGatewayTimeout, "Timeout after %v when executing graph \"%v\" with arguments \"%v\"", time.Now().Sub(startTime), g.desc.DisplayName, mainArgs)
+		g.engine.SetSystemAlert(pctx, "graphTimeout", "system", 2, output.GetError(), &alertExpire)
 	case output = <-c:
-		// clean up the timer
-		if !delay.Stop() {
-			// if the timer has been stopped then read from the channel.
-			<-delay.C
-		}
 	}
 
 	return output
@@ -171,37 +167,34 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
 
-		output := g.executeOperationWithOptionalTimeout(op, g.context, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
+		output := g.executeOperationWithOptionalTimeout(g.context, op, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
 		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
 		return output
 	}
 	return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
 }
 
-func (g *Graph) executeOperationWithOptionalTimeout(op base.FreepsBaseOperator, ctx *base.Context, fn string, mainArgs base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+func (g *Graph) executeOperationWithOptionalTimeout(pctx *base.Context, op base.FreepsBaseOperator, fn string, mainArgs base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	if g.GetOperationTimeout() == 0 {
-		return op.Execute(ctx, fn, mainArgs, input)
+		return op.Execute(pctx, fn, mainArgs, input)
 	}
 
 	c := make(chan *base.OperatorIO)
 	var output *base.OperatorIO
-	delay := time.NewTimer(g.GetOperationTimeout())
+	ctx, cancelFunc := base.WithTimeout(pctx, g.GetOperationTimeout())
+	defer cancelFunc()
 
+	startTime := time.Now()
 	go func() {
 		c <- op.Execute(ctx, fn, mainArgs, input)
 	}()
 
 	select {
-	case <-delay.C:
+	case <-ctx.Done():
 		alertExpire := 5 * time.Minute
-		output = base.MakeOutputError(http.StatusRequestTimeout, "Timeout when calling operator \"%v\", Function \"%v\" with arguments \"%v\"", op.GetName(), fn, mainArgs)
-		g.engine.SetSystemAlert(ctx, "operationTimeout", "system", 2, output.GetError(), &alertExpire)
+		output = base.MakeOutputError(http.StatusGatewayTimeout, "Timeout after %v when calling operator \"%v\", Function \"%v\" with arguments \"%v\"", time.Now().Sub(startTime), op.GetName(), fn, mainArgs)
+		g.engine.SetSystemAlert(pctx, "operationTimeout", "system", 2, output.GetError(), &alertExpire)
 	case output = <-c:
-		// clean up the timer
-		if !delay.Stop() {
-			// if the timer has been stopped then read from the channel.
-			<-delay.C
-		}
 	}
 
 	return output

@@ -11,7 +11,6 @@ import (
 	"net/http/pprof"
 	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -114,6 +113,7 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	// allows to redirect if an empty success response was returned
 	redirectLocation := mainArgs.Get("redirect")
 
+	//TODO(HR): should have a common base context that can be cancelled on shutdown
 	ctx := base.NewContext(httplogger, "HTTP Request: "+req.RemoteAddr)
 	opio := &base.OperatorIO{}
 	if vars["mod"] == "graph" {
@@ -182,9 +182,9 @@ func NewFreepsHttp(cfg HTTPConfig, ge *freepsgraph.GraphEngine) *FreepsHttpListe
 	r.Handle("/{mod}/{function}/", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
 
-	tHandler := http.TimeoutHandler(r, time.Duration(cfg.GraphProcessingTimeout)*time.Second, "graph proceesing timeout - graph might still be running")
+	// tHandler := http.TimeoutHandler(r, time.Duration(cfg.GraphProcessingTimeout)*time.Second, "graph proceesing timeout - graph might still be running")
 	rest.srv = &http.Server{
-		Handler: tHandler,
+		Handler: r,
 		Addr:    fmt.Sprintf(":%v", cfg.Port),
 	}
 
