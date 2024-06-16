@@ -3,6 +3,7 @@ package freepsgraph
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -19,6 +20,22 @@ type GraphOperationDesc struct {
 	ArgumentsFrom   string            `json:",omitempty"`
 	IgnoreMainArgs  bool              `json:",omitempty"` // deprecate
 	UseMainArgs     bool              `json:",omitempty"`
+}
+
+// ToQuicklink returns the URL to call a standalone-operation outside of a Graph
+func (gop *GraphOperationDesc) ToQuicklink() string {
+	var s strings.Builder
+	s.WriteString("/" + gop.Operator)
+	if gop.Function != "" {
+		s.WriteString("/" + gop.Function)
+	}
+	if len(gop.Arguments) > 0 {
+		s.WriteString("?")
+	}
+	for k, v := range gop.Arguments {
+		s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
+	}
+	return s.String()
 }
 
 // GraphDesc contains a number of operations and defines which output to use
@@ -88,11 +105,13 @@ func (gd *GraphDesc) HasAtLeastOneTagPerGroup(tagGroups ...[]string) bool {
 // AddTags adds a Tag to the description and removes duplicates
 func (gd *GraphDesc) AddTags(tags ...string) {
 	fakeSet := map[string]bool{}
-	for _, t := range gd.Tags {
-		fakeSet[t] = true
-	}
-	for _, t := range tags {
-		fakeSet[t] = true
+	if gd.Tags != nil || len(gd.Tags) == 0 {
+		for _, t := range gd.Tags {
+			fakeSet[t] = true
+		}
+		for _, t := range tags {
+			fakeSet[t] = true
+		}
 	}
 
 	gd.Tags = make([]string, 0, len(fakeSet))
@@ -104,7 +123,7 @@ func (gd *GraphDesc) AddTags(tags ...string) {
 // RemoveTag removes a Tag and duplicates in general from the description
 func (gd *GraphDesc) RemoveTag(tag string) {
 	if gd.Tags == nil || len(gd.Tags) == 0 {
-		gd.Tags = []string{tag}
+		gd.Tags = []string{}
 		return
 	}
 	fakeSet := map[string]bool{}
@@ -116,6 +135,16 @@ func (gd *GraphDesc) RemoveTag(tag string) {
 	for k := range fakeSet {
 		gd.Tags = append(gd.Tags, k)
 	}
+}
+
+// GetTagValue returns the value of a given tag if that tag is set, or "" if tag is not set or doesn't have a value
+func (gd *GraphDesc) GetTagValue(tagKey string) string {
+	tm := utils.NewStringCIMap(map[string]string{})
+	for _, t := range gd.Tags {
+		k, v := SplitTag(t)
+		tm.Append(k, v)
+	}
+	return tm.Get(tagKey)
 }
 
 // RenameOperation renames an operation oldName to newName everywhere in the Graph

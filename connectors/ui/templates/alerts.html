@@ -1,0 +1,33 @@
+<link rel="stylesheet" href="/chota.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+{{ $sev := "5" }}
+{{ if .arguments.sev }}
+    {{ $maxage = .arguments.sev }}
+{{ end }}
+
+<div class="container">
+<form method="GET" action="/ui/alerts.html"  class="row">
+    <div class="col">
+        Severity: <input type="text" value="{{$sev}}" name="sev">
+    </div>
+</form>
+</div>
+
+<table>
+<tr><th>Category</th><th>Name</th><th>Desc</th><th>Sev</th><th>Counter</th><th>Set by</th><th>Silenced</th></tr>
+{{ $alerts := graph_ExecuteOperator "alert" "GetAlerts" ""}}
+{{ range $key, $entry := $alerts.Output }} 
+    <tr>
+        <td><a href="/ui/alerts.html?category={{$entry.Category}}">{{$entry.Category}}</a></td>
+        <td>{{$entry.Name}}</td>
+        <td>{{$entry.Desc}}</td>
+        <td>{{$entry.Severity}}</td>
+        <td>{{$entry.Counter}}</td>
+        <td><a href="/ui/store.html?namespace=_execution_log&modifiedby={{$entry.ModifiedBy}}">({{$entry.ModifiedBy}})</a></td>
+        <td>{{$entry.SilenceDuration}}</td>
+    </tr>
+{{ end }}
+
+</table>
+
