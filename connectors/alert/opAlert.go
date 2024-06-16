@@ -15,11 +15,24 @@ import (
 
 // OpAlert is a FreepsOperator that can be used to retrieve and modify the config
 type OpAlert struct {
-	CR *utils.ConfigReader
-	GE *freepsgraph.GraphEngine
+	CR                *utils.ConfigReader
+	GE                *freepsgraph.GraphEngine
+	config            AlertConfig
+	severityOverrides utils.CIMap[int]
 }
 
 var _ base.FreepsOperator = &OpAlert{}
+var _ base.FreepsOperatorWithConfig = &OpAlert{}
+
+func (oc *OpAlert) GetDefaultConfig() interface{} {
+	cfg := AlertConfig{Enabled: true, SeverityOverrides: map[string]int{}}
+	return &cfg
+}
+
+func (oc *OpAlert) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
+	opc := config.(*AlertConfig)
+	return &OpAlert{CR: oc.CR, GE: oc.GE, config: *opc, severityOverrides: utils.NewCIMap(opc.SeverityOverrides)}, nil
+}
 
 type Alert struct {
 	Name              string
@@ -108,8 +121,10 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
 	}
 	execTrigger := false
+	alertIdentifier := args.GetFullName()
+	args.Severity = oc.severityOverrides.GetOrDefault(alertIdentifier, args.Severity)
 	var a AlertWithMetadata
-	ns.UpdateTransaction(args.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
+	ns.UpdateTransaction(alertIdentifier, func(oi base.OperatorIO) *base.OperatorIO {
 		oi.ParseJSON(&a)
 
 		if oi.IsEmpty() {
