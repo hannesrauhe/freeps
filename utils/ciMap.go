@@ -30,10 +30,10 @@ type CIMap[Val any] interface {
 
 	GetOriginalCaseMap() map[string][]Val
 	GetOriginalCaseMapOnlyFirst() map[string]Val
-	GetOriginalCaseMapJoined() map[string]Val
+	GetOriginalCaseMapJoined() map[string]string
 	GetLowerCaseMap() map[string][]Val
 	GetLowerCaseMapOnlyFirst() map[string]Val
-	GetLowerCaseMapJoined() map[string]Val
+	GetLowerCaseMapJoined() map[string]string
 
 	IsEmpty() bool
 }
@@ -48,6 +48,7 @@ type CIMapImpl[Val any] struct {
 }
 
 var _ CIMap[string] = &CIMapImpl[string]{}
+var _ CIMap[int] = &CIMapImpl[int]{}
 
 func appendToMultiMap[Val any](m map[string][]Val, k string, v ...Val) {
 	_, exists := m[k]
@@ -77,6 +78,23 @@ func joinMultiMap[Val any](m map[string][]Val) map[string]string {
 		}
 	}
 	return retMap
+}
+
+// NewCIMap creates a new CIMap struct from the given map
+func NewCIMap[Val any](args map[string]Val) CIMap[Val] {
+	ret := &CIMapImpl[Val]{
+		OriginalMap:     make(map[string][]Val),
+		lowerKeyMapping: make(map[string][]string),
+	}
+	for k, v := range args {
+		ret.OriginalMap[k] = []Val{v}
+		lk := strings.ToLower(k)
+		appendToMultiMap(ret.lowerKeyMapping, lk, k)
+	}
+	for _, kList := range ret.lowerKeyMapping {
+		slices.Sort(kList)
+	}
+	return ret
 }
 
 // NewStringCIMap creates a new CIMap struct from the given map
