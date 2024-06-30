@@ -122,7 +122,9 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 	}
 	execTrigger := false
 	alertIdentifier := args.GetFullName()
-	args.Severity = oc.severityOverrides.GetOrDefault(alertIdentifier, args.Severity)
+	if oc.severityOverrides != nil { // just a fix for testing
+		args.Severity = oc.severityOverrides.GetOrDefault(alertIdentifier, args.Severity)
+	}
 	var a AlertWithMetadata
 	ns.UpdateTransaction(alertIdentifier, func(oi base.OperatorIO) *base.OperatorIO {
 		oi.ParseJSON(&a)
