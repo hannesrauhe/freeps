@@ -2,30 +2,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 {{ $sev := "5" }}
+{{ $incsil := "false" }}
+{{ $cat := "" }}
 {{ if .arguments.sev }}
-    {{ $maxage = .arguments.sev }}
+    {{ $sev = .arguments.sev }}
+{{ end }}
+{{ $args := printf "severity=%s" $sev }}
+{{ if .arguments.category }}
+    {{ $cat = .arguments.category }}
+    {{ $args = printf "%s&category=%s" $args $cat }}
+{{ end }}
+{{ if .arguments.includesilenced }}
+    {{ $incsil = .arguments.includesilenced }}
+    {{ $args = printf "%s&includesilenced=%s" $args $incsil }}
 {{ end }}
 
 <div class="container">
 <form method="GET" action="/ui/alerts.html"  class="row">
     <div class="col">
-        Severity: <input type="text" value="{{$sev}}" name="sev">
+        <label for="sev">Severity</label>
+        <input type="number" value="{{$sev}}" name="sev" id="sev" />
+    </div>
+    <div class="col">
+        <br /> 
+        <label for="includesilenced">Include silenced alarms</label>
+        <input type="checkbox" value="true" name="includesilenced" id="includesilenced" {{ if eq $incsil "true" }} checked {{ end }} />
+    </div>
+    <div class="col">
+        <br /> 
+        <input type="submit" /> 
     </div>
 </form>
 </div>
 
 <table>
-<tr><th>Category</th><th>Name</th><th>Desc</th><th>Sev</th><th>Counter</th><th>Set by</th><th>Silenced</th></tr>
-{{ $alerts := graph_ExecuteOperator "alert" "GetAlerts" ""}}
+<tr><th>Reset</th><th>Category</th><th>Name</th><th>Desc</th><th>Sev</th><th>Counter</th><th>Set by</th><th>Active Since</th><th>Expires In</th><th>Silenced</th></tr>
+{{ $alerts := graph_ExecuteOperator "alert" "GetAlerts" $args}}
 {{ range $key, $entry := $alerts.Output }} 
     <tr>
+        <td><a href="/Alert/ResetAlert?Name={{$entry.Name}}&Category={{$entry.Category}}&redirect={{$.selfURL}}">x</a></td>
         <td><a href="/ui/alerts.html?category={{$entry.Category}}">{{$entry.Category}}</a></td>
         <td>{{$entry.Name}}</td>
         <td>{{$entry.Desc}}</td>
         <td>{{$entry.Severity}}</td>
         <td>{{$entry.Counter}}</td>
-        <td><a href="/ui/store.html?namespace=_execution_log&modifiedby={{$entry.ModifiedBy}}">({{$entry.ModifiedBy}})</a></td>
-        <td>{{$entry.SilenceDuration}}</td>
+        <td><a href="/ui/store.html?namespace=_execution_log&modifiedby={{$entry.ModifiedBy}}">{{$entry.ModifiedBy}}</a></td>
+        <td>{{$entry.DurationSinceFirst}}</td>
+        <td>{{$entry.ExpiresInDuration}}</td>
+        <td>{{$entry.SilenceDuration}} <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=1h&Category={{$entry.Category}}&redirect={{$.selfURL}}">o</a> <a href="/Alert/ResetSilence?Name={{$entry.Name}}&Category={{$entry.Category}}&redirect={{$.selfURL}}">x</a></td>
     </tr>
 {{ end }}
 
