@@ -3,7 +3,7 @@ module github.com/hannesrauhe/freeps
 go 1.22
 
 require (
-	github.com/briandowns/openweathermap v0.19.0
+	github.com/briandowns/openweathermap v0.20.0
 	github.com/capossele/GoGraphviz/graphviz v0.0.0-20190313095341-7802999d6878
 	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
