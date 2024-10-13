@@ -18,7 +18,7 @@ func (m *OpUtils) intGetValue(ctx *base.Context, input *base.OperatorIO, args In
 	var err error
 	var v int64
 	if args.Key != nil {
-		argsmap, ferr := m.flatten(ctx, input)
+		argsmap, ferr := m.flatten(input)
 		if ferr != nil {
 			return 0, ferr
 		}
@@ -83,7 +83,7 @@ func (m *OpUtils) floatGetValue(ctx *base.Context, input *base.OperatorIO, args 
 	var err error
 	var v float64
 	if args.Key != nil {
-		argsmap, ferr := m.flatten(ctx, input)
+		argsmap, ferr := m.flatten(input)
 		if ferr != nil {
 			return 0, ferr
 		}
@@ -137,7 +137,7 @@ func (m *OpUtils) StringEqual(ctx *base.Context, input *base.OperatorIO, args St
 	var err error
 	var v string
 	if args.Key != nil {
-		argsmap, ferr := m.flatten(ctx, input)
+		argsmap, ferr := m.flatten(input)
 		if ferr != nil {
 			return ferr
 		}
@@ -167,7 +167,7 @@ type BoolParams struct {
 func (m *OpUtils) boolConv(ctx *base.Context, input *base.OperatorIO, args BoolParams) (bool, error) {
 	var err error
 	if args.Key != nil {
-		argsmap, ferr := m.flatten(ctx, input)
+		argsmap, ferr := m.flatten(input)
 		if err != nil {
 			return false, ferr.GetError()
 		}
