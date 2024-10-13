@@ -306,3 +306,34 @@ func TestGraphExecution(t *testing.T) {
 	assert.DeepEqual(t, ge.GetTagValues("f"), []string{"a:shiZ:s"})
 	assert.DeepEqual(t, ge.GetTagValues("f:a"), []string{})
 }
+
+func test_replace_args(ctx *base.Context, ge *GraphEngine, input1 string, input2 string) *base.OperatorIO {
+	op1 := GraphOperationDesc{Name: "echo_output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input1}}
+	op2 := GraphOperationDesc{Name: "stat_output", Operator: "system", Function: "stats", Arguments: map[string]string{"statType": input1}}
+	op3 := GraphOperationDesc{Name: "output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input2}}
+	g0 := GraphDesc{Operations: []GraphOperationDesc{op1, op2, op3}, Source: "test", OutputFrom: "output"}
+
+	ge.AddGraph(ctx, "test0", g0, true)
+	return ge.ExecuteGraph(ctx, "test0", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+}
+
+func TestArgumentReplacement(t *testing.T) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
+	ctx := base.NewContext(log.StandardLogger(), "")
+	assert.NilError(t, err)
+	ge := NewGraphEngine(ctx, cr, func() {})
+
+	/* test simple string replacement */
+	r := test_replace_args(ctx, ge, "test", "Operator output was: ${echo_output}, should be empty: '${NOTEXISTENT}'")
+	assert.Equal(t, r.GetString(), "Operator output was: test, should be empty: ''")
+	r = test_replace_args(ctx, ge, "", "${foo")
+	assert.Equal(t, r.GetString(), "${foo")
+	r = test_replace_args(ctx, ge, "cpu", "${stat_output}")
+	s := r.GetString()
+	assert.Assert(t, s[0] == '{') /* just check if it looks like a json object */
+
+	/* test if objects in maps can be accessed like this */
+	r = test_replace_args(ctx, ge, "cpu", "${stat_output.cpu}")
+	assert.Equal(t, r.GetString(), "${foo")
+}

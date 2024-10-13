@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -118,6 +120,48 @@ func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.Op
 	return error
 }
 
+// replaceVariablesInArgs replaces variables of the form ${varName} in plainArgs with the values from the opOutputs
+func (g *Graph) replaceVariablesInArgs(plainArgs map[string]string) (map[string]string, error) {
+	r := make(map[string]string)
+
+	if plainArgs == nil {
+		return r, nil
+	}
+
+	var returnErr error
+
+	re := regexp.MustCompile(`\${([^}]+)}`)
+	for k, v := range plainArgs {
+		r[k] = re.ReplaceAllStringFunc(v, func(match string) string {
+			outputName := match[2 : len(match)-1]
+			if opOutput, exists := g.opOutputs[outputName]; exists {
+				return opOutput.GetString()
+			}
+			// split varName by "." and try to find the value in the opOutputs
+			parts := strings.SplitN(outputName, ".", 2)
+			if len(parts) != 2 {
+				return ""
+			}
+			outputName = parts[0]
+			varInMap := parts[1]
+			opOutput, exists := g.opOutputs[outputName]
+			if !exists {
+				return ""
+			}
+			args, err := opOutput.GetArgsMap()
+			if err != nil {
+				returnErr = fmt.Errorf("Cannot get args from output \"%s\": %s", outputName, err)
+				return ""
+			}
+			if val, exists := args[varInMap]; exists {
+				return val
+			}
+			return ""
+		})
+	}
+	return r, returnErr
+}
+
 func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
 	logger := ctx.GetLogger()
 	input := base.MakeEmptyOutput()
@@ -136,15 +180,14 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 		return base.MakeOutputError(http.StatusExpectationFailed, "Operation not executed because \"%v\" did not fail", originalOpDesc.ExecuteOnFailOf)
 	}
 
-	// create a copy of the arguments for collecting possible errors
 	finalOpDesc := &GraphOperationDesc{}
 	*finalOpDesc = *originalOpDesc
-	finalOpDesc.Arguments = make(map[string]string)
-	if originalOpDesc.Arguments != nil {
-		for k, v := range originalOpDesc.Arguments {
-			finalOpDesc.Arguments[k] = v
-		}
+	var err error
+	finalOpDesc.Arguments, err = g.replaceVariablesInArgs(originalOpDesc.Arguments)
+	if err != nil {
+		return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "Cannot create arguments: %s", err.Error())
 	}
+
 	if finalOpDesc.UseMainArgs {
 		for k, v := range mainArgs.GetOriginalCaseMapOnlyFirst() {
 			if _, ok := finalOpDesc.Arguments[k]; ok {
