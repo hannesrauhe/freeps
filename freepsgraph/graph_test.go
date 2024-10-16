@@ -335,10 +335,10 @@ func TestArgumentReplacement(t *testing.T) {
 
 	/* test if objects in maps can be accessed like this */
 	r = test_replace_args(ctx, ge, "cpu", "${stat_output.Nice}")
-	assert.Equal(t, r.GetString(), "0")
+	assert.Assert(t, r.GetString() != "") /* any string is good, as long as it's not an error */
 
 	r = test_replace_args(ctx, ge, "cpu", "${echo_output}: ${stat_output.Nice}")
-	assert.Equal(t, r.GetString(), "cpu: 0")
+	assert.Assert(t, utils.StringStartsWith(r.GetString(), "cpu: ")) /* still don't care about the value of Nice */
 
 	/* output does not exist */
 	r = test_replace_args(ctx, ge, "cpu", "${doesntexist}")
