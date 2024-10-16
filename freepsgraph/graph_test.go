@@ -325,8 +325,8 @@ func TestArgumentReplacement(t *testing.T) {
 	ge := NewGraphEngine(ctx, cr, func() {})
 
 	/* test simple string replacement */
-	r := test_replace_args(ctx, ge, "test", "Operator output was: ${echo_output}, should be empty: '${NOTEXISTENT}'")
-	assert.Equal(t, r.GetString(), "Operator output was: test, should be empty: ''")
+	r := test_replace_args(ctx, ge, "test", "Operator output was: ${echo_output}")
+	assert.Equal(t, r.GetString(), "Operator output was: test")
 	r = test_replace_args(ctx, ge, "", "${foo")
 	assert.Equal(t, r.GetString(), "${foo")
 	r = test_replace_args(ctx, ge, "cpu", "${stat_output}")
@@ -334,6 +334,24 @@ func TestArgumentReplacement(t *testing.T) {
 	assert.Assert(t, s[0] == '{') /* just check if it looks like a json object */
 
 	/* test if objects in maps can be accessed like this */
-	r = test_replace_args(ctx, ge, "cpu", "${stat_output.cpu}")
-	assert.Equal(t, r.GetString(), "${foo")
+	r = test_replace_args(ctx, ge, "cpu", "${stat_output.Nice}")
+	assert.Equal(t, r.GetString(), "0")
+
+	r = test_replace_args(ctx, ge, "cpu", "${echo_output}: ${stat_output.Nice}")
+	assert.Equal(t, r.GetString(), "cpu: 0")
+
+	/* output does not exist */
+	r = test_replace_args(ctx, ge, "cpu", "${doesntexist}")
+	assert.Equal(t, r.GetError().Error(), "Output \"doesntexist\" not found")
+	r = test_replace_args(ctx, ge, "cpu", "${doesntexist.foo}")
+	assert.Equal(t, r.GetError().Error(), "Output \"doesntexist\" not found")
+
+	/* output is not a map */
+	r = test_replace_args(ctx, ge, "cpu", "${echo_output.Nice}")
+	assert.Assert(t, r.IsError())
+	assert.Equal(t, r.GetError().Error(), "Cannot get \"Nice\" from \"echo_output\": Output is not convertible to type map, type is string")
+
+	/* key in map does not exist */
+	r = test_replace_args(ctx, ge, "cpu", "${stat_output.doesntexist}")
+	assert.Equal(t, r.GetError().Error(), "Variable \"doesntexist\" not found in output \"stat_output\"")
 }

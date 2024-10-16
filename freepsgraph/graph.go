@@ -139,24 +139,28 @@ func (g *Graph) replaceVariablesInArgs(plainArgs map[string]string) (map[string]
 			}
 			// split varName by "." and try to find the value in the opOutputs
 			parts := strings.SplitN(outputName, ".", 2)
-			if len(parts) != 2 {
+			if len(parts) < 2 {
+				returnErr = fmt.Errorf("Output \"%s\" not found", outputName)
 				return ""
 			}
 			outputName = parts[0]
 			varInMap := parts[1]
 			opOutput, exists := g.opOutputs[outputName]
 			if !exists {
+				returnErr = fmt.Errorf("Output \"%s\" not found", outputName)
 				return ""
 			}
 			args, err := opOutput.GetArgsMap()
 			if err != nil {
-				returnErr = fmt.Errorf("Cannot get args from output \"%s\": %s", outputName, err)
+				returnErr = fmt.Errorf("Cannot get \"%s\" from \"%s\": %s", varInMap, outputName, err)
 				return ""
 			}
-			if val, exists := args[varInMap]; exists {
-				return val
+			val, exists := args[varInMap]
+			if !exists {
+				returnErr = fmt.Errorf("Variable \"%s\" not found in output \"%s\"", varInMap, outputName)
+				return ""
 			}
-			return ""
+			return val
 		})
 	}
 	return r, returnErr
@@ -185,7 +189,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	var err error
 	finalOpDesc.Arguments, err = g.replaceVariablesInArgs(originalOpDesc.Arguments)
 	if err != nil {
-		return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "Cannot create arguments: %s", err.Error())
+		return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "%s", err.Error())
 	}
 
 	if finalOpDesc.UseMainArgs {

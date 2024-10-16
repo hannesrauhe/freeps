@@ -165,10 +165,9 @@ type BoolParams struct {
 }
 
 func (m *OpUtils) boolConv(ctx *base.Context, input *base.OperatorIO, args BoolParams) (bool, error) {
-	var err error
 	if args.Key != nil {
 		argsmap, ferr := m.flatten(input)
-		if err != nil {
+		if ferr != nil {
 			return false, ferr.GetError()
 		}
 		vi, ok := argsmap[*args.Key]
