@@ -22,7 +22,7 @@ type FlattenArgs struct {
 	ExcludeRegexp *string
 }
 
-func (m *OpUtils) flatten(ctx *base.Context, input *base.OperatorIO) (map[string]interface{}, *base.OperatorIO) {
+func (m *OpUtils) flatten(input *base.OperatorIO) (map[string]interface{}, *base.OperatorIO) {
 	nestedArgsMap := map[string]interface{}{}
 	err := input.ParseJSON(&nestedArgsMap)
 	if err != nil {
@@ -38,7 +38,7 @@ func (m *OpUtils) flatten(ctx *base.Context, input *base.OperatorIO) (map[string
 
 // Flatten flattens the input from a nested map to a flat map
 func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args FlattenArgs) *base.OperatorIO {
-	argsmap, err := m.flatten(ctx, input)
+	argsmap, err := m.flatten(input)
 	if err != nil {
 		return err
 	}

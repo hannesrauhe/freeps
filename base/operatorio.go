@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 
+	"github.com/jeremywohl/flatten"
 	"github.com/sirupsen/logrus"
 )
 
@@ -63,32 +64,43 @@ func MakeObjectOutputWithContentType(output interface{}, contentType string) *Op
 }
 
 func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
-	strmap, ok := io.Output.(map[string]string)
-	if ok {
-		return strmap, nil
-	}
-	generalmap, ok := io.Output.(map[string]interface{})
-	if ok {
-		strmap := make(map[string]string)
-		for k, v := range generalmap {
-			strmap[k] = fmt.Sprintf("%v", v)
-		}
-		return strmap, nil
-	}
-	opmap, ok := io.Output.(map[string]*OperatorIO)
-	if ok {
-		strmap := make(map[string]string)
-		for k, v := range opmap {
-			strmap[k] = fmt.Sprintf("%v", v)
-		}
-		return strmap, nil
-	}
 	if io.IsEmpty() {
 		return map[string]string{}, nil
 	}
+
+	strmap := make(map[string]string)
+
+	switch t := io.Output.(type) {
+	case map[string]string:
+		return t, nil
+	case map[string]interface{}:
+		for k, v := range t {
+			strmap[k] = fmt.Sprintf("%v", v)
+		}
+		return strmap, nil
+	case map[string]*OperatorIO:
+		for k, v := range t {
+			strmap[k] = fmt.Sprintf("%v", v)
+		}
+		return strmap, nil
+	}
+
 	if io.ParseJSON(&strmap) == nil {
 		return strmap, nil
 	}
+
+	generalmap := map[string]interface{}{}
+	err := io.ParseJSON(&generalmap)
+	if err == nil {
+		interfacemap, err := flatten.Flatten(generalmap, "", flatten.DotStyle)
+		if err == nil {
+			for k, v := range interfacemap {
+				strmap[k] = fmt.Sprintf("%v", v)
+			}
+			return strmap, nil
+		}
+	}
+
 	return nil, fmt.Errorf("Output is not convertible to type map, type is %T", io.Output)
 }
 
