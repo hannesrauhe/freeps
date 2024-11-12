@@ -110,9 +110,11 @@ func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDe
 		o.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, o.name)
 	}
 	if device.Alert != nil {
-		dur := AlertDeviceAlertDuration
-		o.GE.SetSystemAlert(ctx, "DeviceAlert"+device.AIN, o.name, AlertDeviceSeverity, fmt.Errorf("%v is in alert state", device.Name), &dur)
-	} else {
-		o.GE.ResetSystemAlert(ctx, "DeviceAlert"+device.AIN, o.name)
+		if device.Alert.State != 0 {
+			dur := AlertDeviceAlertDuration
+			o.GE.SetSystemAlert(ctx, "DeviceAlert"+device.AIN, o.name, AlertDeviceSeverity, fmt.Errorf("%v is in alert state %v", device.Name, device.Alert.State), &dur)
+		} else {
+			o.GE.ResetSystemAlert(ctx, "DeviceAlert"+device.AIN, o.name)
+		}
 	}
 }
