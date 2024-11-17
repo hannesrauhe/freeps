@@ -368,9 +368,9 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 			return base.MakePlainOutput(*a.Desc)
 		}
 		if a.Category == nil {
-			return base.MakeSprintfOutput("Alert: %v", a.Name)
+			return base.MakeSprintfOutput("%v", a.Name)
 		}
-		return base.MakeSprintfOutput("Alert %v in category %v", a.Name, *a.Category)
+		return base.MakeSprintfOutput("%v.%v", a.Name, *a.Category)
 	}
 
 	alertListStr := ""
@@ -378,14 +378,14 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 		alertListStr = ": " + strings.Join(alertNames, ",")
 	}
 	if len(categories) == 0 {
-		return base.MakeSprintfOutput("%d alerts%v", len(activeAlerts), alertListStr)
+		return base.MakeSprintfOutput("%d alerts: %v", len(activeAlerts), alertListStr)
 	}
 	if len(categories) == 1 {
 		for c := range categories {
-			return base.MakeSprintfOutput("%d alerts in category %v%v", len(activeAlerts), c, alertListStr)
+			return base.MakeSprintfOutput("%d %v alerts: %v", len(activeAlerts), c, alertListStr)
 		}
 	}
-	return base.MakeSprintfOutput("%d alerts in %d categories%v", len(activeAlerts), len(categories), alertListStr)
+	return base.MakeSprintfOutput("%d alerts: %v", len(activeAlerts), alertListStr)
 }
 
 // HasAlerts returns an empty output if there are any active alerts matching the criteria
