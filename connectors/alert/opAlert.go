@@ -93,25 +93,25 @@ func (oc *OpAlert) CategorySuggestions() []string {
 	return ret
 }
 
-func (oc *OpAlert) nameSuggestions(category *string) []string {
-	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+func (oc *OpAlert) nameSuggestions(category *string, returnFullName bool) map[string]string {
+	ret := map[string]string{}
+	truePtr := true
+	alerts, err := oc.getAlertList(GetAlertArgs{Category: category, IncludeExpired: &truePtr, IncludeSilenced: &truePtr})
 	if err != nil {
-		return []string{}
+		return ret
 	}
-	ret := []string{}
-	for _, k := range ns.GetKeys() {
-		c, n, found := strings.Cut(k, ".")
-		if found && (category == nil || *category == "" || c == *category) {
-			ret = append(ret, n)
+	for _, k := range alerts {
+		if returnFullName {
+			ret[k.GetFullName()] = k.GetFullName()
 		} else {
-			ret = append(ret, c)
+			ret[k.Name] = k.GetFullName()
 		}
 	}
 	return ret
 }
 
-func (aa *Alert) NameSuggestions(oc *OpAlert) []string {
-	return oc.nameSuggestions(aa.Category)
+func (aa *Alert) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(aa.Category, false)
 }
 
 // SetAlert creates and stores a new alert
@@ -156,8 +156,8 @@ type SilenceAlertArgs struct {
 	SilenceDuration time.Duration
 }
 
-func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) []string {
-	return oc.nameSuggestions(sa.Category)
+func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(sa.Category, false)
 }
 
 // ResetAlert resets an alerts
@@ -186,8 +186,8 @@ type ResetAlertArgs struct {
 	Category *string
 }
 
-func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) []string {
-	return oc.nameSuggestions(ra.Category)
+func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(ra.Category, false)
 }
 
 // ResetAlert resets an alerts
@@ -216,6 +216,7 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 
 		return base.MakeObjectOutput(a)
 	}, ctx)
+	oc.execTriggers(ctx, a)
 	return base.MakeEmptyOutput()
 }
 

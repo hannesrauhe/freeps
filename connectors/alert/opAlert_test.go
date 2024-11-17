@@ -72,17 +72,44 @@ func TestTriggers(t *testing.T) {
 
 	err = ge.AddGraph(ctx, "testgraphSev2", createTestGraph("testgraphSev2"), false)
 	err = ge.AddGraph(ctx, "testgraphSev3", createTestGraph("testgraphSev3"), false)
+	err = ge.AddGraph(ctx, "testgraphOnSet", createTestGraph("testgraphOnSet"), false)
+	err = ge.AddGraph(ctx, "testgraphOnReset", createTestGraph("testgraphOnReset"), false)
 	assert.NilError(t, err)
 
 	out := op.SetSeverityTrigger(ctx, base.MakeEmptyOutput(), SeverityTrigger{Severity: 2, GraphID: "testgraphSev2"})
 	assert.Assert(t, !out.IsError())
 
+	out = op.SetAlertSetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{AlertName: "testcategory.testalert", GraphID: "testgraphOnSet"})
+	assert.Assert(t, !out.IsError())
+
+	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{AlertName: "testcategory.testalert", GraphID: "testgraphOnReset"})
+	assert.Assert(t, !out.IsError())
+
 	dur := time.Minute
 	ge.SetSystemAlert(ctx, "testalert", "testcategory", 2, fmt.Errorf("opsi"), &dur)
-	assert.Assert(t, !out.IsError())
 
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("test")
 	assert.NilError(t, err)
 	assert.Assert(t, ns.GetValue("testgraphSev2") != freepsstore.NotFoundEntry)
 	assert.Assert(t, ns.GetValue("testgraphSev3") == freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testgraphOnSet") != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testgraphOnReset") == freepsstore.NotFoundEntry)
+
+	i := ns.DeleteOlder(time.Duration(0))
+	assert.Assert(t, i == 2)
+
+	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
+	assert.Assert(t, ns.GetValue("testgraphOnReset") != freepsstore.NotFoundEntry)
+
+	i = ns.DeleteOlder(time.Duration(0))
+	assert.Assert(t, i == 1)
+
+	cat := "testcategory"
+	op.SilenceAlert(ctx, base.MakeEmptyOutput(), SilenceAlertArgs{Name: "testalert", Category: &cat, SilenceDuration: time.Minute})
+	ge.SetSystemAlert(ctx, "testalert", "testcategory", 2, fmt.Errorf("opsi"), &dur)
+	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
+
+	// no graph should have been executed:
+	i = ns.DeleteOlder(time.Duration(0))
+	assert.Assert(t, i == 0)
 }
