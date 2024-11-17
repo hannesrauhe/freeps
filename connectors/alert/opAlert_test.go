@@ -97,10 +97,10 @@ func TestTriggers(t *testing.T) {
 	out := op.SetSeverityTrigger(ctx, base.MakeEmptyOutput(), SeverityTrigger{Severity: 2, GraphID: "testgraphSev2"})
 	assert.Assert(t, !out.IsError())
 
-	out = op.SetAlertSetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{AlertName: "testcategory.testalert", GraphID: "testgraphOnSet"})
+	out = op.SetAlertSetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert", GraphID: "testgraphOnSet"})
 	assert.Assert(t, !out.IsError())
 
-	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{AlertName: "testcategory.testalert", GraphID: "testgraphOnReset"})
+	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert", GraphID: "testgraphOnReset"})
 	assert.Assert(t, !out.IsError())
 
 	dur := time.Minute
