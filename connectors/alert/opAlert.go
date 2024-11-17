@@ -403,3 +403,39 @@ func (oc *OpAlert) HasAlerts(ctx *base.Context, mainInput *base.OperatorIO, args
 func (o *OpAlert) GetHook() interface{} {
 	return &HookAlert{o}
 }
+
+// IsActiveAlertArgs is used to check if an alert is active
+type IsActiveAlertArgs struct {
+	Name          string
+	Category      *string
+	IgnoreSilence *bool
+}
+
+func (iaa *IsActiveAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(iaa.Category, false)
+}
+
+// IsActiveAlert returns an empty output if the alert is active
+func (oc *OpAlert) IsActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+	}
+	tempAlert := Alert{Name: args.Name, Category: args.Category, Severity: 5} // just to get the name
+	var a AlertWithMetadata
+	oi := ns.GetValue(tempAlert.GetFullName())
+	if oi == freepsstore.NotFoundEntry {
+		return base.MakeOutputError(http.StatusNotFound, "Alert %v does not exist", tempAlert.GetFullName())
+	}
+	err = oi.ParseJSON(&a)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error parsing alert: %v", err)
+	}
+	if a.IsExpired() {
+		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v has expired", tempAlert.GetFullName())
+	}
+	if a.IsSilenced() && (args.IgnoreSilence == nil || *args.IgnoreSilence == false) {
+		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v is silenced", tempAlert.GetFullName())
+	}
+	return base.MakeEmptyOutput()
+}
