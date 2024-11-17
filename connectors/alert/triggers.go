@@ -29,11 +29,11 @@ type SeverityTrigger struct {
 }
 
 // GraphID auggestions returns suggestions for graph names
-func (arg *SeverityTrigger) GraphIDSuggestions(m *OpAlert) map[string]string {
+func (oc *OpAlert) GraphIDSuggestions() map[string]string {
 	graphNames := map[string]string{}
-	res := m.GE.GetAllGraphDesc()
+	res := oc.GE.GetAllGraphDesc()
 	for id, gd := range res {
-		info, _ := gd.GetCompleteDesc(id, m.GE)
+		info, _ := gd.GetCompleteDesc(id, oc.GE)
 		_, exists := graphNames[info.DisplayName]
 		if !exists {
 			graphNames[info.DisplayName] = id
