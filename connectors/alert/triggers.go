@@ -55,8 +55,8 @@ func (oc *OpAlert) SetSeverityTrigger(ctx *base.Context, mainInput *base.Operato
 }
 
 type NameTrigger struct {
-	AlertName string
-	GraphID   string
+	Name    string
+	GraphID string
 }
 
 // NameSuggestions returns suggestions for alert names
@@ -66,12 +66,12 @@ func (arg *NameTrigger) NameSuggestions(oc *OpAlert) map[string]string {
 
 // SetAlertSetTrigger defines a trigger for setting an alert
 func (oc *OpAlert) SetAlertSetTrigger(ctx *base.Context, mainInput *base.OperatorIO, args NameTrigger) *base.OperatorIO {
-	return oc.setTrigger(ctx, args.GraphID, fmt.Sprintf("set:%v", args.AlertName))
+	return oc.setTrigger(ctx, args.GraphID, fmt.Sprintf("set:%v", args.Name))
 }
 
 // SetAlertResetTrigger defines a trigger for resetting an alert
 func (oc *OpAlert) SetAlertResetTrigger(ctx *base.Context, mainInput *base.OperatorIO, args NameTrigger) *base.OperatorIO {
-	return oc.setTrigger(ctx, args.GraphID, fmt.Sprintf("reset:%v", args.AlertName))
+	return oc.setTrigger(ctx, args.GraphID, fmt.Sprintf("reset:%v", args.Name))
 }
 
 func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetadata) {
