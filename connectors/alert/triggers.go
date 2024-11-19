@@ -29,11 +29,11 @@ type SeverityTrigger struct {
 }
 
 // GraphID auggestions returns suggestions for graph names
-func (arg *SeverityTrigger) GraphIDSuggestions(m *OpAlert) map[string]string {
+func (oc *OpAlert) GraphIDSuggestions() map[string]string {
 	graphNames := map[string]string{}
-	res := m.GE.GetAllGraphDesc()
+	res := oc.GE.GetAllGraphDesc()
 	for id, gd := range res {
-		info, _ := gd.GetCompleteDesc(id, m.GE)
+		info, _ := gd.GetCompleteDesc(id, oc.GE)
 		_, exists := graphNames[info.DisplayName]
 		if !exists {
 			graphNames[info.DisplayName] = id
@@ -54,8 +54,33 @@ func (oc *OpAlert) SetSeverityTrigger(ctx *base.Context, mainInput *base.Operato
 	return oc.setTrigger(ctx, args.GraphID, tags...)
 }
 
+type NameTrigger struct {
+	Name    string
+	GraphID string
+}
+
+// NameSuggestions returns suggestions for alert names
+func (arg *NameTrigger) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(nil, true)
+}
+
+// SetAlertSetTrigger defines a trigger for setting an alert
+func (oc *OpAlert) SetAlertSetTrigger(ctx *base.Context, mainInput *base.OperatorIO, args NameTrigger) *base.OperatorIO {
+	return oc.setTrigger(ctx, args.GraphID, fmt.Sprintf("set:%v", args.Name))
+}
+
+// SetAlertResetTrigger defines a trigger for resetting an alert
+func (oc *OpAlert) SetAlertResetTrigger(ctx *base.Context, mainInput *base.OperatorIO, args NameTrigger) *base.OperatorIO {
+	return oc.setTrigger(ctx, args.GraphID, fmt.Sprintf("reset:%v", args.Name))
+}
+
 func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetadata) {
-	triggerTags := []string{fmt.Sprintf("severity:%v", alert.Severity)}
+	triggerTags := []string{}
+	if !alert.IsExpired() {
+		triggerTags = []string{fmt.Sprintf("severity:%v", alert.Severity), fmt.Sprintf("set:%v", alert.GetFullName())}
+	} else {
+		triggerTags = []string{fmt.Sprintf("reset:%v", alert.GetFullName())}
+	}
 	tagGroups := [][]string{{"alert"}, triggerTags}
 	args, err := base.NewFunctionArgumentsFromObject(alert)
 	if err == nil {
@@ -65,7 +90,7 @@ func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetada
 		oc.SetAlert(causedByCtx, base.MakeEmptyOutput(), Alert{Name: "AlertGraphTrigger", Desc: &desc, Category: &category}, base.NewFunctionArguments(map[string]string{"noTrigger": "1"}))
 	}
 
-	if alert.IsSilenced() || alert.IsExpired() {
+	if alert.IsSilenced() {
 		return
 	}
 	oc.GE.ExecuteGraphByTagsExtended(causedByCtx, tagGroups, args, base.MakeEmptyOutput())

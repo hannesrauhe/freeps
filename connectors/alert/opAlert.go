@@ -93,25 +93,25 @@ func (oc *OpAlert) CategorySuggestions() []string {
 	return ret
 }
 
-func (oc *OpAlert) nameSuggestions(category *string) []string {
-	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+func (oc *OpAlert) nameSuggestions(category *string, returnFullName bool) map[string]string {
+	ret := map[string]string{}
+	truePtr := true
+	alerts, err := oc.getAlertList(GetAlertArgs{Category: category, IncludeExpired: &truePtr, IncludeSilenced: &truePtr})
 	if err != nil {
-		return []string{}
+		return ret
 	}
-	ret := []string{}
-	for _, k := range ns.GetKeys() {
-		c, n, found := strings.Cut(k, ".")
-		if found && (category == nil || *category == "" || c == *category) {
-			ret = append(ret, n)
+	for _, k := range alerts {
+		if returnFullName {
+			ret[k.GetFullName()] = k.GetFullName()
 		} else {
-			ret = append(ret, c)
+			ret[k.Name] = k.GetFullName()
 		}
 	}
 	return ret
 }
 
-func (aa *Alert) NameSuggestions(oc *OpAlert) []string {
-	return oc.nameSuggestions(aa.Category)
+func (aa *Alert) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(aa.Category, false)
 }
 
 // SetAlert creates and stores a new alert
@@ -156,8 +156,8 @@ type SilenceAlertArgs struct {
 	SilenceDuration time.Duration
 }
 
-func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) []string {
-	return oc.nameSuggestions(sa.Category)
+func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(sa.Category, false)
 }
 
 // ResetAlert resets an alerts
@@ -186,8 +186,8 @@ type ResetAlertArgs struct {
 	Category *string
 }
 
-func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) []string {
-	return oc.nameSuggestions(ra.Category)
+func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(ra.Category, false)
 }
 
 // ResetAlert resets an alerts
@@ -216,6 +216,7 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 
 		return base.MakeObjectOutput(a)
 	}, ctx)
+	oc.execTriggers(ctx, a)
 	return base.MakeEmptyOutput()
 }
 
@@ -367,9 +368,9 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 			return base.MakePlainOutput(*a.Desc)
 		}
 		if a.Category == nil {
-			return base.MakeSprintfOutput("Alert: %v", a.Name)
+			return base.MakeSprintfOutput("%v", a.Name)
 		}
-		return base.MakeSprintfOutput("Alert %v in category %v", a.Name, *a.Category)
+		return base.MakeSprintfOutput("%v.%v", a.Name, *a.Category)
 	}
 
 	alertListStr := ""
@@ -377,14 +378,14 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 		alertListStr = ": " + strings.Join(alertNames, ",")
 	}
 	if len(categories) == 0 {
-		return base.MakeSprintfOutput("%d alerts%v", len(activeAlerts), alertListStr)
+		return base.MakeSprintfOutput("%d alerts: %v", len(activeAlerts), alertListStr)
 	}
 	if len(categories) == 1 {
 		for c := range categories {
-			return base.MakeSprintfOutput("%d alerts in category %v%v", len(activeAlerts), c, alertListStr)
+			return base.MakeSprintfOutput("%d %v alerts: %v", len(activeAlerts), c, alertListStr)
 		}
 	}
-	return base.MakeSprintfOutput("%d alerts in %d categories%v", len(activeAlerts), len(categories), alertListStr)
+	return base.MakeSprintfOutput("%d alerts: %v", len(activeAlerts), alertListStr)
 }
 
 // HasAlerts returns an empty output if there are any active alerts matching the criteria
@@ -401,4 +402,40 @@ func (oc *OpAlert) HasAlerts(ctx *base.Context, mainInput *base.OperatorIO, args
 
 func (o *OpAlert) GetHook() interface{} {
 	return &HookAlert{o}
+}
+
+// IsActiveAlertArgs is used to check if an alert is active
+type IsActiveAlertArgs struct {
+	Name          string
+	Category      *string
+	IgnoreSilence *bool
+}
+
+func (iaa *IsActiveAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+	return oc.nameSuggestions(iaa.Category, false)
+}
+
+// IsActiveAlert returns an empty output if the alert is active
+func (oc *OpAlert) IsActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+	}
+	tempAlert := Alert{Name: args.Name, Category: args.Category, Severity: 5} // just to get the name
+	var a AlertWithMetadata
+	oi := ns.GetValue(tempAlert.GetFullName())
+	if oi == freepsstore.NotFoundEntry {
+		return base.MakeOutputError(http.StatusNotFound, "Alert %v does not exist", tempAlert.GetFullName())
+	}
+	err = oi.ParseJSON(&a)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error parsing alert: %v", err)
+	}
+	if a.IsExpired() {
+		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v has expired", tempAlert.GetFullName())
+	}
+	if a.IsSilenced() && (args.IgnoreSilence == nil || *args.IgnoreSilence == false) {
+		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v is silenced", tempAlert.GetFullName())
+	}
+	return base.MakeEmptyOutput()
 }

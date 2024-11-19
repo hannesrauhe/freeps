@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
@@ -22,16 +23,20 @@ const BatterylowSeverity = 5
 const BatterylowAlertDuration = 5 * time.Minute
 const WindowOpenSeverity = 2
 const DeviceNotPresentSeverity = 2
+const DeviceNotPresentAlertDuration = 15 * time.Minute
+const AlertDeviceSeverity = 2
+const AlertDeviceAlertDuration = 15 * time.Minute
 const ParseErrorDuration = 5 * time.Minute
 const PollDuration = time.Minute
 
 type OpFritz struct {
-	CR     *utils.ConfigReader
-	GE     *freepsgraph.GraphEngine
-	name   string
-	fl     *freepslib.Freeps
-	fc     *freepslib.FBconfig
-	ticker *time.Ticker
+	CR                *utils.ConfigReader
+	GE                *freepsgraph.GraphEngine
+	name              string
+	fl                *freepslib.Freeps
+	fc                *freepslib.FBconfig
+	ticker            *time.Ticker
+	getDeviceListLock sync.Mutex
 }
 
 var _ base.FreepsOperatorWithShutdown = &OpFritz{}
@@ -420,7 +425,7 @@ func (o *OpFritz) loop(initCtx *base.Context) {
 		}
 		duration := time.Now().Sub(start)
 		if duration > PollDuration {
-			//PoolDuration is longer than a loop duration, that's a bad sign, create an alert and set the expiration to the duration of that loop (as good as any other value)
+			//PollDuration is longer than a loop duration, that's a bad sign, create an alert and set the expiration to the duration of that loop (as good as any other value)
 			o.GE.SetSystemAlert(ctx, "LongLoopDuration", o.name, 3, fmt.Errorf("Loop ran for %s to monitor %d macs", duration, len(monitorMacs)), &duration)
 		}
 	}
