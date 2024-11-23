@@ -3,7 +3,6 @@
 package freepsbluetooth
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -164,10 +163,7 @@ func (d *DiscoveryData) AddManufacturerData(companyId uint16, dbv dbus.Variant) 
 	switch companyId {
 	case 1424:
 		{
-			decodedBytes := make([]byte, base64.StdEncoding.DecodedLen(len(manuBytes)))
-			n, err := base64.StdEncoding.Decode(decodedBytes, manuBytes)
-			d.ManufacturerData[companyId] = decodedBytes[:n]
-			return err
+			d.ManufacturerData[companyId] = string(manuBytes)
 		}
 	default:
 		{
