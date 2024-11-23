@@ -15,11 +15,13 @@ import (
 
 // DiscoveryData is the reduced set of information of Device properties send as input to graphs
 type DiscoveryData struct {
-	Alias       string
-	Address     string
-	Name        string
-	RSSI        int16
-	ServiceData map[string]interface{}
+	Alias            string
+	Address          string
+	Name             string
+	RSSI             int16
+	ServiceData      map[string]interface{}
+	Manufacturer     uint16
+	ManufacturerData []byte
 }
 
 // Update applies a change to the current state and returns the name of the changed values
@@ -56,6 +58,15 @@ func (d *DiscoveryData) Update(change string, value interface{}) ([]string, erro
 			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
 				changes = append(changes, "changed.service:"+s)
 			}
+		}
+	case "manufacturerdata":
+		// oldManufacturerData := d.ManufacturerData
+		ok := true
+		d.Manufacturer = 0
+		d.ManufacturerData, ok = value.([]byte)
+
+		if !ok {
+			return changes, fmt.Errorf("Manufacturer data is of type %T: %v ", value, value)
 		}
 	}
 	if !conversionSuccess {
