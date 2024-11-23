@@ -20,8 +20,7 @@ type DiscoveryData struct {
 	Name             string
 	RSSI             int16
 	ServiceData      map[string]interface{}
-	Manufacturer     uint16
-	ManufacturerData []byte
+	ManufacturerData map[uint16]interface{}
 }
 
 // Update applies a change to the current state and returns the name of the changed values
@@ -60,13 +59,27 @@ func (d *DiscoveryData) Update(change string, value interface{}) ([]string, erro
 			}
 		}
 	case "manufacturerdata":
-		// oldManufacturerData := d.ManufacturerData
-		ok := true
-		d.Manufacturer = 0
-		d.ManufacturerData, ok = value.([]byte)
-
+		oldManuData := d.ManufacturerData
+		newManuData, ok := value.(map[string]dbus.Variant)
 		if !ok {
-			return changes, fmt.Errorf("Manufacturer data is of type %T: %v ", value, value)
+			return changes, fmt.Errorf("new Service data is not the expected map type but %T", value)
+		}
+		d.ManufacturerData = map[uint16]interface{}{}
+		for companyId, val := range newManuData {
+			d.AddServiceData(companyId, val)
+		}
+
+		for s, sv2 := range oldManuData {
+			sv1, ok := d.ManufacturerData[s]
+			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
+				changes = append(changes, fmt.Sprintf("changed.service:%v", s))
+			}
+		}
+		for s, sv2 := range d.ManufacturerData {
+			sv1, ok := oldManuData[s]
+			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
+				changes = append(changes, fmt.Sprintf("changed.service:%v", s))
+			}
 		}
 	}
 	if !conversionSuccess {
@@ -133,6 +146,29 @@ func (d *DiscoveryData) AddServiceData(service string, v interface{}) (string, e
 	}
 
 	return name, nil
+}
+
+// AddManufacturerData converts the value for a given service to the proper type and adds it to the map under the identifier for the company
+func (d *DiscoveryData) AddManufacturerData(companyId uint16, dbv dbus.Variant) error {
+	manuBytes, ok := dbv.Value().([]byte)
+	if !ok {
+		return fmt.Errorf("Data for manufacturer %v data is not bytes but %T: %v ", companyId, dbv.Value(), dbv.Value())
+	}
+
+	if len(manuBytes) == 0 {
+		d.ManufacturerData[companyId] = manuBytes
+		return nil
+	}
+
+	switch companyId {
+	default:
+		{
+			d.ManufacturerData[companyId] = manuBytes
+			// d.ServiceData[name+"_hex"] = hex.EncodeToString(manuBytes)
+		}
+	}
+
+	return nil
 }
 
 func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties) *DiscoveryData {
