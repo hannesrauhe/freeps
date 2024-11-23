@@ -60,13 +60,13 @@ func (d *DiscoveryData) Update(change string, value interface{}) ([]string, erro
 		}
 	case "manufacturerdata":
 		oldManuData := d.ManufacturerData
-		newManuData, ok := value.(map[string]dbus.Variant)
+		newManuData, ok := value.(map[uint16]dbus.Variant)
 		if !ok {
 			return changes, fmt.Errorf("new Service data is not the expected map type but %T", value)
 		}
 		d.ManufacturerData = map[uint16]interface{}{}
 		for companyId, val := range newManuData {
-			d.AddServiceData(companyId, val)
+			d.AddManufacturerData(companyId, val)
 		}
 
 		for s, sv2 := range oldManuData {
