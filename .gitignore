@@ -1,4 +1,5 @@
 build
 freepsd/freepsd
 freepsd/freepsd-light
+freepsd/log
 connectors/http/static_server_content/chota.min.css

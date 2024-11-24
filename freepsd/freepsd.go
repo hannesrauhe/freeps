@@ -7,6 +7,7 @@ import (
 	"os"
 
 	logrus "github.com/sirupsen/logrus"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/hannesrauhe/freeps/base"
 	opalert "github.com/hannesrauhe/freeps/connectors/alert"
@@ -36,6 +37,11 @@ type loggingConfig struct {
 	Level            logrus.Level
 	DisableTimestamp bool
 	DisableQuote     bool
+	Filename         string // Log file path
+	MaxSize          int    // Max size in MB before rotating
+	MaxBackups       int    // Max number of backup files
+	MaxAge           int    // Max age in days before deleting
+	Compress         bool   // Compress rotated files
 }
 
 func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
@@ -43,16 +49,39 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 	if verbose {
 		level = logrus.DebugLevel
 	}
-	loggingConfig := loggingConfig{Level: level, DisableTimestamp: false, DisableQuote: false}
+	loggingConfig := loggingConfig{
+		Level:            level,
+		DisableTimestamp: false,
+		DisableQuote:     false,
+		Filename:         "./log/freepsd/freepsd.log",
+		MaxSize:          10,
+		MaxBackups:       5,
+		MaxAge:           30,
+		Compress:         true,
+	}
 	cr.ReadSectionWithDefaults("logging", &loggingConfig)
-	logger.SetFormatter(&logrus.TextFormatter{
-		DisableTimestamp: loggingConfig.DisableTimestamp,
-		DisableQuote:     loggingConfig.DisableQuote,
-	})
+	/*
+		logger.SetFormatter(&logrus.TextFormatter{
+			DisableTimestamp: loggingConfig.DisableTimestamp,
+			DisableQuote:     loggingConfig.DisableQuote,
+		})
+	*/
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
 	if !verbose {
 		level = loggingConfig.Level
 	}
 	logger.SetLevel(level)
+
+	lumberjackLogger := &lumberjack.Logger{
+		Filename:   loggingConfig.Filename,
+		MaxSize:    loggingConfig.MaxSize,
+		MaxBackups: loggingConfig.MaxBackups,
+		MaxAge:     loggingConfig.MaxAge,
+		Compress:   loggingConfig.Compress,
+	}
+
+	logger.SetOutput(lumberjackLogger)
 }
 
 func mainLoop() bool {
