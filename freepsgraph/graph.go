@@ -74,7 +74,12 @@ func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, 
 		default:
 			operation := g.desc.Operations[i]
 			output := g.executeOperation(ctx, &operation, mainArgs)
-			logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
+			// skip logging UI operations, otherwise they will clutter the log
+			if operation.Operator == "ui" {
+				logger.Debugf("UI operation \"%s\" finished, redacting output", operation.Name)
+			} else {
+				logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
+			}
 			g.opOutputs[operation.Name] = output
 		}
 	}
