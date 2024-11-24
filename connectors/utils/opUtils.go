@@ -92,7 +92,7 @@ type ExtractArgs struct {
 
 // TypeSuggestions returns a list of possible types for the given key
 func (m *OpUtils) TypeSuggestions() []string {
-	return []string{"string", "int", "float", "bool", "quotedstring", "stringobject"}
+	return []string{"string", "int", "float", "bool", "quotedstring", "stringobject", "bytesfrombase64", "base64encoded"}
 }
 
 // ContenttypeSuggestions returns a list of possible content types for the given key
