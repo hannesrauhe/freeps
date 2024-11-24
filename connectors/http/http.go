@@ -120,7 +120,6 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	} else {
 		opio = r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	}
-	opio.Log(ctx.GetLogger())
 
 	w.Header().Set("X-Freeps-ID", ctx.GetID())
 	if redirectLocation != "" && opio.IsEmpty() {

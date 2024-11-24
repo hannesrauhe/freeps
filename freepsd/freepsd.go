@@ -160,7 +160,7 @@ func mainLoop() bool {
 		}
 		output := ge.ExecuteOperatorByName(baseCtx, operator, fn, fa, oio)
 		if output != nil {
-			output.WriteTo(os.Stdout)
+			output.WriteTo(os.Stdout, 1000)
 		} else {
 			logger.Error("Output of operator was nil")
 		}
