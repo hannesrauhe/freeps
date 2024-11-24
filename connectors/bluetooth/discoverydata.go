@@ -15,11 +15,12 @@ import (
 
 // DiscoveryData is the reduced set of information of Device properties send as input to graphs
 type DiscoveryData struct {
-	Alias       string
-	Address     string
-	Name        string
-	RSSI        int16
-	ServiceData map[string]interface{}
+	Alias            string
+	Address          string
+	Name             string
+	RSSI             int16
+	ServiceData      map[string]interface{}
+	ManufacturerData map[uint16]interface{}
 }
 
 // Update applies a change to the current state and returns the name of the changed values
@@ -55,6 +56,29 @@ func (d *DiscoveryData) Update(change string, value interface{}) ([]string, erro
 			sv1, ok := oldServiceData[s]
 			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
 				changes = append(changes, "changed.service:"+s)
+			}
+		}
+	case "manufacturerdata":
+		oldManuData := d.ManufacturerData
+		newManuData, ok := value.(map[uint16]dbus.Variant)
+		if !ok {
+			return changes, fmt.Errorf("new Service data is not the expected map type but %T", value)
+		}
+		d.ManufacturerData = map[uint16]interface{}{}
+		for companyId, val := range newManuData {
+			d.AddManufacturerData(companyId, val)
+		}
+
+		for s, sv2 := range oldManuData {
+			sv1, ok := d.ManufacturerData[s]
+			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
+				changes = append(changes, fmt.Sprintf("changed.service:%v", s))
+			}
+		}
+		for s, sv2 := range d.ManufacturerData {
+			sv1, ok := oldManuData[s]
+			if !ok || fmt.Sprint(sv2) != fmt.Sprint(sv1) {
+				changes = append(changes, fmt.Sprintf("changed.service:%v", s))
 			}
 		}
 	}
@@ -122,6 +146,28 @@ func (d *DiscoveryData) AddServiceData(service string, v interface{}) (string, e
 	}
 
 	return name, nil
+}
+
+// AddManufacturerData converts the value for a given service to the proper type and adds it to the map under the identifier for the company
+func (d *DiscoveryData) AddManufacturerData(companyId uint16, dbv dbus.Variant) error {
+	manuBytes, ok := dbv.Value().([]byte)
+	if !ok {
+		return fmt.Errorf("Data for manufacturer %v data is not bytes but %T: %v ", companyId, dbv.Value(), dbv.Value())
+	}
+
+	if len(manuBytes) == 0 {
+		d.ManufacturerData[companyId] = manuBytes
+		return nil
+	}
+
+	switch companyId {
+	default:
+		{
+			d.ManufacturerData[companyId] = manuBytes
+		}
+	}
+
+	return nil
 }
 
 func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties) *DiscoveryData {

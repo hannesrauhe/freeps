@@ -1,6 +1,7 @@
 package freepsutils
 
 import (
+	"encoding/json"
 	"os"
 	"path"
 	"testing"
@@ -61,6 +62,41 @@ func TestStringReplace(t *testing.T) {
 	// include regexp: all keys that start with "params", exclude regexp: all keys that contain "icon"
 	out := o.Execute(ctx, "StringReplaceMulti", args, input)
 	assert.Equal(t, out.GetString(), "1% + 2% = 3%")
+}
+
+func TestExtractWithBytes(t *testing.T) {
+	ctx := base.NewContext(logrus.StandardLogger(), "")
+
+	o := base.MakeFreepsOperators(&OpUtils{}, nil, ctx)[0]
+	args := base.NewFunctionArguments(map[string]string{
+		"Key":     "SomeBytes",
+		"Type":    "bytesFromBase64",
+		"Example": "eyJuYW1lIjoiS25vYi5qcyJ9", // ignore: this is a base64 encoded JSON object: {"name":"Knob.js"}
+	})
+
+	type testStruct struct {
+		SomeString string
+		SomeBytes  []byte
+	}
+
+	b, _ := json.Marshal(map[string]string{"name": "Knob.js"})
+	test := testStruct{
+		SomeString: "Contains another json object in SomeBytes",
+		SomeBytes:  b,
+	}
+	input := base.MakeObjectOutput(test)
+
+	// check if the bytes are correctly extracted
+	out := o.Execute(ctx, "Extract", args, input)
+	assert.Equal(t, out.GetString(), "{\"name\":\"Knob.js\"}")
+
+	// check if the bytes are interpreted as another JSON object
+	args = base.NewFunctionArguments(map[string]string{
+		"Key":  "name",
+		"Type": "string",
+	})
+	out = o.Execute(ctx, "Extract", args, out)
+	assert.Equal(t, out.GetString(), "Knob.js")
 }
 
 func TestLogging(t *testing.T) {

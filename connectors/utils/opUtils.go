@@ -1,6 +1,8 @@
 package freepsutils
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -83,13 +85,19 @@ func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args Flatte
 
 // ExtractArgs are the arguments for the Extract function
 type ExtractArgs struct {
-	Key  string
-	Type *string
+	Key         string
+	Type        *string
+	ContentType *string
 }
 
 // TypeSuggestions returns a list of possible types for the given key
 func (m *OpUtils) TypeSuggestions() []string {
-	return []string{"string", "int", "float", "bool", "quotedstring", "stringobject"}
+	return []string{"string", "int", "float", "bool", "quotedstring", "stringobject", "bytesfrombase64", "base64encoded"}
+}
+
+// ContenttypeSuggestions returns a list of possible content types for the given key
+func (m *OpUtils) ContenttypeSuggestions() []string {
+	return []string{"application/json", "application/xml", "application/yaml"}
 }
 
 // Extract extracts the value of a given key from the input, if necessary it tries to flatten the input first
@@ -100,17 +108,15 @@ func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args Extrac
 		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a map")
 	}
 	vInterface, ok := nestedArgsMap[args.Key]
-	if ok {
-		return base.MakeObjectOutput(vInterface)
-	}
-
-	argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
-	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
-	}
-	vInterface, ok = argsmap[args.Key]
 	if !ok {
-		return base.MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.Key)
+		argsmap, err := flatten.Flatten(nestedArgsMap, "", flatten.DotStyle)
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "input cannot be parsed into a flat map: %v", err)
+		}
+		vInterface, ok = argsmap[args.Key]
+		if !ok {
+			return base.MakeOutputError(http.StatusBadRequest, "expected value %s in request", args.Key)
+		}
 	}
 
 	if args.Type == nil {
@@ -131,6 +137,19 @@ func (m *OpUtils) Extract(ctx *base.Context, input *base.OperatorIO, args Extrac
 		if err == nil {
 			return base.MakePlainOutput(outputObject.(string))
 		}
+	case "bytesfrombase64", "base64encoded":
+		b64str, ok := vInterface.(string)
+		if !ok {
+			return base.MakeOutputError(http.StatusBadRequest, "expected value %s in request to be a string", args.Key)
+		}
+		byt, ierr := base64.StdEncoding.DecodeString(b64str)
+		if ierr == nil {
+			if args.ContentType != nil {
+				return base.MakeByteOutputWithContentType(byt, *args.ContentType)
+			}
+			return base.MakeByteOutput(byt)
+		}
+		err = fmt.Errorf("expected value %s in request to be a base64 encoded string: %v", args.Key, err)
 	default:
 		return base.MakeOutputError(http.StatusBadRequest, "No such type %s", *args.Type)
 	}
