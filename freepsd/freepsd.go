@@ -71,9 +71,9 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 	if !verbose {
 		level = loggingConfig.Level
 	}
-	logger.SetLevel(level)
-
 	logger.Infof("Logging to %v", loggingConfig.Filename)
+
+	logger.SetLevel(level)
 
 	lumberjackLogger := &lumberjack.Logger{
 		Filename:   loggingConfig.Filename,
