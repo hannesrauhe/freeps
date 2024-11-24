@@ -73,6 +73,8 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 	}
 	logger.SetLevel(level)
 
+	logger.Infof("Logging to %v", loggingConfig.Filename)
+
 	lumberjackLogger := &lumberjack.Logger{
 		Filename:   loggingConfig.Filename,
 		MaxSize:    loggingConfig.MaxSize,
