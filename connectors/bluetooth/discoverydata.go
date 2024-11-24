@@ -161,14 +161,9 @@ func (d *DiscoveryData) AddManufacturerData(companyId uint16, dbv dbus.Variant) 
 	}
 
 	switch companyId {
-	case 1424:
-		{
-			d.ManufacturerData[companyId] = string(manuBytes)
-		}
 	default:
 		{
 			d.ManufacturerData[companyId] = manuBytes
-			// d.ServiceData[name+"_hex"] = hex.EncodeToString(manuBytes)
 		}
 	}
 
