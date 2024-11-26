@@ -59,3 +59,7 @@ func (c *Context) GetLogger() log.FieldLogger {
 func (c *Context) Done() <-chan struct{} {
 	return c.GoContext.Done()
 }
+
+func (c *Context) ChildContextWithField(key string, value string) *Context {
+	return &Context{UUID: c.UUID, logger: c.logger.WithField(key, value), Reason: c.Reason, GoContext: c.GoContext}
+}
