@@ -36,6 +36,7 @@ type loggingConfig struct {
 	Level            logrus.Level
 	DisableTimestamp bool
 	DisableQuote     bool
+	JSONFormatter    bool
 }
 
 func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
@@ -43,12 +44,16 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 	if verbose {
 		level = logrus.DebugLevel
 	}
-	loggingConfig := loggingConfig{Level: level, DisableTimestamp: false, DisableQuote: false}
+	loggingConfig := loggingConfig{Level: level, DisableTimestamp: false, DisableQuote: false, JSONFormatter: false}
 	cr.ReadSectionWithDefaults("logging", &loggingConfig)
-	logger.SetFormatter(&logrus.TextFormatter{
-		DisableTimestamp: loggingConfig.DisableTimestamp,
-		DisableQuote:     loggingConfig.DisableQuote,
-	})
+	if loggingConfig.JSONFormatter {
+		logger.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logger.SetFormatter(&logrus.TextFormatter{
+			DisableTimestamp: loggingConfig.DisableTimestamp,
+			DisableQuote:     loggingConfig.DisableQuote,
+		})
+	}
 	if !verbose {
 		level = loggingConfig.Level
 	}

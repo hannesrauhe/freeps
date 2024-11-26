@@ -65,6 +65,9 @@ func (g *Graph) GetTimeout() time.Duration {
 }
 
 func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	ctx.GetLogger().Debugf("Executing graph \"%s\"(\"%s\") with arguments \"%v\"", g.desc.GraphID, g.desc.DisplayName, mainArgs)
+	defer ctx.GetLogger().Debugf("Graph \"%s\" finished", g.desc.GraphID)
+
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {
@@ -74,12 +77,6 @@ func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, 
 		default:
 			operation := g.desc.Operations[i]
 			output := g.executeOperation(ctx, &operation, mainArgs)
-			// skip logging UI operations, otherwise they will clutter the log
-			if operation.Operator == "ui" {
-				logger.Debugf("UI operation \"%s\" finished, redacting output", operation.Name)
-			} else {
-				logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
-			}
 			g.opOutputs[operation.Name] = output
 		}
 	}
@@ -90,7 +87,9 @@ func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, 
 		logger.Errorf("Output from \"%s\" not found", g.desc.OutputFrom)
 		return base.MakeObjectOutput(g.opOutputs)
 	}
-	return g.opOutputs[g.desc.OutputFrom]
+	graphOutput := g.opOutputs[g.desc.OutputFrom]
+	ctx.GetLogger().Debugf("Graph \"%s\" finished with output \"%v\"", g.desc.DisplayName, graphOutput.ToString())
+	return graphOutput
 }
 
 func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
@@ -120,6 +119,7 @@ func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mai
 }
 
 func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
+	ctx.GetLogger().Debugf("Operation \"%s\" failed with error \"%s\"", opDesc.Name, fmt.Sprintf(msg, a...))
 	error := base.MakeOutputError(code, msg, a...)
 	g.engine.TriggerOnExecuteOperationHooks(ctx, input, error, g.GetGraphID(), opDesc)
 	return error
@@ -230,6 +230,7 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
 		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
+		defer ctx.GetLogger().Debugf("Operation \"%s\" finished", originalOpDesc.Name)
 
 		output := g.executeOperationWithOptionalTimeout(g.context, op, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
 		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)

@@ -52,7 +52,7 @@ func (o *OpFritz) GetDefaultConfig() interface{} {
 // InitCopyOfOperator creates a copy of the operator
 func (o *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	cfg := config.(*freepslib.FBconfig)
-	f, err := freepslib.NewFreepsLib(cfg)
+	f, err := freepslib.NewFreepsLibWithLogger(cfg, ctx.GetLogger())
 	op := &OpFritz{CR: o.CR, GE: o.GE, name: name, fl: f, fc: cfg}
 	return op, err
 }
