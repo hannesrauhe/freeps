@@ -69,7 +69,6 @@ func (m *MuteMe) mainloop(running *bool) {
 	m.blink(m.config.SuccessColor, color)
 
 	for *running {
-		ctx := m.ctx.ChildContextWithField("component", "MuteMe")
 		// set the user-requested color unless the indicator light is active
 		if !indicatorLightActive {
 			select {
@@ -96,11 +95,11 @@ func (m *MuteMe) mainloop(running *bool) {
 			// should be a timeout error in normal operation, or an interupt
 			if !errors.Is(err, hid.ErrTimeout) && !strings.Contains(err.Error(), "Interrupted system call") {
 				alertError := fmt.Errorf("MuteMe is offline because: %w", err)
-				m.GE.SetSystemAlert(ctx, alertName, alertCategory, 2, alertError, nil)
+				m.GE.SetSystemAlert(m.ctx, alertName, alertCategory, 2, alertError, nil)
 				logrus.Errorf("Error getting state: %v", err)
 				break
 			}
-			m.GE.ResetSystemAlert(ctx, alertName, alertCategory)
+			m.GE.ResetSystemAlert(m.ctx, alertName, alertCategory)
 
 			if lastTouchDuration <= time.Microsecond {
 				// nothing happened
@@ -108,7 +107,7 @@ func (m *MuteMe) mainloop(running *bool) {
 			}
 
 			// action:
-			resultIO := m.execTriggers(ctx, tpress2.Sub(tpress1), lastTouchDuration, lastTouchCounter)
+			resultIO := m.execTriggers(m.ctx, tpress2.Sub(tpress1), lastTouchDuration, lastTouchCounter)
 			ignoreUntil = time.Now().Add(time.Second)
 			m.ctx.GetLogger().Debugf("Muteme touched, result: %v", resultIO)
 			if resultIO.IsError() {

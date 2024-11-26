@@ -70,8 +70,8 @@ func (c *Context) ChildContextWithTimeout(timeout time.Duration) (*Context, cont
 func (c *Context) EnableDebugLogging() log.Level {
 	prevLevel := c.baseLogger.GetLevel()
 	if prevLevel != log.DebugLevel {
-		c.logger.Debug("Enabling debug logging")
 		c.baseLogger.SetLevel(log.DebugLevel)
+		c.logger.Debug("Enabling debug logging")
 	}
 
 	return prevLevel

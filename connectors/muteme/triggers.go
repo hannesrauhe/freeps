@@ -61,17 +61,21 @@ func (mm *MuteMe) SetLongTouchTrigger(ctx *base.Context, mainInput *base.Operato
 	return mm.setTrigger(ctx, args.GraphID, mm.config.LongTouchTag)
 }
 
-func (mm *MuteMe) execTriggers(ctx *base.Context, touchDuration time.Duration, lastTouchDuration time.Duration, lastTouchCounter int) *base.OperatorIO {
+func (mm *MuteMe) execTriggers(parentCtx *base.Context, touchDuration time.Duration, lastTouchDuration time.Duration, lastTouchCounter int) *base.OperatorIO {
 	tags := []string{mm.config.Tag}
 	args := base.MakeEmptyFunctionArguments()
+	var ctx *base.Context
 	if touchDuration < mm.config.MultiTouchDuration {
 		tags = append(tags, mm.config.MultiTouchTag)
 		args.Append("TouchCount", fmt.Sprint(lastTouchCounter))
+		ctx = base.CreateContextWithField(parentCtx, "component", "MuteMe", "MuteMe TouchCount"+fmt.Sprint(lastTouchCounter))
 	} else {
 		if lastTouchDuration > mm.config.LongTouchDuration {
 			tags = append(tags, mm.config.LongTouchTag)
+			ctx = base.CreateContextWithField(parentCtx, "component", "MuteMe", "MuteMe LongTouch")
 		} else {
 			tags = append(tags, mm.config.TouchTag)
+			ctx = base.CreateContextWithField(parentCtx, "component", "MuteMe", "MuteMe Touch")
 		}
 		args.Append("TouchDuration", lastTouchDuration.String())
 	}
