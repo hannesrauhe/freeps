@@ -242,8 +242,7 @@ func (g *Graph) executeOperation(parentCtx *base.Context, originalOpDesc *GraphO
 }
 
 func (g *Graph) executeOperationWithOptionalTimeout(parentCtx *base.Context, op base.FreepsBaseOperator, fn string, mainArgs base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
-	opctx := parentCtx.ChildContextWithField("op", op.GetName())
-	fnctx := opctx.ChildContextWithField("fn", fn)
+	fnctx := parentCtx.ChildContextWithField("op-fn", op.GetName()+"/"+fn)
 	if g.GetOperationTimeout() == 0 {
 		return op.Execute(fnctx, fn, mainArgs, input)
 	}
