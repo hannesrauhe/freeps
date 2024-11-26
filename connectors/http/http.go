@@ -113,7 +113,7 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	// allows to redirect if an empty success response was returned
 	redirectLocation := mainArgs.Get("redirect")
 
-	ctx := base.WithField(r.baseContext, "HTTP Request", req.RemoteAddr)
+	ctx := base.CreateContextWithField(r.baseContext, "component", "http", "HTTP request from "+req.RemoteAddr)
 	opio := &base.OperatorIO{}
 	if vars["mod"] == "graph" {
 		opio = r.graphengine.ExecuteGraph(ctx, vars["function"], mainArgs, mainInput)

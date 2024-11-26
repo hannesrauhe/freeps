@@ -20,12 +20,12 @@ import (
 )
 
 type FreepsMqttImpl struct {
-	client     MQTT.Client
-	Config     *FreepsMqttConfig
-	ge         *freepsgraph.GraphEngine
-	mqttlogger log.FieldLogger
-	topics     map[string]bool
-	topicLock  sync.Mutex
+	client    MQTT.Client
+	Config    *FreepsMqttConfig
+	ge        *freepsgraph.GraphEngine
+	ctx       *base.Context
+	topics    map[string]bool
+	topicLock sync.Mutex
 }
 
 type FreepsMqttConfig struct {
@@ -44,19 +44,19 @@ func (fm *FreepsMqttImpl) publishResult(topic string, ctx *base.Context, out *ba
 	rt := fm.Config.ResultTopic + "/" + ctx.GetID() + "/"
 	err := fm.publish(rt+"topic", topic, 0, false)
 	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/topic failed: %v", err.Error())
+		fm.ctx.GetLogger().Errorf("Publishing freepsresult/topic failed: %v", err.Error())
 	}
 	// err = fm.publish(rt+"graphName", graphName, 0, false)
 	// if err != nil {
-	// 	fm.mqttlogger.Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
+	// 	fm.ctx.GetLogger().Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
 	// }
 	err = fm.publish(rt+"type", string(out.OutputType), 0, false)
 	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/type failed: %v", err.Error())
+		fm.ctx.GetLogger().Errorf("Publishing freepsresult/type failed: %v", err.Error())
 	}
 	err = fm.publish(rt+"content", out.GetString(), 0, false)
 	if err != nil {
-		fm.mqttlogger.Errorf("Publishing freepsresult/content failed: %v", err.Error())
+		fm.ctx.GetLogger().Errorf("Publishing freepsresult/content failed: %v", err.Error())
 	}
 }
 
@@ -67,7 +67,7 @@ func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT
 		return
 	}
 	input := base.MakeObjectOutput(message.Payload())
-	ctx := base.NewContext(fm.mqttlogger, "MQTT topic: "+message.Topic())
+	ctx := base.CreateContextWithField(fm.ctx, "component", "mqtt", "MQTT topic: "+message.Topic())
 	out := fm.ge.ExecuteOperatorByName(ctx, t[1], t[2], base.NewSingleFunctionArgument("topic", message.Topic()), input)
 	fm.publishResult(message.Topic(), ctx, out)
 }
@@ -87,7 +87,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 	existingTopics := map[string]bool{}
 	for _, topic := range fm.ge.GetTagValues("topic", "mqtt") {
 		if topic == fm.Config.ResultTopic {
-			fm.mqttlogger.Errorf("Skipping subscription to result topic to prevent endless loops")
+			fm.ctx.GetLogger().Errorf("Skipping subscription to result topic to prevent endless loops")
 			continue
 		}
 		if _, ok := fm.topics[topic]; ok {
@@ -113,7 +113,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 	for topic := range newTopics {
 		topic := topic // see https://go.dev/doc/faq#closures_and_goroutines
 		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-			ctx := base.NewContext(fm.mqttlogger, "MQTT topic: "+topic)
+			ctx := base.CreateContextWithField(fm.ctx, "component", "mqtt", "MQTT topic: "+topic)
 			fm.executeTrigger(ctx, topic, message)
 		}
 		tokens = append(tokens, c.Subscribe(topic, byte(0), onMessageReceived))
@@ -126,7 +126,7 @@ func (fm *FreepsMqttImpl) startTagSubscriptions() error {
 	for _, token := range tokens {
 		token.Wait()
 		if err := token.Error(); err != nil {
-			fm.mqttlogger.Errorf("Error when trying to subscribe/unsubscribe: %v", err)
+			fm.ctx.GetLogger().Errorf("Error when trying to subscribe/unsubscribe: %v", err)
 			errStr += "* " + err.Error() + "\n"
 		}
 	}
@@ -160,7 +160,7 @@ func (fm *FreepsMqttImpl) discoverTopics(ctx *base.Context, discoverDuration tim
 	token := c.Subscribe("#", byte(0), onMessageReceived)
 	token.Wait()
 	if err := token.Error(); err != nil {
-		fm.mqttlogger.Errorf("Error when trying to disover new topics: %v", err)
+		fm.ctx.GetLogger().Errorf("Error when trying to disover new topics: %v", err)
 	}
 
 	time.Sleep(discoverDuration)
@@ -168,7 +168,7 @@ func (fm *FreepsMqttImpl) discoverTopics(ctx *base.Context, discoverDuration tim
 	token = c.Unsubscribe("#")
 	token.Wait()
 	if err := token.Error(); err != nil {
-		fm.mqttlogger.Errorf("Error when trying to disover new topics: %v", err)
+		fm.ctx.GetLogger().Errorf("Error when trying to disover new topics: %v", err)
 	}
 
 	return nil
@@ -190,16 +190,14 @@ func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
 	fm.startTagSubscriptions()
 }
 
-func newFreepsMqttImpl(logger log.FieldLogger, fmc *FreepsMqttConfig, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
-	mqttlogger := logger.WithField("component", "mqtt")
-
+func newFreepsMqttImpl(ctx *base.Context, fmc *FreepsMqttConfig, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
 	if fmc.Server == "" {
 		return nil, fmt.Errorf("no server given in the config file")
 	}
 
 	hostname, _ := os.Hostname()
 	clientid := hostname + strconv.Itoa(time.Now().Second())
-	fmqtt := &FreepsMqttImpl{Config: fmc, ge: ge, mqttlogger: mqttlogger, topics: map[string]bool{}}
+	fmqtt := &FreepsMqttImpl{Config: fmc, ge: ge, ctx: ctx, topics: map[string]bool{}}
 
 	connOpts := MQTT.NewClientOptions().AddBroker(fmc.Server).SetClientID(clientid).SetCleanSession(true).SetOrderMatters(false)
 	if fmc.Username != "" {
@@ -242,9 +240,9 @@ func (fm *FreepsMqttImpl) getTopicSubscriptions() []string {
 func (fm *FreepsMqttImpl) StartListening() error {
 	go func() {
 		if token := fm.client.Connect(); token.Wait() && token.Error() != nil {
-			fm.mqttlogger.Errorf("Error when connecting to %s: %v \n", fm.Config.Server, token.Error().Error())
+			fm.ctx.GetLogger().Errorf("Error when connecting to %s: %v \n", fm.Config.Server, token.Error().Error())
 		} else {
-			fm.mqttlogger.Infof("Connected to %s, starting to subscribe", fm.Config.Server)
+			fm.ctx.GetLogger().Infof("Connected to %s, starting to subscribe", fm.Config.Server)
 		}
 	}()
 	return nil

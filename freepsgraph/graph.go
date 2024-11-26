@@ -17,7 +17,6 @@ const GraphOperationTimeout = time.Minute
 
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
-	context   *base.Context
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*base.OperatorIO
@@ -32,7 +31,7 @@ func NewGraph(ctx *base.Context, graphID string, origGraphDesc *GraphDesc, ge *G
 	if err != nil {
 		return nil, err
 	}
-	g := Graph{context: ctx, desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}
+	g := Graph{desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}
 	return &g, nil
 }
 
@@ -66,6 +65,10 @@ func (g *Graph) GetTimeout() time.Duration {
 
 func (g *Graph) executeSync(parentCtx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	ctx := parentCtx.ChildContextWithField("graph", g.desc.GraphID)
+	if g.desc.HasAllTags([]string{"debuglogging"}) {
+		prevLevel := ctx.EnableDebugLogging()
+		defer ctx.DisableDebugLogging(prevLevel)
+	}
 	ctx.GetLogger().Debugf("Executing graph \"%s\"(\"%s\") with arguments \"%v\"", g.desc.GraphID, g.desc.DisplayName, mainArgs)
 	defer ctx.GetLogger().Debugf("Graph \"%s\" finished", g.desc.GraphID)
 
@@ -98,7 +101,7 @@ func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mai
 		return g.executeSync(pctx, mainArgs, mainInput)
 	}
 
-	ctx, cancelFunc := base.WithTimeout(pctx, g.GetTimeout())
+	ctx, cancelFunc := pctx.ChildContextWithTimeout(g.GetTimeout())
 	defer cancelFunc()
 	c := make(chan *base.OperatorIO)
 	var output *base.OperatorIO
@@ -249,7 +252,7 @@ func (g *Graph) executeOperationWithOptionalTimeout(parentCtx *base.Context, op 
 
 	c := make(chan *base.OperatorIO)
 	var output *base.OperatorIO
-	ctxWithTimeout, cancelFunc := base.WithTimeout(fnctx, g.GetOperationTimeout())
+	ctxWithTimeout, cancelFunc := fnctx.ChildContextWithTimeout(g.GetOperationTimeout())
 	defer cancelFunc()
 
 	startTime := time.Now()

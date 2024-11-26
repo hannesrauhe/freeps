@@ -17,7 +17,7 @@ import (
 )
 
 func TestOpAlert(t *testing.T) {
-	ctx := base.NewContext(logrus.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
 
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
@@ -74,7 +74,7 @@ func createTestGraph(keyToSet string) freepsgraph.GraphDesc {
 func TestTriggers(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
-	ctx := base.NewContext(logrus.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
 	assert.NilError(t, err)
 	ge := freepsgraph.NewGraphEngine(ctx, cr, func() {})
 	op := &OpAlert{CR: cr, GE: ge}

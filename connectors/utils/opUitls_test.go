@@ -16,7 +16,7 @@ import (
 
 func TestFlattenWithRegexp(t *testing.T) {
 	o := &OpUtils{}
-	ctx := base.NewContext(logrus.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
 	input := base.MakeObjectOutput(map[string]interface{}{
 		"a": "1",
 		"b": "2",
@@ -47,7 +47,7 @@ func TestFlattenWithRegexp(t *testing.T) {
 }
 
 func TestStringReplace(t *testing.T) {
-	ctx := base.NewContext(logrus.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
 
 	o := base.MakeFreepsOperators(&OpUtils{}, nil, ctx)[0]
 	args := base.NewFunctionArguments(map[string]string{
@@ -65,7 +65,7 @@ func TestStringReplace(t *testing.T) {
 }
 
 func TestExtractWithBytes(t *testing.T) {
-	ctx := base.NewContext(logrus.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
 
 	o := base.MakeFreepsOperators(&OpUtils{}, nil, ctx)[0]
 	args := base.NewFunctionArguments(map[string]string{
@@ -105,7 +105,7 @@ func TestLogging(t *testing.T) {
 	logger.SetLevel(logrus.DebugLevel)
 	logger.SetOutput(os.Stdout)
 	cr, err := utils.NewConfigReader(logger, path.Join(tdir, "test_config.json"))
-	ctx := base.NewContext(logger, "")
+	ctx := base.NewBaseContextWithReason(logger, "")
 	assert.NilError(t, err)
 	ge := freepsgraph.NewGraphEngine(ctx, cr, func() {})
 	availableOperators := []base.FreepsOperator{

@@ -177,7 +177,7 @@ func (fbt *FreepsBluetooth) parseDeviceProperties(prop *device.Device1Properties
 	for k, v := range prop.ServiceData {
 		_, err := d.AddServiceData(k, v)
 		if err != nil {
-			fbt.log.Errorf("%v", err)
+			fbt.ctx.GetLogger().Errorf("%v", err)
 		}
 	}
 

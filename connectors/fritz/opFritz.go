@@ -402,7 +402,7 @@ func (o *OpFritz) loop(initCtx *base.Context) {
 
 	for range o.ticker.C {
 		start := time.Now()
-		ctx := base.NewContext(initCtx.GetLogger(), "Fritz Loop")
+		ctx := base.CreateContextWithField(initCtx, "component", "Fritz", "Fritz main loop")
 		o.getDeviceList(ctx)
 		if o.ticker == nil {
 			return

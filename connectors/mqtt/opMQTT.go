@@ -31,7 +31,7 @@ func (o *OpMQTT) GetDefaultConfig() interface{} {
 
 func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	cfg := config.(*FreepsMqttConfig)
-	f, err := newFreepsMqttImpl(ctx.GetLogger(), cfg, o.GE)
+	f, err := newFreepsMqttImpl(ctx, cfg, o.GE)
 	op := &OpMQTT{CR: o.CR, GE: o.GE, impl: f}
 	return op, err
 }

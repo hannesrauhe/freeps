@@ -73,7 +73,7 @@ func (mt *MyDynamicTestOperator) CoMMonaRg2Suggestions() []string {
 }
 
 func TestDynmaicOperator(t *testing.T) {
-	ctx := NewContext(logrus.StandardLogger(), "")
+	ctx := NewBaseContextWithReason(logrus.StandardLogger(), "")
 	gops := MakeFreepsOperators(&MyDynamicTestOperator{}, nil, ctx)[0]
 
 	out := gops.Execute(ctx, "DynFunc", MakeEmptyFunctionArguments(), MakeEmptyOutput())

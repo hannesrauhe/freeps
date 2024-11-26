@@ -15,7 +15,7 @@ func TestLogExpiration(t *testing.T) {
 
 	i := 0
 	for i < 10 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewBaseContextWithReason(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -41,7 +41,7 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, e.GetReason(), "modified-5")
 	ts := e.GetTimestamp()
 
-	e = nsStore.SetValue("5", base.MakePlainOutput("new-5"), base.NewContext(logrus.StandardLogger(), "modified-later"))
+	e = nsStore.SetValue("5", base.MakePlainOutput("new-5"), base.NewBaseContextWithReason(logrus.StandardLogger(), "modified-later"))
 	assert.Assert(t, !e.IsError())
 	e = nsStore.GetValue("5")
 	assert.Assert(t, !e.IsError())
@@ -57,7 +57,7 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, s[0], "5")
 	assert.Equal(t, s[4], "9")
 	for i < 30 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewBaseContextWithReason(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -71,7 +71,7 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, s[0], "10")
 
 	for i < 101 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewBaseContextWithReason(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -83,7 +83,7 @@ func TestLogExpiration(t *testing.T) {
 	assert.Equal(t, len(s), 0)
 
 	for i < 102 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewBaseContextWithReason(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 	vm := nsStore.GetAllValues(100)
@@ -95,7 +95,7 @@ func TestAutoTrim(t *testing.T) {
 
 	i := 0
 	for i < 100 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewBaseContextWithReason(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 	}
 
@@ -106,7 +106,7 @@ func TestAutoTrim(t *testing.T) {
 	assert.Equal(t, nsStore.Len(), 100)
 
 	for i < 130 {
-		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewContext(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
+		nsStore.SetValue("", base.MakePlainOutput(fmt.Sprintf("%d", i)), base.NewBaseContextWithReason(logrus.StandardLogger(), fmt.Sprintf("modified-%d", i)))
 		i += 1
 		assert.Assert(t, nsStore.Len() < 110)
 	}
