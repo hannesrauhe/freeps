@@ -24,12 +24,19 @@ type GraphEngineConfig struct {
 
 var DefaultGraphEngineConfig = GraphEngineConfig{GraphsFromFile: []string{}, GraphsFromURL: []string{}, Graphs: map[string]GraphDesc{}, AlertDuration: time.Hour}
 
+// GraphEngineMetrics holds the metrics of the graph engine
+type GraphEngineMetrics struct {
+	OperationExecutions int64
+	GraphExecutions     int64
+}
+
 // GraphEngine holds all available graphs and operators
 type GraphEngine struct {
 	cr              *utils.ConfigReader
 	graphs          map[string]*GraphDesc
 	operators       map[string]base.FreepsBaseOperator
 	hooks           map[string]GraphEngineHook
+	metrics         GraphEngineMetrics
 	config          GraphEngineConfig
 	reloadRequested bool
 	graphLock       sync.Mutex
@@ -498,6 +505,11 @@ func (ge *GraphEngine) DeleteGraph(ctx *base.Context, graphID string) (*GraphDes
 	err := ge.cr.RemoveFile(fname)
 
 	return deletedGraph, err
+}
+
+// GetMetrics returns the metrics of the graph engine
+func (ge *GraphEngine) GetMetrics() GraphEngineMetrics {
+	return ge.metrics
 }
 
 // StartListening starts all listening operators

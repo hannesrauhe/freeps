@@ -375,7 +375,7 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 
 	alertListStr := ""
 	if len(alertNames) <= 3 {
-		alertListStr = ": " + strings.Join(alertNames, ",")
+		alertListStr = strings.Join(alertNames, ",")
 	}
 	if len(categories) == 0 {
 		return base.MakeSprintfOutput("%d alerts: %v", len(activeAlerts), alertListStr)

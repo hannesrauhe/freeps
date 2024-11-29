@@ -64,6 +64,7 @@ func (g *Graph) GetTimeout() time.Duration {
 }
 
 func (g *Graph) executeSync(parentCtx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	g.engine.metrics.GraphExecutions++
 	ctx := parentCtx.ChildContextWithField("graph", g.desc.GraphID)
 	if g.desc.HasAllTags([]string{"debuglogging"}) {
 		prevLevel := ctx.EnableDebugLogging()
@@ -176,6 +177,7 @@ func (g *Graph) replaceVariablesInArgs(plainArgs map[string]string) (map[string]
 }
 
 func (g *Graph) executeOperation(parentCtx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
+	g.engine.metrics.OperationExecutions++
 	ctx := parentCtx.ChildContextWithField("operation", originalOpDesc.Name)
 	logger := ctx.GetLogger()
 	input := base.MakeEmptyOutput()
