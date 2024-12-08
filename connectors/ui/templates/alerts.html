@@ -3,6 +3,7 @@
 
 {{ $sev := "5" }}
 {{ $incsil := "false" }}
+{{ $incexp := "false" }}
 {{ $cat := "" }}
 {{ if .arguments.sev }}
     {{ $sev = .arguments.sev }}
@@ -16,19 +17,30 @@
     {{ $incsil = .arguments.includesilenced }}
     {{ $args = printf "%s&includesilenced=%s" $args $incsil }}
 {{ end }}
-
+{{ if .arguments.includeexpired }}
+    {{ $incexp = .arguments.includeexpired }}
+    {{ $args = printf "%s&includeexpired=%s" $args $incexp }}
+{{ end }}
 <div class="container">
 <form method="GET" action="/ui/alerts.html"  class="row">
-    <div class="col">
+    <div class="col-1">
         <label for="sev">Severity</label>
-        <input type="number" value="{{$sev}}" name="sev" id="sev" />
+        <select name="sev" id="sev">
+            <option value="1" {{ if eq $sev "1" }} selected {{ end }}>1</option>
+            <option value="2" {{ if eq $sev "2" }} selected {{ end }}>2</option>
+            <option value="3" {{ if eq $sev "3" }} selected {{ end }}>3</option>
+            <option value="4" {{ if eq $sev "4" }} selected {{ end }}>4</option>
+            <option value="5" {{ if eq $sev "5" }} selected {{ end }}>5</option>
+        </select>
     </div>
-    <div class="col">
+    <div class="col-">
         <br /> 
-        <label for="includesilenced">Include silenced alarms</label>
         <input type="checkbox" value="true" name="includesilenced" id="includesilenced" {{ if eq $incsil "true" }} checked {{ end }} />
+        <label for="includesilenced">Show silenced</label>
+        <input type="checkbox" value="true" name="includeexpired" id="includeexpired" {{ if eq $incexp "true" }} checked {{ end }} />
+        <label for="includeexpired">Show expired</label>
     </div>
-    <div class="col">
+    <div class="col-6">
         <br /> 
         <input type="submit" /> 
     </div>
@@ -36,20 +48,25 @@
 </div>
 
 <table>
-<tr><th>Reset</th><th>Category</th><th>Name</th><th>Desc</th><th>Sev</th><th>Counter</th><th>Set by</th><th>Active Since</th><th>Expires In</th><th>Silenced</th></tr>
+<tr><th>Reset</th><th>Category/Name</th><th>Desc</th><th>Sev</th><th>Counter</th><th>Set by</th><th>Active Since</th><th>Expires In</th><th>Silenced</th></tr>
 {{ $alerts := graph_ExecuteOperator "alert" "GetAlerts" $args}}
 {{ range $key, $entry := $alerts.Output }} 
     <tr>
         <td><a href="/Alert/ResetAlert?Name={{$entry.Name}}&Category={{$entry.Category}}&redirect={{$.selfURL}}">x</a></td>
-        <td><a href="/ui/alerts.html?category={{$entry.Category}}">{{$entry.Category}}</a></td>
-        <td>{{$entry.Name}}</td>
+        <td><a href="/ui/alerts.html?category={{$entry.Category}}">{{$entry.Category}}</a>.{{$entry.Name}}</td>
         <td>{{$entry.Desc}}</td>
         <td>{{$entry.Severity}}</td>
         <td>{{$entry.Counter}}</td>
         <td><a href="/ui/store.html?namespace=_execution_log&modifiedby={{$entry.ModifiedBy}}">{{$entry.ModifiedBy}}</a></td>
         <td>{{$entry.DurationSinceFirst}}</td>
         <td>{{$entry.ExpiresInDuration}}</td>
-        <td>{{$entry.SilenceDuration}} <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=1h&Category={{$entry.Category}}&redirect={{$.selfURL}}">o</a> <a href="/Alert/ResetSilence?Name={{$entry.Name}}&Category={{$entry.Category}}&redirect={{$.selfURL}}">x</a></td>
+        <td>{{$entry.SilenceDuration}}
+            <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=5m&Category={{$entry.Category}}&redirect={{$.selfURL}}">5m</a>
+            <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=15m&Category={{$entry.Category}}&redirect={{$.selfURL}}">15m</a>
+            <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=1h&Category={{$entry.Category}}&redirect={{$.selfURL}}">1h</a> 
+            <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=12h&Category={{$entry.Category}}&redirect={{$.selfURL}}">12h</a>
+            <a href="/Alert/ResetSilence?Name={{$entry.Name}}&Category={{$entry.Category}}&redirect={{$.selfURL}}">x</a>
+        </td>
     </tr>
 {{ end }}
 
