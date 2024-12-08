@@ -186,10 +186,9 @@ func (m *OpTelegram) sendStartMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText string) {
-	telelogger := log.WithField("component", "telegram").WithField("chat", chat.ID)
-	ctx := base.NewContext(telelogger, "Telegram chat: "+chat.UserName)
+	ctx := base.CreateContextWithField(m.ctx, "component", "telegram", "Telegram chat: "+chat.UserName)
 
-	telelogger.Debugf("Received message from %v: %v", chat.UserName, inputText)
+	ctx.GetLogger().Debugf("Received message from %v: %v", chat.UserName, inputText)
 	msg := tgbotapi.NewMessage(chat.ID, "Hello "+chat.FirstName+".")
 	allowed := false
 	for _, v := range m.tgc.AllowedUsers {
@@ -301,7 +300,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 				msg.Text = "Here is a picture for you"
 				mg := tgbotapi.NewPhoto(chat.ID, tgbotapi.FileBytes{Name: "picture." + io.ContentType[6:], Bytes: byt})
 				if _, err := m.bot.Send(mg); err != nil {
-					telelogger.Error(err)
+					ctx.GetLogger().Error(err)
 				}
 			}
 		} else {

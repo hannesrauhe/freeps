@@ -10,7 +10,6 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsgraph"
-	logrus "github.com/sirupsen/logrus"
 	"github.com/sstallion/go-hid"
 )
 
@@ -21,7 +20,7 @@ type MuteMe struct {
 	dev          *hid.Device
 	currentColor atomic.Value
 	cmd          chan string
-	logger       logrus.FieldLogger
+	ctx          *base.Context
 }
 
 var _ base.FreepsOperatorWithConfig = &MuteMe{}
@@ -47,7 +46,7 @@ func (mm *MuteMe) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 	if err != nil {
 		return nil, err
 	}
-	newMM := MuteMe{config: mmc, GE: mm.GE, dev: d, cmd: make(chan string, 3), logger: ctx.GetLogger()}
+	newMM := MuteMe{config: mmc, GE: mm.GE, dev: d, cmd: make(chan string, 3), ctx: ctx}
 	newMM.currentColor.Store("off")
 
 	return &newMM, nil
@@ -137,7 +136,7 @@ func (mm *MuteMe) outerLoop() {
 			time.Sleep(time.Second)
 		}
 	}
-	mm.logger.Info("MuteMe background thread stopped")
+	mm.ctx.GetLogger().Info("MuteMe background thread stopped")
 }
 
 // StartListening starts the main loop of the muteme listener

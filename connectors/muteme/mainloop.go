@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hannesrauhe/freeps/base"
 	logrus "github.com/sirupsen/logrus"
 	"github.com/sstallion/go-hid"
 )
@@ -26,7 +25,7 @@ func (m *MuteMe) setColor(color string) error {
 
 	_, err := m.dev.Write(b)
 	if err != nil {
-		m.logger.Errorf("Error setting color: %v", err)
+		m.ctx.GetLogger().Errorf("Error setting color: %v", err)
 		return err
 	}
 	m.currentColor.Store(color)
@@ -55,13 +54,12 @@ func (m *MuteMe) mainloop(running *bool) {
 	color := "off"
 	alertCategory := "system"
 	alertName := "mutemeOffline"
-	ctx := base.NewContext(m.logger, "MuteMe Init")
 	if m.dev == nil {
 		// Open the device using the VID and PID.
 		d, err := hid.OpenFirst(m.config.VendorID, m.config.ProductID)
 		if err != nil {
 			alertError := fmt.Errorf("MuteMe is offline because: %w", err)
-			m.GE.SetSystemAlert(ctx, alertName, alertCategory, 2, alertError, nil)
+			m.GE.SetSystemAlert(m.ctx, alertName, alertCategory, 2, alertError, nil)
 			return
 		}
 		m.dev = d
@@ -71,7 +69,6 @@ func (m *MuteMe) mainloop(running *bool) {
 	m.blink(m.config.SuccessColor, color)
 
 	for *running {
-		ctx = base.NewContext(m.logger, "MuteMe loop")
 		// set the user-requested color unless the indicator light is active
 		if !indicatorLightActive {
 			select {
@@ -98,11 +95,11 @@ func (m *MuteMe) mainloop(running *bool) {
 			// should be a timeout error in normal operation, or an interupt
 			if !errors.Is(err, hid.ErrTimeout) && !strings.Contains(err.Error(), "Interrupted system call") {
 				alertError := fmt.Errorf("MuteMe is offline because: %w", err)
-				m.GE.SetSystemAlert(ctx, alertName, alertCategory, 2, alertError, nil)
+				m.GE.SetSystemAlert(m.ctx, alertName, alertCategory, 2, alertError, nil)
 				logrus.Errorf("Error getting state: %v", err)
 				break
 			}
-			m.GE.ResetSystemAlert(ctx, alertName, alertCategory)
+			m.GE.ResetSystemAlert(m.ctx, alertName, alertCategory)
 
 			if lastTouchDuration <= time.Microsecond {
 				// nothing happened
@@ -110,9 +107,9 @@ func (m *MuteMe) mainloop(running *bool) {
 			}
 
 			// action:
-			resultIO := m.execTriggers(ctx, tpress2.Sub(tpress1), lastTouchDuration, lastTouchCounter)
+			resultIO := m.execTriggers(m.ctx, tpress2.Sub(tpress1), lastTouchDuration, lastTouchCounter)
 			ignoreUntil = time.Now().Add(time.Second)
-			m.logger.Debugf("Muteme touched, result: %v", resultIO)
+			m.ctx.GetLogger().Debugf("Muteme touched, result: %v", resultIO)
 			if resultIO.IsError() {
 				m.blink(m.config.ErrorColor, color)
 			} else {
@@ -155,11 +152,11 @@ func (m *MuteMe) mainloop(running *bool) {
 	}
 
 	if err := m.dev.Close(); err != nil {
-		m.logger.Error(err)
+		m.ctx.GetLogger().Error(err)
 	}
 
 	m.dev = nil
 	if err := hid.Exit(); err != nil {
-		m.logger.Error(err)
+		m.ctx.GetLogger().Error(err)
 	}
 }

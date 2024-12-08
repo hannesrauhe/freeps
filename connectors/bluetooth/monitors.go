@@ -35,7 +35,7 @@ func (fbt *FreepsBluetooth) addMonitor(dev *device.Device1, devData *DiscoveryDa
 	}
 	ch, err := dev.WatchProperties()
 	if err != nil {
-		fbt.log.Errorf("Cannot watch properties for \"%s\": %s", devData.Alias, err)
+		fbt.ctx.GetLogger().Errorf("Cannot watch properties for \"%s\": %s", devData.Alias, err)
 		return false
 	}
 	go fbt.watchProperties(devData, ch)
@@ -87,26 +87,26 @@ func (fbt *FreepsBluetooth) deleteAllMonitors() {
 }
 
 func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *bluez.PropertyChanged) {
-	fbt.log.Infof("Monitoring device \"%v\"(\"%v\") for changes", devData.Alias, devData.Address)
+	fbt.ctx.GetLogger().Infof("Monitoring device \"%v\"(\"%v\") for changes", devData.Alias, devData.Address)
 	alias := devData.Alias
 	ns := freepsstore.GetGlobalStore().GetNamespaceNoError(fbt.config.MonitorsNamespace)
 	deviceTags := fbt.getDeviceWatchTags(devData)
 
 	debugData := map[string]interface{}{"change": "initial", "devData": devData, "tags": ""}
-	ctx := base.NewContext(fbt.log, "Bluetooth device init:"+alias)
+	ctx := base.CreateContextWithField(fbt.ctx, "component", "bluetooth", "Bluetooth device: "+alias)
 	ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), ctx)
 
 	for change := range ch {
 		if change == nil {
 			continue
 		}
-		fbt.log.Debugf("Changed properties for \"%s\": %s", alias, change)
+		fbt.ctx.GetLogger().Debugf("Changed properties for \"%s\": %s", alias, change)
 
-		ctx := base.NewContext(fbt.log, "Bluetooth device:"+alias)
+		ctx := base.CreateContextWithField(fbt.ctx, "component", "bluetooth", "Bluetooth device: "+alias)
 
 		changeTags, err := devData.Update(change.Name, change.Value)
 		if err != nil {
-			fbt.log.Errorf("Cannot update properties for \"%s\": %v", alias, err)
+			fbt.ctx.GetLogger().Errorf("Cannot update properties for \"%s\": %v", alias, err)
 		}
 		input := base.MakeObjectOutput(devData)
 		args := map[string]string{"device": alias, "address": devData.Address, "change": change.Name}
@@ -116,5 +116,5 @@ func (fbt *FreepsBluetooth) watchProperties(devData *DiscoveryData, ch chan *blu
 		debugData := map[string]interface{}{"change": change, "devData": devData, "tags": taggroups}
 		ns.SetValue(devData.Address, base.MakeObjectOutput(debugData), ctx)
 	}
-	fbt.log.Infof("Stop monitoring \"%s\"(\"%v\") for changes", alias, devData.Address)
+	fbt.ctx.GetLogger().Infof("Stop monitoring \"%s\"(\"%v\") for changes", alias, devData.Address)
 }

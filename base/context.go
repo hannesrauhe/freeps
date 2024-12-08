@@ -10,35 +10,32 @@ import (
 
 // Context keeps the runtime data of a graph execution tree
 type Context struct {
-	UUID      uuid.UUID
-	Reason    string
-	GoContext context.Context
-	logger    log.FieldLogger
+	UUID       uuid.UUID
+	Reason     string
+	GoContext  context.Context
+	logger     log.FieldLogger
+	baseLogger *log.Logger
 }
 
-// NewContext creates a Context with a given logger
-func NewContext(logger log.FieldLogger, reason string) *Context {
+// NewBaseContextWithReason creates a Context with a given logger
+// note: deprecated, use NewBaseContext instead
+func NewBaseContextWithReason(logger *log.Logger, reason string) *Context {
 	u := uuid.New()
-	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Reason: reason, GoContext: context.TODO()}
+	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Reason: reason, GoContext: context.TODO(), baseLogger: logger}
 }
 
 // NewBaseContext creates a Context with a given logger
-func NewBaseContext(logger log.FieldLogger) (*Context, context.CancelFunc) {
+func NewBaseContext(logger *log.Logger) (*Context, context.CancelFunc) {
 	u := uuid.New()
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Context{UUID: u, logger: logger, Reason: "base", GoContext: ctx}, cancel
+	return &Context{UUID: u, logger: logger, Reason: "base", GoContext: ctx, baseLogger: logger}, cancel
 }
 
-func WithTimeout(parentContext *Context, timeout time.Duration) (*Context, context.CancelFunc) {
-	goCtx, cancel := context.WithTimeout(parentContext.GoContext, timeout)
-	ctx := &Context{UUID: parentContext.UUID, logger: parentContext.logger, Reason: parentContext.Reason, GoContext: goCtx}
-	return ctx, cancel
-}
-
-func WithField(parentContext *Context, key string, value string) *Context {
-	reason := key + ":" + value
+func CreateContextWithField(baseContext *Context, key string, value string, reason string) *Context {
 	u := uuid.New()
-	return &Context{UUID: u, logger: parentContext.logger.WithField(key, value).WithField("uuid", u.String()), Reason: reason, GoContext: parentContext.GoContext}
+	logger := baseContext.logger.WithField(key, value).WithField("uuid", u.String())
+	logger.Debugf("Creating new context with reason: %s", reason)
+	return &Context{UUID: u, logger: logger, Reason: reason, GoContext: baseContext.GoContext, baseLogger: baseContext.baseLogger}
 }
 
 // GetID returns the string represantation of the ID for this execution tree
@@ -58,4 +55,32 @@ func (c *Context) GetLogger() log.FieldLogger {
 
 func (c *Context) Done() <-chan struct{} {
 	return c.GoContext.Done()
+}
+
+func (c *Context) ChildContextWithField(key string, value string) *Context {
+	return &Context{UUID: c.UUID, logger: c.logger.WithField(key, value), Reason: c.Reason, GoContext: c.GoContext, baseLogger: c.baseLogger}
+}
+
+func (c *Context) ChildContextWithTimeout(timeout time.Duration) (*Context, context.CancelFunc) {
+	goCtx, cancel := context.WithTimeout(c.GoContext, timeout)
+	ctx := &Context{UUID: c.UUID, logger: c.logger, Reason: c.Reason, GoContext: goCtx, baseLogger: c.baseLogger}
+	return ctx, cancel
+}
+
+func (c *Context) EnableDebugLogging() log.Level {
+	prevLevel := c.baseLogger.GetLevel()
+	if prevLevel != log.DebugLevel {
+		c.baseLogger.SetLevel(log.DebugLevel)
+		c.logger.Debug("Enabling debug logging")
+	}
+
+	return prevLevel
+}
+
+func (c *Context) DisableDebugLogging(prevLevel log.Level) {
+	if prevLevel != log.DebugLevel {
+		// ensure that we do not accidentally enable debug logging which might happen if a second context calls EnableDebugLogging
+		c.logger.Debug("Disabling debug logging")
+		c.baseLogger.SetLevel(prevLevel)
+	}
 }

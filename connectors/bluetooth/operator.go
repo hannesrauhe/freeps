@@ -32,10 +32,9 @@ func (bt *Bluetooth) GetDefaultConfig() interface{} {
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
 func (bt *Bluetooth) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	btc := config.(*BluetoothConfig)
-	btlogger := ctx.GetLogger().WithField("component", "bluetooth")
 	newBT := &Bluetooth{GE: bt.GE, config: btc,
 		btw: &FreepsBluetooth{
-			config: btc, log: btlogger, shuttingDown: false, ge: bt.GE, monitors: &monitors{watchers: map[string]deviceEntry{}}}}
+			config: btc, ctx: ctx, shuttingDown: false, ge: bt.GE, monitors: &monitors{watchers: map[string]deviceEntry{}}}}
 
 	return newBT, nil
 }

@@ -59,7 +59,7 @@ func createValidGraph() GraphDesc {
 }
 
 func TestOperatorErrorChain(t *testing.T) {
-	ctx := base.NewContext(log.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
 	ge := NewGraphEngine(ctx, nil, func() {})
 	ge.graphs["test"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
@@ -79,7 +79,7 @@ func TestOperatorErrorChain(t *testing.T) {
 }
 
 func TestCheckGraph(t *testing.T) {
-	ctx := base.NewContext(log.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
 	ge := NewGraphEngine(ctx, nil, func() {})
 	ge.graphs["test_noinput"] = &GraphDesc{Operations: []GraphOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
@@ -132,7 +132,7 @@ func TestGraphStorage(t *testing.T) {
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
-	ctx := base.NewContext(log.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
 	ge := NewGraphEngine(ctx, cr, func() {})
 
 	// expect embedded graphs to be loaded
@@ -214,7 +214,7 @@ func expectOutput(t *testing.T, op *base.OperatorIO, expectedCode int, expectedO
 func TestGraphExecution(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
-	ctx := base.NewContext(log.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
 	assert.NilError(t, err)
 	ge := NewGraphEngine(ctx, cr, func() {})
 
@@ -224,7 +224,7 @@ func TestGraphExecution(t *testing.T) {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTagsExtended(base.NewContext(log.StandardLogger(), ""), tagGroups, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
+			ge.ExecuteGraphByTagsExtended(base.NewBaseContextWithReason(log.StandardLogger(), ""), tagGroups, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
@@ -234,7 +234,7 @@ func TestGraphExecution(t *testing.T) {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTags(base.NewContext(log.StandardLogger(), ""), tags, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
+			ge.ExecuteGraphByTags(base.NewBaseContextWithReason(log.StandardLogger(), ""), tags, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
@@ -275,7 +275,7 @@ func TestGraphExecution(t *testing.T) {
 
 	// test the operator once
 	expectOutput(t,
-		ge.ExecuteOperatorByName(base.NewContext(log.StandardLogger(), ""), "graphbytag", "t4", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
+		ge.ExecuteOperatorByName(base.NewBaseContextWithReason(log.StandardLogger(), ""), "graphbytag", "t4", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 		200, []string{"test2", "test3", "test4"})
 
 	/* Keytags */
@@ -320,7 +320,7 @@ func test_replace_args(ctx *base.Context, ge *GraphEngine, input1 string, input2
 func TestArgumentReplacement(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
-	ctx := base.NewContext(log.StandardLogger(), "")
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
 	assert.NilError(t, err)
 	ge := NewGraphEngine(ctx, cr, func() {})
 

@@ -17,7 +17,6 @@ const GraphOperationTimeout = time.Minute
 
 // Graph is the instance created from a GraphDesc and contains the runtime data
 type Graph struct {
-	context   *base.Context
 	desc      *GraphDesc
 	engine    *GraphEngine
 	opOutputs map[string]*base.OperatorIO
@@ -32,7 +31,7 @@ func NewGraph(ctx *base.Context, graphID string, origGraphDesc *GraphDesc, ge *G
 	if err != nil {
 		return nil, err
 	}
-	g := Graph{context: ctx, desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}
+	g := Graph{desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}
 	return &g, nil
 }
 
@@ -64,7 +63,16 @@ func (g *Graph) GetTimeout() time.Duration {
 	return d
 }
 
-func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+func (g *Graph) executeSync(parentCtx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	g.engine.metrics.GraphExecutions++
+	ctx := parentCtx.ChildContextWithField("graph", g.desc.GraphID)
+	if g.desc.HasAllTags([]string{"debuglogging"}) {
+		prevLevel := ctx.EnableDebugLogging()
+		defer ctx.DisableDebugLogging(prevLevel)
+	}
+	ctx.GetLogger().Debugf("Executing graph \"%s\"(\"%s\") with arguments \"%v\"", g.desc.GraphID, g.desc.DisplayName, mainArgs)
+	defer ctx.GetLogger().Debugf("Graph \"%s\" finished", g.desc.GraphID)
+
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
 	for i := 0; i < len(g.desc.Operations); i++ {
@@ -74,7 +82,6 @@ func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, 
 		default:
 			operation := g.desc.Operations[i]
 			output := g.executeOperation(ctx, &operation, mainArgs)
-			logger.Debugf("Operation \"%s\" finished with output \"%v\"", operation.Name, output.ToString())
 			g.opOutputs[operation.Name] = output
 		}
 	}
@@ -85,7 +92,9 @@ func (g *Graph) executeSync(ctx *base.Context, mainArgs base.FunctionArguments, 
 		logger.Errorf("Output from \"%s\" not found", g.desc.OutputFrom)
 		return base.MakeObjectOutput(g.opOutputs)
 	}
-	return g.opOutputs[g.desc.OutputFrom]
+	graphOutput := g.opOutputs[g.desc.OutputFrom]
+	ctx.GetLogger().Debugf("Graph \"%s\" finished with output \"%v\"", g.desc.DisplayName, graphOutput.ToString())
+	return graphOutput
 }
 
 func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
@@ -93,7 +102,7 @@ func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mai
 		return g.executeSync(pctx, mainArgs, mainInput)
 	}
 
-	ctx, cancelFunc := base.WithTimeout(pctx, g.GetTimeout())
+	ctx, cancelFunc := pctx.ChildContextWithTimeout(g.GetTimeout())
 	defer cancelFunc()
 	c := make(chan *base.OperatorIO)
 	var output *base.OperatorIO
@@ -115,6 +124,7 @@ func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mai
 }
 
 func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
+	ctx.GetLogger().Debugf("Operation \"%s\" failed with error \"%s\"", opDesc.Name, fmt.Sprintf(msg, a...))
 	error := base.MakeOutputError(code, msg, a...)
 	g.engine.TriggerOnExecuteOperationHooks(ctx, input, error, g.GetGraphID(), opDesc)
 	return error
@@ -166,7 +176,9 @@ func (g *Graph) replaceVariablesInArgs(plainArgs map[string]string) (map[string]
 	return r, returnErr
 }
 
-func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
+func (g *Graph) executeOperation(parentCtx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
+	g.engine.metrics.OperationExecutions++
+	ctx := parentCtx.ChildContextWithField("operation", originalOpDesc.Name)
 	logger := ctx.GetLogger()
 	input := base.MakeEmptyOutput()
 	if originalOpDesc.InputFrom != "" {
@@ -224,35 +236,37 @@ func (g *Graph) executeOperation(ctx *base.Context, originalOpDesc *GraphOperati
 
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
-		logger.Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
+		ctx.GetLogger().Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
+		defer ctx.GetLogger().Debugf("Operation \"%s\" finished", originalOpDesc.Name)
 
-		output := g.executeOperationWithOptionalTimeout(g.context, op, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
+		output := g.executeOperationWithOptionalTimeout(ctx, op, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
 		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
 		return output
 	}
 	return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
 }
 
-func (g *Graph) executeOperationWithOptionalTimeout(pctx *base.Context, op base.FreepsBaseOperator, fn string, mainArgs base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+func (g *Graph) executeOperationWithOptionalTimeout(parentCtx *base.Context, op base.FreepsBaseOperator, fn string, mainArgs base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	fnctx := parentCtx.ChildContextWithField("op-fn", op.GetName()+"/"+fn)
 	if g.GetOperationTimeout() == 0 {
-		return op.Execute(pctx, fn, mainArgs, input)
+		return op.Execute(fnctx, fn, mainArgs, input)
 	}
 
 	c := make(chan *base.OperatorIO)
 	var output *base.OperatorIO
-	ctx, cancelFunc := base.WithTimeout(pctx, g.GetOperationTimeout())
+	ctxWithTimeout, cancelFunc := fnctx.ChildContextWithTimeout(g.GetOperationTimeout())
 	defer cancelFunc()
 
 	startTime := time.Now()
 	go func() {
-		c <- op.Execute(ctx, fn, mainArgs, input)
+		c <- op.Execute(ctxWithTimeout, fn, mainArgs, input)
 	}()
 
 	select {
-	case <-ctx.Done():
+	case <-ctxWithTimeout.Done():
 		alertExpire := 5 * time.Minute
 		output = base.MakeOutputError(http.StatusGatewayTimeout, "Timeout after %v when calling operator \"%v\", Function \"%v\" with arguments \"%v\"", time.Now().Sub(startTime), op.GetName(), fn, mainArgs)
-		g.engine.SetSystemAlert(pctx, fmt.Sprintf("operationTimeout.%s.%s", op.GetName(), fn), "system", 2, output.GetError(), &alertExpire)
+		g.engine.SetSystemAlert(parentCtx, fmt.Sprintf("operationTimeout.%s.%s", op.GetName(), fn), "system", 2, output.GetError(), &alertExpire)
 	case output = <-c:
 	}
 

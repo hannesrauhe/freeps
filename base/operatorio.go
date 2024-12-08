@@ -250,27 +250,53 @@ func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
 		logger.Warnf("No logger provided to OperatorIO.Log, using standard logger")
 	}
 	logline := "Output: " + oio.ToString()
-	if len(logline) > 1000 {
-		logger.Debugf(logline)
-		logline = logline[:1000] + "..."
-	}
-	logger.Debugf(logline)
+	logger.Debug(logline)
 }
 
 func (oio *OperatorIO) ToString() string {
+	maxLen := 1024
 	b := bytes.NewBufferString("")
-	oio.WriteTo(b)
+	oio.WriteTo(b, maxLen)
 	return b.String()
 }
 
-func (oio *OperatorIO) WriteTo(bwriter io.Writer) (int, error) {
+func (oio *OperatorIO) WriteTo(bwriter io.Writer, maxLen int) (int, error) {
 	if oio.IsError() {
 		return fmt.Fprintf(bwriter, "Error Code: %v, %v", oio.HTTPCode, oio.Output.(error))
 	}
-	fmt.Fprintf(bwriter, "Output Type: %T", oio.Output)
-	if oio.OutputType == Byte {
-		return bwriter.Write(oio.Output.([]byte))
+
+	if oio.HTTPCode != 200 {
+		fmt.Fprintf(bwriter, "HTTP Code: %v, ", oio.HTTPCode)
 	}
-	o, _ := json.MarshalIndent(oio.Output, "", "  ")
-	return fmt.Fprintf(bwriter, "%v", string(o))
+	if oio.IsEmpty() {
+		return fmt.Fprintf(bwriter, "Empty Output")
+	}
+
+	if oio.ContentType != "" {
+		fmt.Fprintf(bwriter, "Content Type: %v, ", oio.ContentType)
+	}
+
+	if oio.OutputType == PlainText {
+		if len(oio.Output.(string)) > maxLen {
+			return fmt.Fprintf(bwriter, "%v...", oio.Output.(string)[:maxLen])
+		}
+		return fmt.Fprintf(bwriter, "%v", oio.Output.(string))
+	}
+
+	fmt.Fprintf(bwriter, "Output Type: %v, Data Type: %T, Value: ", oio.OutputType, oio.Output)
+
+	var o []byte
+
+	if oio.OutputType == Byte {
+		o, _ = oio.Output.([]byte)
+	} else {
+		o, _ = json.MarshalIndent(oio.Output, "", "  ")
+		// return fmt.Fprintf(bwriter, "%v", string(o)[:maxLen])
+	}
+
+	// write the first 1024 bytes of the output
+	if len(o) > maxLen {
+		return bwriter.Write(o[:maxLen])
+	}
+	return bwriter.Write(o)
 }

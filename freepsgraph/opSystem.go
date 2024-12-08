@@ -66,6 +66,9 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 	case "stats":
 		return o.Stats(ctx, fn, args, input)
 
+	case "metrics":
+		return base.MakeObjectOutput(o.ge.GetMetrics())
+
 	case "noop":
 		return base.MakeEmptyOutput()
 
@@ -76,7 +79,7 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphDescByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph", "version"}
+	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphDescByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph", "version", "metrics", "noop"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {

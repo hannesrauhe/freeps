@@ -36,6 +36,7 @@ type loggingConfig struct {
 	Level            logrus.Level
 	DisableTimestamp bool
 	DisableQuote     bool
+	JSONFormatter    bool
 }
 
 func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
@@ -43,12 +44,16 @@ func configureLogging(cr *utils.ConfigReader, logger *logrus.Logger) {
 	if verbose {
 		level = logrus.DebugLevel
 	}
-	loggingConfig := loggingConfig{Level: level, DisableTimestamp: false, DisableQuote: false}
+	loggingConfig := loggingConfig{Level: level, DisableTimestamp: false, DisableQuote: false, JSONFormatter: false}
 	cr.ReadSectionWithDefaults("logging", &loggingConfig)
-	logger.SetFormatter(&logrus.TextFormatter{
-		DisableTimestamp: loggingConfig.DisableTimestamp,
-		DisableQuote:     loggingConfig.DisableQuote,
-	})
+	if loggingConfig.JSONFormatter {
+		logger.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logger.SetFormatter(&logrus.TextFormatter{
+			DisableTimestamp: loggingConfig.DisableTimestamp,
+			DisableQuote:     loggingConfig.DisableQuote,
+		})
+	}
 	if !verbose {
 		level = loggingConfig.Level
 	}
@@ -131,11 +136,11 @@ func mainLoop() bool {
 		}
 		output := ge.ExecuteOperatorByName(baseCtx, operator, fn, fa, oio)
 		if output != nil {
-			output.WriteTo(os.Stdout)
+			output.WriteTo(os.Stdout, 1000)
 		} else {
 			logger.Error("Output of operator was nil")
 		}
-		ge.Shutdown(base.NewContext(logger, "Shutdown Context"))
+		ge.Shutdown(base.NewBaseContextWithReason(logger, "Shutdown Context"))
 		return false
 	}
 
@@ -148,7 +153,7 @@ func mainLoop() bool {
 	case <-baseCtx.Done():
 		keepRunning = ge.ReloadRequested()
 		logger.Infof("Stopping Listeners")
-		ge.Shutdown(base.NewContext(logger, "Shutdown Context"))
+		ge.Shutdown(base.NewBaseContextWithReason(logger, "Shutdown Context"))
 	}
 	logger.Infof("All listeners stopped")
 	return keepRunning

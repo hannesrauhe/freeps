@@ -101,7 +101,12 @@ func ObjectToArgsMap(obj interface{}) (map[string]string, error) {
 	if err != nil {
 		return args, err
 	}
-	err = json.Unmarshal(data, &args)
+
+	anyMap := map[string]interface{}{}
+	err = json.Unmarshal(data, &anyMap)
+	for k, v := range anyMap {
+		args[k] = fmt.Sprintf("%v", v)
+	}
 	return args, err
 }
 

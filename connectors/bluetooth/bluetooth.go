@@ -16,7 +16,6 @@ import (
 	"github.com/muka/go-bluetooth/api"
 	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
-	"github.com/sirupsen/logrus"
 )
 
 // FreepsBluetooth provides options to scan for bt devices and execute operations based on that
@@ -26,7 +25,7 @@ type FreepsBluetooth struct {
 	cancel             context.CancelFunc
 	shuttingDown       bool
 	nextIterationTimer *time.Timer
-	log                logrus.FieldLogger
+	ctx                *base.Context
 	ge                 *freepsgraph.GraphEngine
 	monitors           *monitors
 }
@@ -59,13 +58,13 @@ func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 	}
 
 	if flushDevices {
-		fbt.log.Debug("Flush cached devices")
+		fbt.ctx.GetLogger().Debug("Flush cached devices")
 		err = a.FlushDevices()
 		if err != nil {
 			return err
 		}
 	} else {
-		fbt.log.Debug("Flush cached devices skipped")
+		fbt.ctx.GetLogger().Debug("Flush cached devices skipped")
 	}
 
 	devices, err := a.GetDevices()
@@ -87,7 +86,7 @@ func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 	fbt.cancel = cancel
 
 	go func() {
-		fbt.log.Debug("Started discovery")
+		fbt.ctx.GetLogger().Debug("Started discovery")
 		for ev := range discovery {
 
 			if ev.Type == adapter.DeviceRemoved {
@@ -96,27 +95,27 @@ func (fbt *FreepsBluetooth) run(adapterID string, flushDevices bool) error {
 
 			dev, err := device.NewDevice1(ev.Path)
 			if err != nil {
-				fbt.log.Errorf("%s: %s", ev.Path, err)
+				fbt.ctx.GetLogger().Errorf("%s: %s", ev.Path, err)
 				continue
 			}
 
 			if dev == nil {
-				fbt.log.Errorf("%s: not found", ev.Path)
+				fbt.ctx.GetLogger().Errorf("%s: not found", ev.Path)
 				continue
 			}
 
-			fbt.log.Debugf("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
+			fbt.ctx.GetLogger().Debugf("name=%s addr=%s rssi=%d", dev.Properties.Name, dev.Properties.Address, dev.Properties.RSSI)
 
 			go fbt.handleNewDevice(dev, true)
 		}
-		fbt.log.Debug("Stopped discovery")
+		fbt.ctx.GetLogger().Debug("Stopped discovery")
 	}()
 	return nil
 }
 
 func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery bool) *DiscoveryData {
 	devData := fbt.parseDeviceProperties(dev.Properties)
-	ctx := base.NewContext(fbt.log, "Bluetooth device: "+devData.Alias)
+	ctx := base.CreateContextWithField(fbt.ctx, "component", "bluetooth", "Bluetooth device: "+devData.Alias)
 	input := base.MakeObjectOutput(devData)
 	args := map[string]string{"device": devData.Alias, "address": devData.Address, "RSSI": fmt.Sprint(devData.RSSI)}
 
@@ -155,7 +154,7 @@ func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 		return
 	}
 
-	fbt.log.Infof("Stopping discovery, immediate restart: %v", restartImmediately)
+	fbt.ctx.GetLogger().Infof("Stopping discovery, immediate restart: %v", restartImmediately)
 	fbt.cancel()
 	fbt.cancel = nil
 
@@ -172,7 +171,7 @@ func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 	fbt.nextIterationTimer = time.AfterFunc(dur, func() {
 		err := fbt.StartDiscovery()
 		if err != nil {
-			fbt.log.Errorf("Failed to Start Discovery")
+			fbt.ctx.GetLogger().Errorf("Failed to Start Discovery")
 		}
 	})
 }

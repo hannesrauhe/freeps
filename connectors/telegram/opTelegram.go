@@ -24,6 +24,7 @@ type OpTelegram struct {
 	closeChan   chan int
 	bot         *tgbotapi.BotAPI
 	wasStarted  bool
+	ctx         *base.Context
 }
 
 var _ base.FreepsOperatorWithConfig = &OpTelegram{}
@@ -36,7 +37,7 @@ func (m *OpTelegram) GetDefaultConfig() interface{} {
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
 func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
-	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), closeChan: make(chan int), wasStarted: false}
+	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), closeChan: make(chan int), wasStarted: false, ctx: ctx}
 	if newM.tgc.Token == "" {
 		return nil, fmt.Errorf("Telegram token is empty")
 	}
