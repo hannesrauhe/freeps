@@ -26,3 +26,7 @@ jobs:
 
     - name: Test
       run: go test -tags=nomuteme  -v ./...
+
+    - name: Golangci-lint
+      uses: golangci/golangci-lint-action@v6.1.1
+            
