@@ -140,7 +140,7 @@ func mainLoop() bool {
 		} else {
 			logger.Error("Output of operator was nil")
 		}
-		ge.Shutdown(base.NewBaseContextWithReason(logger, "Shutdown Context"))
+		ge.Shutdown(baseCtx)
 		return false
 	}
 
@@ -153,7 +153,7 @@ func mainLoop() bool {
 	case <-baseCtx.Done():
 		keepRunning = ge.ReloadRequested()
 		logger.Infof("Stopping Listeners")
-		ge.Shutdown(base.NewBaseContextWithReason(logger, "Shutdown Context"))
+		ge.Shutdown(baseCtx)
 	}
 	logger.Infof("All listeners stopped")
 	return keepRunning

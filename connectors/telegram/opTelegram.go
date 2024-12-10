@@ -104,7 +104,11 @@ func (m *OpTelegram) Shutdown(ctx *base.Context) {
 	if m.wasStarted == false {
 		return
 	}
+	tlog := ctx.GetLogger()
+	tlog.Infof("Stop listening for updates, current state: %v", m.bot)
 	m.bot.StopReceivingUpdates()
+	tlog.Info("closing channel")
 	<-m.closeChan
+	tlog.Info("channel closed")
 	m.wasStarted = false
 }

@@ -520,7 +520,9 @@ func (ge *GraphEngine) StartListening(ctx *base.Context) {
 
 	for _, op := range ge.operators {
 		if op != nil {
-			op.StartListening(ctx)
+			opCtx := base.CreateContextWithField(ctx, "component", op.GetName(), "Start Listening")
+			opCtx.GetLogger().Debug("Start Listening")
+			op.StartListening(opCtx)
 		}
 	}
 }
@@ -532,8 +534,9 @@ func (ge *GraphEngine) Shutdown(ctx *base.Context) {
 
 	for _, op := range ge.operators {
 		if op != nil {
-			ctx.GetLogger().Debugf("Stopping %v", op.GetName())
-			op.Shutdown(ctx)
+			opCtx := base.CreateContextWithField(ctx, "component", op.GetName(), "Shutting down")
+			opCtx.GetLogger().Debug("Shutting down")
+			op.Shutdown(opCtx)
 		}
 	}
 }
