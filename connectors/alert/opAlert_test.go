@@ -103,6 +103,10 @@ func TestTriggers(t *testing.T) {
 	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert", GraphID: "testgraphOnReset"})
 	assert.Assert(t, !out.IsError())
 
+	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert2", GraphID: "testgraphOnReset"})
+	assert.Assert(t, !out.IsError())
+
+	/* Test the triggers when alert is acitvated*/
 	dur := time.Minute
 	ge.SetSystemAlert(ctx, "testalert", "testcategory", 2, fmt.Errorf("opsi"), &dur)
 
@@ -116,7 +120,21 @@ func TestTriggers(t *testing.T) {
 	i := ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 2)
 
+	/* Test the reset triggers */
+
+	// the alert is active, so it should trigger now
 	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
+	assert.Assert(t, ns.GetValue("testgraphOnReset") != freepsstore.NotFoundEntry)
+
+	i = ns.DeleteOlder(time.Duration(0))
+	assert.Assert(t, i == 1)
+
+	// the alert is inactive, so it should not trigger again
+	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
+	assert.Assert(t, ns.GetValue("testgraphOnReset") == freepsstore.NotFoundEntry)
+
+	// the alert is inactive but new, so freeps might have restarted, trigger again
+	ge.ResetSystemAlert(ctx, "testalert2", "testcategory")
 	assert.Assert(t, ns.GetValue("testgraphOnReset") != freepsstore.NotFoundEntry)
 
 	i = ns.DeleteOlder(time.Duration(0))
