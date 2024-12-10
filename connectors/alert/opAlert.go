@@ -160,7 +160,7 @@ func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(sa.Category, false)
 }
 
-// ResetAlert resets an alerts
+// SilenceAlert keeps the alert from triggering for the given duration
 func (oc *OpAlert) SilenceAlert(ctx *base.Context, mainInput *base.OperatorIO, args SilenceAlertArgs) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
@@ -190,7 +190,7 @@ func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(ra.Category, false)
 }
 
-// ResetAlert resets an alerts
+// ResetAlert deletes the alert and resets the counter
 func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, args ResetAlertArgs) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
@@ -198,6 +198,7 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 	}
 	tempAlert := Alert{Name: args.Name, Category: args.Category, Severity: 5} // just to get the name
 	var a AlertWithMetadata
+	execTriggers := false
 	ns.UpdateTransaction(tempAlert.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
 		oi.ParseJSON(&a)
 
@@ -208,15 +209,20 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 				First:   time.Time{},
 				Last:    time.Time{},
 			}
+			// after restarts, the alert might be reset, so we need to execute the triggers
+			execTriggers = true
 		}
 		if a.ExpiresInDuration == nil || !a.IsExpired() {
 			eTime := time.Now().Sub(a.Last)
 			a.ExpiresInDuration = &eTime
+			execTriggers = true
 		}
 
 		return base.MakeObjectOutput(a)
 	}, ctx)
-	oc.execTriggers(ctx, a)
+	if execTriggers {
+		oc.execTriggers(ctx, a)
+	}
 	return base.MakeEmptyOutput()
 }
 
