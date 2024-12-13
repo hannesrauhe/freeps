@@ -443,7 +443,7 @@ func (oc *OpAlert) GetActiveAlert(ctx *base.Context, mainInput *base.OperatorIO,
 	if a.IsSilenced() && (args.IgnoreSilence == nil || *args.IgnoreSilence == false) {
 		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v is silenced", tempAlert.GetFullName())
 	}
-	return base.MakeObjectOutput(NewReadableAlert(a))
+	return base.MakeObjectOutput(NewReadableAlert(a, oi.GetModifiedBy()))
 }
 
 // IsActiveAlert returns an empty output if the alert is active
