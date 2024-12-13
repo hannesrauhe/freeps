@@ -421,8 +421,8 @@ func (iaa *IsActiveAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(iaa.Category, false)
 }
 
-// IsActiveAlert returns an empty output if the alert is active
-func (oc *OpAlert) IsActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
+// GetActiveAlert returns an empty output if the alert is active
+func (oc *OpAlert) GetActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
@@ -443,5 +443,14 @@ func (oc *OpAlert) IsActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, 
 	if a.IsSilenced() && (args.IgnoreSilence == nil || *args.IgnoreSilence == false) {
 		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v is silenced", tempAlert.GetFullName())
 	}
-	return base.MakeEmptyOutput()
+	return base.MakeObjectOutput(NewReadableAlert(a))
+}
+
+// IsActiveAlert returns an empty output if the alert is active
+func (oc *OpAlert) IsActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
+  r := oc.GetActiveAlert(ctx, mainInput, args)
+  if r.IsError() {
+    return r
+  }
+  return base.MakeEmptyOutput()
 }
