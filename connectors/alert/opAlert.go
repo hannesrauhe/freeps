@@ -421,7 +421,7 @@ func (iaa *IsActiveAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(iaa.Category, false)
 }
 
-// GetActiveAlert returns an empty output if the alert is active
+// GetActiveAlert returns alert information if the alert is active
 func (oc *OpAlert) GetActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
