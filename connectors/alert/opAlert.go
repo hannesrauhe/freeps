@@ -68,7 +68,7 @@ func (oc *OpAlert) nameSuggestions(category *string, returnFullName bool) map[st
 		if returnFullName {
 			ret[k.GetFullName()] = k.GetFullName()
 		} else {
-			ret[k.Name] = k.GetFullName()
+			ret[k.Name] = k.Name
 		}
 	}
 	return ret
