@@ -85,9 +85,8 @@ func (oc *OpAlert) execTriggers(causedByCtx *base.Context, alert AlertWithMetada
 	args, err := base.NewFunctionArgumentsFromObject(alert)
 	if err != nil {
 		desc := fmt.Sprintf("Cannot parse alert: %v", err)
-		category := "alertOp"
 		// disable triggers so we do not run into endless loops:
-		oc.SetAlert(causedByCtx, base.MakeEmptyOutput(), Alert{Name: "AlertGraphTrigger", Desc: &desc, Category: &category, Severity: 1}, base.NewFunctionArguments(map[string]string{"noTrigger": "1"}))
+		oc.SetAlert(causedByCtx, base.MakeEmptyOutput(), Alert{Name: "AlertGraphTrigger", Desc: &desc, Category: "alertOp", Severity: 1}, base.NewFunctionArguments(map[string]string{"noTrigger": "1"}))
 	}
 
 	if alert.IsSilenced() {

@@ -36,7 +36,7 @@ func TestOpAlert(t *testing.T) {
 	assert.Assert(t, res.IsError())
 
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
-	assert.Assert(t, res.GetString() == "[]")
+	assert.Assert(t, res.GetString() == "{}")
 	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "foo", Severity: 2}, base.MakeEmptyFunctionArguments())
 	assert.Assert(t, !res.IsError())
 	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo"})
@@ -140,8 +140,7 @@ func TestTriggers(t *testing.T) {
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 1)
 
-	cat := "testcategory"
-	op.SilenceAlert(ctx, base.MakeEmptyOutput(), SilenceAlertArgs{Name: "testalert", Category: &cat, SilenceDuration: time.Minute})
+	op.SilenceAlert(ctx, base.MakeEmptyOutput(), SilenceAlertArgs{Name: "testalert", Category: "testcategory", SilenceDuration: time.Minute})
 	ge.SetSystemAlert(ctx, "testalert", "testcategory", 2, fmt.Errorf("opsi"), &dur)
 	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
 
