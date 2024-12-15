@@ -60,7 +60,7 @@ func (oc *OpAlert) CategorySuggestions() []string {
 func (oc *OpAlert) nameSuggestions(category *string, returnFullName bool) map[string]string {
 	ret := map[string]string{}
 	truePtr := true
-	alerts, err := oc.getAlertList(GetAlertArgs{Category: category, IncludeExpired: &truePtr, IncludeSilenced: &truePtr})
+	alerts, err := oc.getAlerts(GetAlertArgs{Category: category, IncludeExpired: &truePtr, IncludeSilenced: &truePtr})
 	if err != nil {
 		return ret
 	}
@@ -74,23 +74,49 @@ func (oc *OpAlert) nameSuggestions(category *string, returnFullName bool) map[st
 	return ret
 }
 
-// SetAlert creates and stores a new alert
-func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert, addArgs base.FunctionArguments) *base.OperatorIO {
+// updateAlert is a helper function to create a new or update an existing alert
+func (oc *OpAlert) updateAlert(ctx *base.Context, category string, name string, updateFunc func(*AlertWithMetadata, bool)) (AlertWithMetadata, error) {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+		return AlertWithMetadata{}, fmt.Errorf("Error getting store: %v", err)
 	}
-	execTrigger := false
-	alertIdentifier := args.GetFullName()
-	if oc.severityOverrides != nil { // just a fix for testing
-		args.Severity = oc.severityOverrides.GetOrDefault(alertIdentifier, args.Severity)
-	}
+	alertName := getAlertName(name, category)
 	var a AlertWithMetadata
-	ns.UpdateTransaction(alertIdentifier, func(oi base.OperatorIO) *base.OperatorIO {
-		oi.ParseJSON(&a)
+	io := ns.UpdateTransaction(alertName, func(oi base.OperatorIO) *base.OperatorIO {
+		err := oi.ParseJSON(&a)
+		if err != nil {
+			return base.MakeOutputError(http.StatusInternalServerError, "Error parsing alert: %v", err)
+		}
 
+		newAlert := false
 		if oi.IsEmpty() {
-			a = AlertWithMetadata{First: time.Now()}
+			a = AlertWithMetadata{
+				Alert:   Alert{Name: name, Category: category, Severity: 5},
+				Counter: 0,
+				First:   time.Time{},
+				Last:    time.Time{},
+			}
+			newAlert = true
+		}
+		updateFunc(&a, newAlert)
+		return base.MakeObjectOutput(a)
+	}, ctx)
+	if io.IsError() {
+		return AlertWithMetadata{}, io.GetError()
+	}
+	return a, nil
+}
+
+// SetAlert creates and stores a new alert
+func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args Alert, addArgs base.FunctionArguments) *base.OperatorIO {
+	execTrigger := false
+	if oc.severityOverrides != nil {
+		args.Severity = oc.severityOverrides.GetOrDefault(args.GetFullName(), args.Severity)
+	}
+
+	a, err := oc.updateAlert(ctx, args.Category, args.Name, func(a *AlertWithMetadata, newAlert bool) {
+		if newAlert {
+			a.First = time.Now()
 			execTrigger = true
 		}
 		if a.IsExpired() {
@@ -101,41 +127,16 @@ func (oc *OpAlert) SetAlert(ctx *base.Context, mainInput *base.OperatorIO, args 
 		a.Last = time.Now()
 
 		a.Alert = args
-		return base.MakeObjectOutput(a)
-	}, ctx)
+	})
+
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error setting alert: %v", err)
+	}
 
 	if execTrigger && !addArgs.Has("noTrigger") {
 		oc.execTriggers(ctx, a)
 	}
 	return base.MakeEmptyOutput()
-}
-
-// updateAlert is a helper function to update an existing alert
-func (oc *OpAlert) updateAlert(ctx *base.Context, category string, name *string, updateFunc func(*AlertWithMetadata), errorIfNotFound bool) *base.OperatorIO {
-	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
-	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
-	}
-	tempAlert := Alert{Name: *name, Category: category, Severity: 5} // just to get the name
-	var a AlertWithMetadata
-	return ns.UpdateTransaction(tempAlert.GetFullName(), func(oi base.OperatorIO) *base.OperatorIO {
-		oi.ParseJSON(&a)
-
-		if oi.IsEmpty() {
-			if errorIfNotFound {
-				return base.MakeOutputError(http.StatusNotFound, "Alert %v does not exist", tempAlert.GetFullName())
-			} else {
-				a = AlertWithMetadata{
-					Alert:   tempAlert,
-					Counter: 0,
-					First:   time.Time{},
-					Last:    time.Time{},
-				}
-			}
-		}
-		updateFunc(&a)
-		return base.MakeObjectOutput(a)
-	}, ctx)
 }
 
 type SilenceAlertArgs struct {
@@ -150,9 +151,15 @@ func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
 
 // SilenceAlert keeps the alert from triggering for the given duration
 func (oc *OpAlert) SilenceAlert(ctx *base.Context, mainInput *base.OperatorIO, args SilenceAlertArgs) *base.OperatorIO {
-	return oc.updateAlert(ctx, args.Category, &args.Name, func(a *AlertWithMetadata) {
+	_, err := oc.updateAlert(ctx, args.Category, args.Name, func(a *AlertWithMetadata, newAlert bool) {
 		a.SilenceUntil = time.Now().Add(args.SilenceDuration)
-	}, false)
+	})
+
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error setting alert: %v", err)
+	}
+
+	return base.MakeEmptyOutput()
 }
 
 type ResetAlertArgs struct {
@@ -167,8 +174,8 @@ func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
 // ResetAlert deletes the alert and resets the counter
 func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, args ResetAlertArgs) *base.OperatorIO {
 	execTriggers := false
-	out := oc.updateAlert(ctx, args.Category, &args.Name, func(a *AlertWithMetadata) {
-		if a.Counter == 0 {
+	a, err := oc.updateAlert(ctx, args.Category, args.Name, func(a *AlertWithMetadata, newAlert bool) {
+		if newAlert {
 			// after restarts, the alert might be reset, so we need to execute the triggers
 			execTriggers = true
 		}
@@ -179,15 +186,13 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 			execTriggers = true
 		}
 
-	}, false)
+	})
 
-	if out.IsError() {
-		return out
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error resetting alert: %v", err)
 	}
 
 	if execTriggers {
-		var a AlertWithMetadata
-		out.ParseJSON(&a)
 		oc.execTriggers(ctx, a)
 	}
 	return base.MakeEmptyOutput()
@@ -195,9 +200,15 @@ func (oc *OpAlert) ResetAlert(ctx *base.Context, mainInput *base.OperatorIO, arg
 
 // ResetSilence stops ignoring alerts
 func (oc *OpAlert) ResetSilence(ctx *base.Context, mainInput *base.OperatorIO, args ResetAlertArgs) *base.OperatorIO {
-	return oc.updateAlert(ctx, args.Category, &args.Name, func(a *AlertWithMetadata) {
+	_, err := oc.updateAlert(ctx, args.Category, args.Name, func(a *AlertWithMetadata, newAlert bool) {
 		a.SilenceUntil = time.Now()
-	}, false)
+	})
+
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, "Error setting alert: %v", err)
+	}
+
+	return base.MakeEmptyOutput()
 }
 
 type GetAlertArgs struct {
@@ -208,15 +219,19 @@ type GetAlertArgs struct {
 	UseTimestamps   *bool
 }
 
-func (oc *OpAlert) getAlertList(args GetAlertArgs) ([]AlertWithMetadata, error) {
+// getAlerts returns all alerts matching the given args
+func (oc *OpAlert) getAlerts(args GetAlertArgs) (map[string]ReadableAlert, error) {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	alerts := make(map[string]ReadableAlert, 0)
 	if err != nil {
-		return make([]AlertWithMetadata, 0), fmt.Errorf("Error getting store: %v", err)
+		return alerts, fmt.Errorf("Error getting store: %v", err)
 	}
-	activeAlerts := make([]AlertWithMetadata, 0)
-	for _, entry := range ns.GetAllValues(1000) {
+	for _, entry := range ns.GetSearchResultWithMetadata("", "", "", 0, math.MaxInt64) {
 		var a AlertWithMetadata
-		entry.ParseJSON(&a)
+		err := entry.ParseJSON(&a)
+		if err != nil {
+			continue // skip invalid alerts
+		}
 		if a.IsExpired() && (args.IncludeExpired == nil || *args.IncludeExpired == false) {
 			continue
 		}
@@ -230,57 +245,36 @@ func (oc *OpAlert) getAlertList(args GetAlertArgs) ([]AlertWithMetadata, error) 
 			continue
 		}
 
-		activeAlerts = append(activeAlerts, a)
+		alerts[a.GetFullName()] = NewReadableAlert(a, entry.GetModifiedBy())
 	}
-	return activeAlerts, nil
+	return alerts, nil
 }
 
 // GetAlerts returns all alerts matching the given args and returns a map of alerts with readable timestamps and the modified-by-uuid
 func (oc *OpAlert) GetAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
-	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	alerts, err := oc.getAlerts(args)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, "Error getting store: %v", err)
 	}
-	alertList := make(map[string]ReadableAlert, 0)
-	for _, entry := range ns.GetSearchResultWithMetadata("", "", "", 0, math.MaxInt64) {
-		var a AlertWithMetadata
-		entry.ParseJSON(&a)
-		if a.IsExpired() && (args.IncludeExpired == nil || *args.IncludeExpired == false) {
-			continue
-		}
-		if args.Severity != nil && a.Severity > *args.Severity {
-			continue
-		}
-		if args.Category != nil && a.Category != *args.Category {
-			continue
-		}
-		if a.IsSilenced() && (args.IncludeSilenced == nil || *args.IncludeSilenced == false) {
-			continue
-		}
 
-		alertList[a.GetFullName()] = NewReadableAlert(a, entry.GetModifiedBy())
-	}
-	return base.MakeObjectOutput(alertList)
+	return base.MakeObjectOutput(alerts)
 }
 
-// GetActiveAlerts is an alias for GetAlerts with IncludeExpired set to false
+// GetActiveAlerts is an alias for GetAlerts
 func (oc *OpAlert) GetActiveAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
-	includeExpired := false
-	if args.IncludeExpired == nil {
-		args.IncludeExpired = &includeExpired
-	}
 	return oc.GetAlerts(ctx, mainInput, args)
 }
 
 // GetShortAlertString returns a single string describing all active alerts of a given severity
 func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
-	activeAlerts, err := oc.getAlertList(args)
+	activeAlerts, err := oc.getAlerts(args)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
 	alertNames := make([]string, 0)
 	categories := make(map[string]int, 0)
-	for _, a := range activeAlerts {
+	var a ReadableAlert // used if there is only one alert
+	for _, a = range activeAlerts {
 		categories[a.Category] = 1
 		alertNames = append(alertNames, a.Name)
 	}
@@ -288,9 +282,8 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 		return base.MakeEmptyOutput()
 	}
 	if len(activeAlerts) == 1 {
-		a := activeAlerts[0]
-		if a.Desc != nil {
-			return base.MakePlainOutput(*a.Desc)
+		if a.Desc != "" {
+			return base.MakePlainOutput(a.Desc)
 		}
 		return base.MakeSprintfOutput("Active alert: %v", a.GetFullName())
 	}
@@ -312,7 +305,7 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 
 // HasAlerts returns an empty output if there are any active alerts matching the criteria
 func (oc *OpAlert) HasAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
-	activeAlerts, err := oc.getAlertList(args)
+	activeAlerts, err := oc.getAlerts(args)
 	if err != nil {
 		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
 	}
@@ -328,9 +321,10 @@ func (o *OpAlert) GetHook() interface{} {
 
 // IsActiveAlertArgs is used to check if an alert is active
 type IsActiveAlertArgs struct {
-	Name          string
-	Category      string
-	IgnoreSilence *bool
+	Name           string
+	Category       string
+	IgnoreSilence  *bool
+	ActiveDuration *time.Duration
 }
 
 func (iaa *IsActiveAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
@@ -358,30 +352,16 @@ func (oc *OpAlert) GetActiveAlert(ctx *base.Context, mainInput *base.OperatorIO,
 	if a.IsSilenced() && (args.IgnoreSilence == nil || *args.IgnoreSilence == false) {
 		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v is silenced", a.GetFullName())
 	}
+	if args.ActiveDuration != nil && time.Now().Sub(a.First) < *args.ActiveDuration {
+		return base.MakeOutputError(http.StatusExpectationFailed, "Alert %v has not been active for %v", a.GetFullName(), *args.ActiveDuration)
+	}
+
 	return base.MakeObjectOutput(NewReadableAlert(a, oi.GetModifiedBy()))
 }
 
 // IsActiveAlert returns an empty output if the alert is active
 func (oc *OpAlert) IsActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
 	r := oc.GetActiveAlert(ctx, mainInput, args)
-	if r.IsError() {
-		return r
-	}
-	return base.MakeEmptyOutput()
-}
-
-// IsActiveAlertOlderThan is used to check if an alert is active for longer than a certain time
-type IsActiveAlertOlderThanArgs struct {
-	Name           string
-	ActiveDuration time.Duration
-	Category       string
-	IgnoreSilence  *bool
-}
-
-// IsActiveAlert returns an empty output if the alert is active
-func (oc *OpAlert) IsActiveAlertOlderThan(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertOlderThanArgs) *base.OperatorIO {
-	gaargs := IsActiveAlertArgs{Name: args.Name, Category: args.Category, IgnoreSilence: args.IgnoreSilence}
-	r := oc.GetActiveAlert(ctx, mainInput, gaargs)
 	if r.IsError() {
 		return r
 	}

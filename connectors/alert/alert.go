@@ -61,6 +61,10 @@ type ReadableAlert struct {
 	ModifiedBy         string
 }
 
+func (a *ReadableAlert) GetFullName() string {
+	return getAlertName(a.Name, a.Category)
+}
+
 func NewReadableAlert(a AlertWithMetadata, modifiedBy string) ReadableAlert {
 	r := ReadableAlert{Name: a.Name, Category: a.Category, Severity: a.Severity, Counter: a.Counter, ModifiedBy: modifiedBy}
 	if a.Desc != nil {
