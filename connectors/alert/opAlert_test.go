@@ -32,38 +32,83 @@ func TestOpAlert(t *testing.T) {
 	assert.Assert(t, sug != nil)
 	_, ok := sug["2s"]
 	assert.Assert(t, ok)
+
+	// SetAlert: not enough arguments
 	res := opA.Execute(ctx, "SetAlert", base.NewSingleFunctionArgument("Name", "test_alert"), base.MakeEmptyOutput())
 	assert.Assert(t, res.IsError())
 
+	// SetAlert: invalid entry in the internal namespace
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
+	assert.NilError(t, err)
+	entry := ns.SetValue("test.test_alert_invalid", base.MakePlainOutput("invalid"), ctx)
+	assert.Assert(t, !entry.IsError())
+
+	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "test_alert_invalid", Category: "test", Severity: 2}, base.MakeEmptyFunctionArguments())
+	assert.Assert(t, res.IsError())
+
+	// GetActiveAlerts: no alerts, skips the invalid entry
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
-	assert.Assert(t, res.GetString() == "[]")
-	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "foo", Severity: 2}, base.MakeEmptyFunctionArguments())
+	assert.Assert(t, res.GetString() == "{}")
+
+	// get rid of the invalid entry
+	ns.DeleteValue("test.test_alert_invalid")
+
+	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "foo", Severity: 2, Category: "test"}, base.MakeEmptyFunctionArguments())
 	assert.Assert(t, !res.IsError())
-	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo"})
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo", Category: "test"})
 	assert.Assert(t, res.HTTPCode == http.StatusOK)
-	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "bar"})
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "bar", Category: "test"})
 	assert.Assert(t, res.HTTPCode == http.StatusNotFound)
 	res = op.GetActiveAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
 	assert.Assert(t, !res.IsError() && len(res.GetString()) > 5)
-	res = op.SilenceAlert(ctx, base.MakeEmptyOutput(), SilenceAlertArgs{Name: "foo", SilenceDuration: time.Minute})
+	res = op.HasAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
+	assert.Assert(t, res.HTTPCode == http.StatusOK)
+	res = op.SilenceAlert(ctx, base.MakeEmptyOutput(), SilenceAlertArgs{Name: "foo", SilenceDuration: time.Minute, Category: "test"})
 	assert.Assert(t, !res.IsError())
-	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo"})
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo", Category: "test"})
 	assert.Assert(t, res.HTTPCode == http.StatusExpectationFailed)
 	trueVal := true
-	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo", IgnoreSilence: &trueVal})
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo", Category: "test", IgnoreSilence: &trueVal})
 	assert.Assert(t, res.HTTPCode == http.StatusOK)
-	res = op.ResetSilence(ctx, base.MakeEmptyOutput(), ResetAlertArgs{Name: "foo"})
+	res = op.ResetSilence(ctx, base.MakeEmptyOutput(), ResetAlertArgs{Name: "foo", Category: "test"})
 	assert.Assert(t, !res.IsError())
-	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo"})
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo", Category: "test"})
 	assert.Assert(t, res.HTTPCode == http.StatusOK)
-	res = op.ResetAlert(ctx, base.MakeEmptyOutput(), ResetAlertArgs{Name: "foo"})
+	res = op.ResetAlert(ctx, base.MakeEmptyOutput(), ResetAlertArgs{Name: "foo", Category: "test"})
 	assert.Assert(t, !res.IsError())
-	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo"})
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "foo", Category: "test"})
 	assert.Assert(t, res.HTTPCode == http.StatusExpectationFailed)
 	res = op.GetShortAlertString(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
 	assert.Assert(t, res.IsEmpty())
 	res = op.HasAlerts(ctx, base.MakeEmptyOutput(), GetAlertArgs{})
 	assert.Assert(t, res.HTTPCode == http.StatusExpectationFailed)
+
+	// TestActiveDuration
+	expiredDuration := 10 * time.Second
+	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "oldAlert", Severity: 2, Category: "test", ExpiresInDuration: &expiredDuration}, base.MakeEmptyFunctionArguments())
+	assert.Assert(t, !res.IsError())
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "oldAlert", Category: "test"})
+	assert.Assert(t, res.HTTPCode == http.StatusOK)
+	alertDuration := 100 * time.Millisecond
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "oldAlert", Category: "test", ActiveDuration: &alertDuration})
+	assert.Assert(t, res.HTTPCode == http.StatusExpectationFailed) // alert is not active for long enough
+	time.Sleep(alertDuration)
+	res = op.IsActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "oldAlert", Category: "test", ActiveDuration: &alertDuration})
+	assert.Assert(t, res.HTTPCode == http.StatusOK) // alert is active for long enough
+	// set alert again
+	res = op.SetAlert(ctx, base.MakeEmptyOutput(), Alert{Name: "oldAlert", Severity: 2, Category: "test"}, base.MakeEmptyFunctionArguments())
+	assert.Assert(t, !res.IsError())
+	res = op.GetActiveAlert(ctx, base.MakeEmptyOutput(), IsActiveAlertArgs{Name: "oldAlert", Category: "test", ActiveDuration: &alertDuration})
+	assert.Assert(t, res.HTTPCode == http.StatusOK) // a second set doesn't change the duration
+	// make sure, GetActiveAlerts returns the expected alert
+	var alert ReadableAlert
+	err = res.ParseJSON(&alert)
+	assert.NilError(t, err)
+	assert.Assert(t, alert.Counter == 2)
+	assert.Assert(t, alert.Name == "oldAlert")
+	assert.Assert(t, alert.Category == "test")
+	assert.Assert(t, alert.Severity == 2)
+	assert.Assert(t, alert.ExpiresInDuration < expiredDuration)
 }
 
 func createTestGraph(keyToSet string) freepsgraph.GraphDesc {
@@ -140,8 +185,7 @@ func TestTriggers(t *testing.T) {
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 1)
 
-	cat := "testcategory"
-	op.SilenceAlert(ctx, base.MakeEmptyOutput(), SilenceAlertArgs{Name: "testalert", Category: &cat, SilenceDuration: time.Minute})
+	op.SilenceAlert(ctx, base.MakeEmptyOutput(), SilenceAlertArgs{Name: "testalert", Category: "testcategory", SilenceDuration: time.Minute})
 	ge.SetSystemAlert(ctx, "testalert", "testcategory", 2, fmt.Errorf("opsi"), &dur)
 	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
 
