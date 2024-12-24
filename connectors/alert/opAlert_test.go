@@ -10,7 +10,7 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -23,7 +23,7 @@ func TestOpAlert(t *testing.T) {
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
-	ge := freepsgraph.NewGraphEngine(ctx, cr, func() {})
+	ge := freepsflow.NewFlowEngine(ctx, cr, func() {})
 	op := OpAlert{CR: cr, GE: ge}
 	ops := base.MakeFreepsOperators(&op, cr, ctx)
 	opA := ops[0]
@@ -111,8 +111,8 @@ func TestOpAlert(t *testing.T) {
 	assert.Assert(t, alert.ExpiresInDuration < expiredDuration)
 }
 
-func createTestGraph(keyToSet string) freepsgraph.GraphDesc {
-	gd := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: map[string]string{"namespace": "test", "key": keyToSet}}}}
+func createTestFlow(keyToSet string) freepsflow.FlowDesc {
+	gd := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: map[string]string{"namespace": "test", "key": keyToSet}}}}
 	return gd
 }
 
@@ -121,7 +121,7 @@ func TestTriggers(t *testing.T) {
 	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
 	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
 	assert.NilError(t, err)
-	ge := freepsgraph.NewGraphEngine(ctx, cr, func() {})
+	ge := freepsflow.NewFlowEngine(ctx, cr, func() {})
 	op := &OpAlert{CR: cr, GE: ge}
 	availableOperators := []base.FreepsOperator{
 		&freepsstore.OpStore{CR: cr, GE: ge},
@@ -133,22 +133,22 @@ func TestTriggers(t *testing.T) {
 		ge.AddOperators(base.MakeFreepsOperators(op, cr, ctx))
 	}
 
-	err = ge.AddGraph(ctx, "testgraphSev2", createTestGraph("testgraphSev2"), false)
-	err = ge.AddGraph(ctx, "testgraphSev3", createTestGraph("testgraphSev3"), false)
-	err = ge.AddGraph(ctx, "testgraphOnSet", createTestGraph("testgraphOnSet"), false)
-	err = ge.AddGraph(ctx, "testgraphOnReset", createTestGraph("testgraphOnReset"), false)
+	err = ge.AddFlow(ctx, "testflowSev2", createTestFlow("testflowSev2"), false)
+	err = ge.AddFlow(ctx, "testflowSev3", createTestFlow("testflowSev3"), false)
+	err = ge.AddFlow(ctx, "testflowOnSet", createTestFlow("testflowOnSet"), false)
+	err = ge.AddFlow(ctx, "testflowOnReset", createTestFlow("testflowOnReset"), false)
 	assert.NilError(t, err)
 
-	out := op.SetSeverityTrigger(ctx, base.MakeEmptyOutput(), SeverityTrigger{Severity: 2, GraphID: "testgraphSev2"})
+	out := op.SetSeverityTrigger(ctx, base.MakeEmptyOutput(), SeverityTrigger{Severity: 2, FlowID: "testflowSev2"})
 	assert.Assert(t, !out.IsError())
 
-	out = op.SetAlertSetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert", GraphID: "testgraphOnSet"})
+	out = op.SetAlertSetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert", FlowID: "testflowOnSet"})
 	assert.Assert(t, !out.IsError())
 
-	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert", GraphID: "testgraphOnReset"})
+	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert", FlowID: "testflowOnReset"})
 	assert.Assert(t, !out.IsError())
 
-	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert2", GraphID: "testgraphOnReset"})
+	out = op.SetAlertResetTrigger(ctx, base.MakeEmptyOutput(), NameTrigger{Name: "testcategory.testalert2", FlowID: "testflowOnReset"})
 	assert.Assert(t, !out.IsError())
 
 	/* Test the triggers when alert is acitvated*/
@@ -157,10 +157,10 @@ func TestTriggers(t *testing.T) {
 
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("test")
 	assert.NilError(t, err)
-	assert.Assert(t, ns.GetValue("testgraphSev2") != freepsstore.NotFoundEntry)
-	assert.Assert(t, ns.GetValue("testgraphSev3") == freepsstore.NotFoundEntry)
-	assert.Assert(t, ns.GetValue("testgraphOnSet") != freepsstore.NotFoundEntry)
-	assert.Assert(t, ns.GetValue("testgraphOnReset") == freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testflowSev2") != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testflowSev3") == freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testflowOnSet") != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testflowOnReset") == freepsstore.NotFoundEntry)
 
 	i := ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 2)
@@ -169,18 +169,18 @@ func TestTriggers(t *testing.T) {
 
 	// the alert is active, so it should trigger now
 	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
-	assert.Assert(t, ns.GetValue("testgraphOnReset") != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testflowOnReset") != freepsstore.NotFoundEntry)
 
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 1)
 
 	// the alert is inactive, so it should not trigger again
 	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
-	assert.Assert(t, ns.GetValue("testgraphOnReset") == freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testflowOnReset") == freepsstore.NotFoundEntry)
 
 	// the alert is inactive but new, so freeps might have restarted, trigger again
 	ge.ResetSystemAlert(ctx, "testalert2", "testcategory")
-	assert.Assert(t, ns.GetValue("testgraphOnReset") != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue("testflowOnReset") != freepsstore.NotFoundEntry)
 
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 1)
@@ -189,7 +189,7 @@ func TestTriggers(t *testing.T) {
 	ge.SetSystemAlert(ctx, "testalert", "testcategory", 2, fmt.Errorf("opsi"), &dur)
 	ge.ResetSystemAlert(ctx, "testalert", "testcategory")
 
-	// no graph should have been executed:
+	// no flow should have been executed:
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 0)
 }

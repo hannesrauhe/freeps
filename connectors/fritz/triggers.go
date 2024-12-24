@@ -13,39 +13,39 @@ func (o *OpFritz) executeTrigger(ctx *base.Context, host Host, addTags ...string
 	input := base.MakeObjectOutput(host)
 	args, _ := base.NewFunctionArgumentsFromObject(host)
 
-	out := o.GE.ExecuteGraphByTags(ctx, tags, args, input)
+	out := o.GE.ExecuteFlowByTags(ctx, tags, args, input)
 	return out
 }
 
-func (o *OpFritz) setTrigger(ctx *base.Context, graphID string, addTags ...string) *base.OperatorIO {
-	gd, found := o.GE.GetGraphDesc(graphID)
+func (o *OpFritz) setTrigger(ctx *base.Context, flowID string, addTags ...string) *base.OperatorIO {
+	gd, found := o.GE.GetFlowDesc(flowID)
 	if !found {
-		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", graphID)
+		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find flow: %v", flowID)
 	}
 	gd.AddTags(o.name)
 	gd.AddTags(addTags...)
-	err := o.GE.AddGraph(ctx, graphID, *gd, true)
+	err := o.GE.AddFlow(ctx, flowID, *gd, true)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify flow: %v", err)
 	}
 
 	return base.MakeEmptyOutput()
 }
 
-// GraphID auggestions returns suggestions for graph names
-func (o *OpFritz) GraphIDSuggestions() map[string]string {
-	graphNames := map[string]string{}
-	res := o.GE.GetAllGraphDesc()
+// FlowID auggestions returns suggestions for flow names
+func (o *OpFritz) FlowIDSuggestions() map[string]string {
+	flowNames := map[string]string{}
+	res := o.GE.GetAllFlowDesc()
 	for id, gd := range res {
 		info, _ := gd.GetCompleteDesc(id, o.GE)
-		_, exists := graphNames[info.DisplayName]
+		_, exists := flowNames[info.DisplayName]
 		if !exists {
-			graphNames[info.DisplayName] = id
+			flowNames[info.DisplayName] = id
 		} else {
-			graphNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
+			flowNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
 		}
 	}
-	return graphNames
+	return flowNames
 }
 
 func (h *HostTrigger) MACAddressSuggestions(o *OpFritz) map[string]string {
@@ -53,14 +53,14 @@ func (h *HostTrigger) MACAddressSuggestions(o *OpFritz) map[string]string {
 }
 
 type HostTrigger struct {
-	GraphID    string
+	FlowID     string
 	MACAddress string
 }
 
 func (o *OpFritz) SetHostActiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
-	return o.setTrigger(ctx, args.GraphID, "active:"+args.MACAddress)
+	return o.setTrigger(ctx, args.FlowID, "active:"+args.MACAddress)
 }
 
 func (o *OpFritz) SetHostInactiveTrigger(ctx *base.Context, mainInput *base.OperatorIO, args HostTrigger) *base.OperatorIO {
-	return o.setTrigger(ctx, args.GraphID, "inactive:"+args.MACAddress)
+	return o.setTrigger(ctx, args.FlowID, "inactive:"+args.MACAddress)
 }

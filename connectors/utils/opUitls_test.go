@@ -8,7 +8,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -107,7 +107,7 @@ func TestLogging(t *testing.T) {
 	cr, err := utils.NewConfigReader(logger, path.Join(tdir, "test_config.json"))
 	ctx := base.NewBaseContextWithReason(logger, "")
 	assert.NilError(t, err)
-	ge := freepsgraph.NewGraphEngine(ctx, cr, func() {})
+	ge := freepsflow.NewFlowEngine(ctx, cr, func() {})
 	availableOperators := []base.FreepsOperator{
 		&freepsstore.OpStore{CR: cr, GE: ge},
 		&OpUtils{},

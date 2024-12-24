@@ -34,23 +34,23 @@
         </select>
     </div>
     <div class="col-">
-        <br /> 
+        <br />
         <input type="checkbox" value="true" name="includesilenced" id="includesilenced" {{ if eq $incsil "true" }} checked {{ end }} />
         <label for="includesilenced">Show silenced</label>
         <input type="checkbox" value="true" name="includeexpired" id="includeexpired" {{ if eq $incexp "true" }} checked {{ end }} />
         <label for="includeexpired">Show expired</label>
     </div>
     <div class="col-6">
-        <br /> 
-        <input type="submit" /> 
+        <br />
+        <input type="submit" />
     </div>
 </form>
 </div>
 
 <table>
 <tr><th>Reset</th><th>Category/Name</th><th>Desc</th><th>Sev</th><th>Counter</th><th>Set by</th><th>Active Since</th><th>Expires In</th><th>Silenced</th></tr>
-{{ $alerts := graph_ExecuteOperator "alert" "GetAlerts" $args}}
-{{ range $key, $entry := $alerts.Output }} 
+{{ $alerts := flow_ExecuteOperator "alert" "GetAlerts" $args}}
+{{ range $key, $entry := $alerts.Output }}
     <tr>
         <td><a href="/Alert/ResetAlert?Name={{$entry.Name}}&Category={{$entry.Category}}&redirect={{$.selfURL}}">x</a></td>
         <td><a href="/ui/alerts.html?category={{$entry.Category}}">{{$entry.Category}}</a>.{{$entry.Name}}</td>
@@ -63,7 +63,7 @@
         <td>{{$entry.SilenceDuration}}
             <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=5m&Category={{$entry.Category}}&redirect={{$.selfURL}}">5m</a>
             <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=15m&Category={{$entry.Category}}&redirect={{$.selfURL}}">15m</a>
-            <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=1h&Category={{$entry.Category}}&redirect={{$.selfURL}}">1h</a> 
+            <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=1h&Category={{$entry.Category}}&redirect={{$.selfURL}}">1h</a>
             <a href="/Alert/SilenceAlert?Name={{$entry.Name}}&SilenceDuration=12h&Category={{$entry.Category}}&redirect={{$.selfURL}}">12h</a>
             <a href="/Alert/ResetSilence?Name={{$entry.Name}}&Category={{$entry.Category}}&redirect={{$.selfURL}}">x</a>
         </td>
@@ -71,4 +71,3 @@
 {{ end }}
 
 </table>
-

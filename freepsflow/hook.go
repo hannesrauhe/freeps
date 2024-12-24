@@ -1,4 +1,4 @@
-package freepsgraph
+package freepsflow
 
 import (
 	"reflect"
@@ -8,18 +8,18 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-type GraphEngineHook interface {
+type FlowEngineHook interface {
 	GetName() string
 }
 
 type FreepsExecutionHook interface {
-	OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
-	OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, od *GraphOperationDesc) error
-	OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
+	OnExecute(ctx *base.Context, flowName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
+	OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, flowName string, od *FlowOperationDesc) error
+	OnExecutionFinished(ctx *base.Context, flowName string, mainArgs map[string]string, mainInput *base.OperatorIO) error
 }
 
-type FreepsGraphChangedHook interface {
-	OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error
+type FreepsFlowChangedHook interface {
+	OnFlowChanged(ctx *base.Context, addedFlowName []string, removedFlowName []string) error
 }
 
 type FreepsAlertHook interface {
@@ -31,9 +31,9 @@ type FreepsHookWrapper struct {
 	hookImpl interface{}
 }
 
-var _ GraphEngineHook = &FreepsHookWrapper{}
+var _ FlowEngineHook = &FreepsHookWrapper{}
 var _ FreepsExecutionHook = &FreepsHookWrapper{}
-var _ FreepsGraphChangedHook = &FreepsHookWrapper{}
+var _ FreepsFlowChangedHook = &FreepsHookWrapper{}
 var _ FreepsAlertHook = &FreepsHookWrapper{}
 
 func NewFreepsHookWrapper(hookImpl interface{}) *FreepsHookWrapper {
@@ -49,34 +49,34 @@ func (h *FreepsHookWrapper) GetName() string {
 	return fullName
 }
 
-func (h *FreepsHookWrapper) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
+func (h *FreepsHookWrapper) OnExecute(ctx *base.Context, flowName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
-		return i.OnExecute(ctx, graphName, mainArgs, mainInput)
+		return i.OnExecute(ctx, flowName, mainArgs, mainInput)
 	}
 	return nil
 }
 
-func (h *FreepsHookWrapper) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, od *GraphOperationDesc) error {
+func (h *FreepsHookWrapper) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, flowName string, od *FlowOperationDesc) error {
 	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
-		return i.OnExecuteOperation(ctx, input, opOutput, graphName, od)
+		return i.OnExecuteOperation(ctx, input, opOutput, flowName, od)
 	}
 	return nil
 }
 
-func (h *FreepsHookWrapper) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
+func (h *FreepsHookWrapper) OnExecutionFinished(ctx *base.Context, flowName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	i, ok := h.hookImpl.(FreepsExecutionHook)
 	if ok {
-		return i.OnExecutionFinished(ctx, graphName, mainArgs, mainInput)
+		return i.OnExecutionFinished(ctx, flowName, mainArgs, mainInput)
 	}
 	return nil
 }
 
-func (h *FreepsHookWrapper) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
-	i, ok := h.hookImpl.(FreepsGraphChangedHook)
+func (h *FreepsHookWrapper) OnFlowChanged(ctx *base.Context, addedFlowName []string, removedFlowName []string) error {
+	i, ok := h.hookImpl.(FreepsFlowChangedHook)
 	if ok {
-		return i.OnGraphChanged(ctx, addedGraphName, removedGraphName)
+		return i.OnFlowChanged(ctx, addedFlowName, removedFlowName)
 	}
 	return nil
 }

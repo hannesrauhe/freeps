@@ -1,6 +1,6 @@
 //go:build linux
 
-package freepsgraph
+package freepsflow
 
 import (
 	"net/http"

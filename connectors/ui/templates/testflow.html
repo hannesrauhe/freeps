@@ -1,24 +1,24 @@
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-{{ $requestedGraph := "" }}
-{{ if .arguments.graphname }}
-    {{ $requestedGraph = .arguments.graphname }}
+{{ $requestedFlow := "" }}
+{{ if .arguments.flowname }}
+    {{ $requestedFlow = .arguments.flowname }}
 {{ else }}
-    {{ $requestedGraph = getContextID }}
+    {{ $requestedFlow = getContextID }}
 {{ end }}
-{{ $result := printf "CreateIfMissing=true&graphName=%v" $requestedGraph | graph_ExecuteOperator "graphBuilder" "getgraphfromstore" }}
+{{ $result := printf "CreateIfMissing=true&flowName=%v" $requestedFlow | flow_ExecuteOperator "flowBuilder" "getflowfromstore" }}
 {{ if eq 200 $result.HTTPCode }}
-{{ $graphDesc := $result.Output }}
+{{ $flowDesc := $result.Output }}
 {{ $operationNumber := 0}}
-{{ $operation := index $graphDesc.Operations $operationNumber }}
+{{ $operation := index $flowDesc.Operations $operationNumber }}
 {{ $operator := $operation.Operator }}
 {{ $function := $operation.Function }}
-<div class="container"> 
-    <form method="post" class="row" action="/graphBuilder/SetOperation">        
-        <input type="hidden" name="redirect" value="{{$.selfPath}}?graphName={{$requestedGraph}}">
+<div class="container">
+    <form method="post" class="row" action="/flowBuilder/SetOperation">
+        <input type="hidden" name="redirect" value="{{$.selfPath}}?flowName={{$requestedFlow}}">
         <input type="hidden" name="operationNumber" value="{{$operationNumber}}">
-        <input type="hidden" name="graphName" value="{{$requestedGraph}}">
+        <input type="hidden" name="flowName" value="{{$requestedFlow}}">
         <div class="col">
             <label for="select_operator">Operator:</label>
             <select name="operator" id="select_operator" onchange="this.form.submit()">
@@ -46,8 +46,8 @@
             </details>
         </div>
     </form>
-    <form method="get" class="row" action="/graph/{{$requestedGraph}}">
-{{ range $key, $entry :=  $graphDesc.Operations }}
+    <form method="get" class="row" action="/flow/{{$requestedFlow}}">
+{{ range $key, $entry :=  $flowDesc.Operations }}
         <p>
             <label for="input_{{$entry.Name}}">{{$entry.Name}}</label>
             <input type="text" name="{{$entry.Name}}" id="input_{{$entry.Name}}" value="" />
@@ -58,8 +58,7 @@
 </div>
 {{ else }}
 <div class="container">
-    <h1>Graph {{$requestedGraph}} not loaded</h1>
+    <h1>Flow {{$requestedFlow}} not loaded</h1>
     <p>Error: {{ $result }}</p>
 </div>
 {{ end }}
-

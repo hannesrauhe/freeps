@@ -1,11 +1,11 @@
-package freepsgraph
+package freepsflow
 
 import (
 	"github.com/hannesrauhe/freeps/base"
 )
 
 type DummyOperator struct {
-	GE     *GraphEngine
+	GE     *FlowEngine
 	config DummyConfig
 }
 

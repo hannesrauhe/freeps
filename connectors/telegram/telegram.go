@@ -11,7 +11,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -67,19 +67,19 @@ func (m *OpTelegram) getReplyKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewOneTimeReplyKeyboard(rows...)
 }
 
-func (m *OpTelegram) getCurrentOp(graphName string) (base.FreepsBaseOperator, *freepsgraph.GraphDesc) {
-	graph, err := freepsstore.GetGraph(graphName)
+func (m *OpTelegram) getCurrentOp(flowName string) (base.FreepsBaseOperator, *freepsflow.FlowDesc) {
+	flow, err := freepsstore.GetFlow(flowName)
 	if err != nil {
 		return nil, nil
 	}
-	if graph.Operations == nil || len(graph.Operations) == 0 {
+	if flow.Operations == nil || len(flow.Operations) == 0 {
 		return nil, nil
 	}
-	op := m.GE.GetOperator(graph.Operations[0].Operator)
+	op := m.GE.GetOperator(flow.Operations[0].Operator)
 	if op == nil {
 		return nil, nil
 	}
-	return op, &graph
+	return op, &flow
 }
 
 func (m *OpTelegram) getModButtons() []*ButtonWrapper {
@@ -180,7 +180,7 @@ func (m *OpTelegram) sendMessage(msg *tgbotapi.MessageConfig) {
 }
 
 func (m *OpTelegram) sendStartMessage(msg *tgbotapi.MessageConfig) {
-	freepsstore.DeleteGraph(fmt.Sprint(msg.ChatID))
+	freepsstore.DeleteFlow(fmt.Sprint(msg.ChatID))
 	msg.ReplyMarkup, _ = m.getModKeyboard()
 	m.sendMessage(msg)
 }
@@ -219,7 +219,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			}
 		} else {
 			// inputText contains the mod to use
-			freepsstore.DeleteGraph(fmt.Sprint(chat.ID))
+			freepsstore.DeleteFlow(fmt.Sprint(chat.ID))
 			tcr.P = -1
 			tcr.C = inputText
 		}
@@ -236,8 +236,8 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.sendStartMessage(&msg)
 			return
 		}
-		tpl := freepsgraph.GraphDesc{Operations: []freepsgraph.GraphOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}, UseMainArgs: true}}, Source: "telegram"}
-		freepsstore.StoreGraph(tcr.T, tpl, ctx)
+		tpl := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}, UseMainArgs: true}}, Source: "telegram"}
+		freepsstore.StoreFlow(tcr.T, tpl, ctx)
 		op, gd = m.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + gd.Operations[0].Operator
 		msg.ReplyMarkup, _ = m.getFnKeyboard(&tcr)
@@ -248,7 +248,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.setChatState(ctx, *chat, tcr)
 		} else {
 			gd.Operations[0].Function = tcr.C
-			freepsstore.StoreGraph(tcr.T, *gd, ctx)
+			freepsstore.StoreFlow(tcr.T, *gd, ctx)
 		}
 	}
 
@@ -264,13 +264,13 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 					gd.Operations[0].Arguments = make(map[string]string)
 				}
 				gd.Operations[0].Arguments[args[tcr.P]] = tcr.C
-				freepsstore.StoreGraph(tcr.T, *gd, ctx)
+				freepsstore.StoreFlow(tcr.T, *gd, ctx)
 			}
 			tcr.C = ""
 			tcr.P++
 			if tcr.P >= len(args) {
 				tcr.F = true
-				freepsstore.StoreGraph(tcr.T, *gd, ctx)
+				freepsstore.StoreFlow(tcr.T, *gd, ctx)
 			} else {
 				addVals := ""
 				msg.Text = fmt.Sprintf("Pick a Value for %s (%s/%s)", args[tcr.P], gd.Operations[0].Operator, gd.Operations[0].Function)
@@ -284,12 +284,12 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 	}
 
 	if tcr.F {
-		gd, err := freepsstore.GetGraph(tcr.T)
+		gd, err := freepsstore.GetFlow(tcr.T)
 		if err != nil {
 			msg.Text = err.Error()
 		}
-		m.resetChatState(ctx, *chat) // links the context ID of this chat to the execution of the graph
-		io := m.GE.ExecuteAdHocGraph(ctx, "telegram/"+tcr.T, gd, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+		m.resetChatState(ctx, *chat) // links the context ID of this chat to the execution of the flow
+		io := m.GE.ExecuteAdHocFlow(ctx, "telegram/"+tcr.T, gd, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 		if io.IsError() {
 			msg.Text = fmt.Sprintf("Error when executing operation: %v", io.GetError())
 		} else if utils.StringStartsWith(io.ContentType, "image") {
@@ -309,7 +309,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 				msg.Text = "Empty Result, HTTP code:" + fmt.Sprint(io.GetStatusCode())
 			}
 		}
-		freepsstore.DeleteGraph(tcr.T)
+		freepsstore.DeleteFlow(tcr.T)
 		msg.ReplyMarkup = m.getReplyKeyboard()
 	}
 	m.sendMessage(&msg)

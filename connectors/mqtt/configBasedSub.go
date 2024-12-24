@@ -34,14 +34,14 @@ type TopicConfig struct {
 	FieldIndex       int                    // index that points to the field in the topic-array
 	Fields           map[string]FieldConfig `json:",omitempty"`
 	TemplateToCall   string                 `json:",omitempty"`
-	GraphToCall      string
+	FlowToCall       string
 }
 
 func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic string) {
 	input := base.MakeByteOutput(message)
-	graphName := tc.GraphToCall
-	if graphName == "" {
-		graphName = tc.TemplateToCall
+	flowName := tc.FlowToCall
+	if flowName == "" {
+		flowName = tc.TemplateToCall
 	}
 
 	// rather complicated logic that was introduced to push to Influx
@@ -79,6 +79,6 @@ func (fm *FreepsMqttImpl) processMessage(tc TopicConfig, message []byte, topic s
 		}
 	}
 	ctx := base.CreateContextWithField(fm.ctx, "component", "mqtt", "MQTT topic: "+topic)
-	out := fm.ge.ExecuteGraph(ctx, graphName, base.NewSingleFunctionArgument("topic", topic), input)
+	out := fm.ge.ExecuteFlow(ctx, flowName, base.NewSingleFunctionArgument("topic", topic), input)
 	fm.publishResult(topic, ctx, out)
 }

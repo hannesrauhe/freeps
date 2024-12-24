@@ -10,7 +10,7 @@ import (
 	"time"
 
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 
@@ -31,7 +31,7 @@ const PollDuration = time.Minute
 
 type OpFritz struct {
 	CR                *utils.ConfigReader
-	GE                *freepsgraph.GraphEngine
+	GE                *freepsflow.FlowEngine
 	name              string
 	fl                *freepslib.Freeps
 	fc                *freepslib.FBconfig
@@ -52,6 +52,9 @@ func (o *OpFritz) GetDefaultConfig() interface{} {
 // InitCopyOfOperator creates a copy of the operator
 func (o *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	cfg := config.(*freepslib.FBconfig)
+	if cfg.Address == "" {
+		return nil, fmt.Errorf("no address given in config")
+	}
 	f, err := freepslib.NewFreepsLibWithLogger(cfg, ctx.GetLogger())
 	op := &OpFritz{CR: o.CR, GE: o.GE, name: name, fl: f, fc: cfg}
 	return op, err

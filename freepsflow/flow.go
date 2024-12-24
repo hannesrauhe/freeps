@@ -1,4 +1,4 @@
-package freepsgraph
+package freepsflow
 
 import (
 	"errors"
@@ -12,66 +12,66 @@ import (
 )
 
 const ROOT_SYMBOL = "_"
-const GraphTimeout = time.Minute * 2
-const GraphOperationTimeout = time.Minute
+const FlowTimeout = time.Minute * 2
+const FlowOperationTimeout = time.Minute
 
-// Graph is the instance created from a GraphDesc and contains the runtime data
-type Graph struct {
-	desc      *GraphDesc
-	engine    *GraphEngine
+// Flow is the instance created from a FlowDesc and contains the runtime data
+type Flow struct {
+	desc      *FlowDesc
+	engine    *FlowEngine
 	opOutputs map[string]*base.OperatorIO
 }
 
-// NewGraph creates a new graph from a graph description
-func NewGraph(ctx *base.Context, graphID string, origGraphDesc *GraphDesc, ge *GraphEngine) (*Graph, error) {
-	if origGraphDesc == nil {
-		return nil, errors.New("GraphDesc not set")
+// NewFlow creates a new flow from a flow description
+func NewFlow(ctx *base.Context, flowID string, origFlowDesc *FlowDesc, ge *FlowEngine) (*Flow, error) {
+	if origFlowDesc == nil {
+		return nil, errors.New("FlowDesc not set")
 	}
-	gd, err := origGraphDesc.GetCompleteDesc(graphID, ge)
+	gd, err := origFlowDesc.GetCompleteDesc(flowID, ge)
 	if err != nil {
 		return nil, err
 	}
-	g := Graph{desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}
+	g := Flow{desc: gd, engine: ge, opOutputs: make(map[string]*base.OperatorIO)}
 	return &g, nil
 }
 
-// GetCompleteDesc returns the GraphDesc that was sanitized and completed when creating the graph
-func (g *Graph) GetCompleteDesc() *GraphDesc {
+// GetCompleteDesc returns the FlowDesc that was sanitized and completed when creating the flow
+func (g *Flow) GetCompleteDesc() *FlowDesc {
 	return g.desc
 }
 
-// GetGraphID returns the unique ID for this graph in the graph engine
-func (g *Graph) GetGraphID() string {
-	return g.desc.GraphID
+// GetFlowID returns the unique ID for this flow in the flow engine
+func (g *Flow) GetFlowID() string {
+	return g.desc.FlowID
 }
 
-func (g *Graph) GetOperationTimeout() time.Duration {
+func (g *Flow) GetOperationTimeout() time.Duration {
 	ds := g.desc.GetTagValue("operationTimeout")
 	d, err := time.ParseDuration(ds)
 	if ds == "" || err != nil {
-		return GraphOperationTimeout
+		return FlowOperationTimeout
 	}
 	return d
 }
 
-func (g *Graph) GetTimeout() time.Duration {
-	ds := g.desc.GetTagValue("graphTimeout")
+func (g *Flow) GetTimeout() time.Duration {
+	ds := g.desc.GetTagValue("flowTimeout")
 	d, err := time.ParseDuration(ds)
 	if ds == "" || err != nil {
-		return GraphTimeout
+		return FlowTimeout
 	}
 	return d
 }
 
-func (g *Graph) executeSync(parentCtx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
-	g.engine.metrics.GraphExecutions++
-	ctx := parentCtx.ChildContextWithField("graph", g.desc.GraphID)
+func (g *Flow) executeSync(parentCtx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	g.engine.metrics.FlowExecutions++
+	ctx := parentCtx.ChildContextWithField("flow", g.desc.FlowID)
 	if g.desc.HasAllTags([]string{"debuglogging"}) {
 		prevLevel := ctx.EnableDebugLogging()
 		defer ctx.DisableDebugLogging(prevLevel)
 	}
-	ctx.GetLogger().Debugf("Executing graph \"%s\"(\"%s\") with arguments \"%v\"", g.desc.GraphID, g.desc.DisplayName, mainArgs)
-	defer ctx.GetLogger().Debugf("Graph \"%s\" finished", g.desc.GraphID)
+	ctx.GetLogger().Debugf("Executing flow \"%s\"(\"%s\") with arguments \"%v\"", g.desc.FlowID, g.desc.DisplayName, mainArgs)
+	defer ctx.GetLogger().Debugf("Flow \"%s\" finished", g.desc.FlowID)
 
 	g.opOutputs[ROOT_SYMBOL] = mainInput
 	logger := ctx.GetLogger()
@@ -92,12 +92,12 @@ func (g *Graph) executeSync(parentCtx *base.Context, mainArgs base.FunctionArgum
 		logger.Errorf("Output from \"%s\" not found", g.desc.OutputFrom)
 		return base.MakeObjectOutput(g.opOutputs)
 	}
-	graphOutput := g.opOutputs[g.desc.OutputFrom]
-	ctx.GetLogger().Debugf("Graph \"%s\" finished with output \"%v\"", g.desc.DisplayName, graphOutput.ToString())
-	return graphOutput
+	flowOutput := g.opOutputs[g.desc.OutputFrom]
+	ctx.GetLogger().Debugf("Flow \"%s\" finished with output \"%v\"", g.desc.DisplayName, flowOutput.ToString())
+	return flowOutput
 }
 
-func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+func (g *Flow) execute(pctx *base.Context, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	if g.GetTimeout() == 0 {
 		return g.executeSync(pctx, mainArgs, mainInput)
 	}
@@ -115,23 +115,23 @@ func (g *Graph) execute(pctx *base.Context, mainArgs base.FunctionArguments, mai
 	select {
 	case <-ctx.Done():
 		alertExpire := 5 * time.Minute
-		output = base.MakeOutputError(http.StatusGatewayTimeout, "Timeout after %v when executing graph \"%v\" with arguments \"%v\"", time.Now().Sub(startTime), g.desc.DisplayName, mainArgs)
-		g.engine.SetSystemAlert(pctx, fmt.Sprintf("graphTimeout.%s", g.desc.GraphID), "system", 2, output.GetError(), &alertExpire)
+		output = base.MakeOutputError(http.StatusGatewayTimeout, "Timeout after %v when executing flow \"%v\" with arguments \"%v\"", time.Now().Sub(startTime), g.desc.DisplayName, mainArgs)
+		g.engine.SetSystemAlert(pctx, fmt.Sprintf("flowTimeout.%s", g.desc.FlowID), "system", 2, output.GetError(), &alertExpire)
 	case output = <-c:
 	}
 
 	return output
 }
 
-func (g *Graph) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *GraphOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
+func (g *Flow) collectAndReturnOperationError(ctx *base.Context, input *base.OperatorIO, opDesc *FlowOperationDesc, code int, msg string, a ...interface{}) *base.OperatorIO {
 	ctx.GetLogger().Debugf("Operation \"%s\" failed with error \"%s\"", opDesc.Name, fmt.Sprintf(msg, a...))
 	error := base.MakeOutputError(code, msg, a...)
-	g.engine.TriggerOnExecuteOperationHooks(ctx, input, error, g.GetGraphID(), opDesc)
+	g.engine.TriggerOnExecuteOperationHooks(ctx, input, error, g.GetFlowID(), opDesc)
 	return error
 }
 
 // replaceVariablesInArgs replaces variables of the form ${varName} in plainArgs with the values from the opOutputs
-func (g *Graph) replaceVariablesInArgs(plainArgs map[string]string) (map[string]string, error) {
+func (g *Flow) replaceVariablesInArgs(plainArgs map[string]string) (map[string]string, error) {
 	r := make(map[string]string)
 
 	if plainArgs == nil {
@@ -176,7 +176,7 @@ func (g *Graph) replaceVariablesInArgs(plainArgs map[string]string) (map[string]
 	return r, returnErr
 }
 
-func (g *Graph) executeOperation(parentCtx *base.Context, originalOpDesc *GraphOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
+func (g *Flow) executeOperation(parentCtx *base.Context, originalOpDesc *FlowOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
 	g.engine.metrics.OperationExecutions++
 	ctx := parentCtx.ChildContextWithField("operation", originalOpDesc.Name)
 	logger := ctx.GetLogger()
@@ -196,7 +196,7 @@ func (g *Graph) executeOperation(parentCtx *base.Context, originalOpDesc *GraphO
 		return base.MakeOutputError(http.StatusExpectationFailed, "Operation not executed because \"%v\" did not fail", originalOpDesc.ExecuteOnFailOf)
 	}
 
-	finalOpDesc := &GraphOperationDesc{}
+	finalOpDesc := &FlowOperationDesc{}
 	*finalOpDesc = *originalOpDesc
 	var err error
 	finalOpDesc.Arguments, err = g.replaceVariablesInArgs(originalOpDesc.Arguments)
@@ -240,13 +240,13 @@ func (g *Graph) executeOperation(parentCtx *base.Context, originalOpDesc *GraphO
 		defer ctx.GetLogger().Debugf("Operation \"%s\" finished", originalOpDesc.Name)
 
 		output := g.executeOperationWithOptionalTimeout(ctx, op, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
-		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetGraphID(), finalOpDesc)
+		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetFlowID(), finalOpDesc)
 		return output
 	}
 	return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "No operator with name \"%s\" found", finalOpDesc.Operator)
 }
 
-func (g *Graph) executeOperationWithOptionalTimeout(parentCtx *base.Context, op base.FreepsBaseOperator, fn string, mainArgs base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+func (g *Flow) executeOperationWithOptionalTimeout(parentCtx *base.Context, op base.FreepsBaseOperator, fn string, mainArgs base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
 	fnctx := parentCtx.ChildContextWithField("op-fn", op.GetName()+"/"+fn)
 	if g.GetOperationTimeout() == 0 {
 		return op.Execute(fnctx, fn, mainArgs, input)

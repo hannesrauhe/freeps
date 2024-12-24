@@ -1,4 +1,4 @@
-package freepsgraph
+package freepsflow
 
 import (
 	"context"
@@ -10,13 +10,13 @@ import (
 )
 
 type OpSystem struct {
-	ge     *GraphEngine
+	ge     *FlowEngine
 	cancel context.CancelFunc
 }
 
 var _ base.FreepsBaseOperator = &OpSystem{}
 
-func NewSytemOp(ge *GraphEngine, cancel context.CancelFunc) *OpSystem {
+func NewSytemOp(ge *FlowEngine, cancel context.CancelFunc) *OpSystem {
 	return &OpSystem{ge: ge, cancel: cancel}
 }
 
@@ -39,17 +39,11 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 		o.ge.reloadRequested = true
 		o.cancel()
 		return base.MakeEmptyOutput()
-	case "getGraph", "getGraphDesc", "GetGraphDesc":
-		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "getGraph", base.NewSingleFunctionArgument("graphName", args["name"]), base.MakeEmptyOutput())
-	case "deleteGraph":
-		return o.ge.ExecuteOperatorByName(ctx, "graphbuilder", "deleteGraph", base.NewSingleFunctionArgument("graphName", args["name"]), base.MakeEmptyOutput())
-	case "toDot":
-		g, out := o.ge.prepareGraphExecution(ctx, args["name"])
-		if out.IsError() {
-			return out
-		}
-		return base.MakeByteOutput(g.ToDot(ctx))
-	case "GetGraphDescByTag":
+	case "getFlow", "getFlowDesc", "GetFlowDesc":
+		return o.ge.ExecuteOperatorByName(ctx, "flowbuilder", "getFlow", base.NewSingleFunctionArgument("flowName", args["name"]), base.MakeEmptyOutput())
+	case "deleteFlow":
+		return o.ge.ExecuteOperatorByName(ctx, "flowbuilder", "deleteFlow", base.NewSingleFunctionArgument("flowName", args["name"]), base.MakeEmptyOutput())
+	case "GetFlowDescByTag":
 		tags := []string{}
 		if _, ok := args["tags"]; ok {
 			tags = strings.Split(args["tags"], ",")
@@ -57,9 +51,9 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 		if args["tag"] != "" {
 			tags = append(tags, args["tag"])
 		}
-		gim := o.ge.GetGraphDescByTag(tags)
+		gim := o.ge.GetFlowDescByTag(tags)
 		if gim == nil || len(gim) == 0 {
-			return base.MakeOutputError(http.StatusNotFound, "No graphs with tags %v", strings.Join(tags, ","))
+			return base.MakeOutputError(http.StatusNotFound, "No flows with tags %v", strings.Join(tags, ","))
 		}
 		return base.MakeObjectOutput(gim)
 
@@ -79,18 +73,18 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getGraphDesc", "getGraphInfo", "getGraphDescByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteGraph", "version", "metrics", "noop"}
+	return []string{"shutdown", "reload", "stats", "getFlowDesc", "getFlowInfo", "getFlowDescByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteFlow", "version", "metrics", "noop"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
 	switch fn {
 	case "stats":
 		return []string{"statType"}
-	case "getGraphDesc":
+	case "getFlowDesc":
 		return []string{"name"}
-	case "GetGraphDesc":
+	case "GetFlowDesc":
 		return []string{"name"}
-	case "GetGraphDescByTag":
+	case "GetFlowDescByTag":
 		return []string{"tags", "tag"}
 	case "getCollectedErrors":
 		return []string{"duration"}
@@ -98,7 +92,7 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 		return []string{"name"}
 	case "contextToDot":
 		return []string{}
-	case "deleteGraph":
+	case "deleteFlow":
 		return []string{"name"}
 	}
 	return []string{"name"}
@@ -106,12 +100,12 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 
 func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
 	if arg == "name" {
-		agd := o.ge.GetAllGraphDesc()
-		graphs := map[string]string{}
+		agd := o.ge.GetAllFlowDesc()
+		flows := map[string]string{}
 		for n := range agd {
-			graphs[n] = n
+			flows[n] = n
 		}
-		return graphs
+		return flows
 	}
 	switch fn {
 	case "stats":
@@ -126,19 +120,19 @@ func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string
 				"uptime":  "uptime",
 			}
 		}
-	case "getGraphDesc":
+	case "getFlowDesc":
 		fallthrough
-	case "GetGraphDesc":
+	case "GetFlowDesc":
 		switch arg {
 		case "name":
-			agd := o.ge.GetAllGraphDesc()
-			graphs := make(map[string]string)
+			agd := o.ge.GetAllFlowDesc()
+			flows := make(map[string]string)
 			for n := range agd {
-				graphs[n] = n
+				flows[n] = n
 			}
-			return graphs
+			return flows
 		}
-	case "GetGraphDescByTag":
+	case "GetFlowDescByTag":
 		switch arg {
 		case "tag":
 			tags := o.ge.GetTags()

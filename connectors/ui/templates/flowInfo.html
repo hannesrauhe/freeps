@@ -1,0 +1,41 @@
+<link rel="stylesheet" href="/chota.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+{{ $requestedTag := "" }}
+{{ if .arguments.tag }}
+    {{ $requestedTag = .arguments.tag }}
+{{ end }}
+<div class="container">
+    <form method="GET" action="/ui/flowInfo.html"  class="row">
+        Tags: <select name="tag" onChange="this.form.submit()">
+            <option value="">All flows</option>
+        {{ range $tag, $array := flow_GetTagMap }}
+
+            {{ if gt (len $array) 0 }}
+            <optgroup label="{{ $tag }}">
+            {{ end }}
+                <option value="{{ $tag }}" {{if eq $tag $requestedTag}}selected{{end}} >{{ $tag }}</option>
+            {{ range $i, $value := $array }}
+                <option value="{{ $tag }}:{{ $value }}">{{ $tag }}:{{ $value }}</option>
+            {{ end }}
+            {{ if gt (len $array) 0 }}
+            </optgroup>
+            {{ end }}
+        {{ end }}
+        </select>
+    </form>
+    <div class="row">
+        <table>
+        <tr><th>Flow</th><th>Actions</th><th>Tags</th></tr>
+            {{ range $flowName, $info := flow_GetFlowSortedByNamesByTag $requestedTag }}
+            {{ $flowID := $info.FlowID }}
+            <tr><td> <a href="/flow/{{ $flowID }}">{{ $flowName }}</a> </td>
+                <td><a href="/flow/{{ $flowID }}" target="outputframe">Execute</a>, <a href="/ui/edit?flow={{ $flowID }}">Edit</a>, <a href="/flowBuilder/deleteFlow?flowID={{ $flowID }}&redirect={{$.selfURL}}" >Delete</a></td>
+                <td>{{ range $index, $t := $info.Tags }} <a href="/ui/flowInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
+            {{ end }}
+        </table>
+    <div>
+    <iframe name="outputframe" style="min-width: 500px; height:500px; display:flex; margin:0; padding:0; resize:both; overflow:hidden" id="outputframe"></iframe>
+    </div>
+
+</div>

@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/sstallion/go-hid"
 )
 
 // MuteMe implements the FreepsOperator interface to control the MuteMe button
 type MuteMe struct {
-	GE           *freepsgraph.GraphEngine
+	GE           *freepsflow.FlowEngine
 	config       MuteMeConfig
 	dev          *hid.Device
 	currentColor atomic.Value

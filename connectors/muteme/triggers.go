@@ -10,55 +10,55 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 )
 
-func (mm *MuteMe) setTrigger(ctx *base.Context, graphId string, tags ...string) *base.OperatorIO {
-	gd, found := mm.GE.GetGraphDesc(graphId)
+func (mm *MuteMe) setTrigger(ctx *base.Context, flowId string, tags ...string) *base.OperatorIO {
+	gd, found := mm.GE.GetFlowDesc(flowId)
 	if !found {
-		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", graphId)
+		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find flow: %v", flowId)
 	}
 
 	gd.AddTags(mm.config.Tag)
 	gd.AddTags(tags...)
-	err := mm.GE.AddGraph(ctx, graphId, *gd, true)
+	err := mm.GE.AddFlow(ctx, flowId, *gd, true)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify flow: %v", err)
 	}
 
 	return base.MakeEmptyOutput()
 }
 
 type TouchTrigger struct {
-	GraphID string
+	FlowID string
 }
 
-// GraphIDSuggestions returns suggestions for graph names
-func (mm *MuteMe) GraphIDSuggestions() map[string]string {
-	graphNames := map[string]string{}
-	res := mm.GE.GetAllGraphDesc()
+// FlowIDSuggestions returns suggestions for flow names
+func (mm *MuteMe) FlowIDSuggestions() map[string]string {
+	flowNames := map[string]string{}
+	res := mm.GE.GetAllFlowDesc()
 	for id, gd := range res {
 		info, _ := gd.GetCompleteDesc(id, mm.GE)
-		_, exists := graphNames[info.DisplayName]
+		_, exists := flowNames[info.DisplayName]
 		if !exists {
-			graphNames[info.DisplayName] = id
+			flowNames[info.DisplayName] = id
 		} else {
-			graphNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
+			flowNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
 		}
 	}
-	return graphNames
+	return flowNames
 }
 
 // SetTouchTrigger
 func (mm *MuteMe) SetTouchTrigger(ctx *base.Context, mainInput *base.OperatorIO, args TouchTrigger) *base.OperatorIO {
-	return mm.setTrigger(ctx, args.GraphID, mm.config.TouchTag)
+	return mm.setTrigger(ctx, args.FlowID, mm.config.TouchTag)
 }
 
 // SetMultiTouchTrigger
 func (mm *MuteMe) SetMultiTouchTrigger(ctx *base.Context, mainInput *base.OperatorIO, args TouchTrigger) *base.OperatorIO {
-	return mm.setTrigger(ctx, args.GraphID, mm.config.MultiTouchTag)
+	return mm.setTrigger(ctx, args.FlowID, mm.config.MultiTouchTag)
 }
 
 // SetLongTouchTrigger
 func (mm *MuteMe) SetLongTouchTrigger(ctx *base.Context, mainInput *base.OperatorIO, args TouchTrigger) *base.OperatorIO {
-	return mm.setTrigger(ctx, args.GraphID, mm.config.LongTouchTag)
+	return mm.setTrigger(ctx, args.FlowID, mm.config.LongTouchTag)
 }
 
 func (mm *MuteMe) execTriggers(parentCtx *base.Context, touchDuration time.Duration, lastTouchDuration time.Duration, lastTouchCounter int) *base.OperatorIO {
@@ -79,5 +79,5 @@ func (mm *MuteMe) execTriggers(parentCtx *base.Context, touchDuration time.Durat
 		}
 		args.Append("TouchDuration", lastTouchDuration.String())
 	}
-	return mm.GE.ExecuteGraphByTags(ctx, tags, args, base.MakeEmptyOutput())
+	return mm.GE.ExecuteFlowByTags(ctx, tags, args, base.MakeEmptyOutput())
 }

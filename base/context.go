@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Context keeps the runtime data of a graph execution tree
+// Context keeps the runtime data of a flow execution tree
 type Context struct {
 	UUID       uuid.UUID
 	Reason     string

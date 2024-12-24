@@ -3,7 +3,7 @@
 <div style="float: left; max-width: 500px">
 	<input type="hidden" name="selectednumop" value="{{ .Numop }}" />
 
-	{{ $op := (index .GraphDesc.Operations $.Numop) }}
+	{{ $op := (index .FlowDesc.Operations $.Numop) }}
 	<input type="hidden" name="opName" value="{{ $op.Name }}" onChange="this.form.submit()" />
 	<p>
 		<h4>Operator:</h4>
@@ -43,19 +43,19 @@
 	<p>
 		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
 	</p>
-	{{ if eq $op.Operator "graph" }}
+	{{ if eq $op.Operator "flow" }}
 	<p>
-		Edit Graph {{ $op.Function }}: <a href="/ui/editGraph?graph={{ $op.Function }}">{{ $op.Function }}</a>
+		Edit Flow {{ $op.Function }}: <a href="/ui/editFlow?flow={{ $op.Function }}">{{ $op.Function }}</a>
 	</p>
 	{{ end }}
 </div>
 
-	<input type="hidden" name="GraphJSON" value="{{ .GraphJSON }}">
+	<input type="hidden" name="FlowJSON" value="{{ .FlowJSON }}">
 
 	<div style="clear: both">
 		<button type="submit" name="Execute" value="Execute">Execute</button>
-		<button type="submit" name="GraphJSON" value="" />Reset</button>
-	</div>	
+		<button type="submit" name="FlowJSON" value="" />Reset</button>
+	</div>
 </form>
 <hr />
 <form action="{{ .Quicklink }}" method="POST" target="outputframe">
@@ -67,7 +67,7 @@
 
 	<p>
 		<label for="textarea_input">Input: </label>
-		<textarea id="textarea_input" name="input" cols="50" rows="10" >{{ printf "GraphInput:%v" $op.Function | store_Get "_debug" }}</textarea>
+		<textarea id="textarea_input" name="input" cols="50" rows="10" >{{ printf "FlowInput:%v" $op.Function | store_Get "_debug" }}</textarea>
 	</p>
 	<p>
 		<label for="input_input_content-type">Content-Type (optional):</label>
@@ -76,8 +76,8 @@
 	</p>
 </form>
 
-{{ if ne .GraphName "" }}
-<a href="/ui/store.html?namespace=_execution_log&modifiedby={{ .GraphName }}">{{ .GraphName }}</a>
+{{ if ne .FlowName "" }}
+<a href="/ui/store.html?namespace=_execution_log&modifiedby={{ .FlowName }}">{{ .FlowName }}</a>
 {{ end }}
 {{ if ne .Output "" }}
 <iframe name="outputframe"

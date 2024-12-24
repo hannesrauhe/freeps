@@ -6,6 +6,6 @@ type HTTPConfig struct {
 	Port int `json:"port"`
 	// enablePprof enables pprof on the given port
 	EnablePprof bool `json:"enablePprof"`
-	// Graph processing timeout in seconds
-	GraphProcessingTimeout int `json:"graphProcessingTimeout"`
+	// Flow processing timeout in seconds
+	FlowProcessingTimeout int `json:"flowProcessingTimeout"`
 }

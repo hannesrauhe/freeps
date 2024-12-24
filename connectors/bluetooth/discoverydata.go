@@ -13,7 +13,7 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
 
-// DiscoveryData is the reduced set of information of Device properties send as input to graphs
+// DiscoveryData is the reduced set of information of Device properties send as input to flows
 type DiscoveryData struct {
 	Alias            string
 	Address          string

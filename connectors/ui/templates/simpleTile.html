@@ -4,7 +4,7 @@
 <header><h4>{{ .status }}</h4></header>
 {{range $text, $execute := .buttons}}
 <form method="post" style="display:inline">
-  <input type="hidden" name="ExecuteGraph" value="{{$execute}}" >
+  <input type="hidden" name="ExecuteFlow" value="{{$execute}}" >
   <button name="{{$text}}" value="{{$execute}}" class={{if eq $.status_error $execute}} "button error" {{else if eq $.status_ok $execute}}"button success" {{else}} "button" {{end}}>{{$text}}</button>
 </form>
 {{end}}

@@ -9,14 +9,14 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 // OpAlert is a FreepsOperator that can be used to retrieve and modify the config
 type OpAlert struct {
 	CR                *utils.ConfigReader
-	GE                *freepsgraph.GraphEngine
+	GE                *freepsflow.FlowEngine
 	config            AlertConfig
 	severityOverrides utils.CIMap[int]
 }

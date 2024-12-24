@@ -8,7 +8,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -18,7 +18,7 @@ type ChatState struct {
 }
 
 type OpTelegram struct {
-	GE          *freepsgraph.GraphEngine
+	GE          *freepsflow.FlowEngine
 	tgc         TelegramConfig
 	lastMessage int
 	closeChan   chan int

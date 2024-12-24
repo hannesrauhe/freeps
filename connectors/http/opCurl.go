@@ -9,13 +9,13 @@ import (
 	"path"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpCurl struct {
 	CR       *utils.ConfigReader
-	GE       *freepsgraph.GraphEngine
+	GE       *freepsflow.FlowEngine
 	Config   HTTPConfig
 	listener *FreepsHttpListener
 }
@@ -26,9 +26,9 @@ var _ base.FreepsOperatorWithConfig = &OpCurl{}
 // GetDefaultConfig returns the default config for the http connector
 func (o *OpCurl) GetDefaultConfig() interface{} {
 	return &HTTPConfig{
-		Port:                   8080,
-		EnablePprof:            false,
-		GraphProcessingTimeout: 120,
+		Port:                  8080,
+		EnablePprof:           false,
+		FlowProcessingTimeout: 120,
 	}
 }
 

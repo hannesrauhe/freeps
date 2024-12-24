@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -287,7 +287,7 @@ func (o *OpExec) GetHook() interface{} {
 }
 
 // AddExecOperators adds executables to the config
-func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngine) error {
+func AddExecOperators(cr *utils.ConfigReader, flowEngine *freepsflow.FlowEngine) error {
 	execConfig := DefaultConfig
 	err := cr.ReadSectionWithDefaults("executables", &execConfig)
 	if err != nil {
@@ -298,7 +298,7 @@ func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngi
 		log.Print(err)
 	}
 	for name, config := range execConfig.Programs {
-		if graphEngine.HasOperator(name) {
+		if flowEngine.HasOperator(name) {
 			log.Errorf("Cannot add executable Operator %v, an operator with that name already exists", name)
 			continue
 		}
@@ -312,7 +312,7 @@ func AddExecOperators(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngi
 			config.DefaultEnv = map[string]string{}
 		}
 		o := &OpExec{config, name, make(chan error), nil, sync.Mutex{}, bytes.Buffer{}}
-		graphEngine.AddOperator(o)
+		flowEngine.AddOperator(o)
 	}
 	return nil
 }

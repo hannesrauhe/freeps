@@ -11,7 +11,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -98,53 +98,53 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 		"ge_GetOperators": func() []string {
 			return o.ge.GetOperators()
 		},
-		"graph_GetGraphDescByTag": func(tagstr string) map[string]freepsgraph.GraphDesc {
+		"flow_GetFlowDescByTag": func(tagstr string) map[string]freepsflow.FlowDesc {
 			tags := []string{}
 			if tagstr != "" {
 				tags = strings.Split(tagstr, ",")
 			}
-			return o.ge.GetGraphDescByTag(tags)
+			return o.ge.GetFlowDescByTag(tags)
 		},
-		"graph_GetGraphSortedByNamesByTag": func(tagstr string) map[string]freepsgraph.GraphDesc {
-			graphByName := map[string]freepsgraph.GraphDesc{}
+		"flow_GetFlowSortedByNamesByTag": func(tagstr string) map[string]freepsflow.FlowDesc {
+			flowByName := map[string]freepsflow.FlowDesc{}
 			tags := []string{}
 			if tagstr != "" {
 				tags = strings.Split(tagstr, ",")
 			}
-			graphByID := o.ge.GetGraphDescByTag(tags)
-			for graphID, v := range graphByID {
-				name := graphID
-				gd, err := v.GetCompleteDesc(graphID, o.ge)
+			flowByID := o.ge.GetFlowDescByTag(tags)
+			for flowID, v := range flowByID {
+				name := flowID
+				gd, err := v.GetCompleteDesc(flowID, o.ge)
 				if err != nil {
-					name = graphID + " (Error: " + err.Error() + ")"
+					name = flowID + " (Error: " + err.Error() + ")"
 				} else {
 					name = gd.DisplayName
 				}
-				// add name to graph, if duplicate add id
-				if _, ok := graphByName[name]; ok {
-					graphByName[fmt.Sprintf("%v (ID: %v)", name, graphID)] = *gd
+				// add name to flow, if duplicate add id
+				if _, ok := flowByName[name]; ok {
+					flowByName[fmt.Sprintf("%v (ID: %v)", name, flowID)] = *gd
 				} else {
-					graphByName[name] = *gd
+					flowByName[name] = *gd
 				}
 
 			}
-			return graphByName
+			return flowByName
 		},
-		"graph_ExecuteGraph": func(graphName string, mainArgsStr string) *base.OperatorIO {
+		"flow_ExecuteFlow": func(flowName string, mainArgsStr string) *base.OperatorIO {
 			mainArgs, err := utils.URLParseQuery(mainArgsStr)
 			if err != nil {
 				return base.MakeOutputError(400, "Could not parse mainArgs: %v", err)
 			}
-			return o.ge.ExecuteGraph(ctx, graphName, base.NewFunctionArguments(mainArgs), base.MakeEmptyOutput())
+			return o.ge.ExecuteFlow(ctx, flowName, base.NewFunctionArguments(mainArgs), base.MakeEmptyOutput())
 		},
-		"graph_ExecuteOperator": func(op string, fn string, mainArgsStr string) *base.OperatorIO {
+		"flow_ExecuteOperator": func(op string, fn string, mainArgsStr string) *base.OperatorIO {
 			mainArgs, err := utils.URLParseQuery(mainArgsStr)
 			if err != nil {
 				return base.MakeOutputError(400, "Could not parse mainArgs: %v", err)
 			}
 			return o.ge.ExecuteOperatorByName(ctx, op, fn, base.NewFunctionArguments(mainArgs), base.MakeEmptyOutput())
 		},
-		"graph_GetTagMap": func() map[string][]string {
+		"flow_GetTagMap": func() map[string][]string {
 			return o.ge.GetTagMap()
 		},
 		"operator_GetFunctions": func(opName string) []string {

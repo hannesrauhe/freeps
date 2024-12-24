@@ -1,6 +1,6 @@
 package base
 
-// FreepsBaseOperator provides the interface for all operators used by the graph module
+// FreepsBaseOperator provides the interface for all operators used by the flow module
 // Operators can either implement this interface directly or use MakeFreepsOperator to convert a struct into an operator
 type FreepsBaseOperator interface {
 	Execute(ctx *Context, fn string, mainArgs FunctionArguments, mainInput *OperatorIO) *OperatorIO
@@ -45,9 +45,9 @@ type FreepsOperatorWithConfig interface {
 // FreepsOperatorWithShutdown adds the Shutdown() method to FreepsOperatorWithConfig
 type FreepsOperatorWithShutdown interface {
 	FreepsOperator
-	// StartListening is called when the graph engine is starting up
+	// StartListening is called when the flow engine is starting up
 	StartListening(ctx *Context)
-	// Shutdown is called when the graph engine is shutting down
+	// Shutdown is called when the flow engine is shutting down
 	Shutdown(ctx *Context)
 }
 
