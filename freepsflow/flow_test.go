@@ -136,7 +136,7 @@ func TestFlowStorage(t *testing.T) {
 	ge := NewFlowEngine(ctx, cr, func() {})
 
 	// expect embedded flows to be loaded
-	assert.Equal(t, len(ge.GetAllFlowDesc()), 3)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 2)
 
 	gdir := ge.GetFlowDir()
 	err = ge.AddFlow(ctx, "test1", createValidFlow(), false)
@@ -148,18 +148,18 @@ func TestFlowStorage(t *testing.T) {
 	assert.Assert(t, exists)
 	assert.Equal(t, eg.Source, "test")
 
-	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 3)
 
 	err = ge.AddFlow(ctx, "test2", createValidFlow(), false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "test2.json"))
 	assert.NilError(t, err)
-	assert.Equal(t, len(ge.GetAllFlowDesc()), 5)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
 
 	g := createValidFlow()
 	err = ge.AddFlow(ctx, "test2", g, false)
 	assert.ErrorContains(t, err, "already exists")
-	assert.Equal(t, len(ge.GetAllFlowDesc()), 5)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
 
 	g = createValidFlow()
 	err = ge.AddFlow(ctx, "test2", g, true)
@@ -170,7 +170,7 @@ func TestFlowStorage(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "Test2.json"))
 	assert.NilError(t, err)
-	assert.Equal(t, len(ge.GetAllFlowDesc()), 6)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 5)
 
 	gdNocap, err := ge.GetCompleteFlowDesc("test2")
 	assert.NilError(t, err)
@@ -185,11 +185,11 @@ func TestFlowStorage(t *testing.T) {
 	_, err = ge.DeleteFlow(ctx, "test2")
 	_, exists = ge.GetFlowDesc("test2")
 	assert.Assert(t, !exists)
-	assert.Equal(t, len(ge.GetAllFlowDesc()), 5)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
 
 	_, err = ge.DeleteFlow(ctx, "test1")
 	assert.NilError(t, err)
-	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 3)
 	_, err = os.Stat(path.Join(gdir, "test2.json"))
 	assert.Assert(t, err != nil)
 }
