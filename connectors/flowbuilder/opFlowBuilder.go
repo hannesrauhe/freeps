@@ -21,7 +21,7 @@ type FlowFromEngineArgs struct {
 }
 
 // FlowIDsuggestions returns suggestions for flow names
-func (arg *FlowFromEngineArgs) Flowidsuggestions(m *OpFlowBuilder) map[string]string {
+func (arg *FlowFromEngineArgs) FlowidSuggestions(m *OpFlowBuilder) map[string]string {
 	flowNames := map[string]string{}
 	res := m.GE.GetAllFlowDesc()
 	for id, gd := range res {
