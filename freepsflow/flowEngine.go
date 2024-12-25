@@ -464,7 +464,7 @@ func (ge *FlowEngine) addFlowUnderLock(ctx *base.Context, flowName string, gd Fl
 	oldFlow, ok := ge.flows[flowName]
 	if ok {
 		if overwrite {
-			log.Warnf("Flow \"%v\" already exists (Source \"%v\"), overwriting with new source \"%v\"", flowName, oldFlow.Source, gd.Source)
+			ctx.GetLogger().Warnf("Flow \"%v\" already exists (Source \"%v\"), overwriting with new source \"%v\"", flowName, oldFlow.Source, gd.Source)
 		} else {
 			return fmt.Errorf("Flow \"%v\" already exists, please explicitly delete the flow to continue", flowName)
 		}
@@ -474,7 +474,7 @@ func (ge *FlowEngine) addFlowUnderLock(ctx *base.Context, flowName string, gd Fl
 		gd.Tags = []string{}
 	}
 	if writeToDisk {
-		fileName := "flows/" + flowName + ".json"
+		fileName := "graphs/" + flowName + ".json"
 		err := ge.cr.WriteObjectToFile(gd, fileName)
 		if err != nil {
 			ge.SetSystemAlert(ctx, "FlowWriteError", "system", 2, err, &ge.config.AlertDuration)
@@ -503,7 +503,7 @@ func (ge *FlowEngine) DeleteFlow(ctx *base.Context, flowID string) (*FlowDesc, e
 	}
 	delete(ge.flows, flowID)
 
-	fname := "flows/" + flowID + ".json"
+	fname := "graphs/" + flowID + ".json"
 	err := ge.cr.RemoveFile(fname)
 
 	return deletedFlow, err
