@@ -63,7 +63,6 @@ func NewFlowEngine(ctx *base.Context, cr *utils.ConfigReader, cancel context.Can
 	if cr != nil {
 		ge.config = ge.ReadConfig()
 		ge.loadStoredAndEmbeddedFlows(ctx)
-		ge.loadExternalFlows(ctx)
 
 		g := ge.GetAllFlowDesc()
 		addedFlows := make([]string, 0, len(g))

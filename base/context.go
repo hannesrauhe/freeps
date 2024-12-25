@@ -18,7 +18,7 @@ type Context struct {
 }
 
 // NewBaseContextWithReason creates a Context with a given logger
-// note: deprecated, use NewBaseContext instead
+// Deprecated: use NewBaseContext instead
 func NewBaseContextWithReason(logger *log.Logger, reason string) *Context {
 	u := uuid.New()
 	return &Context{UUID: u, logger: logger.WithField("uuid", u.String()), Reason: reason, GoContext: context.TODO(), baseLogger: logger}
