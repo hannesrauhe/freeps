@@ -37,6 +37,11 @@ func MakeEntryError(code int, format string, args ...interface{}) StoreEntry {
 	return StoreEntry{base.MakeOutputError(code, format, args...), time.Now(), nil}
 }
 
+// MakeEntry creates a StoreEntry from an OperatorIO
+func MakeEntry(io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
+	return StoreEntry{io, time.Now(), modifiedBy}
+}
+
 // GetHumanReadable returns a readable version of the entry
 func (v StoreEntry) GetHumanReadable() ReadableStoreEntry {
 	id := ""
@@ -57,7 +62,7 @@ func (v StoreEntry) MarshalJSON() ([]byte, error) {
 // GetData returns the data of the entry
 func (v StoreEntry) GetData() *base.OperatorIO { return v.data }
 
-// GetData returns the data of the entry
+// ParseJSON parses the data of the entry into obj
 func (v StoreEntry) ParseJSON(obj interface{}) error {
 	if v.data == nil {
 		return fmt.Errorf("No Data")
@@ -114,7 +119,7 @@ type StoreNamespace interface {
 	OverwriteValueIfOlder(key string, io *base.OperatorIO, maxAge time.Duration, modifiedBy *base.Context) StoreEntry
 	SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry
 	SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO
-	UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO
+	UpdateTransaction(key string, fn func(StoreEntry) *base.OperatorIO, modifiedBy *base.Context) StoreEntry
 }
 
 // Store is a collection of different namespaces in which values can be stored

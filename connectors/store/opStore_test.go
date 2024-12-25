@@ -219,25 +219,28 @@ func TestStoreUpdateTransaction(t *testing.T) {
 
 	ns := store.GetNamespaceNoError("testing")
 	ns.SetValue("v1", base.MakePlainOutput("old_value"), ctx)
-	o := ns.UpdateTransaction("v1", func(oldV base.OperatorIO) *base.OperatorIO {
+	se := ns.UpdateTransaction("v1", func(oldEntry StoreEntry) *base.OperatorIO {
+		oldV := oldEntry.GetData()
 		if oldV.GetString() != "old_value" {
 			t.Errorf("old value is not old_value but %v", oldV.GetString())
 			return base.MakeOutputError(500, "old value is not old_value")
 		}
 		return base.MakePlainOutput("new_value")
 	}, ctx)
-	if o.IsError() {
-		t.Errorf("Error while updating value: %v", o)
+	if se.IsError() {
+		t.Errorf("Error while updating value: %v", se)
 	}
+	o := se.GetData()
 	assert.Equal(t, o.GetString(), "new_value")
 	o = ns.GetValue("v1").GetData()
 	assert.Equal(t, o.GetString(), "new_value")
-	o = ns.UpdateTransaction("v2", func(oldV base.OperatorIO) *base.OperatorIO {
-		if !oldV.IsEmpty() {
-			t.Errorf("old value is not empty but %v", oldV.GetString())
+	se = ns.UpdateTransaction("v2", func(oldEntry StoreEntry) *base.OperatorIO {
+		if oldEntry != NotFoundEntry{
+			t.Errorf("old value is not empty but %v", oldEntry)
 			return base.MakeOutputError(500, "old value is not empty")
 		}
 		return base.MakePlainOutput("new_value_2")
 	}, ctx)
+	o = se.GetData()
 	assert.Equal(t, o.GetString(), "new_value_2")
 }

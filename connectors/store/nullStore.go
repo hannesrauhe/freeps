@@ -38,8 +38,8 @@ func (s *NullStoreNamespace) CompareAndSwap(key string, expected string, newValu
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *NullStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
-	return base.MakeEmptyOutput()
+func (s *NullStoreNamespace) UpdateTransaction(key string, fn func(StoreEntry) *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
+	return s.SetValue(key, fn(s.GetValue(key)), modifiedBy)
 }
 
 // OverwriteValueIfOlder sets the value only if the key does not exist or has been written before maxAge

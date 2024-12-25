@@ -39,7 +39,7 @@ func (h *HookStore) OnExecute(ctx *base.Context, flowName string, mainArgs map[s
 	if flowName == "" {
 		return fmt.Errorf("flow name is empty")
 	}
-	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("FlowInfo:%s", flowName), func(oldValue base.OperatorIO) *base.OperatorIO {
+	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("FlowInfo:%s", flowName), func(oldValue StoreEntry) *base.OperatorIO {
 		oldFlowInfo := FlowInfo{}
 		newFlowInfo := FlowInfo{ExecutionCounter: 1}
 		if mainArgs != nil && len(mainArgs) > 0 {
@@ -86,7 +86,7 @@ func (h *HookStore) OnFlowChanged(ctx *base.Context, addedFlows []string, remove
 	}
 
 	for opDesc, newInfo := range collectedInfo {
-		out := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s", opDesc), func(oldValue base.OperatorIO) *base.OperatorIO {
+		out := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s", opDesc), func(oldValue StoreEntry) *base.OperatorIO {
 			fnInfo := FunctionInfo{}
 			oldValue.ParseJSON(&fnInfo)
 			fnInfo.ReferenceCounter = newInfo.ReferenceCounter
@@ -123,7 +123,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}
-	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s.%s", opDetails.Operator, opDetails.Function), func(oldValue base.OperatorIO) *base.OperatorIO {
+	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s.%s", opDetails.Operator, opDetails.Function), func(oldValue StoreEntry) *base.OperatorIO {
 		fnInfo := FunctionInfo{}
 		oldValue.ParseJSON(&fnInfo)
 		fnInfo.ExecutionCounter++

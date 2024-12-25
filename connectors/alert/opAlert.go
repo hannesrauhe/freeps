@@ -82,14 +82,9 @@ func (oc *OpAlert) updateAlert(ctx *base.Context, category string, name string, 
 	}
 	alertName := getAlertName(name, category)
 	var a AlertWithMetadata
-	io := ns.UpdateTransaction(alertName, func(oi base.OperatorIO) *base.OperatorIO {
-		err := oi.ParseJSON(&a)
-		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Error parsing alert: %v", err)
-		}
-
+	io := ns.UpdateTransaction(alertName, func(oi freepsstore.StoreEntry) *base.OperatorIO {
 		newAlert := false
-		if oi.IsEmpty() {
+		if oi == freepsstore.NotFoundEntry {
 			a = AlertWithMetadata{
 				Alert:   Alert{Name: name, Category: category, Severity: 5},
 				Counter: 0,
@@ -97,6 +92,11 @@ func (oc *OpAlert) updateAlert(ctx *base.Context, category string, name string, 
 				Last:    time.Time{},
 			}
 			newAlert = true
+		} else {
+			err := oi.ParseJSON(&a)
+			if err != nil {
+				return base.MakeOutputError(http.StatusInternalServerError, "Error parsing alert: %v", err)
+			}
 		}
 		updateFunc(&a, newAlert)
 		return base.MakeObjectOutput(a)

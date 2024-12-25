@@ -85,22 +85,19 @@ func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, new
 }
 
 // UpdateTransaction updates the value in the StoreNamespace by calling the function fn with the current value
-func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
+func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(StoreEntry) *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	oldEntry, exists := s.entries[key]
-	var oldV *base.OperatorIO
-	if !exists || oldEntry.data == nil {
-		oldV = base.MakeEmptyOutput()
-	} else {
-		oldV = oldEntry.data
+	if !exists {
+		oldEntry = NotFoundEntry
 	}
 
-	out := fn(*oldV)
+	out := fn(oldEntry)
 	if out.IsError() {
-		return out
+		return MakeEntry(out, modifiedBy)
 	}
-	return s.setValueUnlocked(key, out, modifiedBy).GetData()
+	return s.setValueUnlocked(key, out, modifiedBy)
 }
 
 // OverwriteValueIfOlder sets the value only if the key does not exist or has been written before maxAge
