@@ -235,7 +235,7 @@ func TestStoreUpdateTransaction(t *testing.T) {
 	o = ns.GetValue("v1").GetData()
 	assert.Equal(t, o.GetString(), "new_value")
 	se = ns.UpdateTransaction("v2", func(oldEntry StoreEntry) *base.OperatorIO {
-		if oldEntry != NotFoundEntry{
+		if oldEntry != NotFoundEntry {
 			t.Errorf("old value is not empty but %v", oldEntry)
 			return base.MakeOutputError(500, "old value is not empty")
 		}
@@ -243,4 +243,52 @@ func TestStoreUpdateTransaction(t *testing.T) {
 	}, ctx)
 	o = se.GetData()
 	assert.Equal(t, o.GetString(), "new_value_2")
+}
+
+func TestStoreIncremenet(t *testing.T) {
+	s, ctx := prepareStore(t)
+	ns := GetGlobalStore().GetNamespaceNoError("testing")
+	vars := map[string]string{"namespace": "testing", "key": "test_key", "value": "1", "output": "direct"}
+	input := base.MakeEmptyOutput()
+
+	/* will create the key with value 1 */
+	out := s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
+	assert.Assert(t, !out.IsError(), "Unexpected error when incrementing value for tests: %v", out)
+	assert.Equal(t, out.GetString(), "1")
+
+	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
+	assert.Assert(t, !out.IsError(), "Unexpected error when incrementing value for tests: %v", out)
+	assert.Equal(t, out.GetString(), "2")
+
+	vars["value"] = "-2"
+	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
+	assert.Assert(t, !out.IsError(), "Unexpected error when incrementing value for tests: %v", out)
+	assert.Equal(t, out.GetString(), "0")
+
+	vars["value"] = "invalid"
+	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
+	assert.Assert(t, out.IsError())
+
+	ns.SetValue("test_key_2", base.MakePlainOutput("invalid"), ctx)
+	vars["key"] = "test_key_2"
+	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
+	assert.Assert(t, out.IsError())
+
+	/* test data type preservation */
+	vars["key"] = "test_key_int"
+	vars["value"] = "1"
+	ns.SetValue("test_key_int", base.MakeObjectOutput(1), ctx)
+	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
+	assert.Assert(t, !out.IsError(), "Unexpected error when incrementing value for tests: %v", out)
+	assert.Equal(t, out.GetString(), "2")
+	assert.Equal(t, out.OutputType, base.Object)
+
+	vars["key"] = "test_key_float"
+	vars["value"] = "1"
+	ns.SetValue("test_key_float", base.MakeObjectOutput(1.5), ctx)
+	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
+	assert.Assert(t, !out.IsError(), "Unexpected error when incrementing value for tests: %v", out)
+	f, ok := out.Output.(float64)
+	assert.Assert(t, ok)
+	assert.Equal(t, f, 2.5)
 }
