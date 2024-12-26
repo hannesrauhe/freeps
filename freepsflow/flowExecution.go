@@ -16,7 +16,7 @@ func (ge *FlowEngine) prepareFlowExecution(ctx *base.Context, flowName string) (
 	}
 	g, err := NewFlow(ctx, flowName, gi, ge)
 	if err != nil {
-		return nil, base.MakeOutputError(500, "Flow preparation failed: "+err.Error())
+		return nil, base.MakeOutputError(500, "Flow preparation failed: %s", err.Error())
 	}
 	return g, base.MakeEmptyOutput()
 }
@@ -25,7 +25,7 @@ func (ge *FlowEngine) prepareFlowExecution(ctx *base.Context, flowName string) (
 func (ge *FlowEngine) ExecuteAdHocFlow(ctx *base.Context, fullName string, gd FlowDesc, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	g, err := NewFlow(ctx, fullName, &gd, ge)
 	if err != nil {
-		return base.MakeOutputError(500, "Flow preparation failed: "+err.Error())
+		return base.MakeOutputError(500, "Flow preparation failed: %s", err.Error())
 	}
 	ge.TriggerOnExecuteHooks(ctx, fullName, mainArgs, mainInput)
 	defer ge.TriggerOnExecutionFinishedHooks(ctx, fullName, mainArgs, mainInput)

@@ -16,13 +16,10 @@ import (
 
 // FlowEngineConfig is the configuration for the FlowEngine
 type FlowEngineConfig struct {
-	Flows         map[string]FlowDesc
-	FlowsFromURL  []string
-	FlowsFromFile []string
 	AlertDuration time.Duration
 }
 
-var DefaultFlowEngineConfig = FlowEngineConfig{FlowsFromFile: []string{}, FlowsFromURL: []string{}, Flows: map[string]FlowDesc{}, AlertDuration: time.Hour}
+var DefaultFlowEngineConfig = FlowEngineConfig{AlertDuration: time.Hour}
 
 // FlowEngineMetrics holds the metrics of the flow engine
 type FlowEngineMetrics struct {
@@ -224,12 +221,16 @@ func (ge *FlowEngine) GetTagMap() map[string][]string {
 				continue
 			}
 			//only append if not yet in list
+			alreadypresent := false
 			for _, e := range r[k] {
 				if e == v {
-					continue
+					alreadypresent = true
+					break
 				}
 			}
-			r[k] = append(r[k], v)
+			if !alreadypresent {
+				r[k] = append(r[k], v)
+			}
 		}
 	}
 	// sort arrays in map
