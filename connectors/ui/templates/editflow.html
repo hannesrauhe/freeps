@@ -84,6 +84,9 @@
 					{{end}}
 				</td></tr>
 				{{ end }}
+				{{ if not (eq $value.ExecuteOnSuccessOf "") }}
+				<tr><td>ExecuteOnSuccessOf</td><td> {{ $value.ExecuteOnSuccessOf }}</td></tr>
+				{{ end }}
 				{{ if not (eq $value.ExecuteOnFailOf "") }}
 				<tr><td>ExecuteOnFailOf</td><td> {{ $value.ExecuteOnFailOf }}</td></tr>
 				{{ end }}
@@ -152,6 +155,13 @@
 		<button name="inputFrom" value="{{ $value }}">{{ $value }}</button>
 		{{ end }}
 		<button name="inputFrom" value="">_empty_</button>
+	</p>
+	<p>
+		<h4>ExecuteOnSuccessOf:</h4>
+		{{ range $index, $value := .InputFromSuggestions }}
+		<button name="executeOnSuccessOf" value="{{ $value }}">{{ $value }}</button>
+		{{ end }}
+		<button name="executeOnSuccessOf" value="">_empty_</button>
 	</p>
 	<p>
 		<h4>ExecuteOnFailOf:</h4>

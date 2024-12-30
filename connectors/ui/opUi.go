@@ -238,6 +238,8 @@ func (o *OpUI) buildPartialFlow(formInput map[string]string) *freepsflow.FlowDes
 			gopd.InputFrom = v
 		} else if k == "argumentsFrom" {
 			gopd.ArgumentsFrom = v
+		} else if k == "executeOnSuccessOf" {
+			gopd.ExecuteOnSuccessOf = v
 		} else if k == "executeOnFailOf" {
 			gopd.ExecuteOnFailOf = v
 		} else if k == "useMainArgs" {

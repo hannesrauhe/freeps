@@ -66,6 +66,21 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 	case "noop":
 		return base.MakeEmptyOutput()
 
+	case "fail":
+		return base.MakeOutputError(http.StatusExpectationFailed, "Fail requested")
+
+	case "echo":
+		if m, ok := args["output"]; ok {
+			return base.MakePlainOutput(m)
+		}
+		return input
+
+	case "hasInput":
+		if input.IsEmpty() {
+			return base.MakeOutputError(http.StatusBadRequest, "Expected input")
+		}
+		return input
+
 	case "version":
 		return base.MakePlainOutput(utils.BuildFullVersion())
 	}

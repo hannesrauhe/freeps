@@ -63,7 +63,7 @@ func TestOperatorErrorChain(t *testing.T) {
 	ge := NewFlowEngine(ctx, nil, func() {})
 	ge.flows["test"] = &FlowDesc{Operations: []FlowOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
-			"valueType": "bool"}},
+			"valueType": "bool"}, InputFrom: "_"},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
 	}, OutputFrom: "echook"}
 	oError := ge.ExecuteFlow(ctx, "test", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
@@ -354,4 +354,56 @@ func TestArgumentReplacement(t *testing.T) {
 	/* key in map does not exist */
 	r = test_replace_args(ctx, ge, "cpu", "${stat_output.doesntexist}")
 	assert.Equal(t, r.GetError().Error(), "Variable \"doesntexist\" not found in output \"stat_output\"")
+}
+
+func TestIfElseInputLogic(t *testing.T) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
+	assert.NilError(t, err)
+	ge := NewFlowEngine(ctx, cr, func() {})
+
+	testFlow := FlowDesc{Operations: []FlowOperationDesc{
+		{Name: "success", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "success"}},
+		{Name: "fail", Operator: "system", Function: "fail"},
+		/* should be executed because "success" succeeded */
+		{Name: "echo_on_success", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "echo_on_success"}, ExecuteOnSuccessOf: "success"},
+		/* should be executed because "fail" failed */
+		{Name: "echo_on_fail", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "echo_on_fail"}, ExecuteOnFailOf: "fail"},
+		/* should be executed because "success" succeeded and "fail" failed */
+		{Name: "echo_on_success_fail", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "echo_on_success_fail"}, ExecuteOnSuccessOf: "success", ExecuteOnFailOf: "fail"},
+		/* should echo the main input */
+		{Name: "echo_main_input", Operator: "system", Function: "echo", InputFrom: "_"},
+		/* should not be executed because "fail" did not succeed */
+		{Name: "no_echo_main_input_on_success", Operator: "system", Function: "echo", InputFrom: "_", ExecuteOnSuccessOf: "fail"},
+		/* should not be executed because "success" did not fail */
+		{Name: "no_echo_main_input_on_fail", Operator: "system", Function: "echo", InputFrom: "_", ExecuteOnFailOf: "success"},
+		/* should be executed but return an emptry result because there is no input */
+		{Name: "echo_empty_input", Operator: "system", Function: "echo", ExecuteOnSuccessOf: "success"},
+		/* should echo the first output of the "success" operation*/
+		{Name: "echo_first_output", Operator: "system", Function: "echo", InputFrom: "success"},
+		/* should echo the first output of the "success" operation because "fail" failed */
+		{Name: "echo_first_output_on_fail", Operator: "system", Function: "echo", InputFrom: "success", ExecuteOnFailOf: "fail"},
+		{Name: "no_echo_first_output_on_success", Operator: "system", Function: "echo", InputFrom: "success", ExecuteOnSuccessOf: "fail"},
+		/* should not be executed because "fail" did not succeed */
+		{Name: "no_echo_first_output", Operator: "system", Function: "echo", InputFrom: "fail"},
+	}, Source: "test"}
+
+	ge.AddFlow(ctx, "test", testFlow, true)
+	out := ge.ExecuteFlow(ctx, "test", base.MakeEmptyFunctionArguments(), base.MakePlainOutput("MainInput"))
+	outInt := out.GetObject()
+	outMap := outInt.(map[string]*base.OperatorIO)
+	assert.Equal(t, outMap["success"].GetString(), "success")
+	assert.Equal(t, outMap["echo_on_success"].GetString(), "echo_on_success")
+	assert.Equal(t, outMap["echo_on_fail"].GetString(), "echo_on_fail")
+	assert.Equal(t, outMap["echo_on_success_fail"].GetString(), "echo_on_success_fail")
+	assert.Equal(t, outMap["echo_main_input"].GetString(), "MainInput")
+	assert.Assert(t, outMap["echo_empty_input"].IsEmpty())
+	assert.Equal(t, outMap["echo_first_output"].GetString(), "success")
+	assert.Equal(t, outMap["echo_first_output_on_fail"].GetString(), "success")
+
+	assert.Assert(t, outMap["fail"].IsError())
+	assert.Assert(t, outMap["no_echo_main_input_on_success"].IsError())
+	assert.Assert(t, outMap["no_echo_main_input_on_fail"].IsError())
+	assert.Assert(t, outMap["no_echo_first_output"].IsError())
 }

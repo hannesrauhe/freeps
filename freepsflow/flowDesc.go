@@ -11,14 +11,15 @@ import (
 
 // FlowOperationDesc defines which operator to execute with Arguments and where to take the input from
 type FlowOperationDesc struct {
-	Name            string `json:",omitempty"`
-	Operator        string
-	Function        string
-	Arguments       map[string]string `json:",omitempty"`
-	InputFrom       string            `json:",omitempty"`
-	ExecuteOnFailOf string            `json:",omitempty"`
-	ArgumentsFrom   string            `json:",omitempty"`
-	UseMainArgs     bool              `json:",omitempty"`
+	Name               string `json:",omitempty"`
+	Operator           string
+	Function           string
+	Arguments          map[string]string `json:",omitempty"`
+	InputFrom          string            `json:",omitempty"`
+	ExecuteOnSuccessOf string            `json:",omitempty"`
+	ExecuteOnFailOf    string            `json:",omitempty"`
+	ArgumentsFrom      string            `json:",omitempty"`
+	UseMainArgs        bool              `json:",omitempty"`
 }
 
 // ToQuicklink returns the URL to call a standalone-operation outside of a Flow
@@ -157,6 +158,7 @@ func (gd *FlowDesc) RenameOperation(oldName string, newName string) {
 		rename(&gd.Operations[i].Name)
 		rename(&gd.Operations[i].ArgumentsFrom)
 		rename(&gd.Operations[i].InputFrom)
+		rename(&gd.Operations[i].ExecuteOnSuccessOf)
 		rename(&gd.Operations[i].ExecuteOnFailOf)
 	}
 	rename(&gd.OutputFrom)
@@ -199,11 +201,13 @@ func (gd *FlowDesc) GetCompleteDesc(flowID string, ge *FlowEngine) (*FlowDesc, e
 		if op.ArgumentsFrom != "" && outputNames[op.ArgumentsFrom] != true {
 			return &completeFlowDesc, fmt.Errorf("Operation \"%v\" references unknown argumentsFrom \"%v\"", op.Name, op.ArgumentsFrom)
 		}
-		if op.InputFrom == "" && i == 0 {
-			op.InputFrom = ROOT_SYMBOL
-		}
 		if op.InputFrom != "" && outputNames[op.InputFrom] != true {
 			return &completeFlowDesc, fmt.Errorf("Operation \"%v\" references unknown inputFrom \"%v\"", op.Name, op.InputFrom)
+		}
+		if op.ExecuteOnSuccessOf != "" {
+			if outputNames[op.ExecuteOnSuccessOf] != true {
+				return &completeFlowDesc, fmt.Errorf("Operation \"%v\" references unknown ExecuteOnSuccessOf \"%v\"", op.Name, op.ExecuteOnSuccessOf)
+			}
 		}
 		if op.ExecuteOnFailOf != "" {
 			if outputNames[op.ExecuteOnFailOf] != true {
@@ -211,6 +215,9 @@ func (gd *FlowDesc) GetCompleteDesc(flowID string, ge *FlowEngine) (*FlowDesc, e
 			}
 			if op.ExecuteOnFailOf == op.InputFrom {
 				return &completeFlowDesc, fmt.Errorf("Operation \"%v\" references the same InputFrom and ExecuteOnFailOf \"%v\"", op.Name, op.ExecuteOnFailOf)
+			}
+			if op.ExecuteOnFailOf == op.ExecuteOnSuccessOf {
+				return &completeFlowDesc, fmt.Errorf("Operation \"%v\" references the same ExecuteOnSuccessOf and ExecuteOnFailOf \"%v\"", op.Name, op.ExecuteOnFailOf)
 			}
 		}
 		outputNames[op.Name] = true

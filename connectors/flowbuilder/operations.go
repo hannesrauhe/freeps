@@ -8,15 +8,16 @@ import (
 
 // AddOperationArgs are the arguments for the AddOperation function, number and all OperationDesc fields are optional
 type AddOperation struct {
-	FlowName        string
-	OperationNumber *int
-	OperationName   *string
-	Operator        *string
-	Function        *string
-	InputFrom       *string
-	ExecuteOnFailOf *string
-	ArgumentsFrom   *string
-	UseMainArgs     *bool
+	FlowName           string
+	OperationNumber    *int
+	OperationName      *string
+	Operator           *string
+	Function           *string
+	InputFrom          *string
+	ExecuteOnSuccessOf *string
+	ExecuteOnFailOf    *string
+	ArgumentsFrom      *string
+	UseMainArgs        *bool
 }
 
 // AddOperation adds an operation to a flow in the store
@@ -42,6 +43,9 @@ func (m *OpFlowBuilder) AddOperation(ctx *base.Context, input *base.OperatorIO, 
 	}
 	if args.InputFrom != nil {
 		operationDesc.InputFrom = *args.InputFrom
+	}
+	if args.ExecuteOnSuccessOf != nil {
+		operationDesc.ExecuteOnSuccessOf = *args.ExecuteOnSuccessOf
 	}
 	if args.ExecuteOnFailOf != nil {
 		operationDesc.ExecuteOnFailOf = *args.ExecuteOnFailOf

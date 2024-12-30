@@ -200,6 +200,11 @@ func (m *OpUtils) FormToJSON(ctx *base.Context, input *base.OperatorIO) *base.Op
 	return base.MakeObjectOutput(o2)
 }
 
+// Fail returns an error
+func (m *OpUtils) Fail(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+	return base.MakeOutputError(http.StatusExpectationFailed, "Fail")
+}
+
 // EchoArgumentsArgs are the arguments for the EchoArguments function
 type EchoArgumentsArgs struct {
 	InputKey *string
