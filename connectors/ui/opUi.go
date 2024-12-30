@@ -15,7 +15,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -23,7 +23,7 @@ import (
 const buttonPrefix string = "button_"
 
 type OpUI struct {
-	ge *freepsgraph.GraphEngine
+	ge *freepsflow.FlowEngine
 	cr *utils.ConfigReader
 }
 
@@ -36,19 +36,19 @@ type TemplateData struct {
 	ArgSuggestions       map[string]map[string]string
 	TagSuggestions       map[string]string
 	InputFromSuggestions []string
-	GraphName            string
-	GraphDesc            *freepsgraph.GraphDesc
-	GraphJSON            string
+	FlowName             string
+	FlowDesc             *freepsflow.FlowDesc
+	FlowJSON             string
 	Output               string
 	Numop                int
 	Quicklink            string
 	Error                string
 }
 
-type ShowGraphsData struct {
-	Graphs    []string
-	GraphJSON string
-	Output    string
+type ShowFlowsData struct {
+	Flows    []string
+	FlowJSON string
+	Output   string
 }
 
 type EditConfigData struct {
@@ -60,8 +60,8 @@ type EditConfigData struct {
 var embeddedFiles embed.FS
 
 // NewHTMLUI creates a UI interface based on the inline template above
-func NewHTMLUI(cr *utils.ConfigReader, graphEngine *freepsgraph.GraphEngine) *OpUI {
-	h := OpUI{ge: graphEngine, cr: cr}
+func NewHTMLUI(cr *utils.ConfigReader, flowEngine *freepsflow.FlowEngine) *OpUI {
+	h := OpUI{ge: flowEngine, cr: cr}
 
 	return &h
 }
@@ -196,11 +196,11 @@ func (o *OpUI) createOutput(ctx *base.Context, templateBaseName string, template
 	return base.MakeByteOutput(b)
 }
 
-func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.GraphDesc {
-	standardOP := []freepsgraph.GraphOperationDesc{{Operator: "graph", Function: "storeUI", Arguments: map[string]string{}}}
+func (o *OpUI) buildPartialFlow(formInput map[string]string) *freepsflow.FlowDesc {
+	standardOP := []freepsflow.FlowOperationDesc{{Operator: "flow", Function: "storeUI", Arguments: map[string]string{}}}
 
-	gd := &freepsgraph.GraphDesc{}
-	v, ok := formInput["GraphJSON"]
+	gd := &freepsflow.FlowDesc{}
+	v, ok := formInput["FlowJSON"]
 	if ok {
 		json.Unmarshal([]byte(v), gd)
 	}
@@ -248,7 +248,7 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 				gopd.Name = fmt.Sprintf("#%d", targetNum)
 			}
 			gd.RenameOperation(gopd.Name, v)
-		} else if k == "graphOutput" {
+		} else if k == "flowOutput" {
 			gd.OutputFrom = v
 		}
 	}
@@ -284,15 +284,15 @@ func (o *OpUI) buildPartialGraph(formInput map[string]string) *freepsgraph.Graph
 	return gd
 }
 
-func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.OperatorIO, logger *log.Entry, tmpl string) *base.OperatorIO {
-	var gd *freepsgraph.GraphDesc
+func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.OperatorIO, logger *log.Entry, tmpl string) *base.OperatorIO {
+	var gd *freepsflow.FlowDesc
 	var exists bool
 	targetNum := 0
 
-	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: []string{}, GraphName: vars["graph"], TagSuggestions: map[string]string{}}
+	td := &TemplateData{OpSuggestions: map[string]bool{}, FnSuggestions: map[string]bool{}, ArgSuggestions: make(map[string]map[string]string), InputFromSuggestions: []string{}, FlowName: vars["flow"], TagSuggestions: map[string]string{}}
 
 	if input.IsEmpty() {
-		gd, exists = o.ge.GetGraphDesc(td.GraphName)
+		gd, exists = o.ge.GetFlowDesc(td.FlowName)
 	}
 	if !input.IsEmpty() || !exists {
 		formInputQueryFormat, err := input.ParseFormData()
@@ -300,7 +300,7 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 			return base.MakeOutputError(http.StatusBadRequest, err.Error())
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
-		gd = o.buildPartialGraph(formInput)
+		gd = o.buildPartialFlow(formInput)
 		opNum, ok := formInput["numop"]
 		if !ok {
 			opNum, _ = formInput["selectednumop"]
@@ -310,51 +310,51 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 			targetNum = 0
 		}
 
-		if _, ok := formInput["SaveGraph"]; ok {
-			td.GraphName = formInput["GraphName"]
-			if td.GraphName == "" {
-				return base.MakeOutputError(http.StatusBadRequest, "Graph name cannot be empty")
+		if _, ok := formInput["SaveFlow"]; ok {
+			td.FlowName = formInput["FlowName"]
+			if td.FlowName == "" {
+				return base.MakeOutputError(http.StatusBadRequest, "Flow name cannot be empty")
 			}
-			err := o.ge.AddGraph(ctx, td.GraphName, *gd, true)
+			err := o.ge.AddFlow(ctx, td.FlowName, *gd, true)
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, err.Error())
 			}
 		}
 		if _, ok := formInput["SaveTemp"]; ok {
-			td.GraphName = formInput["GraphName"]
-			if td.GraphName == "" {
-				td.GraphName = ctx.GetID()
+			td.FlowName = formInput["FlowName"]
+			if td.FlowName == "" {
+				td.FlowName = ctx.GetID()
 			}
-			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx)
+			err := freepsstore.StoreFlow(td.FlowName, *gd, ctx)
 			if err.IsError() {
 				return err
 			}
 		}
 
 		if _, ok := formInput["Execute"]; ok {
-			td.GraphName = formInput["GraphName"]
-			if td.GraphName == "" {
-				td.GraphName = ctx.GetID()
+			td.FlowName = formInput["FlowName"]
+			if td.FlowName == "" {
+				td.FlowName = ctx.GetID()
 			}
-			err := freepsstore.StoreGraph(td.GraphName, *gd, ctx)
+			err := freepsstore.StoreFlow(td.FlowName, *gd, ctx)
 			if err.IsError() {
 				return err
 			}
-			td.Output = "/graphBuilder/ExecuteGraphFromStore?graphName=" + td.GraphName
+			td.Output = "/flowBuilder/ExecuteFlowFromStore?flowName=" + td.FlowName
 		}
 	}
 
-	// try to parse the GraphDesc and use normalized version for GraphDesc if available
+	// try to parse the FlowDesc and use normalized version for FlowDesc if available
 	completeGD, err := gd.GetCompleteDesc("temp", o.ge)
 	if err == nil {
-		td.GraphDesc = completeGD
+		td.FlowDesc = completeGD
 	} else {
 		td.Error = err.Error()
-		td.GraphDesc = gd
+		td.FlowDesc = gd
 	}
 
 	b, _ := json.MarshalIndent(gd, "", "  ")
-	td.GraphJSON = string(b)
+	td.FlowJSON = string(b)
 	gopd := &gd.Operations[targetNum]
 	td.Numop = targetNum
 	td.Args = gopd.Arguments
@@ -375,7 +375,7 @@ func (o *OpUI) editGraph(ctx *base.Context, vars map[string]string, input *base.
 		}
 	}
 
-	td.InputFromSuggestions = []string{freepsgraph.ROOT_SYMBOL}
+	td.InputFromSuggestions = []string{freepsflow.ROOT_SYMBOL}
 	for i, op := range gd.Operations {
 		if i >= td.Numop {
 			continue
@@ -451,13 +451,13 @@ func (o *OpUI) simpleTile(vars map[string]string, input *base.OperatorIO, ctx *b
 		if err != nil {
 			return base.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 		}
-		graphName := formdata.Get("ExecuteGraph")
-		if graphName != "" {
-			out := o.ge.ExecuteGraph(ctx, graphName, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+		flowName := formdata.Get("ExecuteFlow")
+		if flowName != "" {
+			out := o.ge.ExecuteFlow(ctx, flowName, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 			if out.IsError() {
-				tdata["status_error"] = graphName
+				tdata["status_error"] = flowName
 			} else {
-				tdata["status_ok"] = graphName
+				tdata["status_ok"] = flowName
 			}
 		}
 	}
@@ -483,9 +483,9 @@ func (o *OpUI) ExecuteOld(ctx *base.Context, fn string, args map[string]string, 
 
 	switch fn {
 	case "", "home":
-		return o.editGraph(ctx, args, input, logger, "home.html")
-	case "edit", "editGraph":
-		return o.editGraph(ctx, args, input, logger, "editgraph.html")
+		return o.editFlow(ctx, args, input, logger, "home.html")
+	case "edit", "editFlow":
+		return o.editFlow(ctx, args, input, logger, "editflow.html")
 	case "editTemplate":
 		return o.editTemplate(ctx, args, input)
 	case "deleteTemplate":
@@ -507,7 +507,7 @@ func (o *OpUI) ExecuteOld(ctx *base.Context, fn string, args map[string]string, 
 				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing input: %v", err)
 			}
 			opName := formInput.Get("ExecuteOperator")
-			graphName := formInput.Get("ExecuteGraph")
+			flowName := formInput.Get("ExecuteFlow")
 			executeWithArgs, err := base.NewFunctionArgumentsFromURLQuery(formInput.Get("ExecuteArgs"))
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, "Error when parsing ExecuteArgs (\"%v\") in request: %v", formInput.Get("ExecuteArgs"), err)
@@ -518,8 +518,8 @@ func (o *OpUI) ExecuteOld(ctx *base.Context, fn string, args map[string]string, 
 				}
 			}
 			executeWithInput := base.MakeEmptyOutput()
-			if graphName != "" {
-				tdata["response"] = o.ge.ExecuteGraph(ctx, graphName, executeWithArgs, executeWithInput)
+			if flowName != "" {
+				tdata["response"] = o.ge.ExecuteFlow(ctx, flowName, executeWithArgs, executeWithInput)
 			} else if opName != "" {
 				fnName := formInput.Get("ExecuteFunction")
 				tdata["response"] = o.ge.ExecuteOperatorByName(ctx, opName, fnName, executeWithArgs, executeWithInput)
@@ -551,8 +551,8 @@ func (o *OpUI) GetFunctions() []string {
 
 func (o *OpUI) GetPossibleArgs(fn string) []string {
 	switch fn {
-	case "editGraph":
-		return []string{"graph"}
+	case "editFlow":
+		return []string{"flow"}
 	case "editTemplate", "deleteTemplate":
 		return []string{"templateName"}
 	case "simpleTile":
@@ -569,12 +569,12 @@ func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]str
 		}
 	}
 	if fn == "simpleTile" && utils.StringStartsWith(arg, buttonPrefix) {
-		agd := o.ge.GetAllGraphDesc()
-		graphs := make(map[string]string)
+		agd := o.ge.GetAllFlowDesc()
+		flows := make(map[string]string)
 		for n := range agd {
-			graphs[n] = n
+			flows[n] = n
 		}
-		return graphs
+		return flows
 	}
 	return r
 }

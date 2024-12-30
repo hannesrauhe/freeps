@@ -8,13 +8,13 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/muka/go-bluetooth/api"
 )
 
 // Bluetooth is the operator that provides bluetooth functionality and implements the FreepsGenericOperator interface
 type Bluetooth struct {
-	GE     *freepsgraph.GraphEngine
+	GE     *freepsflow.FlowEngine
 	config *BluetoothConfig
 	btw    *FreepsBluetooth
 }

@@ -2,16 +2,16 @@ package mqtt
 
 import (
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 )
 
 type HookMQTT struct {
 	impl *FreepsMqttImpl
 }
 
-var _ freepsgraph.FreepsGraphChangedHook = &HookMQTT{}
+var _ freepsflow.FreepsFlowChangedHook = &HookMQTT{}
 
-// OnGraphChanged checks if subscriptions need to be changed
-func (h *HookMQTT) OnGraphChanged(ctx *base.Context, addedGraphName []string, removedGraphName []string) error {
+// OnFlowChanged checks if subscriptions need to be changed
+func (h *HookMQTT) OnFlowChanged(ctx *base.Context, addedFlowName []string, removedFlowName []string) error {
 	return h.impl.startTagSubscriptions()
 }

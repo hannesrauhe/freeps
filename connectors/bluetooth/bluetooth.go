@@ -9,7 +9,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 
 	"context"
 
@@ -26,7 +26,7 @@ type FreepsBluetooth struct {
 	shuttingDown       bool
 	nextIterationTimer *time.Timer
 	ctx                *base.Context
-	ge                 *freepsgraph.GraphEngine
+	ge                 *freepsflow.FlowEngine
 	monitors           *monitors
 }
 
@@ -127,7 +127,7 @@ func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery 
 	if freshDiscovery {
 		ns := freepsstore.GetGlobalStore().GetNamespaceNoError(fbt.config.DiscoveredNamespace)
 		ns.SetValue(devData.Address, input, ctx)
-		fbt.ge.ExecuteGraphByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, base.NewFunctionArguments(args), input)
+		fbt.ge.ExecuteFlowByTagsExtended(ctx, [][]string{{"bluetooth"}, {"discovered"}, deviceTags}, base.NewFunctionArguments(args), input)
 	} else {
 		ns := freepsstore.GetGlobalStore().GetNamespaceNoError(fbt.config.KnownNamespace)
 		ns.SetValue(devData.Address, input, ctx)
@@ -135,7 +135,7 @@ func (fbt *FreepsBluetooth) handleNewDevice(dev *device.Device1, freshDiscovery 
 
 	// start watcher if requested
 	watchDeviceTags := fbt.getDeviceWatchTags(devData)
-	if len(fbt.ge.GetGraphDescByTagExtended([]string{"bluetooth"}, watchDeviceTags)) > 0 {
+	if len(fbt.ge.GetFlowDescByTagExtended([]string{"bluetooth"}, watchDeviceTags)) > 0 {
 		fbt.addMonitor(dev, devData)
 	}
 
@@ -158,9 +158,9 @@ func (fbt *FreepsBluetooth) StopDiscovery(restartImmediately bool) {
 	fbt.cancel()
 	fbt.cancel = nil
 
-	// remove monitors that have no graphs anymore
+	// remove monitors that have no flows anymore
 	for w, deviceTags := range fbt.getMonitoredTags() {
-		if len(fbt.ge.GetGraphDescByTagExtended([]string{"bluetooth"}, deviceTags)) == 0 {
+		if len(fbt.ge.GetFlowDescByTagExtended([]string{"bluetooth"}, deviceTags)) == 0 {
 			fbt.deleteMonitor(w)
 		}
 	}

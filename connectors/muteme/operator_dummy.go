@@ -2,6 +2,6 @@
 
 package muteme
 
-import "github.com/hannesrauhe/freeps/freepsgraph"
+import "github.com/hannesrauhe/freeps/freepsflow"
 
-type MuteMe freepsgraph.DummyOperator
+type MuteMe freepsflow.DummyOperator

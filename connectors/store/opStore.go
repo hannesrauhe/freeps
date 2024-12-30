@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpStore struct {
 	CR *utils.ConfigReader
-	GE *freepsgraph.GraphEngine
+	GE *freepsflow.FlowEngine
 }
 
 var _ base.FreepsOperatorWithConfig = &OpStore{}

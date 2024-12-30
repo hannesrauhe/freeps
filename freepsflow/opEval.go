@@ -1,4 +1,4 @@
-package freepsgraph
+package freepsflow
 
 import (
 	"bytes"

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 func (o *OpStore) modifyOutputSingleNamespace(ns string, outputPtr *string, result map[string]StoreEntry) *base.OperatorIO {
@@ -335,6 +336,61 @@ func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSe
 	}
 	res := nsStore.GetSearchResultWithMetadata(*args.Key, *args.Value, *args.ModifiedBy, *args.MinAge, *args.MaxAge)
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, res)
+}
+
+type IncrementArgs struct {
+	Namespace string
+	Key       string
+	Output    *string
+	Value     *int
+}
+
+// KeySuggestions returns a list of keys for the given namespace
+func (p *IncrementArgs) KeySuggestions() []string {
+	if p.Namespace == "" {
+		return []string{}
+	}
+
+	nsStore, _ := store.GetNamespace(p.Namespace)
+	if nsStore == nil {
+		return []string{}
+	}
+	return nsStore.GetKeys()
+}
+
+// Add adds the given numeric value to the current value stored under the given key
+func (o *OpStore) Increment(ctx *base.Context, input *base.OperatorIO, args IncrementArgs) *base.OperatorIO {
+	nsStore, err := store.GetNamespace(args.Namespace)
+	if err != nil {
+		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	}
+	value := 1
+	if args.Value != nil {
+		value = *args.Value
+	}
+	e := nsStore.UpdateTransaction(args.Key, func(se StoreEntry) *base.OperatorIO {
+		if se == NotFoundEntry {
+			return base.MakeObjectOutput(value)
+		}
+		d := se.GetData().Output
+		/* try to preserver the initial type of the entry */
+		switch d.(type) {
+		case int:
+			return base.MakeObjectOutput(d.(int) + value)
+		case int64:
+			return base.MakeObjectOutput(d.(int64) + int64(value))
+		case float64:
+			return base.MakeObjectOutput(d.(float64) + float64(value))
+		default:
+			ov, err := utils.ConvertToInt64(d)
+			if err != nil {
+				return base.MakeOutputError(http.StatusBadRequest, "Value is not numeric: %v", d)
+			}
+			return base.MakePlainOutput(fmt.Sprint(ov + int64(value)))
+		}
+	}, ctx)
+
+	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, map[string]StoreEntry{args.Key: e})
 }
 
 // GetHook returns the hook for this operator

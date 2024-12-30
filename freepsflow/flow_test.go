@@ -1,4 +1,4 @@
-package freepsgraph
+package freepsflow
 
 import (
 	"os"
@@ -54,23 +54,23 @@ func (*MockOperator) GetHook() interface{} {
 
 var _ base.FreepsBaseOperator = &MockOperator{}
 
-func createValidGraph() GraphDesc {
-	return GraphDesc{Operations: []GraphOperationDesc{{Operator: "system", Function: "noop"}}, Source: "test"}
+func createValidFlow() FlowDesc {
+	return FlowDesc{Operations: []FlowOperationDesc{{Operator: "system", Function: "noop"}}, Source: "test"}
 }
 
 func TestOperatorErrorChain(t *testing.T) {
 	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	ge := NewGraphEngine(ctx, nil, func() {})
-	ge.graphs["test"] = &GraphDesc{Operations: []GraphOperationDesc{
+	ge := NewFlowEngine(ctx, nil, func() {})
+	ge.flows["test"] = &FlowDesc{Operations: []FlowOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
 	}, OutputFrom: "echook"}
-	oError := ge.ExecuteGraph(ctx, "test", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	oError := ge.ExecuteFlow(ctx, "test", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 	assert.Assert(t, oError.IsError(), "unexpected output: %v", oError)
 
 	testInput := base.MakeByteOutput([]byte(`{"FieldsWithType": {"open" : {"FieldValue": "true", "FieldType": "bool"} }}`))
-	oTrue := ge.ExecuteGraph(ctx, "test", base.MakeEmptyFunctionArguments(), testInput)
+	oTrue := ge.ExecuteFlow(ctx, "test", base.MakeEmptyFunctionArguments(), testInput)
 	assert.Assert(t, oTrue.IsEmpty(), "unexpected output: %v", oTrue)
 
 	// test that output of single operation is directly returned and not merged
@@ -78,118 +78,118 @@ func TestOperatorErrorChain(t *testing.T) {
 	assert.Assert(t, oDirect.IsPlain(), "unexpected output: %v", oDirect)
 }
 
-func TestCheckGraph(t *testing.T) {
+func TestCheckFlow(t *testing.T) {
 	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	ge := NewGraphEngine(ctx, nil, func() {})
-	ge.graphs["test_noinput"] = &GraphDesc{Operations: []GraphOperationDesc{
+	ge := NewFlowEngine(ctx, nil, func() {})
+	ge.flows["test_noinput"] = &FlowDesc{Operations: []FlowOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
 	}}
-	opIO := ge.CheckGraph("test_noinput")
+	opIO := ge.CheckFlow("test_noinput")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.graphs["test_noargs"] = &GraphDesc{Operations: []GraphOperationDesc{
+	ge.flows["test_noargs"] = &FlowDesc{Operations: []FlowOperationDesc{
 		{Operator: "eval", Function: "eval", ArgumentsFrom: "NOTEXISTING"},
 	}}
-	opIO = ge.CheckGraph("test_noargs")
+	opIO = ge.CheckFlow("test_noargs")
 
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
-	ge.graphs["test_noop"] = &GraphDesc{Operations: []GraphOperationDesc{
+	ge.flows["test_noop"] = &FlowDesc{Operations: []FlowOperationDesc{
 		{Operator: "NOTHERE"},
 	}}
 
-	opIO = ge.CheckGraph("test_noargs")
+	opIO = ge.CheckFlow("test_noargs")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	gv := createValidGraph()
-	ge.graphs["test_valid"] = &gv
-	opIO = ge.CheckGraph("test_valid")
+	gv := createValidFlow()
+	ge.flows["test_valid"] = &gv
+	opIO = ge.CheckFlow("test_valid")
 	assert.Assert(t, !opIO.IsError(), "unexpected output: %v", opIO)
 
-	gd, _ := ge.GetGraphDesc("test_valid")
-	assert.Equal(t, gd.Operations[0].Name, "", "original graph should not be modified")
+	gd, _ := ge.GetFlowDesc("test_valid")
+	assert.Equal(t, gd.Operations[0].Name, "", "original flow should not be modified")
 
-	g, err := NewGraph(ctx, "", gd, ge)
+	g, err := NewFlow(ctx, "", gd, ge)
 	assert.NilError(t, err)
 	assert.Equal(t, g.desc.Operations[0].Name, "#0")
 }
 
-func fileIsInList(cr *utils.ConfigReader, graphFile string) bool {
+func fileIsInList(cr *utils.ConfigReader, flowFile string) bool {
 	type T struct {
-		GraphsFromFile []string
+		FlowsFromFile []string
 	}
 	ct := T{}
-	cr.ReadSectionWithDefaults("graphs", &ct)
-	for _, f := range ct.GraphsFromFile {
-		if f == graphFile {
+	cr.ReadSectionWithDefaults("flows", &ct)
+	for _, f := range ct.FlowsFromFile {
+		if f == flowFile {
 			return true
 		}
 	}
 	return false
 }
 
-func TestGraphStorage(t *testing.T) {
+func TestFlowStorage(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	assert.NilError(t, err)
 
 	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	ge := NewGraphEngine(ctx, cr, func() {})
+	ge := NewFlowEngine(ctx, cr, func() {})
 
-	// expect embedded graphs to be loaded
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 3)
+	// expect embedded flows to be loaded
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 2)
 
-	gdir := ge.GetGraphDir()
-	err = ge.AddGraph(ctx, "test1", createValidGraph(), false)
+	gdir := ge.GetFlowDir()
+	err = ge.AddFlow(ctx, "test1", createValidFlow(), false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "test1.json"))
 	assert.NilError(t, err)
 
-	eg, exists := ge.GetGraphDesc("test1")
+	eg, exists := ge.GetFlowDesc("test1")
 	assert.Assert(t, exists)
 	assert.Equal(t, eg.Source, "test")
 
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 3)
 
-	err = ge.AddGraph(ctx, "test2", createValidGraph(), false)
+	err = ge.AddFlow(ctx, "test2", createValidFlow(), false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "test2.json"))
 	assert.NilError(t, err)
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
 
-	g := createValidGraph()
-	err = ge.AddGraph(ctx, "test2", g, false)
+	g := createValidFlow()
+	err = ge.AddFlow(ctx, "test2", g, false)
 	assert.ErrorContains(t, err, "already exists")
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
 
-	g = createValidGraph()
-	err = ge.AddGraph(ctx, "test2", g, true)
+	g = createValidFlow()
+	err = ge.AddFlow(ctx, "test2", g, true)
 	assert.NilError(t, err)
 
 	// check proper caps handling and names
-	err = ge.AddGraph(ctx, "Test2", createValidGraph(), false)
+	err = ge.AddFlow(ctx, "Test2", createValidFlow(), false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "Test2.json"))
 	assert.NilError(t, err)
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 6)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 5)
 
-	gdNocap, err := ge.GetCompleteGraphDesc("test2")
+	gdNocap, err := ge.GetCompleteFlowDesc("test2")
 	assert.NilError(t, err)
-	assert.Equal(t, gdNocap.GraphID, "test2")
-	gdCap, err := ge.GetCompleteGraphDesc("Test2")
+	assert.Equal(t, gdNocap.FlowID, "test2")
+	gdCap, err := ge.GetCompleteFlowDesc("Test2")
 	assert.NilError(t, err)
-	assert.Equal(t, gdCap.GraphID, "Test2")
+	assert.Equal(t, gdCap.FlowID, "Test2")
 
 	assert.Equal(t, gdNocap.DisplayName, gdCap.DisplayName)
 
 	// check deletion
-	_, err = ge.DeleteGraph(ctx, "test2")
-	_, exists = ge.GetGraphDesc("test2")
+	_, err = ge.DeleteFlow(ctx, "test2")
+	_, exists = ge.GetFlowDesc("test2")
 	assert.Assert(t, !exists)
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 5)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 4)
 
-	_, err = ge.DeleteGraph(ctx, "test1")
+	_, err = ge.DeleteFlow(ctx, "test1")
 	assert.NilError(t, err)
-	assert.Equal(t, len(ge.GetAllGraphDesc()), 4)
+	assert.Equal(t, len(ge.GetAllFlowDesc()), 3)
 	_, err = os.Stat(path.Join(gdir, "test2.json"))
 	assert.Assert(t, err != nil)
 }
@@ -211,12 +211,12 @@ func expectOutput(t *testing.T, op *base.OperatorIO, expectedCode int, expectedO
 	}
 }
 
-func TestGraphExecution(t *testing.T) {
+func TestFlowExecution(t *testing.T) {
 	tdir := t.TempDir()
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
 	assert.NilError(t, err)
-	ge := NewGraphEngine(ctx, cr, func() {})
+	ge := NewFlowEngine(ctx, cr, func() {})
 
 	expectByTagExtendedExecution := func(tagGroups [][]string, expectedOutputKeys []string) {
 		expectedCode := 200
@@ -224,7 +224,7 @@ func TestGraphExecution(t *testing.T) {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTagsExtended(base.NewBaseContextWithReason(log.StandardLogger(), ""), tagGroups, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
+			ge.ExecuteFlowByTagsExtended(base.NewBaseContextWithReason(log.StandardLogger(), ""), tagGroups, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
@@ -234,62 +234,62 @@ func TestGraphExecution(t *testing.T) {
 			expectedCode = 404
 		}
 		expectOutput(t,
-			ge.ExecuteGraphByTags(base.NewBaseContextWithReason(log.StandardLogger(), ""), tags, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
+			ge.ExecuteFlowByTags(base.NewBaseContextWithReason(log.StandardLogger(), ""), tags, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 			expectedCode, expectedOutputKeys)
 	}
 
 	expectByTagExecution([]string{"not"}, nil)
 
-	g0 := createValidGraph()
-	err = ge.AddGraph(ctx, "test0", g0, false)
+	g0 := createValidFlow()
+	err = ge.AddFlow(ctx, "test0", g0, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, nil)
 
-	g1 := createValidGraph()
+	g1 := createValidFlow()
 	g1.AddTags("t1")
-	err = ge.AddGraph(ctx, "test1", g1, false)
+	err = ge.AddFlow(ctx, "test1", g1, false)
 	assert.NilError(t, err)
-	expectByTagExecution([]string{"t1"}, []string{}) //single graph executed with empty output
+	expectByTagExecution([]string{"t1"}, []string{}) //single flow executed with empty output
 
-	g2 := createValidGraph()
+	g2 := createValidFlow()
 	g2.AddTags("t1", "t4")
-	err = ge.AddGraph(ctx, "test2", g2, false)
+	err = ge.AddFlow(ctx, "test2", g2, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2"})
 
-	g3 := createValidGraph()
+	g3 := createValidFlow()
 	g3.AddTags("t1", "t2", "t4")
-	err = ge.AddGraph(ctx, "test3", g3, false)
+	err = ge.AddFlow(ctx, "test3", g3, false)
 	assert.NilError(t, err)
 
-	g4 := createValidGraph()
+	g4 := createValidFlow()
 	g4.AddTags("t4")
-	err = ge.AddGraph(ctx, "test4", g4, false)
+	err = ge.AddFlow(ctx, "test4", g4, false)
 	assert.NilError(t, err)
 
 	expectByTagExecution([]string{"t1"}, []string{"test1", "test2", "test3"})
-	expectByTagExecution([]string{"t1", "t2"}, []string{}) //single graph executed with empty output
+	expectByTagExecution([]string{"t1", "t2"}, []string{}) //single flow executed with empty output
 
 	expectByTagExtendedExecution([][]string{{"t1"}, {"t2", "t4"}}, []string{"test2", "test3"})
 	expectByTagExtendedExecution([][]string{{"t2", "t4"}}, []string{"test2", "test3", "test4"})
 
 	// test the operator once
 	expectOutput(t,
-		ge.ExecuteOperatorByName(base.NewBaseContextWithReason(log.StandardLogger(), ""), "graphbytag", "t4", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
+		ge.ExecuteOperatorByName(base.NewBaseContextWithReason(log.StandardLogger(), ""), "flowbytag", "t4", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput()),
 		200, []string{"test2", "test3", "test4"})
 
 	/* Keytags */
 
-	g5 := createValidGraph()
+	g5 := createValidFlow()
 	g5.AddTags("keytag1:foo", "footag:", "f:a:shiZ:s", ":yes:man")
 	assert.Equal(t, g5.GetTagValue("keytag1"), "foo")
 	assert.Equal(t, g5.GetTagValue("keyTAG1"), "foo")
 	assert.Equal(t, g5.GetTagValue("footag"), "")
 	assert.Equal(t, g5.GetTagValue("NOPE"), "")
-	ge.AddGraph(ctx, "test5", g5, false)
-	g6 := createValidGraph()
+	ge.AddFlow(ctx, "test5", g5, false)
+	g6 := createValidFlow()
 	g6.AddTags("keytag1:bar", "keytag2:bla")
-	ge.AddGraph(ctx, "test6", g6, false)
+	ge.AddFlow(ctx, "test6", g6, false)
 
 	expectByTagExtendedExecution([][]string{{"t2", ":yes:man", "keytag2:bla"}, {"t4", "fadabump", "keytag2:bla"}, {"t2", "keytag2:bla"}}, []string{"test3", "test6"})
 
@@ -307,14 +307,14 @@ func TestGraphExecution(t *testing.T) {
 	assert.DeepEqual(t, ge.GetTagValues("f:a"), []string{})
 }
 
-func test_replace_args(ctx *base.Context, ge *GraphEngine, input1 string, input2 string) *base.OperatorIO {
-	op1 := GraphOperationDesc{Name: "echo_output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input1}}
-	op2 := GraphOperationDesc{Name: "stat_output", Operator: "system", Function: "stats", Arguments: map[string]string{"statType": input1}}
-	op3 := GraphOperationDesc{Name: "output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input2}}
-	g0 := GraphDesc{Operations: []GraphOperationDesc{op1, op2, op3}, Source: "test", OutputFrom: "output"}
+func test_replace_args(ctx *base.Context, ge *FlowEngine, input1 string, input2 string) *base.OperatorIO {
+	op1 := FlowOperationDesc{Name: "echo_output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input1}}
+	op2 := FlowOperationDesc{Name: "stat_output", Operator: "system", Function: "stats", Arguments: map[string]string{"statType": input1}}
+	op3 := FlowOperationDesc{Name: "output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input2}}
+	g0 := FlowDesc{Operations: []FlowOperationDesc{op1, op2, op3}, Source: "test", OutputFrom: "output"}
 
-	ge.AddGraph(ctx, "test0", g0, true)
-	return ge.ExecuteGraph(ctx, "test0", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	ge.AddFlow(ctx, "test0", g0, true)
+	return ge.ExecuteFlow(ctx, "test0", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 }
 
 func TestArgumentReplacement(t *testing.T) {
@@ -322,7 +322,7 @@ func TestArgumentReplacement(t *testing.T) {
 	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
 	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
 	assert.NilError(t, err)
-	ge := NewGraphEngine(ctx, cr, func() {})
+	ge := NewFlowEngine(ctx, cr, func() {})
 
 	/* test simple string replacement */
 	r := test_replace_args(ctx, ge, "test", "Operator output was: ${echo_output}")

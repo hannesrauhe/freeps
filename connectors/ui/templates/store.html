@@ -63,9 +63,9 @@
 
 <table>
 {{ if eq $namespace "_execution_log" }}
-<tr><th>Context ID</th><th>GraphID</th><th>Operation</th><th>Arguments</th><th>Input</th><th>Output</th><th>Age</th></tr>
-    {{ range $key, $entry := store_Search $namespace $key $value $modifiedby $minage $maxage }} 
-    <tr><td><a href="/ui/store.html?namespace=_execution_log&modifiedby={{$entry.ModifiedBy}}">{{$entry.Reason}} ({{$entry.ModifiedBy}})</a></td><td><a href="/ui/edit?graph={{$entry.RawValue.GraphID}}">{{$entry.RawValue.GraphID}}</a></td><td><a href="/ui/storeSingle.html?namespace={{$namespace}}&key={{$key}}">{{$entry.RawValue.Operation.Name}}: {{$entry.RawValue.Operation.Operator}} {{$entry.RawValue.Operation.Function}}</a></td><td>{{$entry.RawValue.Operation.Arguments}}</td><td>{{$entry.RawValue.Input}}</td><td>{{$entry.RawValue.Output}}</td><td>{{$entry.Age}}</td>
+<tr><th>Context ID</th><th>FlowID</th><th>Operation</th><th>Arguments</th><th>Input</th><th>Output</th><th>Age</th></tr>
+    {{ range $key, $entry := store_Search $namespace $key $value $modifiedby $minage $maxage }}
+    <tr><td><a href="/ui/store.html?namespace=_execution_log&modifiedby={{$entry.ModifiedBy}}">{{$entry.Reason}} ({{$entry.ModifiedBy}})</a></td><td><a href="/ui/edit?flow={{$entry.RawValue.FlowID}}">{{$entry.RawValue.FlowID}}</a></td><td><a href="/ui/storeSingle.html?namespace={{$namespace}}&key={{$key}}">{{$entry.RawValue.Operation.Name}}: {{$entry.RawValue.Operation.Operator}} {{$entry.RawValue.Operation.Function}}</a></td><td>{{$entry.RawValue.Operation.Arguments}}</td><td>{{$entry.RawValue.Input}}</td><td>{{$entry.RawValue.Output}}</td><td>{{$entry.Age}}</td>
     </tr>
     {{ end }}
 {{ else }}
@@ -76,4 +76,3 @@
     {{ end }}
 {{ end }}
 </table>
-

@@ -28,14 +28,14 @@
                 {{ end }}
             </select>
         </div>
-    </form>    
-    
+    </form>
+
     <form method="post" action="/config/WriteSection" class="row">
 {{ if .arguments.sectionname }}
         <div class="col">
-            {{ $sectionBytes := printf "sectionname=%s" $requestedSection |graph_ExecuteOperator "config" "GetSection" }}
+            {{ $sectionBytes := printf "sectionname=%s" $requestedSection |flow_ExecuteOperator "config" "GetSection" }}
             <textarea name="sectionBytes" rows="35">{{ printf "%s" $sectionBytes.Output }} </textarea>
-            <input type="text" name="sectionName" value="{{$requestedSection}}"> 
+            <input type="text" name="sectionName" value="{{$requestedSection}}">
             <input type="hidden" name="redirect" value="{{.selfURL}}">
             <button type="submit" name="WriteSection">WriteSection</button>
             <button type="submit" class="button error" formaction="/config/RemoveSection" formmethod="get" >DeleteSection</button>
@@ -43,7 +43,7 @@
 {{ end }}
 {{ if .arguments.operatorname }}
         <div class="col">
-            {{ $sectionBytes := printf "operatorname=%s" $requestedOperator |graph_ExecuteOperator "config" "GetOperatorConfig" }}
+            {{ $sectionBytes := printf "operatorname=%s" $requestedOperator |flow_ExecuteOperator "config" "GetOperatorConfig" }}
             <textarea name="operatorConfigBytes" rows="40">{{ $sectionBytes.GetString }} </textarea>
         </div>
 {{ end }}
@@ -54,4 +54,3 @@
         <button type="submit" class="button error" formaction="/system/stop">Stop Freeps</button>
     </form>
 </div>
-

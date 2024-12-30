@@ -2,6 +2,6 @@
 
 package telegram
 
-import "github.com/hannesrauhe/freeps/freepsgraph"
+import "github.com/hannesrauhe/freeps/freepsflow"
 
-type OpTelegram freepsgraph.DummyOperator
+type OpTelegram freepsflow.DummyOperator

@@ -2,6 +2,6 @@
 
 package freepsbluetooth
 
-import "github.com/hannesrauhe/freeps/freepsgraph"
+import "github.com/hannesrauhe/freeps/freepsflow"
 
-type Bluetooth freepsgraph.DummyOperator
+type Bluetooth freepsflow.DummyOperator

@@ -1,0 +1,205 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    /* Define styles for the info icon */
+    .info-icon {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+    }
+
+    /* Define styles for the tooltip */
+    .info-icon .tooltip {
+        display: none;
+        position: absolute;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        padding: 5px;
+        border-radius: 3px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 1;
+        width: 150px;
+    }
+
+    /* Define styles for the tooltip arrow */
+    .info-icon .tooltip::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #fff transparent transparent transparent;
+    }
+
+    /* Show tooltip on hover */
+    .info-icon:hover .tooltip {
+        display: block;
+    }
+</style>
+</head>
+<body>
+
+<form action="#" method="POST">
+	<input type="hidden" name="selectednumop" value="{{ .Numop }}" />
+	<div>
+		{{ range $key, $value := .FlowDesc.Operations }}
+		<div style="float: left"><button name="newOp" type="submit" value="{{ $key }}">+</button></div>
+		<div
+		style="float: left; width: 300px; height: 190px; border: 1px solid gray; margin: 10px; overflow:hidden; padding:3px; box-sizing: border-box; ">
+		   <div style="height: 50px; margin: auto"> <b>{{ $value.Name }}</b>
+			{{ if not (eq $key $.Numop) }}
+			<button type="submit" name="numop" value="{{ $key }}">Edit</button>
+			{{ else }}
+			<a href="#ModifyOp">Edit below</a>
+			{{ end }}
+			<button type="submit" name="flowOutput" value="{{ $value.Name }}" {{ if (eq $value.Name $.FlowDesc.OutputFrom) }} disabled="true" {{ end }}>Set Output</button>
+			<button type="submit" name="deleteOp" value="{{ $key }}">-</button>
+			<!-- Define the info icon and tooltip -->
+			<div class="info-icon">
+				<button type="submit" disabled="disabled">Last Arguments</button>
+				<div class="tooltip">{{ printf "OperationArguments:%v.%v" $.FlowName $value.Name | store_GetString "_debug" }}</div>
+			</div>
+			</div>
+			<table>
+				<tr><td>Operator / Function</td>
+				<td>
+					{{ if eq $value.Operator "flow"}}
+					<a href="/ui/editFlow?flow={{ $value.Function }}" target="_blank">{{ $value.Operator }} / {{ $value.Function }}</a>
+					{{ else if eq $value.Operator "ui" }}
+					<a href="/ui/editTemplate?templateName={{ $value.Function }}" target="_blank">{{ $value.Operator }} / {{ $value.Function }}</a>
+					{{ else }}
+					{{ $value.Operator }} / {{ $value.Function }}
+				{{ end }}
+				</td></tr>
+				{{ if not (eq $value.InputFrom "") }}
+				<tr><td>InputFrom</td><td>
+					{{ if (eq $value.InputFrom "_") }}
+					<div class="info-icon">
+						_
+						<div class="tooltip">{{ printf "FlowInput:%v" $.FlowName | store_GetString "_debug" }}</div>
+					</div>
+					{{else}}
+						{{ $value.InputFrom }}
+					{{end}}
+				</td></tr>
+				{{ end }}
+				{{ if not (eq $value.ExecuteOnFailOf "") }}
+				<tr><td>ExecuteOnFailOf</td><td> {{ $value.ExecuteOnFailOf }}</td></tr>
+				{{ end }}
+				{{ if not (eq $value.ArgumentsFrom "") }}
+				<tr><td>ArgumentsFrom</td><td> {{ $value.ArgumentsFrom }}</td></tr>
+				{{ end }}
+				{{ range $argName, $argVal := $value.Arguments }}
+				<tr><td>{{ $argName }}</td><td> {{ $argVal }} </td></tr>
+				{{ end }}
+				{{ if $value.UseMainArgs }}
+				<tr><td>UseMainArgs</td><td> </td></tr>
+				{{ end }}
+			</table>
+		</div>
+		{{ end }}
+		<div style="float: left;"><button name="newOp" type="submit" value="{{ len .FlowDesc.Operations }}">+</button><button name="flowOutput" value="">Output all</button></div>
+	</div>
+	{{ if not (eq .Error "") }}
+	<div style="clear:both; color: red;border: 1px solid red;">{{ .Error }}</div>
+	{{ end }}
+	<hr style="clear:both"></hr>
+	{{ $op := (index .FlowDesc.Operations $.Numop) }}
+	<p>
+		<label><h4 id="ModifyOp">Name (values starting with # will be ignored):</h4>
+		<input type="text" name="opName" value="{{ $op.Name }}" onChange="this.form.submit()" />
+		</label>
+	</p>
+	<p>
+		<h4>Operator:</h4>
+		{{ range $key, $value := .OpSuggestions }}
+		<button name="op" value="{{ $key }}" {{ if $value}} disabled="true" {{ end }} >{{ $key }}</button>
+		{{ end }}
+	</p>
+	<p>
+		<h4>Function:</h4>
+		{{ range $key, $value := .FnSuggestions }}
+		<button name="fn" value="{{ $key }}" {{ if $value}} disabled="true" {{ end }}>{{ $key }}</button>
+		{{ end }}
+		<input type="text" name="fn" value="{{ $op.Function }}" onChange="this.form.submit()" />
+	</p>
+
+	<p>
+		<h4>Arguments:</h4>
+		{{ range $argName, $argVal := $op.Arguments }}
+		<p>{{ $argName }}:
+			{{ range $argopt, $argmap := $.ArgSuggestions }}
+				{{if eq $argopt $argName}}
+					{{ range $argShowValue, $argRealValue := $argmap }}<button name="arg.{{ $argName }}" value="{{ $argRealValue }}">{{ $argShowValue }}</button>{{ end }}
+				{{ end }}
+			{{ end }}
+			<input type="text" name="arg.{{ $argName }}" value="{{ $argVal }}"  onChange="this.form.submit()" />
+			<button name="delArg" value="{{ $argName }}">-</button>
+		</p>
+		{{ end }}
+		New Argument:
+		 {{ range $argName, $argSelected := $.ArgSuggestions }}
+		 <button type="submit" name="newArg" value="{{ $argName }}">{{ $argName }}</button>
+		 {{ end }}
+		<input type="text" name="newArg" />
+		<button type="submit">+</button>
+	</p>
+
+	<p>
+		<h4>InputFrom:</h4>
+		{{ range $key, $value := .InputFromSuggestions }}
+		<button name="inputFrom" value="{{ $value }}">{{ $value }}</button>
+		{{ end }}
+		<button name="inputFrom" value="">_empty_</button>
+	</p>
+	<p>
+		<h4>ExecuteOnFailOf:</h4>
+		{{ range $index, $value := .InputFromSuggestions }}
+		<button name="executeOnFailOf" value="{{ $value }}">{{ $value }}</button>
+		{{ end }}
+		<button name="executeOnFailOf" value="">_empty_</button>
+	</p>
+	<p>
+		<h4>ArgumentsFrom:</h4>
+		{{ range $index, $value := .InputFromSuggestions }}
+		<button name="argumentsFrom" value="{{ $value }}">{{ $value }}</button>
+		{{ end }}
+		<button name="argumentsFrom" value="">_empty_</button>
+	</p>
+	<p>
+		<h4>MainArgs:</h4>
+		<button name="useMainArgs" value="true"
+		{{if $op.UseMainArgs }} disabled="true" {{end}}>Use</button>
+		<button name="useMainArgs" value="false"
+		{{if not $op.UseMainArgs }} disabled="true" {{end}}>Do not use</button>
+	</p>
+	<p>
+		Call Operation {{ .Numop }} directly: <a href="{{ .Quicklink }}">{{ .Quicklink }}</a>
+	</p>
+	<p>
+		<h4>Tags:</h4>
+		{{ range $index, $value := .FlowDesc.Tags }}
+		<button name="delTag" value="{{ $value }}">{{ $value }} (X)</button>
+		{{ end }}
+		<br>
+		{{ range $index, $value := .TagSuggestions }}
+		<button name="addTag" value="{{ $value }}">{{ $value }}</button>
+		{{ end }}
+		<input type="text" name="addTag" />
+		<button type="submit">+</button>
+	</p>
+	<textarea name="FlowJSON" cols="200" rows="50">
+{{ .FlowJSON }}
+</textarea>
+	</p>
+
+	<button type="submit" name="Execute" value="Execute">Execute</button>
+	<input type="text" name="FlowName" value="{{ .FlowName }}" />
+	<button type="submit" name="SaveTemp">Save Temporarily</button>
+	<button type="submit" name="SaveFlow">Save Flow</button>
+	<button type="submit" name="FlowJSON" value="" />Reset</button>
+</form>
+<iframe name="outputframe"
+	style="min-width: 500px; height:400px; display:flex; margin:0; padding:0; resize:both; overflow:hidden"
+	id="outputframe" src="{{ .Output }}"></iframe>

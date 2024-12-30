@@ -14,7 +14,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
@@ -22,7 +22,7 @@ import (
 type FreepsMqttImpl struct {
 	client    MQTT.Client
 	Config    *FreepsMqttConfig
-	ge        *freepsgraph.GraphEngine
+	ge        *freepsflow.FlowEngine
 	ctx       *base.Context
 	topics    map[string]bool
 	topicLock sync.Mutex
@@ -46,9 +46,9 @@ func (fm *FreepsMqttImpl) publishResult(topic string, ctx *base.Context, out *ba
 	if err != nil {
 		fm.ctx.GetLogger().Errorf("Publishing freepsresult/topic failed: %v", err.Error())
 	}
-	// err = fm.publish(rt+"graphName", graphName, 0, false)
+	// err = fm.publish(rt+"flowName", flowName, 0, false)
 	// if err != nil {
-	// 	fm.ctx.GetLogger().Errorf("Publishing freepsresult/graphName failed: %v", err.Error())
+	// 	fm.ctx.GetLogger().Errorf("Publishing freepsresult/flowName failed: %v", err.Error())
 	// }
 	err = fm.publish(rt+"type", string(out.OutputType), 0, false)
 	if err != nil {
@@ -190,7 +190,7 @@ func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
 	fm.startTagSubscriptions()
 }
 
-func newFreepsMqttImpl(ctx *base.Context, fmc *FreepsMqttConfig, ge *freepsgraph.GraphEngine) (*FreepsMqttImpl, error) {
+func newFreepsMqttImpl(ctx *base.Context, fmc *FreepsMqttConfig, ge *freepsflow.FlowEngine) (*FreepsMqttImpl, error) {
 	if fmc.Server == "" {
 		return nil, fmt.Errorf("no server given in the config file")
 	}

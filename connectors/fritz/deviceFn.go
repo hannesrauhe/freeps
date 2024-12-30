@@ -7,7 +7,6 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freepslib"
-	log "github.com/sirupsen/logrus"
 )
 
 // GetDevices returns a map of all device AINs
@@ -40,7 +39,7 @@ func (o *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map
 	for AIN, cachedDev := range devs {
 		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
 		if !ok {
-			log.Errorf("Cached record for %v is invalid", AIN)
+			ctx.GetLogger().Errorf("Cached record for %v is invalid", AIN)
 			continue
 		}
 		r[dev.Name] = dev.AIN

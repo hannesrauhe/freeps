@@ -10,13 +10,13 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type OpMQTT struct {
 	CR   *utils.ConfigReader
-	GE   *freepsgraph.GraphEngine
+	GE   *freepsflow.FlowEngine
 	impl *FreepsMqttImpl
 }
 

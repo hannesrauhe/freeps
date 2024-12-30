@@ -16,7 +16,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	// "net/http/pprof"
 )
 
@@ -24,7 +24,7 @@ import (
 var staticContent embed.FS
 
 type FreepsHttpListener struct {
-	graphengine *freepsgraph.GraphEngine
+	flowengine  *freepsflow.FlowEngine
 	srv         *http.Server
 	baseContext *base.Context
 }
@@ -115,10 +115,10 @@ func (r *FreepsHttpListener) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	ctx := base.CreateContextWithField(r.baseContext, "component", "http", "HTTP request from "+req.RemoteAddr)
 	opio := &base.OperatorIO{}
-	if vars["mod"] == "graph" {
-		opio = r.graphengine.ExecuteGraph(ctx, vars["function"], mainArgs, mainInput)
+	if vars["mod"] == "flow" {
+		opio = r.flowengine.ExecuteFlow(ctx, vars["function"], mainArgs, mainInput)
 	} else {
-		opio = r.graphengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
+		opio = r.flowengine.ExecuteOperatorByName(ctx, vars["mod"], vars["function"], mainArgs, mainInput)
 	}
 
 	w.Header().Set("X-Freeps-ID", ctx.GetID())
@@ -163,8 +163,8 @@ func (r *FreepsHttpListener) handleStaticContent(w http.ResponseWriter, req *htt
 	w.Write(fc)
 }
 
-func NewFreepsHttp(ctx *base.Context, cfg HTTPConfig, ge *freepsgraph.GraphEngine) *FreepsHttpListener {
-	rest := &FreepsHttpListener{graphengine: ge, baseContext: ctx}
+func NewFreepsHttp(ctx *base.Context, cfg HTTPConfig, ge *freepsflow.FlowEngine) *FreepsHttpListener {
+	rest := &FreepsHttpListener{flowengine: ge, baseContext: ctx}
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", rest.handleStaticContent)
@@ -181,7 +181,7 @@ func NewFreepsHttp(ctx *base.Context, cfg HTTPConfig, ge *freepsgraph.GraphEngin
 	r.Handle("/{mod}/{function}/", rest)
 	r.Handle("/{mod}/{function}/{device}", rest)
 
-	// tHandler := http.TimeoutHandler(r, time.Duration(cfg.GraphProcessingTimeout)*time.Second, "graph proceesing timeout - graph might still be running")
+	// tHandler := http.TimeoutHandler(r, time.Duration(cfg.FlowProcessingTimeout)*time.Second, "flow proceesing timeout - flow might still be running")
 	rest.srv = &http.Server{
 		Handler: r,
 		Addr:    fmt.Sprintf(":%v", cfg.Port),

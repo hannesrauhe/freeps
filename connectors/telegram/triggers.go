@@ -16,39 +16,39 @@ func (m *OpTelegram) executeTrigger(ctx *base.Context, message tgbotapi.Message)
 	args := base.MakeEmptyFunctionArguments()
 	// freepsstore.GetGlobalStore().GetNamespaceNoError("_mqtt").SetValue(message.Topic(), input, ctx)
 
-	out := m.GE.ExecuteGraphByTags(ctx, tags, args, input)
+	out := m.GE.ExecuteFlowByTags(ctx, tags, args, input)
 	return out
 }
 
-// GraphID auggestions returns suggestions for graph names
-func (o *OpTelegram) GraphIDSuggestions() map[string]string {
-	graphNames := map[string]string{}
-	res := o.GE.GetAllGraphDesc()
+// FlowID auggestions returns suggestions for flow names
+func (o *OpTelegram) FlowIDSuggestions() map[string]string {
+	flowNames := map[string]string{}
+	res := o.GE.GetAllFlowDesc()
 	for id, gd := range res {
 		info, _ := gd.GetCompleteDesc(id, o.GE)
-		_, exists := graphNames[info.DisplayName]
+		_, exists := flowNames[info.DisplayName]
 		if !exists {
-			graphNames[info.DisplayName] = id
+			flowNames[info.DisplayName] = id
 		} else {
-			graphNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
+			flowNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
 		}
 	}
-	return graphNames
+	return flowNames
 }
 
 type TelegramTrigger struct {
-	GraphID string
+	FlowID string
 }
 
 func (m *OpTelegram) SetTopicTrigger(ctx *base.Context, mainInput *base.OperatorIO, args TelegramTrigger) *base.OperatorIO {
-	gd, found := m.GE.GetGraphDesc(args.GraphID)
+	gd, found := m.GE.GetFlowDesc(args.FlowID)
 	if !found {
-		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", args.GraphID)
+		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find flow: %v", args.FlowID)
 	}
 	gd.AddTags("telegram")
-	err := m.GE.AddGraph(ctx, args.GraphID, *gd, true)
+	err := m.GE.AddFlow(ctx, args.FlowID, *gd, true)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify flow: %v", err)
 	}
 
 	return base.MakeEmptyOutput()

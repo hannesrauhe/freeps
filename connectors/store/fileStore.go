@@ -177,8 +177,8 @@ func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedB
 	return makeGenericStoreEntry(io)
 }
 
-func (p *fileStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "file support not fully implemented yet")
+func (p *fileStoreNamespace) UpdateTransaction(key string, fn func(StoreEntry) *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
+	return MakeEntryError(http.StatusNotImplemented, "file support not fully implemented yet")
 }
 
 func (p *fileStoreNamespace) SetAll(valueMap map[string]interface{}, modifiedBy *base.Context) *base.OperatorIO {

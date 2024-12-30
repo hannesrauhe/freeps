@@ -4,8 +4,6 @@ github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
 github.com/briandowns/openweathermap v0.21.1 h1:TPbuixuF+aGJP1mpgTNny6eUkdbvj7gqODGXkwhss48=
 github.com/briandowns/openweathermap v0.21.1/go.mod h1:0GLnknqicWxXnGi1IqoOaZIw+kIe5hkt+YM5WY3j8+0=
-github.com/capossele/GoGraphviz/graphviz v0.0.0-20190313095341-7802999d6878 h1:AUo5YXpHwK4a/ka9zbmXEWpzi4KUc/sV1Ac7/y1Tkw8=
-github.com/capossele/GoGraphviz/graphviz v0.0.0-20190313095341-7802999d6878/go.mod h1:LyNnDpEc8cjVOTmW6Qy2rooOtEdQTzx488CTppzR/Nk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -47,8 +45,6 @@ github.com/mackerelio/go-osstat v0.2.5 h1:+MqTbZUhoIt4m8qzkVoXUJg1EuifwlAJSk4Yl2
 github.com/mackerelio/go-osstat v0.2.5/go.mod h1:atxwWF+POUZcdtR1wnsUcQxTytoHG4uhl2AKKzrOajY=
 github.com/muka/go-bluetooth v0.0.0-20240701044517-04c4f09c514e h1:1Sc4DqlgszKejMkjydCSq8zOKmF+hr8odAl5JoBZ+ec=
 github.com/muka/go-bluetooth v0.0.0-20240701044517-04c4f09c514e/go.mod h1:dMCjicU6vRBk34dqOmIZm0aod6gUwZXOXzBROqGous0=
-github.com/mzohreva/GoGraphviz v0.0.0-20180226085351-533f4a37d9c6 h1:yd4o0qJNQc2PBlymcRCUHM0ltxciTkPjUuVTj8cDbLA=
-github.com/mzohreva/GoGraphviz v0.0.0-20180226085351-533f4a37d9c6/go.mod h1:eILxk8m1m1XGxWu1nQHdKKKl/JnDltcRTe2n84cUWDw=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/oapi-codegen/runtime v1.1.1 h1:EXLHh0DXIJnWhdRPN2w4MXAzFyE4CskzhNLUmtpMYro=
 github.com/oapi-codegen/runtime v1.1.1/go.mod h1:SK9X900oXmPWilYR5/WKPzt3Kqxn/uS/+lbpREv+eCg=

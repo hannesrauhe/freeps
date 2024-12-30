@@ -5,14 +5,14 @@ import (
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 // OpConfig is a FreepsOperator that can be used to retrieve and modify the config
 type OpConfig struct {
 	CR *utils.ConfigReader
-	GE *freepsgraph.GraphEngine
+	GE *freepsflow.FlowEngine
 }
 
 var _ base.FreepsOperator = &OpConfig{}

@@ -6,18 +6,18 @@ import "time"
 
 type MuteMeConfig struct {
 	Enabled            bool          // if false, the muteme button will be ignored
-	MultiTouchDuration time.Duration // if touched multiple times within that duration, a separate graph will be called with the TouchCount
-	LongTouchDuration  time.Duration // if touched once longer that than this, a separate graph will be called with the TouchDuration
+	MultiTouchDuration time.Duration // if touched multiple times within that duration, a separate flow will be called with the TouchCount
+	LongTouchDuration  time.Duration // if touched once longer that than this, a separate flow will be called with the TouchDuration
 	VendorID           uint16        // USB Vendor ID
 	ProductID          uint16        // USB Product ID
-	Tag                string        // tag that all graphs must have to be called
-	TouchTag           string        // graphs with this tag will be called on a short single touch
-	MultiTouchTag      string        // graphs with this tag will be called when button was touched multiple times within MultiTouchDuration
-	LongTouchTag       string        // graphs with this tag will be called on a long single touch
-	ProcessColor       string        // color to set while graphs are executed (if button is already in that color, turn light off instead)
+	Tag                string        // tag that all flows must have to be called
+	TouchTag           string        // flows with this tag will be called on a short single touch
+	MultiTouchTag      string        // flows with this tag will be called when button was touched multiple times within MultiTouchDuration
+	LongTouchTag       string        // flows with this tag will be called on a long single touch
+	ProcessColor       string        // color to set while flows are executed (if button is already in that color, turn light off instead)
 	LongTouchColor     string        // color to set when the button has been touched longer that LongTouchDuration
-	SuccessColor       string        // color to indicate successful graph execution
-	ErrorColor         string        // colot to indicate error during graph execution
+	SuccessColor       string        // color to indicate successful flow execution
+	ErrorColor         string        // colot to indicate error during flow execution
 }
 
 var DefaultConfig = MuteMeConfig{

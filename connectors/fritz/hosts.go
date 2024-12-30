@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -34,9 +35,9 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 		host.IPAddress = byIP
 	}
 
-	updFn := func(oldHostEntry base.OperatorIO) *base.OperatorIO {
+	updFn := func(oldHostEntry freepsstore.StoreEntry) *base.OperatorIO {
 		activeTag := "active:" + host.MACAddress
-		if oldHostEntry.IsEmpty() {
+		if oldHostEntry == freepsstore.NotFoundEntry {
 			if host.Active {
 				go o.executeTrigger(ctx, host, activeTag)
 			}

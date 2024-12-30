@@ -3,7 +3,7 @@
 
 {{$imgName := "last.png"}}
 {{$layerName := "default"}}
-{{$nextColor := graph_ExecuteOperator "pixeldisplay" "GetColor" ""}}
+{{$nextColor := flow_ExecuteOperator "pixeldisplay" "GetColor" ""}}
 {{if $.arguments.color }}
 {{$nextColor = $.arguments.color}}
 {{else}}
@@ -23,7 +23,7 @@
 
 <div>
     <div style="background-color: black;">
-{{ $imageOut := printf "imageName=%s" $imgName | graph_ExecuteOperator "pixeldisplay" "GetPixelMatrix" }}
+{{ $imageOut := printf "imageName=%s" $imgName | flow_ExecuteOperator "pixeldisplay" "GetPixelMatrix" }}
 {{ range $y, $row := $imageOut.Output }}
         <form method="post" action="/pixeldisplay/drawpixel" class="row">
             <input type="hidden" name="redirect" value="{{$.selfURL}}">

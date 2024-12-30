@@ -5,20 +5,20 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 )
 
 type HookStore struct {
 	executionLogNs StoreNamespace
 	debugNs        StoreNamespace
-	GE             *freepsgraph.GraphEngine
+	GE             *freepsflow.FlowEngine
 }
 
-var _ freepsgraph.FreepsExecutionHook = &HookStore{}
-var _ freepsgraph.FreepsGraphChangedHook = &HookStore{}
+var _ freepsflow.FreepsExecutionHook = &HookStore{}
+var _ freepsflow.FreepsFlowChangedHook = &HookStore{}
 
-// GraphInfo keeps information about a graph execution
-type GraphInfo struct {
+// FlowInfo keeps information about a flow execution
+type FlowInfo struct {
 	ExecutionCounter uint64
 	Arguments        map[string]string `json:",omitempty"`
 	Input            string            `json:",omitempty"`
@@ -28,33 +28,33 @@ type GraphInfo struct {
 type FunctionInfo struct {
 	ExecutionCounter uint64
 	ReferenceCounter uint64
-	LastUsedByGraph  string `json:",omitempty"`
+	LastUsedByFlow   string `json:",omitempty"`
 }
 
-// OnExecute gets called when freepsgraph starts executing a Graph
-func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
+// OnExecute gets called when freepsflow starts executing a Flow
+func (h *HookStore) OnExecute(ctx *base.Context, flowName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}
-	if graphName == "" {
-		return fmt.Errorf("graph name is empty")
+	if flowName == "" {
+		return fmt.Errorf("flow name is empty")
 	}
-	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("GraphInfo:%s", graphName), func(oldValue base.OperatorIO) *base.OperatorIO {
-		oldGraphInfo := GraphInfo{}
-		newGraphInfo := GraphInfo{ExecutionCounter: 1}
+	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("FlowInfo:%s", flowName), func(oldValue StoreEntry) *base.OperatorIO {
+		oldFlowInfo := FlowInfo{}
+		newFlowInfo := FlowInfo{ExecutionCounter: 1}
 		if mainArgs != nil && len(mainArgs) > 0 {
-			newGraphInfo.Arguments = mainArgs
+			newFlowInfo.Arguments = mainArgs
 		}
 		if mainInput != nil && !mainInput.IsEmpty() {
-			newGraphInfo.Input = mainInput.GetString()
+			newFlowInfo.Input = mainInput.GetString()
 		}
-		oldValue.ParseJSON(&oldGraphInfo)
-		newGraphInfo.ExecutionCounter = oldGraphInfo.ExecutionCounter + 1
-		return base.MakeObjectOutput(newGraphInfo)
+		oldValue.ParseJSON(&oldFlowInfo)
+		newFlowInfo.ExecutionCounter = oldFlowInfo.ExecutionCounter + 1
+		return base.MakeObjectOutput(newFlowInfo)
 	}, ctx)
 
-	out2 := h.debugNs.SetValue(fmt.Sprintf("GraphInput:%s", graphName), mainInput, ctx)
-	out3 := h.debugNs.SetValue(fmt.Sprintf("GraphArguments:%s.", graphName), base.MakeObjectOutput(mainArgs), ctx)
+	out2 := h.debugNs.SetValue(fmt.Sprintf("FlowInput:%s", flowName), mainInput, ctx)
+	out3 := h.debugNs.SetValue(fmt.Sprintf("FlowArguments:%s.", flowName), base.MakeObjectOutput(mainArgs), ctx)
 	if out1.IsError() {
 		return out1.GetError()
 	}
@@ -67,31 +67,31 @@ func (h *HookStore) OnExecute(ctx *base.Context, graphName string, mainArgs map[
 	return nil
 }
 
-// OnGraphChanged analyzes all graphs and updates the operator info
-func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, removedGraphs []string) error {
+// OnFlowChanged analyzes all flows and updates the operator info
+func (h *HookStore) OnFlowChanged(ctx *base.Context, addedFlows []string, removedFlows []string) error {
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}
 
 	collectedInfo := map[string]FunctionInfo{}
-	for graphName, gd := range h.GE.GetAllGraphDesc() {
+	for flowName, gd := range h.GE.GetAllFlowDesc() {
 		for _, op := range gd.Operations {
 			opDesc := fmt.Sprintf("%v.%v", op.Operator, op.Function)
 			fnInfo := FunctionInfo{}
 			fnInfo, _ = collectedInfo[opDesc]
 			fnInfo.ReferenceCounter++
-			fnInfo.LastUsedByGraph = graphName
+			fnInfo.LastUsedByFlow = flowName
 			collectedInfo[opDesc] = fnInfo
 		}
 	}
 
 	for opDesc, newInfo := range collectedInfo {
-		out := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s", opDesc), func(oldValue base.OperatorIO) *base.OperatorIO {
+		out := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s", opDesc), func(oldValue StoreEntry) *base.OperatorIO {
 			fnInfo := FunctionInfo{}
 			oldValue.ParseJSON(&fnInfo)
 			fnInfo.ReferenceCounter = newInfo.ReferenceCounter
-			if fnInfo.LastUsedByGraph == "" {
-				fnInfo.LastUsedByGraph = newInfo.LastUsedByGraph
+			if fnInfo.LastUsedByFlow == "" {
+				fnInfo.LastUsedByFlow = newInfo.LastUsedByFlow
 			}
 			return base.MakeObjectOutput(fnInfo)
 		}, ctx)
@@ -100,10 +100,10 @@ func (h *HookStore) OnGraphChanged(ctx *base.Context, addedGraphs []string, remo
 		}
 	}
 
-	for _, graphId := range addedGraphs {
-		gd, found := h.GE.GetGraphDesc(graphId)
+	for _, flowId := range addedFlows {
+		gd, found := h.GE.GetFlowDesc(flowId)
 		if found {
-			StoreGraph(fmt.Sprintf("%s.%d", graphId, time.Now().Unix()), *gd, ctx)
+			StoreFlow(fmt.Sprintf("%s.%d", flowId, time.Now().Unix()), *gd, ctx)
 		}
 	}
 
@@ -114,24 +114,24 @@ type ExecutionLogEntry struct {
 	Input      string
 	Output     string
 	OutputCode int
-	GraphID    string
-	Operation  *freepsgraph.GraphOperationDesc
+	FlowID     string
+	Operation  *freepsflow.FlowOperationDesc
 }
 
-// OnExecuteOperation gets called when freepsgraph encounters an error while executing a Graph
-func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, graphName string, opDetails *freepsgraph.GraphOperationDesc) error {
+// OnExecuteOperation gets called when freepsflow encounters an error while executing a Flow
+func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO, opOutput *base.OperatorIO, flowName string, opDetails *freepsflow.FlowOperationDesc) error {
 	if h.debugNs == nil {
 		return fmt.Errorf("missing debug namespace")
 	}
-	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s.%s", opDetails.Operator, opDetails.Function), func(oldValue base.OperatorIO) *base.OperatorIO {
+	out1 := h.debugNs.UpdateTransaction(fmt.Sprintf("Function:%s.%s", opDetails.Operator, opDetails.Function), func(oldValue StoreEntry) *base.OperatorIO {
 		fnInfo := FunctionInfo{}
 		oldValue.ParseJSON(&fnInfo)
 		fnInfo.ExecutionCounter++
-		fnInfo.LastUsedByGraph = graphName
+		fnInfo.LastUsedByFlow = flowName
 		return base.MakeObjectOutput(fnInfo)
 	}, ctx)
 
-	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", graphName, opDetails.Name), base.MakeObjectOutput(opDetails.Arguments), ctx)
+	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", flowName, opDetails.Name), base.MakeObjectOutput(opDetails.Arguments), ctx)
 	if out1.IsError() {
 		return out1.GetError()
 	}
@@ -142,15 +142,15 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO
 	if h.executionLogNs == nil {
 		return fmt.Errorf("executionLog namespace missing")
 	}
-	out := h.executionLogNs.SetValue("", base.MakeObjectOutput(ExecutionLogEntry{Input: input.GetString(), Output: opOutput.GetString(), OutputCode: opOutput.HTTPCode, GraphID: graphName, Operation: opDetails}), ctx)
+	out := h.executionLogNs.SetValue("", base.MakeObjectOutput(ExecutionLogEntry{Input: input.GetString(), Output: opOutput.GetString(), OutputCode: opOutput.HTTPCode, FlowID: flowName, Operation: opDetails}), ctx)
 	if out.IsError() {
 		return out.GetError()
 	}
 	return nil
 }
 
-// OnExecutionFinished gets called when freepsgraph is finished executing a Graph
-func (h *HookStore) OnExecutionFinished(ctx *base.Context, graphName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
+// OnExecutionFinished gets called when freepsflow is finished executing a Flow
+func (h *HookStore) OnExecutionFinished(ctx *base.Context, flowName string, mainArgs map[string]string, mainInput *base.OperatorIO) error {
 
 	return nil
 }

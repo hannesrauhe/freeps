@@ -13,6 +13,7 @@ import (
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
+	"github.com/hannesrauhe/freeps/connectors/flowbuilder"
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
 	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
@@ -25,7 +26,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/ui"
 	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 	"github.com/hannesrauhe/freeps/connectors/weather"
-	"github.com/hannesrauhe/freeps/freepsgraph"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -82,9 +83,9 @@ func mainLoop() bool {
 	}
 	defer utils.DeleteTempDir()
 
-	logger.Debug("Loading graph engine")
+	logger.Debug("Loading flow engine")
 
-	ge := freepsgraph.NewGraphEngine(baseCtx, cr, cancel)
+	ge := freepsflow.NewFlowEngine(baseCtx, cr, cancel)
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
@@ -94,7 +95,7 @@ func mainLoop() bool {
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
 		&freepsutils.OpRegexp{},
-		&freepsutils.OpGraphBuilder{GE: ge},
+		&flowbuilder.OpFlowBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
 		&telegram.OpTelegram{GE: ge},
 		&pixeldisplay.OpPixelDisplay{},

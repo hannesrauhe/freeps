@@ -20,30 +20,30 @@ func (fm *FreepsMqttImpl) executeTrigger(ctx *base.Context, topic string, messag
 	for ti, tp := range tParts {
 		args.Append(fmt.Sprintf("topic%d", ti), tp)
 	}
-	out := fm.ge.ExecuteGraphByTags(ctx, tags, args, input)
+	out := fm.ge.ExecuteFlowByTags(ctx, tags, args, input)
 	fm.publishResult(topic, ctx, out)
 	return out
 }
 
-// GraphID auggestions returns suggestions for graph names
-func (o *OpMQTT) GraphIDSuggestions() map[string]string {
-	graphNames := map[string]string{}
-	res := o.GE.GetAllGraphDesc()
+// FlowID auggestions returns suggestions for flow names
+func (o *OpMQTT) FlowIDSuggestions() map[string]string {
+	flowNames := map[string]string{}
+	res := o.GE.GetAllFlowDesc()
 	for id, gd := range res {
 		info, _ := gd.GetCompleteDesc(id, o.GE)
-		_, exists := graphNames[info.DisplayName]
+		_, exists := flowNames[info.DisplayName]
 		if !exists {
-			graphNames[info.DisplayName] = id
+			flowNames[info.DisplayName] = id
 		} else {
-			graphNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
+			flowNames[fmt.Sprintf("%v (ID: %v)", info.DisplayName, id)] = id
 		}
 	}
-	return graphNames
+	return flowNames
 }
 
 type TopicTrigger struct {
-	GraphID string
-	Topic   string
+	FlowID string
+	Topic  string
 }
 
 // TopicSuggestions returns known topics
@@ -90,14 +90,14 @@ func (tt *TopicTrigger) TopicSuggestions(o *OpMQTT) []string {
 }
 
 func (o *OpMQTT) SetTopicTrigger(ctx *base.Context, mainInput *base.OperatorIO, args TopicTrigger) *base.OperatorIO {
-	gd, found := o.GE.GetGraphDesc(args.GraphID)
+	gd, found := o.GE.GetFlowDesc(args.FlowID)
 	if !found {
-		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find graph: %v", args.GraphID)
+		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find flow: %v", args.FlowID)
 	}
 	gd.AddTags("mqtt", "topic:"+args.Topic)
-	err := o.GE.AddGraph(ctx, args.GraphID, *gd, true)
+	err := o.GE.AddFlow(ctx, args.FlowID, *gd, true)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify graph: %v", err)
+		return base.MakeOutputError(http.StatusInternalServerError, "Cannot modify flow: %v", err)
 	}
 
 	return base.MakeEmptyOutput()

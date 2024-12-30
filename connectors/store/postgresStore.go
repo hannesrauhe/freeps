@@ -286,8 +286,8 @@ func (p *postgresStoreNamespace) SetAll(valueMap map[string]interface{}, modifie
 	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
-func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(base.OperatorIO) *base.OperatorIO, modifiedBy *base.Context) *base.OperatorIO {
-	return base.MakeOutputError(http.StatusNotImplemented, "postgres support not fully implemented yet")
+func (p *postgresStoreNamespace) UpdateTransaction(key string, fn func(StoreEntry) *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
+	return MakeEntryError(http.StatusNotImplemented, "postgres support not fully implemented yet")
 }
 
 // Len returns the number of entries in the namespace

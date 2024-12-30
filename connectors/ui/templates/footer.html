@@ -1,14 +1,14 @@
 <footer style="clear: both" class="text-center">
-  {{ $alerts := graph_ExecuteOperator "alert" "GetShortAlertString" "severity=3"}}
+  {{ $alerts := flow_ExecuteOperator "alert" "GetShortAlertString" "severity=3"}}
   <p class="bg-error"> {{ $alerts.GetString }}</p>
-  <a href="/ui">Home</a> 
-  <a href="/ui/alerts.html">Alerts</a> 
-  <a href="/ui/edit">New Graph</a> 
-  <a href="/ui/editconfig.html">Edit Config</a> 
-  <a href="/ui/graphInfo.html">Graph Info</a>
+  <a href="/ui">Home</a>
+  <a href="/ui/alerts.html">Alerts</a>
+  <a href="/ui/edit">New Flow</a>
+  <a href="/ui/editconfig.html">Edit Config</a>
+  <a href="/ui/flowInfo.html">Flow Info</a>
   <a href="/ui/store.html">Store UI</a>
-  {{ range $name, $info := graph_GetGraphDescByTag "ui,footer" }}
-  <a href="/graph/{{ $name }}">{{ $name }}</a>
+  {{ range $name, $info := flow_GetFlowDescByTag "ui,footer" }}
+  <a href="/flow/{{ $name }}">{{ $name }}</a>
   {{ end }}
   <br><br>
   Freeps {{ .Version }}, started at {{ .StartedAt }}

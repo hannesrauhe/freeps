@@ -1,6 +1,6 @@
 //go:build windows
 
-package freepsgraph
+package freepsflow
 
 import (
 	"net/http"

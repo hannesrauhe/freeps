@@ -2,6 +2,6 @@
 
 package freepsflux
 
-import "github.com/hannesrauhe/freeps/freepsgraph"
+import "github.com/hannesrauhe/freeps/freepsflow"
 
-type OperatorFlux freepsgraph.DummyOperator
+type OperatorFlux freepsflow.DummyOperator
