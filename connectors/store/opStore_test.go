@@ -277,17 +277,18 @@ func TestStoreIncremenet(t *testing.T) {
 	/* test data type preservation */
 	vars["key"] = "test_key_int"
 	vars["value"] = "1"
-	ns.SetValue("test_key_int", base.MakeObjectOutput(1), ctx)
+	ns.SetValue("test_key_int", base.MakeIntegerOutput(1), ctx)
 	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when incrementing value for tests: %v", out)
+	assert.Assert(t, out.IsInteger())
 	assert.Equal(t, out.GetString(), "2")
-	assert.Equal(t, out.OutputType, base.Object)
 
 	vars["key"] = "test_key_float"
 	vars["value"] = "1"
-	ns.SetValue("test_key_float", base.MakeObjectOutput(1.5), ctx)
+	ns.SetValue("test_key_float", base.MakeFloatOutput(1.5), ctx)
 	out = s.Execute(ctx, "increment", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, !out.IsError(), "Unexpected error when incrementing value for tests: %v", out)
+	assert.Assert(t, out.IsFloatingPoint())
 	f, ok := out.Output.(float64)
 	assert.Assert(t, ok)
 	assert.Equal(t, f, 2.5)

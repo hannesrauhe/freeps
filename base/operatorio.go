@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 
+	"github.com/hannesrauhe/freeps/utils"
 	"github.com/jeremywohl/flatten"
 	"github.com/sirupsen/logrus"
 )
@@ -14,11 +16,13 @@ import (
 type OutputT string
 
 const (
-	Empty     OutputT = ""
-	Error     OutputT = "error"
-	PlainText OutputT = "plain"
-	Byte      OutputT = "byte"
-	Object    OutputT = "object"
+	Empty         OutputT = ""
+	Error         OutputT = "error"
+	PlainText     OutputT = "plain"
+	Byte          OutputT = "byte"
+	Object        OutputT = "object"
+	Integer       OutputT = "integer"
+	FloatingPoint OutputT = "floating"
 )
 
 // OperatorIO is the input and output of an operator, once created it should not be modified
@@ -61,6 +65,28 @@ func MakeObjectOutput(output interface{}) *OperatorIO {
 
 func MakeObjectOutputWithContentType(output interface{}, contentType string) *OperatorIO {
 	return &OperatorIO{OutputType: Object, HTTPCode: 200, Output: output, ContentType: contentType}
+}
+
+func MakeIntegerOutput(output interface{}) *OperatorIO {
+	/* panic if output is not numeric */
+	switch output.(type) {
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		break
+	default:
+		panic(fmt.Sprintf("Cannot make integer output, type is %T", output))
+	}
+	return &OperatorIO{OutputType: Integer, HTTPCode: 200, Output: output}
+}
+
+func MakeFloatOutput(output interface{}) *OperatorIO {
+	/* panic if output is not numeric */
+	switch output.(type) {
+	case float32, float64:
+		break
+	default:
+		panic(fmt.Sprintf("Cannot make floating point output, type is %T", output))
+	}
+	return &OperatorIO{OutputType: FloatingPoint, HTTPCode: 200, Output: output}
 }
 
 func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
@@ -172,27 +198,6 @@ func (io *OperatorIO) GetSize() (int, error) {
 	}
 }
 
-func (io *OperatorIO) GetString() string {
-	var b []byte
-	switch io.OutputType {
-	case Empty:
-		return ""
-	case Byte:
-		b = io.Output.([]byte)
-	case PlainText:
-		return io.Output.(string)
-	case Error:
-		return io.Output.(error).Error()
-	default:
-		b, _ = json.MarshalIndent(io.Output, "", "  ")
-	}
-
-	if len(b) > 1024*10 {
-		return fmt.Sprintf("%s...", b[:1024*10-3])
-	}
-	return fmt.Sprintf("%s", b)
-}
-
 func (io *OperatorIO) GetError() error {
 	switch io.OutputType {
 	case Error:
@@ -211,6 +216,66 @@ func (io *OperatorIO) GetObject() interface{} {
 	}
 }
 
+// GetString returns the output as a string, it will convert to string if not already, returns "" if not possible
+func (io *OperatorIO) GetString() string {
+	var b []byte
+	switch io.OutputType {
+	case Empty:
+		return ""
+	case Byte:
+		b = io.Output.([]byte)
+	case PlainText:
+		return io.Output.(string)
+	case Error:
+		return io.Output.(error).Error()
+	case Integer, FloatingPoint:
+		return fmt.Sprintf("%v", io.Output)
+	default:
+		b, _ = json.MarshalIndent(io.Output, "", "  ")
+	}
+
+	if len(b) > 1024*10 {
+		return fmt.Sprintf("%s...", b[:1024*10-3])
+	}
+	return fmt.Sprintf("%s", b)
+}
+
+// GetFloat64 returns the output as a float64, it will convert/round possibly losing precision, returns NaN if not possible
+// convert: if true, it will convert to float64 if not already, if false it will return NaN if not already a floating point type (it will always convert floating point types)
+func (io *OperatorIO) GetFloat64(convert bool) float64 {
+	if !convert {
+		switch io.OutputType {
+		case FloatingPoint:
+			break
+		default:
+			return math.NaN()
+		}
+	}
+	f, err := utils.ConvertToFloat(io.Output)
+	if err != nil {
+		return math.NaN()
+	}
+	return f
+}
+
+// GetInt64 returns the output as an int64, it will convert/round possibly losing precision, returns 0 if not possible
+// convert: if true, it will convert to int64 if not already, if false it will return 0 if not already an integer type (it will always convert integer types)
+func (io *OperatorIO) GetInt64(convert bool) (int64, error) {
+	if !convert {
+		switch io.OutputType {
+		case Integer:
+			break
+		default:
+			return 0, fmt.Errorf("Output is not an integer")
+		}
+	}
+	i, err := utils.ConvertToInt64(io.Output)
+	if err != nil {
+		return 0, fmt.Errorf("Cannot convert output to integer: %v", err)
+	}
+	return i, nil
+}
+
 func (io *OperatorIO) GetStatusCode() int {
 	return io.HTTPCode
 }
@@ -225,6 +290,18 @@ func (io *OperatorIO) IsPlain() bool {
 
 func (io *OperatorIO) IsObject() bool {
 	return io.OutputType == Object
+}
+
+func (io *OperatorIO) IsByte() bool {
+	return io.OutputType == Byte
+}
+
+func (io *OperatorIO) IsInteger() bool {
+	return io.OutputType == Integer
+}
+
+func (io *OperatorIO) IsFloatingPoint() bool {
+	return io.OutputType == FloatingPoint
 }
 
 func (io *OperatorIO) IsFormData() bool {
