@@ -46,7 +46,7 @@ func (ge *FlowEngine) ExecuteFlow(ctx *base.Context, flowName string, mainArgs b
 // ExecuteOperatorByName executes an operator directly
 func (ge *FlowEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
-	return ge.ExecuteAdHocFlow(ctx, name, FlowDesc{Operations: []FlowOperationDesc{{Operator: opName, Function: fn, UseMainArgs: true}}}, mainArgs, mainInput)
+	return ge.ExecuteAdHocFlow(ctx, name, FlowDesc{Operations: []FlowOperationDesc{{Operator: opName, Function: fn, UseMainArgs: true, InputFrom: ROOT_SYMBOL}}}, mainArgs, mainInput)
 }
 
 // ExecuteFlowByTags executes flows with given tags
