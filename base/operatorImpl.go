@@ -55,7 +55,7 @@ func MakeFreepsOperators(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *C
 	o.createFunctionMap(ctx)
 
 	if len(o.functionMetaDataMap) == 0 {
-		ctx.logger.Panicf("No compatible freeps functions found for operator \"%v\"", o.GetName())
+		ctx.GetLogger().Panicf("No compatible freeps functions found for operator \"%v\"", o.GetName())
 	}
 
 	if cr == nil {
@@ -77,16 +77,17 @@ func MakeFreepsOperators(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *C
 	return ops
 }
 
-func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils.ConfigReader, ctx *Context) []FreepsBaseOperator {
+func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils.ConfigReader, pctx *Context) []FreepsBaseOperator {
 	ops := []FreepsBaseOperator{}
 	opVariation0 := opVariationWrapper0.opInstance.(FreepsOperatorWithConfig)
 	opVariationSectionNames, err := cr.GetSectionNamesWithPrefix(opVariationWrapper0.GetName() + ".")
 	if err != nil {
-		ctx.logger.Errorf("Reading config for operator \"%v\" failed: %v", opVariationWrapper0.GetName(), err)
+		pctx.GetLogger().Errorf("Reading config for operator \"%v\" failed: %v", opVariationWrapper0.GetName(), err)
 		return nil
 	}
 	opVariationSectionNames = append(opVariationSectionNames, opVariationWrapper0.GetName())
 	for _, opVariationSectionName := range opVariationSectionNames {
+		ctx := pctx.ChildContextWithField("operator", opVariationSectionName)
 		conf := opVariation0.GetDefaultConfig()
 		if conf == nil {
 			ops = append(ops, &FreepsOperatorWrapper{opInstance: opVariation0})
@@ -94,7 +95,7 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 		}
 		err := cr.ReadSectionWithDefaults(opVariationSectionName, conf)
 		if err != nil {
-			ctx.logger.Errorf("Reading config for operator \"%v\" failed: %v", opVariationSectionName, err)
+			ctx.GetLogger().Errorf("Reading config for operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
 		}
 
@@ -107,12 +108,12 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 		}
 		opVariation, err := opVariation0.InitCopyOfOperator(ctx, conf, opVariationSectionName)
 		if err != nil {
-			ctx.logger.Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
+			ctx.GetLogger().Errorf("Initializing operator \"%v\" failed: %v", opVariationSectionName, err)
 			continue
 		}
 		err = cr.WriteSection(opVariationSectionName, conf, false)
 		if err != nil {
-			ctx.logger.Errorf("Writing config for operator \"%v\" failed: %v", opVariationSectionName, err)
+			ctx.GetLogger().Errorf("Writing config for operator \"%v\" failed: %v", opVariationSectionName, err)
 		}
 		opVariationWrapper := FreepsOperatorWrapper{opInstance: opVariation, opName: opVariationSectionName, config: conf}
 		opVariationWrapper.createFunctionMap(ctx)
@@ -121,7 +122,7 @@ func initOperatorVariations(opVariationWrapper0 FreepsOperatorWrapper, cr *utils
 
 	err = cr.WriteBackConfigIfChanged()
 	if err != nil {
-		ctx.logger.Errorf("Writing back config file failed: %v", err)
+		pctx.GetLogger().Errorf("Writing back config file failed: %v", err)
 	}
 	return ops
 }
@@ -288,7 +289,7 @@ func (o *FreepsOperatorWrapper) createFunctionMap(ctx *Context) {
 		}
 		ffType, err := getFreepsFunctionType(t.Method(i).Type)
 		if err != nil {
-			ctx.logger.Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", mName, o.GetName(), err)
+			ctx.GetLogger().Debugf("Function \"%v\" of operator \"%v\" is not a valid FreepsFunction: %v\n", mName, o.GetName(), err)
 			continue
 		}
 		o.functionMetaDataMap[utils.StringToLower(mName)] = FreepsFunctionMetaData{Name: mName, FuncValue: v.Method(i), FuncType: ffType}
