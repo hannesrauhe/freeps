@@ -236,7 +236,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.sendStartMessage(&msg)
 			return
 		}
-		tpl := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}, UseMainArgs: true}}, Source: "telegram"}
+		tpl := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: tcr.C, Arguments: map[string]string{}, UseMainArgs: true, InputFrom: "_"}}, Source: "telegram"}
 		freepsstore.StoreFlow(tcr.T, tpl, ctx)
 		op, gd = m.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + gd.Operations[0].Operator

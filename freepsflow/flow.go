@@ -192,6 +192,10 @@ func (g *Flow) executeOperation(parentCtx *base.Context, originalOpDesc *FlowOpe
 		}
 	}
 
+	if originalOpDesc.ExecuteOnSuccessOf != "" && g.opOutputs[originalOpDesc.ExecuteOnSuccessOf].IsError() {
+		return base.MakeOutputError(http.StatusExpectationFailed, "Operation not executed because \"%v\" did not succeed", originalOpDesc.ExecuteOnSuccessOf)
+	}
+
 	if originalOpDesc.ExecuteOnFailOf != "" && !g.opOutputs[originalOpDesc.ExecuteOnFailOf].IsError() {
 		return base.MakeOutputError(http.StatusExpectationFailed, "Operation not executed because \"%v\" did not fail", originalOpDesc.ExecuteOnFailOf)
 	}
