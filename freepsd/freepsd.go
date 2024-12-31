@@ -17,7 +17,6 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/freepsflux"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
 	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
-	freepsmath "github.com/hannesrauhe/freeps/connectors/math"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
@@ -95,7 +94,7 @@ func mainLoop() bool {
 		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
-		&freepsmath.OpMath{},
+		&freepsutils.OpMath{},
 		&freepsutils.OpRegexp{},
 		&flowbuilder.OpFlowBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
