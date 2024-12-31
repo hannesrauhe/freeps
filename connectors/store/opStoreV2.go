@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 func (o *OpStore) modifyOutputSingleNamespace(ns string, outputPtr *string, result map[string]StoreEntry) *base.OperatorIO {
@@ -370,19 +369,19 @@ func (o *OpStore) Increment(ctx *base.Context, input *base.OperatorIO, args Incr
 	}
 	e := nsStore.UpdateTransaction(args.Key, func(se StoreEntry) *base.OperatorIO {
 		if se == NotFoundEntry {
-			return base.MakeObjectOutput(value)
+			return base.MakeIntegerOutput(value)
 		}
-		d := se.GetData().Output
+		d := se.GetData()
+		switch d.OutputType {
 		/* try to preserver the initial type of the entry */
-		switch d.(type) {
-		case int:
-			return base.MakeObjectOutput(d.(int) + value)
-		case int64:
-			return base.MakeObjectOutput(d.(int64) + int64(value))
-		case float64:
-			return base.MakeObjectOutput(d.(float64) + float64(value))
+		case base.Integer:
+			ov, _ := d.GetInt64(false)
+			return base.MakeIntegerOutput(ov + int64(value))
+		case base.FloatingPoint:
+			ov := d.GetFloat64(false)
+			return base.MakeFloatOutput(ov + float64(value))
 		default:
-			ov, err := utils.ConvertToInt64(d)
+			ov, err := d.GetInt64(true)
 			if err != nil {
 				return base.MakeOutputError(http.StatusBadRequest, "Value is not numeric: %v", d)
 			}

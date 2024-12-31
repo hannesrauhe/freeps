@@ -94,6 +94,7 @@ func mainLoop() bool {
 		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
 		&freepsutils.OpUtils{},
+		&freepsutils.OpMath{},
 		&freepsutils.OpRegexp{},
 		&flowbuilder.OpFlowBuilder{GE: ge},
 		&freepshttp.OpCurl{CR: cr, GE: ge},
