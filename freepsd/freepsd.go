@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"flag"
-	"log"
 	"os"
 
 	logrus "github.com/sirupsen/logrus"
@@ -118,7 +117,7 @@ func mainLoop() bool {
 	if operator != "" {
 		fa, err := base.NewFunctionArgumentsFromURLQuery(argstring)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 		oio := base.MakeEmptyOutput()
 
@@ -132,7 +131,7 @@ func mainLoop() bool {
 		} else if input != "" {
 			content, err := os.ReadFile(input)
 			if err != nil {
-				log.Fatal(err)
+				logger.Fatal(err)
 			}
 			oio = base.MakeByteOutput(content)
 		}

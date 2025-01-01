@@ -26,7 +26,7 @@ var _ base.FreepsOperatorWithHook = &OpMQTT{}
 var _ base.FreepsOperatorWithShutdown = &OpMQTT{}
 
 func (o *OpMQTT) GetDefaultConfig() interface{} {
-	return &FreepsMqttConfig{Enabled: true, Server: "", Username: "", Password: "", Topics: []TopicConfig{}}
+	return &FreepsMqttConfig{Enabled: true, Server: "", Username: "", Password: ""}
 }
 
 func (o *OpMQTT) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
