@@ -3,8 +3,6 @@ package mqtt
 import (
 	"sync"
 
-	log "github.com/sirupsen/logrus"
-
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -33,7 +31,6 @@ type FreepsMqttConfig struct {
 	Server      string // The full url of the MQTT server to connect to ex: tcp://127.0.0.1:1883
 	Username    string // A username to authenticate to the MQTT server
 	Password    string // Password to match username
-	Topics      []TopicConfig
 	ResultTopic string // Topic to publish results to; empty (default) means no publishing of results
 }
 
@@ -63,7 +60,7 @@ func (fm *FreepsMqttImpl) publishResult(topic string, ctx *base.Context, out *ba
 func (fm *FreepsMqttImpl) systemMessageReceived(client MQTT.Client, message MQTT.Message) {
 	t := strings.Split(message.Topic(), "/")
 	if len(t) <= 2 {
-		log.Infof("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
+		fm.ctx.GetLogger().Infof("Message to topic \"%v\" ignored, expect \"freeps/<module>/<function>\"", message.Topic())
 		return
 	}
 	input := base.MakeObjectOutput(message.Payload())
@@ -175,15 +172,6 @@ func (fm *FreepsMqttImpl) discoverTopics(ctx *base.Context, discoverDuration tim
 }
 
 func (fm *FreepsMqttImpl) startConfigSubscriptions(c MQTT.Client) {
-	for _, k := range fm.Config.Topics {
-		k := k // see https://go.dev/doc/faq#closures_and_goroutines
-		onMessageReceived := func(client MQTT.Client, message MQTT.Message) {
-			fm.processMessage(k, message.Payload(), message.Topic())
-		}
-		if token := c.Subscribe(k.Topic, byte(k.Qos), onMessageReceived); token.Wait() && token.Error() != nil {
-			panic(token.Error())
-		}
-	}
 	if token := c.Subscribe("freeps/#", 0, fm.systemMessageReceived); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}

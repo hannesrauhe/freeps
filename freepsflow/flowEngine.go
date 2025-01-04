@@ -516,13 +516,14 @@ func (ge *FlowEngine) GetMetrics() FlowEngineMetrics {
 }
 
 // StartListening starts all listening operators
-func (ge *FlowEngine) StartListening(ctx *base.Context) {
-	defer ge.TriggerFlowChangedHooks(ctx, []string{}, []string{})
+func (ge *FlowEngine) StartListening(pctx *base.Context) {
+	defer ge.TriggerFlowChangedHooks(pctx, []string{}, []string{})
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 
 	for _, op := range ge.operators {
 		if op != nil {
+			ctx := pctx.ChildContextWithField("operatorListener", op.GetName())
 			op.StartListening(ctx)
 		}
 	}
