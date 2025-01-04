@@ -88,7 +88,7 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 
 // checkDeviceForAlerts set system alerts for certain conditions
 func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice, oldDeviceState *freepslib.AvmDevice) {
-	deviceId := device.AIN
+	deviceId := device.DeviceID
 	if device.EtsiUnitInfo != nil {
 		/* make sure alerts are unique per device */
 		deviceId = device.EtsiUnitInfo.DeviceID
