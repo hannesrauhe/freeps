@@ -88,26 +88,32 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 
 // checkDeviceForAlerts set system alerts for certain conditions
 func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice, oldDeviceState *freepslib.AvmDevice) {
+	deviceId := device.AIN
+	if device.EtsiUnitInfo != nil {
+		/* make sure alerts are unique per device */
+		deviceId = device.EtsiUnitInfo.DeviceID
+	}
 	if device.HKR != nil {
 		if device.HKR.Batterylow {
 			dur := BatterylowAlertDuration
-			o.GE.SetSystemAlert(ctx, "BatteryLow"+device.AIN, o.name, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
+			o.GE.SetSystemAlert(ctx, "BatteryLow"+deviceId, o.name, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
 		} else {
-			o.GE.ResetSystemAlert(ctx, "BatteryLow"+device.AIN, o.name)
+			o.GE.ResetSystemAlert(ctx, "BatteryLow"+deviceId, o.name)
 		}
 		if device.HKR.Windowopenactive {
 			dur := 15 * time.Minute // TODO: time(device.HKR.Windowopenactiveendtime).Sub(time.Now())
-			o.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, o.name, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
+			o.GE.SetSystemAlert(ctx, "WindowOpen"+deviceId, o.name, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
 		} else {
-			o.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, o.name)
+			o.GE.ResetSystemAlert(ctx, "WindowOpen"+deviceId, o.name)
 		}
 	}
 	if !device.Present {
 		dur := DeviceNotPresentAlertDuration
-		o.GE.SetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, o.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
+		o.GE.SetSystemAlert(ctx, "DeviceNotPresent"+deviceId, o.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
 	} else {
-		o.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, o.name)
+		o.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+deviceId, o.name)
 	}
+	// actual alerts are not grouped by device, but by AIN
 	if device.Alert != nil {
 		if device.Alert.State != 0 {
 			dur := AlertDeviceAlertDuration
