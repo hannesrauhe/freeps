@@ -9,7 +9,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/hannesrauhe/freepslib v1.3.0
+	github.com/hannesrauhe/freepslib v1.4.1
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/keep94/sunrise v1.0.1
