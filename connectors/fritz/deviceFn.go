@@ -64,7 +64,6 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	}
 	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
 	devNs := o.getDeviceNamespace()
-	deviceAlerts := map[string]bool{}
 	for _, dev := range devl.Device {
 		var cachedDevPtr *freepslib.AvmDevice = nil
 		cachedValEntry := devNs.GetValue(dev.AIN)
@@ -82,13 +81,13 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 			}
 		}
 		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), ctx)
-		o.checkDeviceForAlerts(ctx, dev, cachedDevPtr, deviceAlerts)
+		o.checkDeviceForAlerts(ctx, dev, cachedDevPtr)
 	}
 	return devl, nil
 }
 
 // checkDeviceForAlerts set system alerts for certain conditions
-func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice, oldDeviceState *freepslib.AvmDevice, deviceAlerts map[string]bool) {
+func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice, oldDeviceState *freepslib.AvmDevice) {
 	deviceId := device.AIN
 	if device.HKR != nil {
 		if device.HKR.Batterylow {
