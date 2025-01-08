@@ -367,3 +367,23 @@ func (oc *OpAlert) IsActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, 
 	}
 	return base.MakeEmptyOutput()
 }
+
+// GetAlertSetters returns a map of all flows that call SetAlert or ResetAlert
+func (oc *OpAlert) GetAlertSetters(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
+	ret := map[string][]string{}
+	for flowId, desc := range oc.GE.GetAllFlowDesc() {
+		for _, op := range desc.Operations {
+			fn := strings.ToLower(op.Function)
+			if strings.ToLower(op.Operator) == "alert" && (fn == "setalert" || fn == "resetalert") {
+				args := base.NewFunctionArguments(op.Arguments)
+				fullName := args.GetOrDefault("category", "") + "." + args.GetOrDefault("name", "")
+				if _, ok := ret[fullName]; !ok {
+					ret[fullName] = []string{}
+				}
+				ret[fullName] = append(ret[fullName], flowId)
+				break
+			}
+		}
+	}
+	return base.MakeObjectOutput(ret)
+}
