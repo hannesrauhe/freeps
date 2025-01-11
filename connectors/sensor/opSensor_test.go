@@ -46,4 +46,11 @@ func TestSensorPropertySetting(t *testing.T) {
 	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{Name: sensorName, Category: sensorCat, PropertyName: &sensorProperty})
 	assert.Assert(t, !res.IsError())
 	assert.Equal(t, res.GetString(), "\"test_value_new\"")
+
+	// update/overwrite property of existing sensor from input
+	res = op.SetSingleSensorProperty(ctx, base.MakeIntegerOutput(12), SetSensorPropertyArgs{Name: sensorName, Category: sensorCat, PropertyName: sensorProperty})
+	assert.Assert(t, !res.IsError())
+	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{Name: sensorName, Category: sensorCat, PropertyName: &sensorProperty})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), "12")
 }

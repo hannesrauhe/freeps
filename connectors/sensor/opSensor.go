@@ -86,6 +86,36 @@ func (op *OpSensor) SetSensorProperty(ctx *base.Context, input *base.OperatorIO,
 	return base.MakeEmptyOutput()
 }
 
+type SetSensorPropertyArgs struct {
+	Name         string
+	Category     string
+	PropertyName string
+}
+
+// SetSingleSensorProperty writes a one or more properties of a sensor
+func (op *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.OperatorIO, args SetSensorPropertyArgs) *base.OperatorIO {
+	ns := op.getSensorNamespace()
+	key := fmt.Sprintf("%s.%s", args.Category, args.Name)
+	ent := ns.UpdateTransaction(key, func(v freepsstore.StoreEntry) *base.OperatorIO {
+		var err error
+		existingProperties := make(map[string]interface{})
+		if !v.IsError() {
+			existingProperties, err = v.GetData().GetMap()
+			if err != nil {
+				return base.MakeErrorOutputFromError(err)
+			}
+		}
+		// TODO: cannot just assign newProperties to existingProperties, because there might be case-sensitivity issues
+		// TODO: check before overwriting if value has changed
+		existingProperties[args.PropertyName] = input.Output
+		return base.MakeObjectOutput(existingProperties)
+	}, ctx)
+	if ent.IsError() {
+		return ent.GetData()
+	}
+	return base.MakeEmptyOutput()
+}
+
 type GetSensorArgs struct {
 	Name         string
 	Category     string
