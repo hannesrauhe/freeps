@@ -19,6 +19,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	optime "github.com/hannesrauhe/freeps/connectors/time"
@@ -104,6 +105,7 @@ func mainLoop() bool {
 		&fritz.OpFritz{CR: cr, GE: ge},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&opalert.OpAlert{CR: cr, GE: ge},
+		&sensor.OpSensor{CR: cr, GE: ge},
 		&weather.OpWeather{},
 	}
 
