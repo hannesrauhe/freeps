@@ -349,7 +349,7 @@ func TestArgumentReplacement(t *testing.T) {
 	/* output is not a map */
 	r = test_replace_args(ctx, ge, "cpu", "${echo_output.Nice}")
 	assert.Assert(t, r.IsError())
-	assert.Equal(t, r.GetError().Error(), "Cannot get \"Nice\" from \"echo_output\": Output is not convertible to type map, type is string")
+	assert.Equal(t, r.GetError().Error(), "Cannot get \"Nice\" from \"echo_output\": Output is not convertible to type string map, type is string")
 
 	/* key in map does not exist */
 	r = test_replace_args(ctx, ge, "cpu", "${stat_output.doesntexist}")
