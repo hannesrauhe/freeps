@@ -88,32 +88,36 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 
 // checkDeviceForAlerts set system alerts for certain conditions
 func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice, oldDeviceState *freepslib.AvmDevice) {
+	deviceId := device.AIN
 	if device.HKR != nil {
 		if device.HKR.Batterylow {
 			dur := BatterylowAlertDuration
-			o.GE.SetSystemAlert(ctx, "BatteryLow"+device.AIN, o.name, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
+			o.GE.SetSystemAlert(ctx, "BatteryLow"+deviceId, o.name, BatterylowSeverity, fmt.Errorf("Battery of %v: %v", device.Name, device.HKR.Battery), &dur)
 		} else {
-			o.GE.ResetSystemAlert(ctx, "BatteryLow"+device.AIN, o.name)
+			o.GE.ResetSystemAlert(ctx, "BatteryLow"+deviceId, o.name)
 		}
 		if device.HKR.Windowopenactive {
 			dur := 15 * time.Minute // TODO: time(device.HKR.Windowopenactiveendtime).Sub(time.Now())
-			o.GE.SetSystemAlert(ctx, "WindowOpen"+device.AIN, o.name, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
+			o.GE.SetSystemAlert(ctx, "WindowOpen"+deviceId, o.name, WindowOpenSeverity, fmt.Errorf("%v window open", device.Name), &dur)
 		} else {
-			o.GE.ResetSystemAlert(ctx, "WindowOpen"+device.AIN, o.name)
+			o.GE.ResetSystemAlert(ctx, "WindowOpen"+deviceId, o.name)
 		}
 	}
-	if !device.Present {
-		dur := DeviceNotPresentAlertDuration
-		o.GE.SetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, o.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
-	} else {
-		o.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+device.AIN, o.name)
+	if device.EtsiUnitInfo == nil {
+		// no EtsiUnitInfo means that this is a physical device, devices with EtsiUnitInfo are "virtual" sub devices, so they have the same present-state as the physical device
+		if !device.Present {
+			dur := DeviceNotPresentAlertDuration
+			o.GE.SetSystemAlert(ctx, "DeviceNotPresent"+deviceId, o.name, DeviceNotPresentSeverity, fmt.Errorf("%v not present", device.Name), &dur)
+		} else {
+			o.GE.ResetSystemAlert(ctx, "DeviceNotPresent"+deviceId, o.name)
+		}
 	}
 	if device.Alert != nil {
 		if device.Alert.State != 0 {
 			dur := AlertDeviceAlertDuration
-			o.GE.SetSystemAlert(ctx, "DeviceAlert"+device.AIN, o.name, AlertDeviceSeverity, fmt.Errorf("%v is in alert state %v", device.Name, device.Alert.State), &dur)
+			o.GE.SetSystemAlert(ctx, "DeviceAlert"+deviceId, o.name, AlertDeviceSeverity, fmt.Errorf("%v is in alert state %v", device.Name, device.Alert.State), &dur)
 		} else {
-			o.GE.ResetSystemAlert(ctx, "DeviceAlert"+device.AIN, o.name)
+			o.GE.ResetSystemAlert(ctx, "DeviceAlert"+deviceId, o.name)
 		}
 	}
 }
