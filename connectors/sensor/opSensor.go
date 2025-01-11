@@ -3,6 +3,7 @@ package sensor
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
@@ -25,7 +26,7 @@ func (op *OpSensor) GetDefaultConfig() interface{} {
 }
 
 func (op *OpSensor) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
-	if name != "sensor" {
+	if strings.ToLower(name) != "sensor" {
 		return nil, fmt.Errorf("config section name must be 'sensor', multiple instances are not supported")
 	}
 	opc := config.(*SensorConfig)
