@@ -154,7 +154,7 @@ func (o *FreepsOperatorWrapper) getFunction(name string) *reflect.Value {
 // 5. optionally takes a Context ptr as first parameter
 // 6. optionally takes a OperatorIO ptr as second parameters
 // 7. optionally takes a struct as third parameter (the parameters struct)
-// 8. optionally takes a map[string]string as fourth parameter
+// 8. optionally takes a FunctionArguments as fourth parameter
 // or takes a FunctionArguments as third parameter
 func getFreepsFunctionType(f reflect.Type) (FreepsFunctionType, error) {
 	// describe function signature in a string to give developer a hint what is wrong
