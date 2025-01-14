@@ -30,27 +30,38 @@ func TestSensorPropertySetting(t *testing.T) {
 	sensorCat := "test"
 	sensorName := "test_sensor"
 	sensorProperty := "test_property"
-	res := op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{Name: sensorName, Category: sensorCat}, base.MakeEmptyFunctionArguments())
+	res := op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.MakeEmptyFunctionArguments())
 	assert.Assert(t, res.IsError())
 
 	// set property of new sensor
-	res = op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{Name: sensorName, Category: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value"))
+	res = op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value"))
 	assert.Assert(t, !res.IsError())
-	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{Name: sensorName, Category: sensorCat, PropertyName: &sensorProperty})
+	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &sensorProperty})
 	assert.Assert(t, !res.IsError())
-	assert.Equal(t, res.GetString(), "\"test_value\"")
+	assert.Equal(t, res.GetString(), "test_value")
 
 	// update/overwrite property of existing sensor
-	res = op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{Name: sensorName, Category: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value_new"))
+	res = op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value_new"))
 	assert.Assert(t, !res.IsError())
-	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{Name: sensorName, Category: sensorCat, PropertyName: &sensorProperty})
+	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &sensorProperty})
 	assert.Assert(t, !res.IsError())
-	assert.Equal(t, res.GetString(), "\"test_value_new\"")
+	assert.Equal(t, res.GetString(), "test_value_new")
 
 	// update/overwrite property of existing sensor from input
-	res = op.SetSingleSensorProperty(ctx, base.MakeIntegerOutput(12), SetSensorPropertyArgs{Name: sensorName, Category: sensorCat, PropertyName: sensorProperty})
+	res = op.SetSingleSensorProperty(ctx, base.MakeIntegerOutput(12), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: sensorProperty})
 	assert.Assert(t, !res.IsError())
-	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{Name: sensorName, Category: sensorCat, PropertyName: &sensorProperty})
+	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &sensorProperty})
 	assert.Assert(t, !res.IsError())
 	assert.Equal(t, res.GetString(), "12")
+
+	// check property name is not case sensitive
+	upProp := "TEST_PROPERTY"
+	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &upProp})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), "12")
+	res = op.SetSingleSensorProperty(ctx, base.MakeIntegerOutput(14), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: upProp})
+	assert.Assert(t, !res.IsError())
+	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &upProp})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), "14")
 }

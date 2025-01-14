@@ -51,8 +51,9 @@ func TestMultiValueMap(t *testing.T) {
 		"D":   {"vald"},
 	}
 	m2 := NewStringCIMapFromValues(testValue)
-	assert.Equal(t, strings.ToLower(m2.Get("a")), "vala")
-	assert.Equal(t, strings.ToLower(m2.Get("A")), "vala")
+	// prefer the one with the exact case
+	assert.Equal(t, m2.Get("a"), "vala")
+	assert.Equal(t, m2.Get("A"), "valA")
 	a := m2.GetValues("A")
 	assert.DeepEqual(t, a, []string{"valA", "vala", "vala2"})
 
@@ -82,6 +83,13 @@ func TestMultiValueMap(t *testing.T) {
 	assert.DeepEqual(t, keys, []string{"a", "cah", "d"})
 
 	assert.Assert(t, !m2.IsEmpty())
+	m2.Append("a", "vala3")
+	assert.Equal(t, m2.Get("a"), "vala")
+	assert.Equal(t, m2.Get("A"), "valA")
+	assert.DeepEqual(t, m2.GetValues("a"), []string{"valA", "vala", "vala2", "vala3"})
+
+	m2.Set("a", []string{"vala4"})
+	assert.DeepEqual(t, m2.GetValues("a"), []string{"vala4"})
 }
 
 func TestMixedInsertCIMap(t *testing.T) {

@@ -8,12 +8,17 @@ import (
 )
 
 // CIMap is a struct that can be used to pass arguments to a function
-type CIMap[Val any] interface {
+type CIMap[Val comparable] interface {
 	// Append adds value to the array stored under key, it stores the original case
 	Append(key string, value ...Val)
+	// Set replaces the array stored under key with the given array, it stores the original case
+	Set(key string, value []Val)
 
 	// Has returns true if map contains a key
 	Has(key string) bool
+	// ContainsValue returns true if the value is stored in the map under key
+	ContainsValue(key string, value Val) bool
+
 	// Get returns the first value stored for key or the default value if key is not in map
 	Get(key string) Val
 	// GetOrDefault returns the first value stored for key or the given default value if key is not in map
@@ -41,7 +46,7 @@ type CIMap[Val any] interface {
 // CIMapImpl is a struct similar to url.Values that allows case-insensitive comparisons but stores the orignal case
 // it can be built from url.Values or a map[string]Val and preserves the case of the keys but allows accessing them in a case-insensitive way
 // when inserting keys with different cases, they will be combined into one key with the first case used
-type CIMapImpl[Val any] struct {
+type CIMapImpl[Val comparable] struct {
 	OriginalMap     map[string][]Val    // map with original case keys
 	lowerKeyMapping map[string][]string // map from lower case key to original case (can be multiple cases)
 	defaultValue    Val
@@ -50,7 +55,7 @@ type CIMapImpl[Val any] struct {
 var _ CIMap[string] = &CIMapImpl[string]{}
 var _ CIMap[int] = &CIMapImpl[int]{}
 
-func appendToMultiMap[Val any](m map[string][]Val, k string, v ...Val) {
+func appendToMultiMap[Val comparable](m map[string][]Val, k string, v ...Val) {
 	_, exists := m[k]
 	if exists {
 		m[k] = append(m[k], v...)
@@ -60,7 +65,7 @@ func appendToMultiMap[Val any](m map[string][]Val, k string, v ...Val) {
 
 }
 
-func joinMultiMap[Val any](m map[string][]Val) map[string]string {
+func joinMultiMap[Val comparable](m map[string][]Val) map[string]string {
 	retMap := map[string]string{}
 	for k, vList := range m {
 		if len(vList) > 1 {
@@ -81,7 +86,7 @@ func joinMultiMap[Val any](m map[string][]Val) map[string]string {
 }
 
 // NewCIMap creates a new CIMap struct from the given map
-func NewCIMap[Val any](args map[string]Val) CIMap[Val] {
+func NewCIMap[Val comparable](args map[string]Val) CIMap[Val] {
 	ret := &CIMapImpl[Val]{
 		OriginalMap:     make(map[string][]Val),
 		lowerKeyMapping: make(map[string][]string),
@@ -143,6 +148,19 @@ func (fa *CIMapImpl[Val]) Append(k string, v ...Val) {
 	}
 }
 
+func (fa *CIMapImpl[Val]) Set(k string, v []Val) {
+	lk := strings.ToLower(k)
+	keyList, hasAlready := fa.lowerKeyMapping[lk]
+	if hasAlready {
+		// delete old key
+		for _, k := range keyList {
+			delete(fa.OriginalMap, k)
+		}
+		fa.lowerKeyMapping[lk] = []string{k}
+	}
+	fa.OriginalMap[k] = v
+}
+
 // MarshalJSON provides a custom marshaller with better readable time formats
 func (fa *CIMapImpl[Val]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fa.OriginalMap)
@@ -157,6 +175,17 @@ func (fa *CIMapImpl[Val]) Has(key string) bool {
 	lk := strings.ToLower(key)
 	_, ok := fa.lowerKeyMapping[lk]
 	return ok
+}
+
+// ContainsValue returns true if the given value is stored under the given key
+func (fa *CIMapImpl[Val]) ContainsValue(key string, value Val) bool {
+	valList := fa.GetValues(key)
+	for _, v := range valList {
+		if v == value {
+			return true
+		}
+	}
+	return false
 }
 
 func (fa *CIMapImpl[Val]) getFirst(key string) (Val, bool) {
