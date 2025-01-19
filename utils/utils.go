@@ -110,6 +110,18 @@ func ObjectToArgsMap(obj interface{}) (map[string]string, error) {
 	return args, err
 }
 
+// ObjectToMap converts and object to a map via JSON encode/decode
+func ObjectToMap(obj interface{}) (map[string]interface{}, error) {
+	anyMap := map[string]interface{}{}
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return anyMap, err
+	}
+
+	err = json.Unmarshal(data, &anyMap)
+	return anyMap, err
+}
+
 func ClearString(str string) string {
 	var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
 	return nonAlphanumericRegex.ReplaceAllString(str, "")
