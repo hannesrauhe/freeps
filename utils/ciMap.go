@@ -136,11 +136,6 @@ func (fa *CIMapImpl[Val]) Set(k string, v []Val) {
 	fa.OriginalMap[k] = v
 }
 
-// MarshalJSON provides a custom marshaller
-func (fa *CIMapImpl[Val]) MarshalJSON() ([]byte, error) {
-	return json.Marshal(fa.OriginalMap)
-}
-
 // Has returns true if the given key is present in any variant
 func (fa *CIMapImpl[Val]) Has(key string) bool {
 	lk := strings.ToLower(key)
@@ -265,4 +260,26 @@ func (fa *CIMapImpl[Val]) GetOriginalCaseMapJoined() map[string]string {
 // IsEmpty returns true if there are no keys in the map
 func (fa *CIMapImpl[Val]) IsEmpty() bool {
 	return len(fa.OriginalMap) == 0
+}
+
+// MarshalJSON provides a custom marshaller
+func (fa *CIMapImpl[Val]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fa.OriginalMap)
+}
+
+// UnmarshalJSON provides a custom unmarshaller
+func (fa *CIMapImpl[Val]) UnmarshalJSON(data []byte) error {
+	fa.OriginalMap = make(map[string][]Val)
+	err := json.Unmarshal(data, &fa.OriginalMap)
+	if err != nil {
+		return err
+	}
+	fa.lowerKeyMapping = make(map[string]string)
+	for k := range fa.OriginalMap {
+		if _, exists := fa.lowerKeyMapping[strings.ToLower(k)]; exists {
+			return fmt.Errorf("Duplicate key %v in JSON string", k)
+		}
+		fa.lowerKeyMapping[strings.ToLower(k)] = k
+	}
+	return nil
 }
