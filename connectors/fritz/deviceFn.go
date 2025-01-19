@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	"github.com/hannesrauhe/freepslib"
 )
 
@@ -64,30 +64,20 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	}
 	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
 	devNs := o.getDeviceNamespace()
+	opSensor := sensor.GetGlobalSensor()
 	for _, dev := range devl.Device {
-		var cachedDevPtr *freepslib.AvmDevice = nil
-		cachedValEntry := devNs.GetValue(dev.AIN)
-		if cachedValEntry != freepsstore.NotFoundEntry {
-			cachedValIo := cachedValEntry.GetData()
-			if cachedValIo == nil {
-				continue
-			}
-			if !cachedValIo.IsObject() {
-				continue
-			}
-			cachedDev, ok := cachedValIo.Output.(freepslib.AvmDevice)
-			if ok {
-				cachedDevPtr = &cachedDev
-			}
-		}
 		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), ctx)
-		o.checkDeviceForAlerts(ctx, dev, cachedDevPtr)
+		err = opSensor.SetSensorPropertyInternal(ctx, "fritz_dev", dev.DeviceID, dev)
+		if err != nil {
+			ctx.GetLogger().Errorf("Failed to set sensor property for %v: %v", dev.DeviceID, err)
+		}
+		o.checkDeviceForAlerts(ctx, dev)
 	}
 	return devl, nil
 }
 
 // checkDeviceForAlerts set system alerts for certain conditions
-func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice, oldDeviceState *freepslib.AvmDevice) {
+func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice) {
 	deviceId := device.AIN
 	if device.HKR != nil {
 		if device.HKR.Batterylow {

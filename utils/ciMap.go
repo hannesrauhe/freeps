@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -47,8 +46,8 @@ type CIMap[Val comparable] interface {
 // it can be built from url.Values or a map[string]Val and preserves the case of the keys but allows accessing them in a case-insensitive way
 // when inserting keys with different cases, they will be combined into one key with the first case used
 type CIMapImpl[Val comparable] struct {
-	OriginalMap     map[string][]Val    // map with original case keys
-	lowerKeyMapping map[string][]string // map from lower case key to original case (can be multiple cases)
+	OriginalMap     map[string][]Val  // map with original case keys
+	lowerKeyMapping map[string]string // map from lower case key to original case (the first inserted key determines the original case)
 	defaultValue    Val
 }
 
@@ -89,89 +88,61 @@ func joinMultiMap[Val comparable](m map[string][]Val) map[string]string {
 func NewCIMap[Val comparable](args map[string]Val) CIMap[Val] {
 	ret := &CIMapImpl[Val]{
 		OriginalMap:     make(map[string][]Val),
-		lowerKeyMapping: make(map[string][]string),
+		lowerKeyMapping: make(map[string]string),
 	}
 	for k, v := range args {
-		ret.OriginalMap[k] = []Val{v}
-		lk := strings.ToLower(k)
-		appendToMultiMap(ret.lowerKeyMapping, lk, k)
-	}
-	for _, kList := range ret.lowerKeyMapping {
-		slices.Sort(kList)
+		ret.Append(k, v)
 	}
 	return ret
 }
 
 // NewStringCIMap creates a new CIMap struct from the given map
 func NewStringCIMap(args map[string]string) CIMap[string] {
-	ret := &CIMapImpl[string]{
-		OriginalMap:     make(map[string][]string),
-		lowerKeyMapping: make(map[string][]string),
-		defaultValue:    "",
-	}
-	for k, v := range args {
-		ret.OriginalMap[k] = []string{v}
-		lk := strings.ToLower(k)
-		appendToMultiMap(ret.lowerKeyMapping, lk, k)
-	}
-	for _, kList := range ret.lowerKeyMapping {
-		slices.Sort(kList)
-	}
-	return ret
+	return NewCIMap(args)
 }
 
 // NewStringCIMapFromValues creates a new FunctionArguments struct from the given url.Values
 func NewStringCIMapFromValues(args map[string][]string) CIMap[string] {
 	ret := &CIMapImpl[string]{
 		OriginalMap:     make(map[string][]string),
-		lowerKeyMapping: make(map[string][]string),
+		lowerKeyMapping: make(map[string]string),
 		defaultValue:    "",
 	}
 	for k, v := range args {
-		ret.OriginalMap[k] = v
-		lk := strings.ToLower(k)
-		appendToMultiMap(ret.lowerKeyMapping, lk, k)
-	}
-	for _, kList := range ret.lowerKeyMapping {
-		slices.Sort(kList)
+		ret.Append(k, v...)
 	}
 	return ret
 }
 
+// Append adds value to the array stored under key, it stores the original case, not thread safe
 func (fa *CIMapImpl[Val]) Append(k string, v ...Val) {
-	appendToMultiMap(fa.OriginalMap, k, v...)
 	lk := strings.ToLower(k)
-	_, hasAlready := slices.BinarySearch(fa.lowerKeyMapping[lk], k)
+	original, hasAlready := fa.lowerKeyMapping[lk]
 	if !hasAlready {
-		appendToMultiMap(fa.lowerKeyMapping, lk, k)
-		slices.Sort(fa.lowerKeyMapping[lk])
+		fa.lowerKeyMapping[lk] = k
+		original = k
 	}
+	appendToMultiMap(fa.OriginalMap, original, v...)
 }
 
+// Set replaces the array stored under key with the given array, it stores the original case, not thread safe
 func (fa *CIMapImpl[Val]) Set(k string, v []Val) {
 	lk := strings.ToLower(k)
-	keyList, hasAlready := fa.lowerKeyMapping[lk]
+	oldOriginal, hasAlready := fa.lowerKeyMapping[lk]
 	if hasAlready {
-		// delete old key
-		for _, k := range keyList {
-			delete(fa.OriginalMap, k)
-		}
-		fa.lowerKeyMapping[lk] = []string{k}
+		delete(fa.OriginalMap, oldOriginal)
 	}
+	fa.lowerKeyMapping[lk] = k
 	fa.OriginalMap[k] = v
 }
 
-// MarshalJSON provides a custom marshaller with better readable time formats
+// MarshalJSON provides a custom marshaller
 func (fa *CIMapImpl[Val]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fa.OriginalMap)
 }
 
 // Has returns true if the given key is present in any variant
 func (fa *CIMapImpl[Val]) Has(key string) bool {
-	if _, ok := fa.OriginalMap[key]; ok {
-		return true
-	}
-	// key does not exist in this case, look for any other
 	lk := strings.ToLower(key)
 	_, ok := fa.lowerKeyMapping[lk]
 	return ok
@@ -189,13 +160,9 @@ func (fa *CIMapImpl[Val]) ContainsValue(key string, value Val) bool {
 }
 
 func (fa *CIMapImpl[Val]) getFirst(key string) (Val, bool) {
-	if v, ok := fa.OriginalMap[key]; ok {
-		return v[0], true
-	}
-	// key does not exist in this variant, look for any other
 	lk := strings.ToLower(key)
-	if keyList, ok := fa.lowerKeyMapping[lk]; ok {
-		v, _ := fa.OriginalMap[keyList[0]]
+	if original, ok := fa.lowerKeyMapping[lk]; ok {
+		v, _ := fa.OriginalMap[original]
 		return v[0], true
 	}
 	return fa.defaultValue, false
@@ -220,8 +187,9 @@ func (fa *CIMapImpl[Val]) GetOrDefault(key string, defaultVal Val) Val {
 func (fa *CIMapImpl[Val]) GetValues(key string) []Val {
 	ret := []Val{}
 	lk := strings.ToLower(key)
-	for _, ak := range fa.lowerKeyMapping[lk] {
-		ret = append(ret, fa.OriginalMap[ak]...)
+	original, ok := fa.lowerKeyMapping[lk]
+	if ok {
+		ret = fa.OriginalMap[original]
 	}
 	return ret
 }
@@ -244,22 +212,18 @@ func (fa *CIMapImpl[Val]) GetOriginalKeys() []string {
 	return ret
 }
 
-// GetOriginalCase returns the key in the correct variant (if multiple, whichever comes first)
+// GetOriginalCase returns the key in the correct variant (return empty string if key does not exist)
 func (fa *CIMapImpl[Val]) GetOriginalCase(key string) string {
 	lk := strings.ToLower(key)
-	for _, v := range fa.lowerKeyMapping[lk] {
-		return v
-	}
-	return ""
+	original, _ := fa.lowerKeyMapping[lk]
+	return original
 }
 
 // GetLowerCaseMap returns a map of all keys in lower case
 func (fa *CIMapImpl[Val]) GetLowerCaseMap() map[string][]Val {
 	ret := make(map[string][]Val)
-	for lk, kList := range fa.lowerKeyMapping {
-		for _, k := range kList {
-			appendToMultiMap(ret, lk, fa.OriginalMap[k]...)
-		}
+	for lk, original := range fa.lowerKeyMapping {
+		ret[lk] = fa.OriginalMap[original]
 	}
 	return ret
 }
@@ -274,17 +238,17 @@ func (fa *CIMapImpl[Val]) GetLowerCaseMapOnlyFirst() map[string]Val {
 	return ret
 }
 
-// GetLowerCaseMapJoined
+// GetLowerCaseMapJoined returns a map where the values are joined by a comma per key
 func (fa *CIMapImpl[Val]) GetLowerCaseMapJoined() map[string]string {
 	return joinMultiMap(fa.GetLowerCaseMap())
 }
 
-// GetOriginalCaseMap returns a map of all keys in the original case (this will contain only one case-variant if multiple key with different cases were inserted)
+// GetOriginalCaseMap returns a map of all keys in the original case (this will contain only one case-variant if multiple keys with different cases were inserted)
 func (fa *CIMapImpl[Val]) GetOriginalCaseMap() map[string][]Val {
 	return fa.OriginalMap
 }
 
-// GetOriginalCaseMap returns a map of all keys in the original case (this will contain only one case-variant if multiple key with different cases were inserted)
+// GetOriginalCaseMap returns a map of all keys in the original case (this will contain only one case-variant if multiple keys with different cases were inserted)
 func (fa *CIMapImpl[Val]) GetOriginalCaseMapOnlyFirst() map[string]Val {
 	ret := make(map[string]Val)
 	for k, v := range fa.OriginalMap {

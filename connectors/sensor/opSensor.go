@@ -9,6 +9,7 @@ import (
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
+	"github.com/jeremywohl/flatten"
 )
 
 // OpSensor is an operator to manage sensors of different types in your Smart Home, these sensors can be created by the user or by other operators. The operator provices a set of methods to interact with the sensors.
@@ -145,6 +146,27 @@ func (op *OpSensor) SetSensorProperty(ctx *base.Context, input *base.OperatorIO,
 	}
 	return base.MakeEmptyOutput()
 
+}
+
+func (op *OpSensor) SetSensorPropertyInternal(ctx *base.Context, sensorCategory string, sensorName string, properties interface{}) error {
+	m1, err := utils.ObjectToMap(properties)
+	if err != nil {
+		return err
+	}
+	m2, err := flatten.Flatten(m1, "", flatten.DotStyle)
+	if err != nil {
+		return err
+	}
+	m3 := make(map[string]string)
+	for k, v := range m2 {
+		m3[k] = fmt.Sprintf("%v", v)
+	}
+	fa := base.NewFunctionArguments(m3)
+	io := op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCategory}, fa)
+	if io.IsError() {
+		return io.GetError()
+	}
+	return nil
 }
 
 type SetSensorPropertyArgs struct {
