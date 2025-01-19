@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -125,4 +126,27 @@ func TestMixedInsertCIMap(t *testing.T) {
 	assert.Equal(t, m1.Get("b"), "valB3")
 	assert.Equal(t, m1.Get("B"), "valB3")
 	assert.Equal(t, m1.Get("c"), "valc")
+}
+
+func TestCIMapJSON(t *testing.T) {
+	var testMap = map[string]string{
+		"a": "valA",
+		"B": "valB",
+		"b": "valB2",
+	}
+
+	m1 := NewStringCIMap(testMap)
+	m2 := NewStringCIMap(map[string]string{})
+
+	jsonStr, err := json.Marshal(m1)
+	assert.NilError(t, err)
+	err = json.Unmarshal(jsonStr, &m2)
+
+	assert.DeepEqual(t, m1.GetOriginalCaseMap(), m2.GetOriginalCaseMap())
+
+	// should throw an error if we try to parse a regular map with one key in different cases
+	jsonStr, err = json.Marshal(map[string][]string{"a": {"valA", "valB"}, "A": {"valC"}})
+	m3 := NewStringCIMap(map[string]string{})
+	err = json.Unmarshal(jsonStr, &m3)
+	assert.ErrorContains(t, err, "Duplicate key")
 }
