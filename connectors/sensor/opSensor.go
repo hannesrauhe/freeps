@@ -3,6 +3,7 @@ package sensor
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -49,26 +50,49 @@ func (op *OpSensor) getSensorNamespace() freepsstore.StoreNamespace {
 	return freepsstore.GetGlobalStore().GetNamespaceNoError("_sensors")
 }
 
+// getSensorID calculates the sensor ID from the category and name
+func (op *OpSensor) getSensorID(category string, name string) (string, error) {
+	if strings.Contains(category, ".") || strings.Contains(name, ".") {
+		return "", fmt.Errorf("SensorName and SensorCategory cannot contain a dot")
+	}
+	if category == "*" || name == "*" {
+		return "", fmt.Errorf("SensorName and SensorCategory cannot be \"*\"")
+	}
+	if category == "" || name == "" {
+		return "", fmt.Errorf("SensorName and SensorCategory cannot be empty")
+	}
+	return fmt.Sprintf("%s.%s", category, name), nil
+}
+
+func (o *OpSensor) getSensorCategories() ([]string, error) {
+	ns := o.getSensorNamespace()
+	v := ns.GetValue("_categories")
+	if v.IsError() {
+		return []string{}, v.GetError()
+	}
+	categories, ok := v.GetData().Output.(base.FunctionArguments)
+	if !ok {
+		return []string{}, fmt.Errorf("category index is in an invalid format")
+	}
+	return categories.GetOriginalKeys(), nil
+}
+
 func (op *OpSensor) SensornameSuggestions() []string {
 	return []string{"test"}
 }
 
 func (op *OpSensor) SensorcategorySuggestions() []string {
-	return []string{"test"}
+	cat, _ := op.getSensorCategories()
+	return cat
 }
 
 // GetSensorCategories returns all sensor categories
 func (op *OpSensor) GetSensorCategories(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
-	ns := op.getSensorNamespace()
-	v := ns.GetValue("_categories")
-	if v.IsError() {
-		return v.GetData()
+	categories, err := op.getSensorCategories()
+	if err != nil {
+		return base.MakeErrorOutputFromError(err)
 	}
-	categories, ok := v.GetData().Output.(base.FunctionArguments)
-	if !ok {
-		return base.MakeOutputError(http.StatusInternalServerError, "category index is in an invalid format")
-	}
-	return base.MakeObjectOutput(categories.GetOriginalKeys())
+	return base.MakeObjectOutput(categories)
 }
 
 type GetSensorNamesArgs struct {
@@ -99,32 +123,50 @@ func (op *OpSensor) SetSensorProperty(ctx *base.Context, input *base.OperatorIO,
 	if fa.IsEmpty() {
 		return base.MakeOutputError(http.StatusBadRequest, "no properties to set")
 	}
-	//SensorName and SensorCategory are cannot be empty or contain a dot
-	if strings.Contains(args.SensorName, ".") || strings.Contains(args.SensorCategory, ".") {
-		return base.MakeOutputError(http.StatusBadRequest, "SensorName and SensorCategory cannot contain a dot")
+	sensorID, err := op.getSensorID(args.SensorCategory, args.SensorName)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 
 	ns := op.getSensorNamespace()
-	key := fmt.Sprintf("%s.%s", args.SensorCategory, args.SensorName)
 	newSensor := false
-	ent := ns.UpdateTransaction(key, func(v freepsstore.StoreEntry) *base.OperatorIO {
+	updatedProperties := make([]string, 0)
+	ent := ns.UpdateTransaction(sensorID, func(v freepsstore.StoreEntry) *base.OperatorIO {
 		if v.IsError() {
 			newSensor = true
+			updatedProperties = fa.GetOriginalKeys()
 			return base.MakeObjectOutput(fa)
 		}
 		existingProperties, ok := v.GetData().Output.(base.FunctionArguments)
 		if !ok {
-			return base.MakeOutputError(http.StatusInternalServerError, "existing properties for \"%s\" are in an invalid format", key)
+			return base.MakeOutputError(http.StatusInternalServerError, "existing properties for \"%s\" are in an invalid format", sensorID)
 		}
-		// TODO: check before overwriting if value has changed
 		for _, k := range fa.GetOriginalKeys() {
-			existingProperties.Set(k, fa.GetValues(k))
+			newPropertyValues := fa.GetValues(k)
+			slices.Sort(newPropertyValues)
+
+			if existingProperties.Has(k) {
+				existingPropertyValues := existingProperties.GetValues(k)
+				slices.Sort(existingPropertyValues)
+				if 0 == slices.Compare(existingPropertyValues, newPropertyValues) {
+					continue
+				}
+			}
+
+			updatedProperties = append(updatedProperties, k)
+			existingProperties.Set(k, newPropertyValues)
 		}
 		return base.MakeObjectOutput(existingProperties)
 	}, ctx)
 	if ent.IsError() {
 		return ent.GetData()
 	}
+
+	if newSensor || len(updatedProperties) > 0 {
+		// TODO(HR): async?
+		op.executeTrigger(ctx, args.SensorCategory, sensorID, updatedProperties)
+	}
+
 	if !newSensor {
 		return base.MakeEmptyOutput()
 	}
@@ -145,7 +187,6 @@ func (op *OpSensor) SetSensorProperty(ctx *base.Context, input *base.OperatorIO,
 		return catEnt.GetData()
 	}
 	return base.MakeEmptyOutput()
-
 }
 
 func (op *OpSensor) SetSensorPropertyInternal(ctx *base.Context, sensorCategory string, sensorName string, properties interface{}) error {
@@ -189,13 +230,12 @@ type GetSensorArgs struct {
 
 // GetSensorProperty returns all properties of a sensor or the one specified by PropertyName
 func (op *OpSensor) GetSensorProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorArgs) *base.OperatorIO {
-	//SensorName and SensorCategory are cannot be empty or contain a dot
-	if strings.Contains(args.SensorName, ".") || strings.Contains(args.SensorCategory, ".") {
-		return base.MakeOutputError(http.StatusBadRequest, "SensorName and SensorCategory cannot contain a dot")
+	sensorID, err := op.getSensorID(args.SensorCategory, args.SensorName)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	ns := op.getSensorNamespace()
-	key := fmt.Sprintf("%s.%s", args.SensorCategory, args.SensorName)
-	v := ns.GetValue(key)
+	v := ns.GetValue(sensorID)
 	completeSensorEntry := v.GetData()
 	if args.PropertyName == nil {
 		return completeSensorEntry
@@ -206,7 +246,7 @@ func (op *OpSensor) GetSensorProperty(ctx *base.Context, input *base.OperatorIO,
 
 	properties, ok := v.GetData().Output.(base.FunctionArguments)
 	if !ok {
-		return base.MakeOutputError(http.StatusInternalServerError, "existing properties for \"%s\" are in an invalid format", key)
+		return base.MakeOutputError(http.StatusInternalServerError, "existing properties for \"%s\" are in an invalid format", sensorID)
 	}
 
 	if properties.Has(*args.PropertyName) {

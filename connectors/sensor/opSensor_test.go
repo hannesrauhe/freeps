@@ -3,8 +3,11 @@ package sensor
 import (
 	"path"
 	"testing"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -19,11 +22,19 @@ func initSensorOp(t *testing.T) (*OpSensor, *base.Context) {
 	assert.NilError(t, err)
 
 	ge := freepsflow.NewFlowEngine(ctx, cr, func() {})
-	tempOp := &OpSensor{CR: cr, GE: ge}
-	base.MakeFreepsOperators(tempOp, cr, ctx)
+	availableOperators := []base.FreepsOperator{
+		&freepsstore.OpStore{CR: cr, GE: ge},
+		&freepsutils.OpUtils{},
+		&OpSensor{CR: cr, GE: ge},
+	}
 
-	return GetGlobalSensor(), ctx
+	for _, op := range availableOperators {
+		ge.AddOperators(base.MakeFreepsOperators(op, cr, ctx))
+	}
+
+	return GetGlobalSensors(), ctx
 }
+
 func TestSensorPropertySetting(t *testing.T) {
 	op, ctx := initSensorOp(t)
 
@@ -64,4 +75,73 @@ func TestSensorPropertySetting(t *testing.T) {
 	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &upProp})
 	assert.Assert(t, !res.IsError())
 	assert.Equal(t, res.GetString(), "14")
+}
+
+func createTestFlow(keyToSet string) freepsflow.FlowDesc {
+	gd := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: map[string]string{"namespace": "test", "key": keyToSet}}}}
+	return gd
+}
+
+func TestTriggers(t *testing.T) {
+	op, ctx := initSensorOp(t)
+	ge := op.GE
+
+	flow1 := "testflowCat1"
+	flow2 := "testflowProp1"
+	flow3 := "testflowID1"
+	err := ge.AddFlow(ctx, flow1, createTestFlow(flow1), false)
+	assert.NilError(t, err)
+	err = ge.AddFlow(ctx, flow2, createTestFlow(flow2), false)
+	assert.NilError(t, err)
+	err = ge.AddFlow(ctx, flow3, createTestFlow(flow3), false)
+	assert.NilError(t, err)
+
+	testCat1 := "testcat1"
+	testProp1 := "test_property1"
+	testSensor1 := "testcat1.test_sensor1"
+
+	out := op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), SetTriggerArgs{FlowID: flow1, SensorCategory: &testCat1})
+	out = op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), SetTriggerArgs{FlowID: flow2, ChangedProperty: &testProp1})
+	out = op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), SetTriggerArgs{FlowID: flow3, SensorID: &testSensor1})
+	assert.Assert(t, !out.IsError())
+
+	/* Test the triggers when sensor of the right category and property is activated*/
+	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
+
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("test")
+	assert.NilError(t, err)
+	assert.Assert(t, ns.GetValue(flow1) != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue(flow2) != freepsstore.NotFoundEntry)
+
+	i := ns.DeleteOlder(time.Duration(0))
+	assert.Equal(t, i, 2)
+
+	/* value has not been changed, don't do anything */
+	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
+	i = ns.DeleteOlder(time.Duration(0))
+	assert.Assert(t, i == 0)
+
+	/* other property changes, trigger flow 1 */
+	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument("other_prop", "test_value"))
+	assert.Assert(t, ns.GetValue(flow1) != freepsstore.NotFoundEntry)
+	i = ns.DeleteOlder(time.Duration(0))
+	assert.Equal(t, i, 1)
+
+	/* Test the triggers when sensor of the right category and property is activated via update*/
+	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value_new"))
+
+	assert.NilError(t, err)
+	assert.Assert(t, ns.GetValue(flow1) != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue(flow2) != freepsstore.NotFoundEntry)
+
+	i = ns.DeleteOlder(time.Duration(0))
+	assert.Equal(t, i, 2)
+
+	/* Test the ID trigger */
+	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor1", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
+	assert.Assert(t, ns.GetValue(flow1) != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue(flow2) != freepsstore.NotFoundEntry)
+	assert.Assert(t, ns.GetValue(flow3) != freepsstore.NotFoundEntry)
+	i = ns.DeleteOlder(time.Duration(0))
+	assert.Equal(t, i, 1)
 }

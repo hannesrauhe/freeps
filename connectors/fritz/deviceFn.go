@@ -64,7 +64,7 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	}
 	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
 	devNs := o.getDeviceNamespace()
-	opSensor := sensor.GetGlobalSensor()
+	opSensor := sensor.GetGlobalSensors()
 	for _, dev := range devl.Device {
 		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), ctx)
 		err = opSensor.SetSensorPropertyInternal(ctx, "fritz_dev", dev.DeviceID, dev)
