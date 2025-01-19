@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/http"
 	"net/url"
 
 	"github.com/hannesrauhe/freeps/utils"
@@ -32,6 +33,10 @@ type OperatorIO struct {
 	HTTPCode    int
 	Output      interface{}
 	ContentType string `json:",omitempty"`
+}
+
+func MakeErrorOutputFromError(err error) *OperatorIO {
+	return &OperatorIO{OutputType: Error, HTTPCode: http.StatusInternalServerError, Output: err}
 }
 
 func MakeOutputError(code int, msg string, a ...interface{}) *OperatorIO {
@@ -125,6 +130,24 @@ func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
 			}
 			return strmap, nil
 		}
+	}
+
+	return nil, fmt.Errorf("Output is not convertible to type string map, type is %T", io.Output)
+}
+
+func (io *OperatorIO) GetMap() (map[string]interface{}, error) {
+	if io.IsEmpty() {
+		return map[string]interface{}{}, nil
+	}
+
+	switch t := io.Output.(type) {
+	case map[string]interface{}:
+		return t, nil
+	}
+
+	generalmap := map[string]interface{}{}
+	if io.ParseJSON(&generalmap) == nil {
+		return generalmap, nil
 	}
 
 	return nil, fmt.Errorf("Output is not convertible to type map, type is %T", io.Output)
