@@ -218,7 +218,8 @@ func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO
 		}
 	}
 	if len(updatedProperties) > 0 {
-		o.executeTrigger(ctx, args.SensorCategory, args.SensorName, updatedProperties)
+		sensorID, _ := o.getSensorID(args.SensorCategory, args.SensorName)
+		o.executeTrigger(ctx, args.SensorCategory, sensorID, updatedProperties)
 	}
 	return base.MakeEmptyOutput()
 }
