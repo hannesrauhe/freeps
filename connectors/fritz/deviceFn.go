@@ -2,6 +2,7 @@ package fritz
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -65,9 +66,10 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
 	devNs := o.getDeviceNamespace()
 	opSensor := sensor.GetGlobalSensors()
+	sensorCategories := strings.ReplaceAll(o.name, ".", "_") + "_dev"
 	for _, dev := range devl.Device {
 		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), ctx)
-		err = opSensor.SetSensorPropertyInternal(ctx, "fritz_dev", dev.DeviceID, dev)
+		err = opSensor.SetSensorPropertyInternal(ctx, sensorCategories, dev.DeviceID, dev)
 		if err != nil {
 			ctx.GetLogger().Errorf("Failed to set sensor property for %v: %v", dev.DeviceID, err)
 		}
