@@ -12,21 +12,48 @@ import (
 )
 
 type inMemoryStoreNamespace struct {
-	entries map[string]StoreEntry
-	nsLock  sync.Mutex
+	entries          map[string]StoreEntry
+	originalCaseKeys map[string]string
+	nsLock           sync.Mutex
 }
 
 var _ StoreNamespace = &inMemoryStoreNamespace{}
+
+func newInMemoryStoreNamespace() *inMemoryStoreNamespace {
+	return &inMemoryStoreNamespace{
+		entries:          map[string]StoreEntry{},
+		originalCaseKeys: map[string]string{},
+	}
+}
+
+func (s *inMemoryStoreNamespace) getValueUnlocked(key string) StoreEntry {
+	lowerCaseKey := strings.ToLower(key)
+	e, ok := s.entries[lowerCaseKey]
+	if !ok {
+		return NotFoundEntry
+	}
+	return e
+}
+
+func (s *inMemoryStoreNamespace) setValueUnlocked(key string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
+	lowerCaseKey := strings.ToLower(key)
+	x := StoreEntry{newValue, time.Now(), modifiedBy}
+	s.entries[lowerCaseKey] = x
+	s.originalCaseKeys[lowerCaseKey] = key
+	return x
+}
+
+func (s *inMemoryStoreNamespace) deleteValueUnlocked(key string) {
+	lowerCaseKey := strings.ToLower(key)
+	delete(s.entries, lowerCaseKey)
+	delete(s.originalCaseKeys, lowerCaseKey)
+}
 
 // GetValue from the StoreNamespace
 func (s *inMemoryStoreNamespace) GetValue(key string) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
-	e, ok := s.entries[key]
-	if !ok {
-		return NotFoundEntry
-	}
-	return e
+	return s.getValueUnlocked(key)
 }
 
 // GetValueBeforeExpiration gets the value from the StoreNamespace, but returns error if older than maxAge
@@ -41,16 +68,6 @@ func (s *inMemoryStoreNamespace) GetValueBeforeExpiration(key string, maxAge tim
 		return e
 	}
 	return e
-}
-
-func (s *inMemoryStoreNamespace) setValueUnlocked(key string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
-	x := StoreEntry{newValue, time.Now(), modifiedBy}
-	s.entries[key] = x
-	return x
-}
-
-func (s *inMemoryStoreNamespace) deleteValueUnlocked(key string) {
-	delete(s.entries, key)
 }
 
 // SetValue in the StoreNamespace
@@ -74,8 +91,8 @@ func (s *inMemoryStoreNamespace) SetAll(valueMap map[string]interface{}, modifie
 func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, newValue *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
-	oldV, exists := s.entries[key]
-	if !exists {
+	oldV := s.getValueUnlocked(key)
+	if oldV == NotFoundEntry {
 		return NotFoundEntry
 	}
 	if oldV.data == nil || oldV.data.GetString() != expected {
@@ -88,10 +105,7 @@ func (s *inMemoryStoreNamespace) CompareAndSwap(key string, expected string, new
 func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(StoreEntry) *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
-	oldEntry, exists := s.entries[key]
-	if !exists {
-		oldEntry = NotFoundEntry
-	}
+	oldEntry := s.getValueUnlocked(key)
 
 	out := fn(oldEntry)
 	if out.IsError() {
@@ -105,8 +119,8 @@ func (s *inMemoryStoreNamespace) OverwriteValueIfOlder(key string, io *base.Oper
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	n := time.Now()
-	md, keyExists := s.entries[key]
-	if keyExists && md.timestamp.Add(maxAge).After(n) {
+	md := s.getValueUnlocked(key)
+	if md != NotFoundEntry && md.timestamp.Add(maxAge).After(n) {
 		return MakeEntryError(http.StatusConflict, "%v already exists and is only %v old", key, n.Sub(md.timestamp))
 	}
 	return s.setValueUnlocked(key, io, modifiedBy)
@@ -124,7 +138,7 @@ func (s *inMemoryStoreNamespace) GetKeys() []string {
 	s.nsLock.Lock()
 	defer s.nsLock.Unlock()
 	keys := []string{}
-	for k := range s.entries {
+	for _, k := range s.originalCaseKeys {
 		keys = append(keys, k)
 	}
 	return keys
@@ -143,7 +157,8 @@ func (s *inMemoryStoreNamespace) GetAllValues(limit int) map[string]*base.Operat
 	defer s.nsLock.Unlock()
 	copy := map[string]*base.OperatorIO{}
 	counter := 0
-	for k, v := range s.entries {
+	for lk, v := range s.entries {
+		k := s.originalCaseKeys[lk]
 		copy[k] = v.data
 		counter++
 		if limit != 0 && counter >= limit {
@@ -153,14 +168,15 @@ func (s *inMemoryStoreNamespace) GetAllValues(limit int) map[string]*base.Operat
 	return copy
 }
 
-func matches(k string, v StoreEntry, keyPattern, valuePattern, modifiedByPattern string, minAge, maxAge time.Duration, tnow time.Time) bool {
+func matches(lk string, v StoreEntry, keyPattern, valuePattern, modifiedByPattern string, minAge, maxAge time.Duration, tnow time.Time) bool {
 	if minAge != 0 && v.timestamp.Add(minAge).After(tnow) {
 		return false
 	}
 	if maxAge != math.MaxInt64 && v.timestamp.Add(maxAge).Before(tnow) {
 		return false
 	}
-	if keyPattern != "" && !strings.Contains(k, keyPattern) {
+	lkeyPattern := strings.ToLower(keyPattern)
+	if keyPattern != "" && !strings.Contains(lk, lkeyPattern) {
 		return false
 	}
 	if valuePattern != "" && !strings.Contains(v.data.GetString(), valuePattern) {
@@ -178,8 +194,9 @@ func (s *inMemoryStoreNamespace) GetSearchResultWithMetadata(keyPattern, valuePa
 	defer s.nsLock.Unlock()
 	tnow := time.Now()
 	copy := map[string]StoreEntry{}
-	for k, v := range s.entries {
-		if matches(k, v, keyPattern, valuePattern, modifiedByPattern, minAge, maxAge, tnow) {
+	for lk, v := range s.entries {
+		if matches(lk, v, keyPattern, valuePattern, modifiedByPattern, minAge, maxAge, tnow) {
+			k := s.originalCaseKeys[lk]
 			copy[k] = v
 		}
 	}

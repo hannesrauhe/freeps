@@ -154,7 +154,7 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 		namespaceConfig, hasConfig = s.config.Namespaces[ns]
 	}
 	if !hasConfig || namespaceConfig.NamespaceType == "" {
-		nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+		nsStore = newInMemoryStoreNamespace()
 	} else {
 		var err error
 		switch namespaceConfig.NamespaceType {
@@ -166,7 +166,7 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 		case "postgres":
 			if s.config.PostgresConnStr == "" {
 				// fall back to memory store if there is no postgres connection defined
-				nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+				nsStore = newInMemoryStoreNamespace()
 			}
 			if db == nil {
 				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": Postgres connection has not been established.", ns, namespaceConfig.NamespaceType)
@@ -176,7 +176,7 @@ func (s *Store) GetNamespace(ns string) (StoreNamespace, error) {
 				return nil, fmt.Errorf("Cannot create store namespace \"%v\" of type \"%v\": %v", ns, namespaceConfig.NamespaceType, err)
 			}
 		case "memory":
-			nsStore = &inMemoryStoreNamespace{entries: map[string]StoreEntry{}, nsLock: sync.Mutex{}}
+			nsStore = newInMemoryStoreNamespace()
 		case "log":
 			nsStore = &logStoreNamespace{entries: []StoreEntry{}, offset: 0, nsLock: sync.Mutex{}, AutoTrim: namespaceConfig.AutoTrim}
 		case "null":
