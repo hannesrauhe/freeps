@@ -111,6 +111,9 @@ func (s *inMemoryStoreNamespace) UpdateTransaction(key string, fn func(StoreEntr
 	if out.IsError() {
 		return MakeEntry(out, modifiedBy)
 	}
+	if out.HTTPCode == http.StatusContinue {
+		return oldEntry
+	}
 	return s.setValueUnlocked(key, out, modifiedBy)
 }
 

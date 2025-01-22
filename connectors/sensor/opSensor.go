@@ -3,7 +3,6 @@ package sensor
 import (
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -18,6 +17,10 @@ type OpSensor struct {
 	CR     *utils.ConfigReader
 	GE     *freepsflow.FlowEngine
 	config *SensorConfig
+}
+
+type Sensor struct {
+	Properties []string
 }
 
 var _ base.FreepsOperator = &OpSensor{}
@@ -77,6 +80,86 @@ func (o *OpSensor) getSensorCategories() ([]string, error) {
 	return categories.GetOriginalKeys(), nil
 }
 
+func (o *OpSensor) setSensorProperty(ctx *base.Context, input *base.OperatorIO, sensorCategory string, sensorName string, sensorProperty string) (*base.OperatorIO, bool, bool, bool) {
+	if input.IsEmpty() {
+		return base.MakeOutputError(http.StatusBadRequest, "no properties to set"), false, false, false
+	}
+	sensorID, err := o.getSensorID(sensorCategory, sensorName)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error()), false, false, false
+	}
+
+	ns := o.getSensorNamespace()
+	propertyKey := sensorID + "." + sensorProperty
+
+	updatedProperty := false
+	newProperty := false
+	newSensor := false
+
+	ent := ns.UpdateTransaction(propertyKey, func(oldProp freepsstore.StoreEntry) *base.OperatorIO {
+		if oldProp.IsError() {
+			updatedProperty = true
+			newProperty = true
+		}
+		oldP := oldProp.GetData().GetString()
+		if len(oldP) >= base.MAXSTRINGLENGTH {
+			updatedProperty = true
+		} else if oldP != input.GetString() {
+			updatedProperty = true
+		}
+		if !updatedProperty {
+			// tell the store that nothing has changed and to not touch the value
+			out := base.MakeEmptyOutput()
+			out.HTTPCode = http.StatusContinue
+			return out
+		}
+		return input
+	}, ctx)
+
+	if ent.IsError() {
+		return ent.GetData(), false, false, false
+	}
+
+	catEnt := ns.UpdateTransaction("_categories", func(v freepsstore.StoreEntry) *base.OperatorIO {
+		categories, ok := v.GetData().Output.(base.FunctionArguments)
+		if !ok {
+			return base.MakeErrorOutputFromError(fmt.Errorf("category index is in an invalid format"))
+		}
+		if !categories.ContainsValue(sensorCategory, sensorName) {
+			categories.Append(sensorCategory, sensorName)
+		}
+		return base.MakeObjectOutput(categories)
+	}, ctx)
+
+	if catEnt.IsError() {
+		return catEnt.GetData(), false, false, false
+	}
+
+	sensorEnt := ns.UpdateTransaction(sensorID, func(v freepsstore.StoreEntry) *base.OperatorIO {
+		sensorInformation := Sensor{}
+		if v.IsError() {
+			newSensor = true
+			sensorInformation.Properties = []string{sensorProperty}
+		} else {
+			ok := false
+			sensorInformation, ok = v.GetData().Output.(Sensor)
+			if !ok {
+				return base.MakeErrorOutputFromError(fmt.Errorf("existing properties for \"%s\" are in an invalid format", sensorID))
+			}
+			if newProperty {
+				sensorInformation.Properties = append(sensorInformation.Properties, sensorProperty)
+			}
+		}
+		return base.MakeObjectOutput(sensorInformation)
+	}, ctx)
+
+	if sensorEnt.IsError() {
+		return sensorEnt.GetData(), false, false, false
+	}
+
+	return base.MakeEmptyOutput(), newSensor, newProperty, updatedProperty
+}
+
 func (op *OpSensor) SensornameSuggestions() []string {
 	return []string{"test"}
 }
@@ -118,73 +201,24 @@ type SensorArgs struct {
 	SensorCategory string
 }
 
-// SetSensorProperty writes a one or more properties of a sensor
-func (op *OpSensor) SetSensorProperty(ctx *base.Context, input *base.OperatorIO, args SensorArgs, fa base.FunctionArguments) *base.OperatorIO {
+// SetSensorProperties writes a one or more properties of a sensor
+func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO, args SensorArgs, fa base.FunctionArguments) *base.OperatorIO {
 	if fa.IsEmpty() {
 		return base.MakeOutputError(http.StatusBadRequest, "no properties to set")
 	}
-	sensorID, err := op.getSensorID(args.SensorCategory, args.SensorName)
-	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
-	}
 
-	ns := op.getSensorNamespace()
-	newSensor := false
 	updatedProperties := make([]string, 0)
-	ent := ns.UpdateTransaction(sensorID, func(v freepsstore.StoreEntry) *base.OperatorIO {
-		if v.IsError() {
-			newSensor = true
-			updatedProperties = fa.GetOriginalKeys()
-			return base.MakeObjectOutput(fa)
+	for k, v := range fa.GetOriginalCaseMapOnlyFirst() {
+		out, _, _, updated := o.setSensorProperty(ctx, base.MakePlainOutput(v), args.SensorCategory, args.SensorName, k)
+		if out.IsError() {
+			return out
 		}
-		existingProperties, ok := v.GetData().Output.(base.FunctionArguments)
-		if !ok {
-			return base.MakeOutputError(http.StatusInternalServerError, "existing properties for \"%s\" are in an invalid format", sensorID)
-		}
-		for _, k := range fa.GetOriginalKeys() {
-			newPropertyValues := fa.GetValues(k)
-			slices.Sort(newPropertyValues)
-
-			if existingProperties.Has(k) {
-				existingPropertyValues := existingProperties.GetValues(k)
-				slices.Sort(existingPropertyValues)
-				if 0 == slices.Compare(existingPropertyValues, newPropertyValues) {
-					continue
-				}
-			}
-
+		if updated {
 			updatedProperties = append(updatedProperties, k)
-			existingProperties.Set(k, newPropertyValues)
 		}
-		return base.MakeObjectOutput(existingProperties)
-	}, ctx)
-	if ent.IsError() {
-		return ent.GetData()
 	}
-
-	if newSensor || len(updatedProperties) > 0 {
-		// TODO(HR): async?
-		op.executeTrigger(ctx, args.SensorCategory, sensorID, updatedProperties)
-	}
-
-	if !newSensor {
-		return base.MakeEmptyOutput()
-	}
-	catEnt := ns.UpdateTransaction("_categories", func(v freepsstore.StoreEntry) *base.OperatorIO {
-		if v.IsError() {
-			return v.GetData()
-		}
-		categories, ok := v.GetData().Output.(base.FunctionArguments)
-		if !ok {
-			return base.MakeErrorOutputFromError(fmt.Errorf("category index is in an invalid format"))
-		}
-		if !categories.ContainsValue(args.SensorCategory, args.SensorName) {
-			categories.Append(args.SensorCategory, args.SensorName)
-		}
-		return base.MakeObjectOutput(categories)
-	}, ctx)
-	if catEnt.IsError() {
-		return catEnt.GetData()
+	if len(updatedProperties) > 0 {
+		o.executeTrigger(ctx, args.SensorCategory, args.SensorName, updatedProperties)
 	}
 	return base.MakeEmptyOutput()
 }
@@ -203,7 +237,7 @@ func (op *OpSensor) SetSensorPropertyInternal(ctx *base.Context, sensorCategory 
 		m3[k] = fmt.Sprintf("%v", v)
 	}
 	fa := base.NewFunctionArguments(m3)
-	io := op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCategory}, fa)
+	io := op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCategory}, fa)
 	if io.IsError() {
 		return io.GetError()
 	}
@@ -217,9 +251,19 @@ type SetSensorPropertyArgs struct {
 }
 
 // SetSingleSensorProperty writes a one or more properties of a sensor
-func (op *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.OperatorIO, args SetSensorPropertyArgs) *base.OperatorIO {
-	fa := base.NewSingleFunctionArgument(args.PropertyName, input.GetString())
-	return op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: args.SensorName, SensorCategory: args.SensorCategory}, fa)
+func (o *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.OperatorIO, args SetSensorPropertyArgs) *base.OperatorIO {
+	out, _, _, updated := o.setSensorProperty(ctx, input, args.SensorCategory, args.SensorName, args.PropertyName)
+
+	if out.IsError() {
+		return out
+	}
+
+	if updated {
+		sensorID, _ := o.getSensorID(args.SensorCategory, args.SensorName)
+		o.executeTrigger(ctx, args.SensorCategory, sensorID, []string{args.PropertyName})
+	}
+
+	return out
 }
 
 type GetSensorArgs struct {
@@ -229,28 +273,31 @@ type GetSensorArgs struct {
 }
 
 // GetSensorProperty returns all properties of a sensor or the one specified by PropertyName
-func (op *OpSensor) GetSensorProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorArgs) *base.OperatorIO {
-	sensorID, err := op.getSensorID(args.SensorCategory, args.SensorName)
+func (o *OpSensor) GetSensorProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorArgs) *base.OperatorIO {
+	sensorID, err := o.getSensorID(args.SensorCategory, args.SensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
-	ns := op.getSensorNamespace()
+	ns := o.getSensorNamespace()
+	if args.PropertyName != nil {
+		return ns.GetValue(sensorID + "." + *args.PropertyName).GetData()
+	}
+
 	v := ns.GetValue(sensorID)
-	completeSensorEntry := v.GetData()
-	if args.PropertyName == nil {
-		return completeSensorEntry
+	if v.IsError() {
+		return v.GetData()
 	}
-	if completeSensorEntry.IsError() {
-		return completeSensorEntry
-	}
+	return v.GetData()
 
-	properties, ok := v.GetData().Output.(base.FunctionArguments)
-	if !ok {
-		return base.MakeOutputError(http.StatusInternalServerError, "existing properties for \"%s\" are in an invalid format", sensorID)
-	}
+	/*
+		properties, ok := v.GetData().Output.(Sensor)
+		if !ok {
+			return base.MakeOutputError(http.StatusInternalServerError, "existing properties for \"%s\" are in an invalid format", sensorID)
+		}
 
-	if properties.Has(*args.PropertyName) {
-		return base.MakePlainOutput(properties.Get(*args.PropertyName))
-	}
-	return base.MakeOutputError(404, "property \"%s\" not found", *args.PropertyName)
+		if properties.Has(*args.PropertyName) {
+			return base.MakePlainOutput(properties.Get(*args.PropertyName))
+		}
+		return base.MakeOutputError(404, "property \"%s\" not found", *args.PropertyName)
+	*/
 }

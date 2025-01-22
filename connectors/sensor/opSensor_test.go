@@ -41,18 +41,18 @@ func TestSensorPropertySetting(t *testing.T) {
 	sensorCat := "test"
 	sensorName := "test_sensor"
 	sensorProperty := "test_property"
-	res := op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.MakeEmptyFunctionArguments())
+	res := op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.MakeEmptyFunctionArguments())
 	assert.Assert(t, res.IsError())
 
 	// set property of new sensor
-	res = op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value"))
+	res = op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value"))
 	assert.Assert(t, !res.IsError())
 	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &sensorProperty})
 	assert.Assert(t, !res.IsError())
 	assert.Equal(t, res.GetString(), "test_value")
 
 	// update/overwrite property of existing sensor
-	res = op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value_new"))
+	res = op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCat}, base.NewSingleFunctionArgument(sensorProperty, "test_value_new"))
 	assert.Assert(t, !res.IsError())
 	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &sensorProperty})
 	assert.Assert(t, !res.IsError())
@@ -106,7 +106,7 @@ func TestTriggers(t *testing.T) {
 	assert.Assert(t, !out.IsError())
 
 	/* Test the triggers when sensor of the right category and property is activated*/
-	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
+	op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
 
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("test")
 	assert.NilError(t, err)
@@ -117,18 +117,18 @@ func TestTriggers(t *testing.T) {
 	assert.Equal(t, i, 2)
 
 	/* value has not been changed, don't do anything */
-	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
+	op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Assert(t, i == 0)
 
 	/* other property changes, trigger flow 1 */
-	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument("other_prop", "test_value"))
+	op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument("other_prop", "test_value"))
 	assert.Assert(t, ns.GetValue(flow1) != freepsstore.NotFoundEntry)
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Equal(t, i, 1)
 
 	/* Test the triggers when sensor of the right category and property is activated via update*/
-	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value_new"))
+	op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value_new"))
 
 	assert.NilError(t, err)
 	assert.Assert(t, ns.GetValue(flow1) != freepsstore.NotFoundEntry)
@@ -138,7 +138,7 @@ func TestTriggers(t *testing.T) {
 	assert.Equal(t, i, 2)
 
 	/* Test the ID trigger */
-	op.SetSensorProperty(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor1", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
+	op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: "test_sensor1", SensorCategory: testCat1}, base.NewSingleFunctionArgument(testProp1, "test_value"))
 	assert.Assert(t, ns.GetValue(flow1) != freepsstore.NotFoundEntry)
 	assert.Assert(t, ns.GetValue(flow2) != freepsstore.NotFoundEntry)
 	assert.Assert(t, ns.GetValue(flow3) != freepsstore.NotFoundEntry)

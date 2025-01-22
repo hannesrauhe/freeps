@@ -26,6 +26,8 @@ const (
 	FloatingPoint OutputT = "floating"
 )
 
+const MAXSTRINGLENGTH = 1024 * 10
+
 // OperatorIO is the input and output of an operator, once created it should not be modified
 // Note: the Store Operator depends on this struct being immutable
 type OperatorIO struct {
@@ -257,8 +259,8 @@ func (io *OperatorIO) GetString() string {
 		b, _ = json.MarshalIndent(io.Output, "", "  ")
 	}
 
-	if len(b) > 1024*10 {
-		return fmt.Sprintf("%s...", b[:1024*10-3])
+	if len(b) > MAXSTRINGLENGTH {
+		return fmt.Sprintf("%s...", b[:MAXSTRINGLENGTH-3])
 	}
 	return fmt.Sprintf("%s", b)
 }
@@ -354,9 +356,8 @@ func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
 }
 
 func (oio *OperatorIO) ToString() string {
-	maxLen := 1024
 	b := bytes.NewBufferString("")
-	oio.WriteTo(b, maxLen)
+	oio.WriteTo(b, MAXSTRINGLENGTH)
 	return b.String()
 }
 

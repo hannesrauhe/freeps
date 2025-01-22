@@ -7,7 +7,7 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 )
 
-// FlowID auggestions returns suggestions for flow names
+// FlowID suggestions returns suggestions for flow names
 func (o *OpSensor) FlowIDSuggestions() map[string]string {
 	flowNames := map[string]string{}
 	res := o.GE.GetAllFlowDesc()
@@ -24,6 +24,7 @@ func (o *OpSensor) FlowIDSuggestions() map[string]string {
 }
 
 func (o *OpSensor) executeTrigger(ctx *base.Context, sensorCategory string, sensorID string, changedProperties []string) *base.OperatorIO {
+	// TODO(HR): async?
 	categorySelectTags := []string{fmt.Sprintf("sensorCategory:%v", sensorCategory), "sensorCategory:*"}
 	idSelectTags := []string{fmt.Sprintf("sensorID:%v", sensorID), "sensorID:*"}
 	propertySelectTags := []string{"sensorProperty:*"}
