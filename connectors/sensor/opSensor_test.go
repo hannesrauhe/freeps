@@ -143,5 +143,5 @@ func TestTriggers(t *testing.T) {
 	assert.Assert(t, ns.GetValue(flow2) != freepsstore.NotFoundEntry)
 	assert.Assert(t, ns.GetValue(flow3) != freepsstore.NotFoundEntry)
 	i = ns.DeleteOlder(time.Duration(0))
-	assert.Equal(t, i, 1)
+	assert.Equal(t, i, 3)
 }
