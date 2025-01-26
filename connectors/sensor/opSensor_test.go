@@ -77,6 +77,61 @@ func TestSensorPropertySetting(t *testing.T) {
 	assert.Equal(t, res.GetString(), "14")
 }
 
+func TestSensorName(t *testing.T) {
+	op, ctx := initSensorOp(t)
+
+	sensorCat := "test"
+	sensorName := "test_sensor"
+	sensorProperty := "test_property"
+	res := op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
+	assert.Assert(t, res.IsError())
+	assert.Equal(t, res.HTTPCode, 404)
+
+	res = op.SetSingleSensorProperty(ctx, base.MakeIntegerOutput(12), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: sensorProperty})
+	assert.Assert(t, !res.IsError())
+
+	res = op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), sensorCat+"."+sensorName)
+
+	res = op.SetSingleSensorProperty(ctx, base.MakePlainOutput("alias sensor name"), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: "name"})
+	assert.Assert(t, !res.IsError())
+
+	res = op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), "alias sensor name")
+
+	res = op.SetSingleSensorProperty(ctx, base.MakePlainOutput("sensor name"), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: "alias"})
+	assert.Assert(t, !res.IsError())
+
+	res = op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), "sensor name")
+}
+
+func TestSensorCategory(t *testing.T) {
+	op, ctx := initSensorOp(t)
+
+	sensorProperty := "test_property"
+
+	res := op.SetSingleSensorProperty(ctx, base.MakeIntegerOutput(12), SetSensorPropertyArgs{SensorName: "testsenscat1", SensorCategory: "cat1", PropertyName: sensorProperty})
+	assert.Assert(t, !res.IsError())
+	res = op.SetSingleSensorProperty(ctx, base.MakeIntegerOutput(12), SetSensorPropertyArgs{SensorName: "testsenscat2", SensorCategory: "cat2", PropertyName: sensorProperty})
+	assert.Assert(t, !res.IsError())
+
+	res = op.GetSensorCategories(ctx, base.MakeEmptyOutput())
+	assert.Assert(t, !res.IsError())
+	assert.DeepEqual(t, res.GetObject(), []string{"cat1", "cat2"})
+
+	res = op.GetSensorNames(ctx, base.MakeEmptyOutput(), GetSensorNamesArgs{SensorCategory: "cat1"})
+	assert.Assert(t, !res.IsError())
+	assert.DeepEqual(t, res.GetObject(), []string{"testsenscat1"})
+
+	res = op.GetSensorNames(ctx, base.MakeEmptyOutput(), GetSensorNamesArgs{SensorCategory: "NOTEXISTING"})
+	assert.Assert(t, res.IsError())
+	assert.Equal(t, res.HTTPCode, 404)
+}
+
 func createTestFlow(keyToSet string) freepsflow.FlowDesc {
 	gd := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: map[string]string{"namespace": "test", "key": keyToSet}}}}
 	return gd

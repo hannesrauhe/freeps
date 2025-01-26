@@ -1,0 +1,48 @@
+<link rel="stylesheet" href="/chota.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+{{ $cat := "" }}
+{{ $args := "" }}
+{{ if .arguments.category }}
+    {{ $cat = .arguments.category }}
+    {{ $args = printf "%s&SensorCategory=%s" $args $cat }}
+{{ end }}
+<div class="container">
+<form method="GET" action="/ui/sensors.html"  class="row">
+    <div class="col">
+        <label for="category">Category</label>
+        <select name="category" id="sev">
+{{ $categories := flow_ExecuteOperator "sensor" "GetSensorCategories" ""}}
+{{ range $key, $entry := $categories.Output }}
+            <option value="{{$entry}}" {{ if eq $cat $entry }} selected {{end}}>{{$entry}}</option>
+{{ end }}
+        </select>
+    </div>
+    <div class="col">
+        <br />
+        <input type="submit" />
+    </div>
+</form>
+</div>
+
+<table>
+<tr><th>Alias</th><th>Properties</th></tr>
+{{ $sensors := flow_ExecuteOperator "sensor" "GetSensorNames" $args}}
+{{ range $key, $name := $sensors.Output }}
+{{ $id := printf "%s.%s" $cat $name }}
+    <tr>
+        <!--<td><a href="/ui/sensors.html?category={{$cat}}">{{$cat}}</a>.test</td>-->
+        {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $cat }}
+        {{ $sensorAlias := flow_ExecuteOperator "sensor" "GetSensorAlias" $nameArgs }}
+        <td><a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
+        <td>
+                {{ $sensorProps := flow_ExecuteOperator "sensor" "GetSensorProperties" $nameArgs }}
+                {{ range $key, $property := $sensorProps.Output }}
+                <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $property }}">  {{ $property }} </a>
+                {{ end }}
+        </td>
+    </tr>
+{{ end }}
+
+</table>
