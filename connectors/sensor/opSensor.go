@@ -348,3 +348,27 @@ func (o *OpSensor) GetSensorProperties(ctx *base.Context, input *base.OperatorIO
 	}
 	return base.MakeObjectOutput(sensorInformation.Properties)
 }
+
+// GetAllProperties returns all properties of the sensors in a category
+func (o *OpSensor) GetAllProperties(ctx *base.Context, input *base.OperatorIO, args GetSensorNamesArgs) *base.OperatorIO {
+	categories, err := o.getCategoryIndex()
+	if err != nil {
+		return base.MakeErrorOutputFromError(err)
+	}
+	allProperties := make(map[string]string)
+	for _, sensor := range categories.GetValues(args.SensorCategory) {
+		sensorID, err := o.getSensorID(args.SensorCategory, sensor)
+		if err != nil {
+			return base.MakeErrorOutputFromError(err)
+		}
+		sensorInformation, err := o.getPropertyIndex(sensorID)
+		if err != nil {
+			return base.MakeErrorOutputFromError(err)
+		}
+		for _, property := range sensorInformation.Properties {
+			allProperties[property] = sensorID
+		}
+	}
+
+	return base.MakeObjectOutput(allProperties)
+}
