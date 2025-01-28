@@ -5,6 +5,7 @@ package telegram
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hannesrauhe/freeps/base"
@@ -43,6 +44,8 @@ func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, n
 	}
 	bot, err := tgbotapi.NewBotAPI(newM.tgc.Token)
 	if err != nil {
+		dur := 60 * time.Minute
+		m.GE.SetSystemAlert(ctx, name, "TelegramInitError", 2, err, &dur)
 		return nil, err
 	}
 	bot.Debug = m.tgc.DebugMessages

@@ -110,7 +110,6 @@ func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) 
 	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "present", device.Present)
 	id := device.DeviceID
 	if device.EtsiUnitInfo != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "type", "subSensor")
 		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "parent", device.EtsiUnitInfo.DeviceID)
 	}
 	if device.HKR != nil {
@@ -121,21 +120,21 @@ func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) 
 	}
 	if device.Temperature != nil {
 		temperature, err := utils.ConvertToFloat(device.Temperature.Celsius)
-		if err != nil {
+		if err == nil {
 			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "temperature", temperature/10)
 		}
 	}
 	if device.Powermeter != nil {
 		power, err := utils.ConvertToFloat(device.Powermeter.Power)
-		if err != nil {
+		if err == nil {
 			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "power", power/1000)
 		}
 		voltage, err := utils.ConvertToFloat(device.Powermeter.Voltage)
-		if err != nil {
+		if err == nil {
 			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "voltage", voltage/1000)
 		}
 		energy, err := utils.ConvertToFloat(device.Powermeter.Energy)
-		if err != nil {
+		if err == nil {
 			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "energy", energy/1000)
 		}
 	}
