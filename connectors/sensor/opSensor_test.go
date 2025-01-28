@@ -107,6 +107,14 @@ func TestSensorName(t *testing.T) {
 	res = op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
 	assert.Assert(t, !res.IsError())
 	assert.Equal(t, res.GetString(), "sensor name")
+
+	// allow empty properties
+	sensorProperty = "empty_prop"
+	res = op.SetSingleSensorProperty(ctx, base.MakeEmptyOutput(), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: sensorProperty})
+	assert.Assert(t, !res.IsError())
+	res = op.GetSensorProperty(ctx, base.MakeEmptyOutput(), GetSensorArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: &sensorProperty})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), "")
 }
 
 func TestSensorCategory(t *testing.T) {

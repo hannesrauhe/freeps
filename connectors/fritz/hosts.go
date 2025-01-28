@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -21,6 +23,10 @@ type Host struct {
 	MACAddress         string
 }
 
+func (o *OpFritz) getHostSensorCategory() string {
+	return strings.ReplaceAll(o.name, ".", "_") + "_host"
+}
+
 func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[string]interface{}) (Host, error) {
 	var host Host
 	err := utils.MapToObject(res, &host)
@@ -33,6 +39,11 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 	}
 	if host.IPAddress == "" {
 		host.IPAddress = byIP
+	}
+
+	opSensor := sensor.GetGlobalSensors()
+	if opSensor == nil {
+		return host, fmt.Errorf("Sensor integration not available")
 	}
 
 	updFn := func(oldHostEntry freepsstore.StoreEntry) *base.OperatorIO {
@@ -62,10 +73,13 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 	ns := o.getHostsNamespace()
 	if host.MACAddress != "" {
 		ns.UpdateTransaction(host.MACAddress, updFn, ctx)
+		err = opSensor.SetSensorPropertyFromFlattenedObject(ctx, o.getHostSensorCategory(), host.MACAddress, host)
 	} else if host.IPAddress != "" { // for VPN devices MAC is unkown
+		name := "IP:" + strings.ReplaceAll(host.IPAddress, ".", ":")
 		ns.UpdateTransaction("IP:"+host.IPAddress, updFn, ctx)
+		err = opSensor.SetSensorPropertyFromFlattenedObject(ctx, o.getHostSensorCategory(), name, host)
 	}
-	return host, nil
+	return host, err
 }
 
 func (o *OpFritz) getHostByMac(ctx *base.Context, mac string) (*Host, error) {
@@ -116,11 +130,13 @@ func (o *OpFritz) DiscoverHosts(ctx *base.Context) *base.OperatorIO {
 		newIndex := fmt.Sprintf("%d", i)
 		res, err = o.fl.CallUpnpActionWithArgument("Hosts", "GetGenericHostEntry", "NewIndex", newIndex)
 		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Error when reading host %v: %v", i, err.Error())
+			ctx.GetLogger().Errorf("Error when reading host %v: %v", i, err.Error())
+			// return base.MakeOutputError(http.StatusInternalServerError, "Error when reading host %v: %v", i, err.Error())
 		}
 		_, err := o.addHost(ctx, "", "", res)
 		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Cannot parse response %v: %v", i, res)
+			ctx.GetLogger().Errorf("Cannot parse response of host %v: %v", i, res)
+			// return base.MakeOutputError(http.StatusInternalServerError, "Cannot parse response %v: %v", i, res)
 		}
 	}
 	return base.MakeSprintfOutput("Discovered %v hosts", numHosts)

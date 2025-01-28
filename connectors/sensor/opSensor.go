@@ -9,7 +9,6 @@ import (
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
-	"github.com/jeremywohl/flatten"
 )
 
 // OpSensor is an operator to manage sensors of different types in your Smart Home, these sensors can be created by the user or by other operators. The operator provices a set of methods to interact with the sensors.
@@ -102,9 +101,6 @@ func (o *OpSensor) getPropertyIndex(sensorID string) (Sensor, error) {
 }
 
 func (o *OpSensor) setSensorProperty(ctx *base.Context, input *base.OperatorIO, sensorCategory string, sensorName string, sensorProperty string) (*base.OperatorIO, bool, bool, bool) {
-	if input.IsEmpty() {
-		return base.MakeOutputError(http.StatusBadRequest, "no properties to set"), false, false, false
-	}
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error()), false, false, false
@@ -121,6 +117,7 @@ func (o *OpSensor) setSensorProperty(ctx *base.Context, input *base.OperatorIO, 
 		if oldProp.IsError() {
 			updatedProperty = true
 			newProperty = true
+			return input
 		}
 		oldP := oldProp.GetData().GetString()
 		if len(oldP) >= base.MAXSTRINGLENGTH {
@@ -141,28 +138,32 @@ func (o *OpSensor) setSensorProperty(ctx *base.Context, input *base.OperatorIO, 
 		return ent.GetData(), false, false, false
 	}
 
-	sensorEnt := ns.UpdateTransaction(sensorID, func(v freepsstore.StoreEntry) *base.OperatorIO {
-		sensorInformation := Sensor{}
-		if v.IsError() {
-			newSensor = true
-			sensorInformation.Properties = []string{sensorProperty}
-		} else {
-			ok := false
-			sensorInformation, ok = v.GetData().Output.(Sensor)
-			if !ok {
-				return base.MakeErrorOutputFromError(fmt.Errorf("existing properties for \"%s\" are in an invalid format", sensorID))
+	// update the sensor if the property is new
+	if newProperty {
+		sensorEnt := ns.UpdateTransaction(sensorID, func(v freepsstore.StoreEntry) *base.OperatorIO {
+			sensorInformation := Sensor{}
+			if v.IsError() {
+				newSensor = true
+				sensorInformation.Properties = []string{sensorProperty}
+			} else {
+				ok := false
+				sensorInformation, ok = v.GetData().Output.(Sensor)
+				if !ok {
+					return base.MakeErrorOutputFromError(fmt.Errorf("existing properties for \"%s\" are in an invalid format", sensorID))
+				}
+				if newProperty {
+					sensorInformation.Properties = append(sensorInformation.Properties, sensorProperty)
+				}
 			}
-			if newProperty {
-				sensorInformation.Properties = append(sensorInformation.Properties, sensorProperty)
-			}
-		}
-		return base.MakeObjectOutput(sensorInformation)
-	}, ctx)
+			return base.MakeObjectOutput(sensorInformation)
+		}, ctx)
 
-	if sensorEnt.IsError() {
-		return sensorEnt.GetData(), false, false, false
+		if sensorEnt.IsError() {
+			return sensorEnt.GetData(), false, false, false
+		}
 	}
 
+	// update the category index if the sensor is new
 	if newSensor {
 		catEnt := ns.UpdateTransaction("_categories", func(v freepsstore.StoreEntry) *base.OperatorIO {
 			categories, ok := v.GetData().Output.(base.FunctionArguments)
@@ -244,27 +245,6 @@ func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO
 		o.executeTrigger(ctx, args.SensorCategory, sensorID, updatedProperties)
 	}
 	return base.MakeEmptyOutput()
-}
-
-func (op *OpSensor) SetSensorPropertyInternal(ctx *base.Context, sensorCategory string, sensorName string, properties interface{}) error {
-	m1, err := utils.ObjectToMap(properties)
-	if err != nil {
-		return err
-	}
-	m2, err := flatten.Flatten(m1, "", flatten.DotStyle)
-	if err != nil {
-		return err
-	}
-	m3 := make(map[string]string)
-	for k, v := range m2 {
-		m3[k] = fmt.Sprintf("%v", v)
-	}
-	fa := base.NewFunctionArguments(m3)
-	io := op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCategory}, fa)
-	if io.IsError() {
-		return io.GetError()
-	}
-	return nil
 }
 
 type SetSensorPropertyArgs struct {
