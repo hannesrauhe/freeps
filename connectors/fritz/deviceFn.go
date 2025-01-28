@@ -7,6 +7,7 @@ import (
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
 
@@ -98,6 +99,67 @@ func (o *OpFritz) getCachedDevices(ctx *base.Context, forceRefresh bool) (map[st
 	return r, nil
 }
 
+func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) {
+	opSensor := sensor.GetGlobalSensors()
+	err := opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "_internal", device)
+	if err != nil {
+		ctx.GetLogger().Errorf("Failed to set sensor property for %v: %v", device.DeviceID, err)
+	}
+	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "name", device.Name)
+	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "ain", device.AIN)
+	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "present", device.Present)
+	id := device.DeviceID
+	if device.EtsiUnitInfo != nil {
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "type", "subSensor")
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "parent", device.EtsiUnitInfo.DeviceID)
+	}
+	if device.HKR != nil {
+		targetTemp, err := utils.ConvertToFloat(device.HKR.Tsoll)
+		if err != nil {
+			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "targetTemperature", targetTemp/2)
+		}
+	}
+	if device.Temperature != nil {
+		temperature, err := utils.ConvertToFloat(device.Temperature.Celsius)
+		if err != nil {
+			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "temperature", temperature/10)
+		}
+	}
+	if device.Powermeter != nil {
+		power, err := utils.ConvertToFloat(device.Powermeter.Power)
+		if err != nil {
+			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "power", power/1000)
+		}
+		voltage, err := utils.ConvertToFloat(device.Powermeter.Voltage)
+		if err != nil {
+			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "voltage", voltage/1000)
+		}
+		energy, err := utils.ConvertToFloat(device.Powermeter.Energy)
+		if err != nil {
+			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "energy", energy/1000)
+		}
+	}
+	if device.Switch != nil {
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "state", device.Switch.State)
+	}
+	if device.Button != nil {
+		t := time.Unix(int64(device.Button.LastPressedTimestamp), 0)
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "lastPressed", t)
+	}
+	if device.SimpleOnOff != nil {
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "state", device.SimpleOnOff.State)
+	}
+	if device.LevelControl != nil {
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "level", device.LevelControl.LevelPercentage)
+	}
+	if device.ColorControl != nil {
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "hue", device.ColorControl.Hue)
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "saturation", device.ColorControl.Saturation)
+		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "colorTemp", device.ColorControl.Temperature)
+	}
+
+}
+
 // getDeviceList retrieves the devicelist and caches
 func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, error) {
 	// lock to prevent multiple calls to getDeviceList, if lock not available return nil
@@ -113,12 +175,8 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 		return nil, err
 	}
 	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
-	opSensor := sensor.GetGlobalSensors()
 	for _, dev := range devl.Device {
-		err = opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), dev.DeviceID, "_internal", dev)
-		if err != nil {
-			ctx.GetLogger().Errorf("Failed to set sensor property for %v: %v", dev.DeviceID, err)
-		}
+		o.deviceToSensor(ctx, dev)
 		o.checkDeviceForAlerts(ctx, dev)
 	}
 	return devl, nil
