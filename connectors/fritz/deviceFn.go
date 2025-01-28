@@ -114,7 +114,7 @@ func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) 
 	}
 	if device.HKR != nil {
 		targetTemp, err := utils.ConvertToFloat(device.HKR.Tsoll)
-		if err != nil {
+		if err == nil {
 			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "targetTemperature", targetTemp/2)
 		}
 	}
