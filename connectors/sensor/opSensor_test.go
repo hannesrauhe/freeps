@@ -131,11 +131,13 @@ func TestSensorCategory(t *testing.T) {
 	assert.Assert(t, !res.IsError())
 	assert.DeepEqual(t, res.GetObject(), []string{"cat1", "cat2"})
 
-	res = op.GetSensorNames(ctx, base.MakeEmptyOutput(), GetSensorNamesArgs{SensorCategory: "cat1"})
+	cat1 := "cat1"
+	res = op.GetSensorIds(ctx, base.MakeEmptyOutput(), GetSensorNamesArgs{SensorCategory: &cat1})
 	assert.Assert(t, !res.IsError())
-	assert.DeepEqual(t, res.GetObject(), []string{"testsenscat1"})
+	assert.DeepEqual(t, res.GetObject(), []string{"cat1.testsenscat1"})
 
-	res = op.GetSensorNames(ctx, base.MakeEmptyOutput(), GetSensorNamesArgs{SensorCategory: "NOTEXISTING"})
+	notExisting := "NOTEXISTING"
+	res = op.GetSensorIds(ctx, base.MakeEmptyOutput(), GetSensorNamesArgs{SensorCategory: &notExisting})
 	assert.Assert(t, res.IsError())
 	assert.Equal(t, res.HTTPCode, 404)
 }

@@ -13,11 +13,13 @@
     {{ $prop = .arguments.property }}
     {{ $args = printf "%s&SensorProperty=%s" $args $prop }}
 {{ end }}
+
 <div class="container">
 <form method="GET" action="/ui/sensors.html"  class="row">
     <div class="col">
         <label for="category">Category</label>
         <select name="category" id="cat">
+            <option value="">All</option>
 {{ $categories := flow_ExecuteOperator "sensor" "GetSensorCategories" ""}}
 {{ range $key, $entry := $categories.Output }}
             <option value="{{$entry}}" {{ if eq $cat $entry }} selected {{end}}>{{$entry}}</option>
@@ -41,31 +43,49 @@
 </form>
 </div>
 
-<table>
+<table class="striped">
+{{ if eq $prop "" }}
 <tr><th>Alias</th><th>Properties</th></tr>
-{{ $sensors := flow_ExecuteOperator "sensor" "GetSensorNames" $args}}
-{{ range $key, $name := $sensors.Output }}
-{{ $id := printf "%s.%s" $cat $name }}
+    {{ $sensors := flow_ExecuteOperator "sensor" "GetSensorIds" $args}}
+    {{ range $category, $catMap := $sensors.Output }}
+    <tr><td colspan="2">{{ $category }}</td></tr>
+        {{ range $key, $name := $catMap }}
     <tr>
         <!--<td><a href="/ui/sensors.html?category={{$cat}}">{{$cat}}</a>.test</td>-->
-        {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $cat }}
-        {{ $sensorAlias := flow_ExecuteOperator "sensor" "GetSensorAlias" $nameArgs }}
+            {{ $id := printf "%s.%s" $category $name }}
+            {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $category }}
+            {{ $sensorAlias := flow_ExecuteOperator "sensor" "GetSensorAlias" $nameArgs }}
         <td><a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
-        {{ if eq $prop "" }}
         <td>
-                {{ $sensorProps := flow_ExecuteOperator "sensor" "GetSensorProperties" $nameArgs }}
-                {{ range $key, $property := $sensorProps.Output }}
-                <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $property }}">  {{ $property }} </a>
-                {{ end }}
+            {{ $sensorProps := flow_ExecuteOperator "sensor" "GetSensorProperties" $nameArgs }}
+            {{ range $key, $property := $sensorProps.Output }}
+            <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $property }}">  {{ $property }} </a>
+            {{ end }} <!-- This is the end of the range loop that iterates over the sensor properties -->
         </td>
-        {{ else }}
-        <td>
-                {{ $propArgs := printf "SensorName=%s&SensorCategory=%s&PropertyName=%s" $name $cat $prop}}
-                {{ $sensorProp := flow_ExecuteOperator "sensor" "GetSensorProperty" $propArgs }}
-                <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $prop }}">  {{ $sensorProp.Output }} </a>
-        </td>
-        {{ end }}
     </tr>
-{{ end }}
-
+        {{ end }} <!-- This is the end of the range loop that iterates over the sensors -->
+    {{ end }} <!-- This is the end of the range loop that iterates over the categories -->
+{{ else }}
+<tr><th>Alias</th><th>{{ $prop }}</th></tr>
+    {{ $sensors := flow_ExecuteOperator "sensor" "GetSensorIds" $args}}
+    {{ range $category, $catMap := $sensors.Output }}
+    <tr><td colspan="2">{{ $category }}</td></tr>
+        {{ range $key, $name := $catMap }}
+            {{ $propArgs := printf "SensorName=%s&SensorCategory=%s&PropertyName=%s" $name $category $prop}}
+            {{ $sensorProp := flow_ExecuteOperator "sensor" "GetSensorProperty" $propArgs }}
+            {{ if ne $sensorProp.HTTPCode 404 }}
+    <tr>
+        <!--<td><a href="/ui/sensors.html?category={{$cat}}">{{$cat}}</a>.test</td>-->
+                {{ $id := printf "%s.%s" $category $name }}
+                {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $category }}
+                {{ $sensorAlias := flow_ExecuteOperator "sensor" "GetSensorAlias" $nameArgs }}
+        <td><a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
+        <td>
+            <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $prop }}">  {{ $sensorProp.Output }} </a>
+        </td>
+    </tr>
+            {{ end }} <!-- This is the end of the if statement that checks if the sensor property exists -->
+        {{ end }} <!-- This is the end of the range loop that iterates over the sensors -->
+    {{ end }} <!-- This is the end of the range loop that iterates over the categories -->
+{{ end }} <!-- This is the end of the if statement that checks if the requested property is empty -->
 </table>

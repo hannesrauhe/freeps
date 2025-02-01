@@ -203,20 +203,25 @@ func (op *OpSensor) GetSensorCategories(ctx *base.Context, input *base.OperatorI
 }
 
 type GetSensorNamesArgs struct {
-	SensorCategory string
+	SensorCategory *string
 }
 
-// GetSensorNames returns all sensor names for a category
-func (op *OpSensor) GetSensorNames(ctx *base.Context, input *base.OperatorIO, args GetSensorNamesArgs) *base.OperatorIO {
+// GetSensorIds returns all sensor names for a category
+func (op *OpSensor) GetSensorIds(ctx *base.Context, input *base.OperatorIO, args GetSensorNamesArgs) *base.OperatorIO {
 	cat, err := op.getCategoryIndex()
 	if err != nil {
 		return base.MakeErrorOutputFromError(err)
 	}
-	names := cat.GetValues(args.SensorCategory)
-	if len(names) == 0 {
-		return base.MakeOutputError(http.StatusNotFound, "Category %s not found", args.SensorCategory)
+	ret := make(map[string][]string)
+	if args.SensorCategory != nil {
+		if !cat.Has(*args.SensorCategory) {
+			return base.MakeOutputError(http.StatusNotFound, "Category %s not found", *args.SensorCategory)
+		}
+		ret[*args.SensorCategory] = cat.GetValues(*args.SensorCategory)
+	} else {
+		ret = cat.GetOriginalCaseMap()
 	}
-	return base.MakeObjectOutput(names)
+	return base.MakeObjectOutput(ret)
 }
 
 type SensorArgs struct {
@@ -329,26 +334,35 @@ func (o *OpSensor) GetSensorProperties(ctx *base.Context, input *base.OperatorIO
 	return base.MakeObjectOutput(sensorInformation.Properties)
 }
 
+type GetAllPropertiesArgs struct {
+	SensorCategory *string
+}
+
 // GetAllProperties returns all properties of the sensors in a category
-func (o *OpSensor) GetAllProperties(ctx *base.Context, input *base.OperatorIO, args GetSensorNamesArgs) *base.OperatorIO {
+func (o *OpSensor) GetAllProperties(ctx *base.Context, input *base.OperatorIO, args GetAllPropertiesArgs) *base.OperatorIO {
 	categories, err := o.getCategoryIndex()
 	if err != nil {
 		return base.MakeErrorOutputFromError(err)
 	}
+	categoriesList := categories.GetOriginalKeys()
+	if args.SensorCategory != nil {
+		categoriesList = []string{*args.SensorCategory}
+	}
 	allProperties := make(map[string]string)
-	for _, sensor := range categories.GetValues(args.SensorCategory) {
-		sensorID, err := o.getSensorID(args.SensorCategory, sensor)
-		if err != nil {
-			return base.MakeErrorOutputFromError(err)
-		}
-		sensorInformation, err := o.getPropertyIndex(sensorID)
-		if err != nil {
-			return base.MakeErrorOutputFromError(err)
-		}
-		for _, property := range sensorInformation.Properties {
-			allProperties[property] = sensorID
+	for _, category := range categoriesList {
+		for _, sensor := range categories.GetValues(category) {
+			sensorID, err := o.getSensorID(category, sensor)
+			if err != nil {
+				return base.MakeErrorOutputFromError(err)
+			}
+			sensorInformation, err := o.getPropertyIndex(sensorID)
+			if err != nil {
+				return base.MakeErrorOutputFromError(err)
+			}
+			for _, property := range sensorInformation.Properties {
+				allProperties[property] = sensorID
+			}
 		}
 	}
-
 	return base.MakeObjectOutput(allProperties)
 }
