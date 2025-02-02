@@ -108,6 +108,8 @@ func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) 
 	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "name", device.Name)
 	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "ain", device.AIN)
 	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "present", device.Present)
+	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "battery", device.Battery)
+	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "batteryLow", device.BatteryLow)
 	id := device.DeviceID
 	if device.EtsiUnitInfo != nil {
 		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "parent", device.EtsiUnitInfo.DeviceID)
