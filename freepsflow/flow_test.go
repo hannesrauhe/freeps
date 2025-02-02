@@ -35,7 +35,7 @@ func (*MockOperator) GetPossibleArgs(fn string) []string {
 	return []string{}
 }
 
-func (*MockOperator) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (*MockOperator) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	return map[string]string{}
 }
 

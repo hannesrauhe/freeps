@@ -3,6 +3,8 @@ package opalert
 import (
 	"fmt"
 	"time"
+
+	"github.com/hannesrauhe/freeps/base"
 )
 
 type Alert struct {
@@ -24,7 +26,7 @@ func (a *Alert) GetFullName() string {
 	return getAlertName(a.Name, a.Category)
 }
 
-func (a *Alert) NameSuggestions(oc *OpAlert) map[string]string {
+func (a *Alert) NameSuggestions(otherArgs base.FunctionArguments, oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(&a.Category, false)
 }
 

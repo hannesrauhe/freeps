@@ -141,7 +141,7 @@ func (m *OpEval) GetPossibleArgs(fn string) []string {
 	return ret
 }
 
-func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (m *OpEval) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	if fn == "echo" {
 		return map[string]string{"output": "output"}
 	}

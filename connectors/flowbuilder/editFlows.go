@@ -13,7 +13,7 @@ type FlowFromStoreArgs struct {
 }
 
 // FlowNameSuggestions returns suggestions for flow names
-func (arg *FlowFromStoreArgs) FlowNameSuggestions(m *OpFlowBuilder) []string {
+func (arg *FlowFromStoreArgs) FlowNameSuggestions(otherArgs base.FunctionArguments, m *OpFlowBuilder) []string {
 	flowNames := []string{}
 	res := freepsstore.GetFlowStore().GetAllValues(30)
 	for name := range res {

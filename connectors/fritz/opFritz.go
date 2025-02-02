@@ -83,7 +83,7 @@ type UpnpArgs struct {
 	ArgumentValue *string
 }
 
-func (a *UpnpArgs) ServiceNameSuggestions(o *OpFritz) map[string]string {
+func (a *UpnpArgs) ServiceNameSuggestions(otherArgs base.FunctionArguments, o *OpFritz) map[string]string {
 	ret := map[string]string{}
 	svc, _ := o.fl.GetUpnpServicesShort()
 	for _, v := range svc {
@@ -92,7 +92,7 @@ func (a *UpnpArgs) ServiceNameSuggestions(o *OpFritz) map[string]string {
 	return ret
 }
 
-func (a *UpnpArgs) ActionNameSuggestions(o *OpFritz) map[string]string {
+func (a *UpnpArgs) ActionNameSuggestions(otherArgs base.FunctionArguments, o *OpFritz) map[string]string {
 	ret := map[string]string{}
 	if a.ServiceName == "" {
 		return ret
@@ -104,7 +104,7 @@ func (a *UpnpArgs) ActionNameSuggestions(o *OpFritz) map[string]string {
 	return ret
 }
 
-func (a *UpnpArgs) ArgumentNameSuggestions(o *OpFritz) []string {
+func (a *UpnpArgs) ArgumentNameSuggestions(otherArgs base.FunctionArguments, o *OpFritz) []string {
 	if a.ServiceName == "" || a.ActionName == "" {
 		return []string{}
 	}

@@ -91,6 +91,10 @@ func (mt *MyTestOperator) AnotherUnusedFunctionWrongArguments(a int, b string) *
 	return MakeOutputError(500, "This function is invalid and should not be called")
 }
 
+func (mt *MyTestOperator) OptParamWithDefaultSuggestions(otherArgs FunctionArguments) map[string]string {
+	return otherArgs.GetLowerCaseMapJoined()
+}
+
 var _ FreepsFunctionParametersWithInit = &MyTestFuncParams{}
 
 func (mf *MyTestFuncParams) Param1Suggestions(op FreepsOperator) map[string]string {
@@ -126,12 +130,16 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Equal(t, len(fal), 6)
 	assert.Assert(t, cmp.Contains(fal, "Param1"))
 
-	sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", map[string]string{"paRam2": "4", "optparam4": "bla"})
+	sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", NewFunctionArguments(map[string]string{"paRam2": "4", "optparam4": "bla"}))
 	assert.Equal(t, len(sug), 3)
 	assert.Equal(t, sug["function"], "foo")
 	assert.Equal(t, sug["param2"], "4")
 	assert.Equal(t, sug["optparam4"], "bla")
 
+	sug2 := gop.GetArgSuggestions("MyFavoriteFunction", "OptParamWithDefault", NewFunctionArguments(map[string]string{"paRam2": "4", "optparam4": "bla"}))
+	assert.Equal(t, len(sug2), 2)
+	assert.Equal(t, sug2["param2"], "4")
+	assert.Equal(t, sug2["optparam4"], "bla")
 }
 
 func TestOpBuilderExecute(t *testing.T) {
