@@ -46,6 +46,36 @@ func TestFlattenWithRegexp(t *testing.T) {
 	}
 }
 
+func TestGuessTypeAndConvert(t *testing.T) {
+	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
+
+	o := base.MakeFreepsOperators(&OpUtils{}, nil, ctx)[0]
+	input := base.MakeEmptyOutput()
+	out := o.Execute(ctx, "GuessTypeAndConvert", base.MakeEmptyFunctionArguments(), input)
+	assert.Assert(t, out.IsEmpty())
+
+	input = base.MakePlainOutput("1")
+	out = o.Execute(ctx, "GuessTypeAndConvert", base.MakeEmptyFunctionArguments(), input)
+	assert.Assert(t, out.IsInteger())
+	assert.Equal(t, out.GetString(), "1")
+
+	input = base.MakePlainOutput("1.01")
+	out = o.Execute(ctx, "GuessTypeAndConvert", base.MakeEmptyFunctionArguments(), input)
+	assert.Assert(t, out.IsFloatingPoint())
+	assert.Equal(t, out.GetString(), "1.01")
+
+	input = base.MakePlainOutput("1.000")
+	out = o.Execute(ctx, "GuessTypeAndConvert", base.MakeEmptyFunctionArguments(), input)
+	assert.Assert(t, out.IsFloatingPoint())
+	assert.Equal(t, out.GetString(), "1") // trailing zeros are removed by GetString
+
+	input = base.MakePlainOutput("true")
+	out = o.Execute(ctx, "GuessTypeAndConvert", base.MakeEmptyFunctionArguments(), input)
+	assert.Assert(t, out.IsObject())
+	assert.Equal(t, out.GetString(), "true")
+	assert.Equal(t, out.Output, true)
+}
+
 func TestStringReplace(t *testing.T) {
 	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
 

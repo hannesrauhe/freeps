@@ -206,8 +206,8 @@ type GetSensorNamesArgs struct {
 	SensorCategory *string
 }
 
-// GetSensorIds returns all sensor names for a category
-func (op *OpSensor) GetSensorIds(ctx *base.Context, input *base.OperatorIO, args GetSensorNamesArgs) *base.OperatorIO {
+// GetSensorsPerCategory returns all sensor names for a category
+func (op *OpSensor) GetSensorsPerCategory(ctx *base.Context, input *base.OperatorIO, args GetSensorNamesArgs) *base.OperatorIO {
 	cat, err := op.getCategoryIndex()
 	if err != nil {
 		return base.MakeErrorOutputFromError(err)
@@ -237,7 +237,7 @@ func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO
 
 	updatedProperties := make([]string, 0)
 	for k, v := range fa.GetOriginalCaseMapOnlyFirst() {
-		out, _, _, updated := o.setSensorProperty(ctx, base.MakePlainOutput(v), args.SensorCategory, args.SensorName, k)
+		out, _, _, updated := o.setSensorProperty(ctx, base.MakeOutputGuessType(v), args.SensorCategory, args.SensorName, k)
 		if out.IsError() {
 			return out
 		}

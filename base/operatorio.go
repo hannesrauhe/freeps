@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/jeremywohl/flatten"
@@ -94,6 +95,59 @@ func MakeFloatOutput(output interface{}) *OperatorIO {
 		panic(fmt.Sprintf("Cannot make floating point output, type is %T", output))
 	}
 	return &OperatorIO{OutputType: FloatingPoint, HTTPCode: 200, Output: output}
+}
+
+func MakeOutputInferType(output interface{}) *OperatorIO {
+	switch output.(type) {
+	case []byte:
+		return MakeByteOutput(output.([]byte))
+	case string:
+		return MakePlainOutput(output.(string))
+	case error:
+		return MakeErrorOutputFromError(output.(error))
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return MakeIntegerOutput(output)
+	case float32, float64:
+		return MakeFloatOutput(output)
+	default:
+		return MakeObjectOutput(output)
+	}
+}
+
+func MakeOutputGuessType(output interface{}) *OperatorIO {
+	if output == nil {
+		return MakeEmptyOutput()
+	}
+
+	switch output.(type) {
+	case []byte:
+		return MakeByteOutput(output.([]byte))
+	case error:
+		return MakeErrorOutputFromError(output.(error))
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return MakeIntegerOutput(output)
+	case float32, float64:
+		return MakeFloatOutput(output)
+	case string:
+		str := output.(string)
+		if str == "" {
+			return MakeEmptyOutput()
+		}
+		if strings.Contains(str, ".") {
+			if f, err := utils.ConvertToFloat(str); err == nil {
+				return MakeFloatOutput(f)
+			}
+		}
+		if i, err := utils.ConvertToInt64(str); err == nil {
+			return MakeIntegerOutput(i)
+		}
+		if b, err := utils.ConvertToBool(str); err == nil {
+			return MakeObjectOutput(b)
+		}
+		return MakePlainOutput(str)
+	default:
+		return MakeObjectOutput(output)
+	}
 }
 
 func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
@@ -253,7 +307,10 @@ func (io *OperatorIO) GetString() string {
 		return io.Output.(string)
 	case Error:
 		return io.Output.(error).Error()
-	case Integer, FloatingPoint:
+	case Integer:
+		return fmt.Sprintf("%d", io.Output)
+	case FloatingPoint:
+		// %v figures out the best format (e.g. 1 instead of 1.0000)
 		return fmt.Sprintf("%v", io.Output)
 	default:
 		b, _ = json.MarshalIndent(io.Output, "", "  ")

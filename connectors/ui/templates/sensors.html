@@ -46,7 +46,7 @@
 <table class="striped">
 {{ if eq $prop "" }}
 <tr><th>Alias</th><th>Properties</th></tr>
-    {{ $sensors := flow_ExecuteOperator "sensor" "GetSensorIds" $args}}
+    {{ $sensors := flow_ExecuteOperator "sensor" "GetSensorsPerCategory" $args}}
     {{ range $category, $catMap := $sensors.Output }}
     <tr><td colspan="2">{{ $category }}</td></tr>
         {{ range $key, $name := $catMap }}
@@ -67,7 +67,7 @@
     {{ end }} <!-- This is the end of the range loop that iterates over the categories -->
 {{ else }}
 <tr><th>Alias</th><th>{{ $prop }}</th></tr>
-    {{ $sensors := flow_ExecuteOperator "sensor" "GetSensorIds" $args}}
+    {{ $sensors := flow_ExecuteOperator "sensor" "GetSensorsPerCategory" $args}}
     {{ range $category, $catMap := $sensors.Output }}
     <tr><td colspan="2">{{ $category }}</td></tr>
         {{ range $key, $name := $catMap }}
