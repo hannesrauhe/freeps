@@ -7,7 +7,7 @@ type FreepsBaseOperator interface {
 
 	GetFunctions() []string // returns a list of functions that this operator can execute
 	GetPossibleArgs(fn string) []string
-	GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string
+	GetArgSuggestions(fn string, arg string, otherArgs FunctionArguments) map[string]string
 	GetName() string
 
 	GetHook() interface{}

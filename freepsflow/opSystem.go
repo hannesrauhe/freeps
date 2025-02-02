@@ -113,7 +113,7 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 	return []string{"name"}
 }
 
-func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	if arg == "name" {
 		agd := o.ge.GetAllFlowDesc()
 		flows := map[string]string{}

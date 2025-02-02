@@ -60,7 +60,7 @@ type NameTrigger struct {
 }
 
 // NameSuggestions returns suggestions for alert names
-func (arg *NameTrigger) NameSuggestions(oc *OpAlert) map[string]string {
+func (arg *NameTrigger) NameSuggestions(otherArgs base.FunctionArguments, oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(nil, true)
 }
 

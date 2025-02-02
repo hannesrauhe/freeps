@@ -66,7 +66,7 @@ func (o *OpFlow) GetPossibleArgs(fn string) []string {
 }
 
 // GetArgSuggestions returns suggestions based on the suggestions of the operators in the flow
-func (o *OpFlow) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpFlow) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	agd, exists := o.ge.GetFlowDesc(fn)
 	if !exists {
 		return map[string]string{}
@@ -81,10 +81,10 @@ func (o *OpFlow) GetArgSuggestions(fn string, arg string, otherArgs map[string]s
 		for k, v := range op.Arguments {
 			thisOpArgs[k] = v
 		}
-		for k, v := range otherArgs {
+		for k, v := range otherArgs.GetOriginalCaseMapOnlyFirst() {
 			thisOpArgs[k] = v
 		}
-		thisOpSuggestions := o.ge.GetOperator(op.Operator).GetArgSuggestions(op.Function, arg, thisOpArgs)
+		thisOpSuggestions := o.ge.GetOperator(op.Operator).GetArgSuggestions(op.Function, arg, base.NewFunctionArguments(thisOpArgs))
 		for k, v := range thisOpSuggestions {
 			possibleValues[k] = v
 		}
@@ -149,7 +149,7 @@ func (o *OpFlowByTag) GetPossibleArgs(fn string) []string {
 }
 
 // GetArgSuggestions returns addtional tags
-func (o *OpFlowByTag) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpFlowByTag) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	return o.ge.GetTags()
 }
 

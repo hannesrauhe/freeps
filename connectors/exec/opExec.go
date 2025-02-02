@@ -252,7 +252,7 @@ func (o *OpExec) GetPossibleArgs(fn string) []string {
 }
 
 // GetArgSuggestions returns suggestions for command line arguments
-func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	if fn == "runSingleArgString" {
 		if arg == "argString" {
 			return map[string]string{"argString": ""}

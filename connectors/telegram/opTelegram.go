@@ -58,7 +58,7 @@ type PostArgs struct {
 	Text   *string
 }
 
-func (a *PostArgs) ChatIDSuggestions(op base.FreepsOperator) map[string]string {
+func (a *PostArgs) ChatIDSuggestions(otherArgs base.FunctionArguments, op base.FreepsOperator) map[string]string {
 	m := op.(*OpTelegram)
 	return m.getRecentChats()
 }

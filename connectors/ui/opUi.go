@@ -369,10 +369,10 @@ func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.O
 			td.FnSuggestions[k] = (k == gopd.Function)
 		}
 		for _, k := range mod.GetPossibleArgs(gopd.Function) {
-			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, td.Args)
+			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, base.NewFunctionArguments(td.Args))
 		}
 		for k := range gopd.Arguments {
-			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, td.Args)
+			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, base.NewFunctionArguments(td.Args))
 		}
 	}
 
@@ -562,7 +562,7 @@ func (o *OpUI) GetPossibleArgs(fn string) []string {
 	return []string{"noFooter"}
 }
 
-func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs map[string]string) map[string]string {
+func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	r := map[string]string{}
 	if arg == "templateName" {
 		for _, tn := range o.getTemplateNames() {

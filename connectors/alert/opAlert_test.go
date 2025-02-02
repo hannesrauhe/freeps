@@ -28,7 +28,7 @@ func TestOpAlert(t *testing.T) {
 	ops := base.MakeFreepsOperators(&op, cr, ctx)
 	opA := ops[0]
 
-	sug := opA.GetArgSuggestions("SetAlert", "ExpiresInDuration", map[string]string{})
+	sug := opA.GetArgSuggestions("SetAlert", "ExpiresInDuration", base.MakeEmptyFunctionArguments())
 	assert.Assert(t, sug != nil)
 	_, ok := sug["2s"]
 	assert.Assert(t, ok)
