@@ -15,12 +15,12 @@ import (
 
 type Host struct {
 	Active             bool
-	AddressSource      string
-	HostName           string
-	IPAddress          string
-	InterfaceType      string
+	AddressSource      *string `json:"AddressSource,omitempty"`
+	Name               string
+	IPAddress          string  `json:"IPAddress,omitempty"`
+	InterfaceType      *string `json:"InterfaceType,omitempty"`
 	LeaseTimeRemaining uint64
-	MACAddress         string
+	MACAddress         string `json:"MACAddress,omitempty"`
 }
 
 func (o *OpFritz) getHostSensorCategory() string {
@@ -29,9 +29,20 @@ func (o *OpFritz) getHostSensorCategory() string {
 
 func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[string]interface{}) (Host, error) {
 	var host Host
+
+	// Name is the same as HostName, but by using "Name" sensors understands it as the preferred alias
+	res["Name"] = res["HostName"]
+	delete(res, "HostName")
+
 	err := utils.MapToObject(res, &host)
 	if err != nil {
 		return host, err
+	}
+	if host.AddressSource != nil && *host.AddressSource == "" {
+		host.AddressSource = nil
+	}
+	if host.InterfaceType != nil && *host.InterfaceType == "" {
+		host.InterfaceType = nil
 	}
 
 	if host.MACAddress == "" {
@@ -71,13 +82,13 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 		return base.MakeObjectOutput(host)
 	}
 	ns := o.getHostsNamespace()
-	if host.MACAddress != "" {
-		ns.UpdateTransaction(host.MACAddress, updFn, ctx)
-		err = opSensor.SetSensorPropertyFromFlattenedObject(ctx, o.getHostSensorCategory(), host.MACAddress, host)
-	} else if host.IPAddress != "" { // for VPN devices MAC is unkown
-		name := "IP:" + strings.ReplaceAll(host.IPAddress, ".", ":")
-		ns.UpdateTransaction("IP:"+host.IPAddress, updFn, ctx)
-		err = opSensor.SetSensorPropertyFromFlattenedObject(ctx, o.getHostSensorCategory(), name, host)
+	sensorName := host.MACAddress
+	if sensorName == "" && host.IPAddress != "" { // for VPN devices MAC is unkown
+		sensorName = "IP:" + strings.ReplaceAll(host.IPAddress, ".", ":")
+	}
+	if sensorName != "" { // no identifier, no sensor...
+		ns.UpdateTransaction(sensorName, updFn, ctx) // TODO: can be removed in favor of sensors
+		err = opSensor.SetSensorPropertyFromFlattenedObject(ctx, o.getHostSensorCategory(), sensorName, host)
 	}
 	return host, err
 }
@@ -106,7 +117,7 @@ func (o *OpFritz) getHostSuggestions(searchTerm string) map[string]string {
 		if err != nil {
 			continue
 		}
-		macs[fmt.Sprintf("%v (Mac: %v)", h.HostName, mac)] = mac
+		macs[fmt.Sprintf("%v (Mac: %v)", h.Name, mac)] = mac
 	}
 	return macs
 }
