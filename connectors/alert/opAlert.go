@@ -145,7 +145,7 @@ type SilenceAlertArgs struct {
 	SilenceDuration time.Duration
 }
 
-func (sa *SilenceAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+func (sa *SilenceAlertArgs) NameSuggestions(otherArgs base.FunctionArguments, oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(&sa.Category, false)
 }
 
@@ -167,7 +167,7 @@ type ResetAlertArgs struct {
 	Category string
 }
 
-func (ra *ResetAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+func (ra *ResetAlertArgs) NameSuggestions(otherArgs base.FunctionArguments, oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(&ra.Category, false)
 }
 
@@ -327,7 +327,7 @@ type IsActiveAlertArgs struct {
 	ActiveDuration *time.Duration
 }
 
-func (iaa *IsActiveAlertArgs) NameSuggestions(oc *OpAlert) map[string]string {
+func (iaa *IsActiveAlertArgs) NameSuggestions(otherArgs base.FunctionArguments, oc *OpAlert) map[string]string {
 	return oc.nameSuggestions(&iaa.Category, false)
 }
 

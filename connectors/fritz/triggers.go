@@ -48,7 +48,7 @@ func (o *OpFritz) FlowIDSuggestions() map[string]string {
 	return flowNames
 }
 
-func (h *HostTrigger) MACAddressSuggestions(o *OpFritz) map[string]string {
+func (h *HostTrigger) MACAddressSuggestions(otherArgs base.FunctionArguments, o *OpFritz) map[string]string {
 	return o.getHostSuggestions(h.MACAddress)
 }
 

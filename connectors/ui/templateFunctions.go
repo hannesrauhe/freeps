@@ -170,7 +170,7 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			if op == nil {
 				return map[string]string{}
 			}
-			argSugg := op.GetArgSuggestions(fn, arg, map[string]string{})
+			argSugg := op.GetArgSuggestions(fn, arg, base.MakeEmptyFunctionArguments())
 			if len(argSugg) > 100 {
 				argSuggShort := map[string]string{}
 				i := 0

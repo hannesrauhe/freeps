@@ -126,7 +126,7 @@ func (o *OpFritz) DiscoverHosts(ctx *base.Context) *base.OperatorIO {
 	return base.MakeSprintfOutput("Discovered %v hosts", numHosts)
 }
 
-func (h *HostArgs) MACAddressSuggestions(o *OpFritz) map[string]string {
+func (h *HostArgs) MACAddressSuggestions(otherArgs base.FunctionArguments, o *OpFritz) map[string]string {
 	return o.getHostSuggestions(h.MACAddress)
 }
 

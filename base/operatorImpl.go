@@ -219,8 +219,7 @@ func (o *FreepsOperatorWrapper) getInitializedParamStruct(ctx *Context, f reflec
 }
 
 // callParamSuggestionFunction : if paramStruct has a function with the Name argName + "Suggestions", execute it and return the result
-// Note: function is uppercase because it is exported, but all other letters need to be lowercase
-func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, lkArgName string) map[string]string {
+func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.Value, lkArgName string, otherArgs FunctionArguments) map[string]string {
 	// iterate over all methods in paramStruct and check if there is a method with the name argName + "Suggestions", where argName is case-insensitive
 	var suggestionsFunc reflect.Value
 	for i := 0; i < paramStruct.NumMethod(); i++ {
@@ -250,8 +249,11 @@ func (o *FreepsOperatorWrapper) callParamSuggestionFunction(paramStruct reflect.
 		// if the function has no parameters, call it without any
 		outValue = suggestionsFunc.Call([]reflect.Value{})
 	} else if suggestionsFunc.Type().NumIn() == 1 {
-		// if the function has one parameter, call it with the operator instance
-		outValue = suggestionsFunc.Call([]reflect.Value{reflect.ValueOf(o.opInstance)})
+		// if the function has one parameter, call it with the other arguments
+		outValue = suggestionsFunc.Call([]reflect.Value{reflect.ValueOf(otherArgs)})
+	} else if suggestionsFunc.Type().NumIn() == 2 {
+		// if the function has two parameter, call it with the other arguments and the operator instance
+		outValue = suggestionsFunc.Call([]reflect.Value{reflect.ValueOf(otherArgs), reflect.ValueOf(o.opInstance)})
 	}
 
 	if outValue == nil {
@@ -428,13 +430,10 @@ func (o *FreepsOperatorWrapper) GetPossibleArgs(fn string) []string {
 	return list
 }
 
-// GetArgSuggestions creates a Freepsfunction by name and returns the suggestions for the argument argName
-func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName string, otherArgs map[string]string) map[string]string {
-	//TODO(HR): ensure that args are lowercase
-	lowercaseArgs := utils.KeysToLower(otherArgs)
+// GetArgSuggestions returns suggestions for the given argument, you can pass other arguments to the function to give it context
+func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName string, otherArgs FunctionArguments) map[string]string {
 	res := map[string]string{}
 	lkArgName := utils.StringToLower(argName)
-	fa := NewFunctionArguments(otherArgs)
 
 	var paramStruct reflect.Value
 
@@ -442,7 +441,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
-			res = dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), lkArgName, fa)
+			res = dynmaicOp.GetDynamicArgSuggestions(utils.StringToLower(function), lkArgName, otherArgs)
 		}
 	} else {
 		switch ffm.FuncType {
@@ -454,11 +453,12 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		paramStruct = o.getInitializedParamStruct(nil, ffm.FuncValue.Type())
 
 		//set all required parameters of the FreepsFunction
+		lowercaseArgs := otherArgs.GetLowerCaseMapOnlyFirst()
 		o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
 		o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
 
 		// call the parameter struct's suggestion function
-		res = o.callParamSuggestionFunction(paramStruct, lkArgName)
+		res = o.callParamSuggestionFunction(paramStruct, lkArgName, otherArgs)
 	}
 
 	if res != nil && len(res) > 0 {
@@ -467,7 +467,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 
 	// check if operator itself has Suggestions for this argument
 	operatorStruct := reflect.ValueOf(o.opInstance)
-	res = o.callParamSuggestionFunction(operatorStruct, lkArgName)
+	res = o.callParamSuggestionFunction(operatorStruct, lkArgName, otherArgs)
 	if res != nil && len(res) > 0 {
 		return res
 	}

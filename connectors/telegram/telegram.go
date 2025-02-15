@@ -114,7 +114,7 @@ func (m *OpTelegram) getArgsButtons(arg string, tcr *TelegramCallbackResponse) [
 	if op == nil {
 		return make([]*ButtonWrapper, 0)
 	}
-	argOptions := op.GetArgSuggestions(ta.Function, arg, ta.Arguments)
+	argOptions := op.GetArgSuggestions(ta.Function, arg, base.NewFunctionArguments(ta.Arguments))
 	keys := make([]*ButtonWrapper, 0, len(argOptions)+2)
 	tcr.F = true
 	keys = append(keys, m.newJSONButton("<Execute>", tcr))

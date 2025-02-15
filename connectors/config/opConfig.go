@@ -23,7 +23,7 @@ type SectionParams struct {
 }
 
 // SectionNameSuggestions returns a map of possible arguments for the given function and argument name
-func (p *SectionParams) SectionNameSuggestions(oc *OpConfig) map[string]string {
+func (p *SectionParams) SectionNameSuggestions(otherArgs base.FunctionArguments, oc *OpConfig) map[string]string {
 	retMap := make(map[string]string)
 
 	sections, err := oc.CR.GetSectionNames()
@@ -90,7 +90,7 @@ type GetOperatorConfigParams struct {
 }
 
 // OperatorNameSuggestions returns a map of possible arguments for the given function and argument name
-func (p *GetOperatorConfigParams) OperatorNameSuggestions(oc *OpConfig) map[string]string {
+func (p *GetOperatorConfigParams) OperatorNameSuggestions(otherArgs base.FunctionArguments, oc *OpConfig) map[string]string {
 	retMap := make(map[string]string)
 	operators := oc.GE.GetOperators()
 	for _, op := range operators {
