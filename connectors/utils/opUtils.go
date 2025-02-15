@@ -182,6 +182,15 @@ func (m *OpUtils) Echo(ctx *base.Context, input *base.OperatorIO, args EchoArgs)
 	return input
 }
 
+// GuessTypeAndConvert guesses the type of the input if the input is a string and converts it to the guessed type, it just returns the input if it is not a string
+func (m *OpUtils) GuessTypeAndConvert(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+	if !input.IsPlain() || input.IsEmpty() {
+		return input
+	}
+	str := input.GetString()
+	return base.MakeOutputGuessType(str)
+}
+
 // HasInput returns an error if the input is empty
 func (m *OpUtils) HasInput(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	if input.IsEmpty() {
