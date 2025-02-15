@@ -7,6 +7,7 @@ import (
 
 	owm "github.com/briandowns/openweathermap"
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -53,12 +54,17 @@ func (o *OpWeather) Current(ctx *base.Context, mainInput *base.OperatorIO, args 
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
-	wm.CurrentByName(*args.Location)
+	err = wm.CurrentByName(*args.Location)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
 	if wm.ID == 0 {
 		return base.MakeOutputError(http.StatusInternalServerError, "ID of response is 0")
+	}
+
+	gs := sensor.GetGlobalSensors()
+	if gs != nil {
+		gs.SetSensorPropertyFromFlattenedObject(ctx, "weather", *args.Location, wm)
 	}
 	return base.MakeObjectOutput(wm)
 }
