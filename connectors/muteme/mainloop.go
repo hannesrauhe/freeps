@@ -92,7 +92,7 @@ func (m *MuteMe) mainloop(running *bool) {
 			continue
 		}
 		if err != nil {
-			// should be a timeout error in normal operation, or an interupt
+			// should be a timeout error in normal operation, or an interrupt
 			if !errors.Is(err, hid.ErrTimeout) && !strings.Contains(err.Error(), "Interrupted system call") {
 				alertError := fmt.Errorf("MuteMe is offline because: %w", err)
 				m.GE.SetSystemAlert(m.ctx, alertName, alertCategory, 2, alertError, nil)
