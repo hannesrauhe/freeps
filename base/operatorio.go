@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/jeremywohl/flatten"
@@ -25,6 +27,8 @@ const (
 	FloatingPoint OutputT = "floating"
 )
 
+const MAXSTRINGLENGTH = 1024 * 10
+
 // OperatorIO is the input and output of an operator, once created it should not be modified
 // Note: the Store Operator depends on this struct being immutable
 type OperatorIO struct {
@@ -32,6 +36,10 @@ type OperatorIO struct {
 	HTTPCode    int
 	Output      interface{}
 	ContentType string `json:",omitempty"`
+}
+
+func MakeErrorOutputFromError(err error) *OperatorIO {
+	return &OperatorIO{OutputType: Error, HTTPCode: http.StatusInternalServerError, Output: err}
 }
 
 func MakeOutputError(code int, msg string, a ...interface{}) *OperatorIO {
@@ -89,6 +97,59 @@ func MakeFloatOutput(output interface{}) *OperatorIO {
 	return &OperatorIO{OutputType: FloatingPoint, HTTPCode: 200, Output: output}
 }
 
+func MakeOutputInferType(output interface{}) *OperatorIO {
+	switch output.(type) {
+	case []byte:
+		return MakeByteOutput(output.([]byte))
+	case string:
+		return MakePlainOutput(output.(string))
+	case error:
+		return MakeErrorOutputFromError(output.(error))
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return MakeIntegerOutput(output)
+	case float32, float64:
+		return MakeFloatOutput(output)
+	default:
+		return MakeObjectOutput(output)
+	}
+}
+
+func MakeOutputGuessType(output interface{}) *OperatorIO {
+	if output == nil {
+		return MakeEmptyOutput()
+	}
+
+	switch output.(type) {
+	case []byte:
+		return MakeByteOutput(output.([]byte))
+	case error:
+		return MakeErrorOutputFromError(output.(error))
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return MakeIntegerOutput(output)
+	case float32, float64:
+		return MakeFloatOutput(output)
+	case string:
+		str := output.(string)
+		if str == "" {
+			return MakeEmptyOutput()
+		}
+		if strings.Contains(str, ".") {
+			if f, err := utils.ConvertToFloat(str); err == nil {
+				return MakeFloatOutput(f)
+			}
+		}
+		if i, err := utils.ConvertToInt64(str); err == nil {
+			return MakeIntegerOutput(i)
+		}
+		if b, err := utils.ConvertToBool(str); err == nil {
+			return MakeObjectOutput(b)
+		}
+		return MakePlainOutput(str)
+	default:
+		return MakeObjectOutput(output)
+	}
+}
+
 func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
 	if io.IsEmpty() {
 		return map[string]string{}, nil
@@ -125,6 +186,24 @@ func (io *OperatorIO) GetArgsMap() (map[string]string, error) {
 			}
 			return strmap, nil
 		}
+	}
+
+	return nil, fmt.Errorf("Output is not convertible to type string map, type is %T", io.Output)
+}
+
+func (io *OperatorIO) GetMap() (map[string]interface{}, error) {
+	if io.IsEmpty() {
+		return map[string]interface{}{}, nil
+	}
+
+	switch t := io.Output.(type) {
+	case map[string]interface{}:
+		return t, nil
+	}
+
+	generalmap := map[string]interface{}{}
+	if io.ParseJSON(&generalmap) == nil {
+		return generalmap, nil
 	}
 
 	return nil, fmt.Errorf("Output is not convertible to type map, type is %T", io.Output)
@@ -228,14 +307,17 @@ func (io *OperatorIO) GetString() string {
 		return io.Output.(string)
 	case Error:
 		return io.Output.(error).Error()
-	case Integer, FloatingPoint:
+	case Integer:
+		return fmt.Sprintf("%d", io.Output)
+	case FloatingPoint:
+		// %v figures out the best format (e.g. 1 instead of 1.0000)
 		return fmt.Sprintf("%v", io.Output)
 	default:
 		b, _ = json.MarshalIndent(io.Output, "", "  ")
 	}
 
-	if len(b) > 1024*10 {
-		return fmt.Sprintf("%s...", b[:1024*10-3])
+	if len(b) > MAXSTRINGLENGTH {
+		return fmt.Sprintf("%s...", b[:MAXSTRINGLENGTH-3])
 	}
 	return fmt.Sprintf("%s", b)
 }
@@ -331,9 +413,8 @@ func (oio *OperatorIO) Log(logger logrus.FieldLogger) {
 }
 
 func (oio *OperatorIO) ToString() string {
-	maxLen := 1024
 	b := bytes.NewBufferString("")
-	oio.WriteTo(b, maxLen)
+	oio.WriteTo(b, MAXSTRINGLENGTH)
 	return b.String()
 }
 

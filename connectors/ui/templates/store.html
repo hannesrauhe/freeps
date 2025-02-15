@@ -61,7 +61,7 @@
 </form>
 </div>
 
-<table>
+<table class="striped">
 {{ if eq $namespace "_execution_log" }}
 <tr><th>Context ID</th><th>FlowID</th><th>Operation</th><th>Arguments</th><th>Input</th><th>Output</th><th>Age</th></tr>
     {{ range $key, $entry := store_Search $namespace $key $value $modifiedby $minage $maxage }}
@@ -71,7 +71,7 @@
 {{ else }}
     <tr><th></th><th>Key</th><th>Value</th><th>Age</th><th>modified By</th></tr>
     {{ range $key, $entry := store_Search $namespace $key $value $modifiedby $minage $maxage }}
-<tr><td><a href="/store/del?namespace={{$namespace}}&key={{$key}}&redirect={{$.selfURL}}" class="button">x</a></td><td><a href="/ui/storeSingle.html?namespace={{$namespace}}&key={{$key}}">{{$key}}</a></td><td>{{$entry.Value}}</td><td>{{$entry.Age}}</td>
+<tr><td><a href="/store/del?namespace={{$namespace}}&key={{$key}}&redirect={{$.selfURL}}" class="button">x</a></td><td><a href="/ui/storeSingle.html?namespace={{$namespace}}&key={{$key}}">{{$key}}</a></td><td title="Type: {{$entry.ValueType}}">{{$entry.Value}}</td><td>{{$entry.Age}}</td>
     <td><a href="/ui/store.html?namespace=_execution_log&modifiedby={{$entry.ModifiedBy}}">{{$entry.Reason}} ({{$entry.ModifiedBy}})</a></td></tr>
     {{ end }}
 {{ end }}
