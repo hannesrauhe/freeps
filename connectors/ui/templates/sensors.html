@@ -30,7 +30,7 @@
         <label for="property">Property</label>
         <select name="property" id="prop">
             <option value="">All</option>
-{{ $properties := flow_ExecuteOperator "sensor" "GetAllProperties" $args}}
+{{ $properties := flow_ExecuteOperator "sensor" "GetSensorsPerProperty" $args}}
 {{ range $property, $sensor := $properties.Output }}
             <option value="{{$property}}" {{ if eq $prop $property }} selected {{end}}>{{$property}}</option>
 {{ end }}

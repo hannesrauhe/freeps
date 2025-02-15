@@ -86,12 +86,12 @@ func (op *OpSensor) GetSensorCategories(ctx *base.Context, input *base.OperatorI
 	return base.MakeObjectOutput(categories)
 }
 
-type GetSensorNamesArgs struct {
+type GetSensorsPerCategoryArgs struct {
 	SensorCategory *string
 }
 
 // GetSensorsPerCategory returns all sensor names for a category
-func (op *OpSensor) GetSensorsPerCategory(ctx *base.Context, input *base.OperatorIO, args GetSensorNamesArgs) *base.OperatorIO {
+func (op *OpSensor) GetSensorsPerCategory(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerCategoryArgs) *base.OperatorIO {
 	cat, err := op.getCategoryIndex()
 	if err != nil {
 		return base.MakeErrorOutputFromError(err)
@@ -200,12 +200,12 @@ func (o *OpSensor) GetSensorProperties(ctx *base.Context, input *base.OperatorIO
 	return base.MakeObjectOutput(sensorInformation.Properties)
 }
 
-type GetAllPropertiesArgs struct {
+type GetSensorsPerPropertyArgs struct {
 	SensorCategory *string
 }
 
-// GetAllProperties returns all properties of the sensors in a category
-func (o *OpSensor) GetAllProperties(ctx *base.Context, input *base.OperatorIO, args GetAllPropertiesArgs) *base.OperatorIO {
+// GetSensorsPerProperty returns a map where the keys are the properties and the values are the sensors that have this property
+func (o *OpSensor) GetSensorsPerProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerPropertyArgs) *base.OperatorIO {
 	categories, err := o.getCategoryIndex()
 	if err != nil {
 		return base.MakeErrorOutputFromError(err)
@@ -214,7 +214,7 @@ func (o *OpSensor) GetAllProperties(ctx *base.Context, input *base.OperatorIO, a
 	if args.SensorCategory != nil {
 		categoriesList = []string{*args.SensorCategory}
 	}
-	allProperties := make(map[string]string)
+	allProperties := make(map[string][]string)
 	for _, category := range categoriesList {
 		for _, sensor := range categories.GetValues(category) {
 			sensorID, err := o.getSensorID(category, sensor)
@@ -226,7 +226,11 @@ func (o *OpSensor) GetAllProperties(ctx *base.Context, input *base.OperatorIO, a
 				return base.MakeErrorOutputFromError(err)
 			}
 			for _, property := range sensorInformation.Properties {
-				allProperties[property] = sensorID
+				if _, ok := allProperties[property]; !ok {
+					allProperties[property] = []string{sensorID}
+				} else {
+					allProperties[property] = append(allProperties[property], sensorID)
+				}
 			}
 		}
 	}
