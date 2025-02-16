@@ -15,6 +15,7 @@ import (
 type MyTestFuncParams struct {
 	Param1              string `json:"param_1"`
 	Param2              int
+	SupportedSliceParam []string
 	OptParam3           *int `json:"opt_param_3"`
 	OptParam4           *string
 	OptParam5           *bool

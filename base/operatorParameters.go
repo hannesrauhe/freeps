@@ -20,7 +20,7 @@ func isSupportedField(field reflect.Value, mustBePtr bool) bool {
 	if !field.CanSet() {
 		return false
 	}
-	if field.Kind() == reflect.Ptr && mustBePtr {
+	if (field.Kind() == reflect.Ptr || field.Kind() == reflect.Slice) && mustBePtr {
 		return isSupportedFieldType(field.Type().Elem())
 	}
 	if mustBePtr {

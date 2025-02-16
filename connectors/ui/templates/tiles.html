@@ -8,7 +8,7 @@
 {{ $sensors := flow_ExecuteOperator "sensor" "GetSensorPropertyByAlias" "propertyName=targetTemp"}}
 {{ $sensorMap := $entry.Output}}
 {{ range $sensorAlias, $value := $sensorMap }}
-	{{ if or $value.HKR $value.SimpleOnOff }}
+	{{ if or $value.targetTemp $value.SimpleOnOff }}
 	{{ if divisibleBy $i $gridSize }}</div><div class="row">{{ end }}{{$i = add $i 1}}
 		<div class="col">
 			<header><h4>{{ $value.Name }} {{ if $value.Temperature }} - {{ $value.Temperature.Celsius }} {{ end }} </h4></header>
