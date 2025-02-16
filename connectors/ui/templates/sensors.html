@@ -57,7 +57,7 @@
             {{ $sensorAlias := flow_ExecuteOperator "sensor" "GetSensorAlias" $nameArgs }}
         <td><a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
         <td>
-            {{ $sensorProps := flow_ExecuteOperator "sensor" "GetSensorProperties" $nameArgs }}
+            {{ $sensorProps := flow_ExecuteOperator "sensor" "GetSensorPropertyKeys" $nameArgs }}
             {{ range $key, $property := $sensorProps.Output }}
             <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $property }}">  {{ $property }} </a>
             {{ end }} <!-- This is the end of the range loop that iterates over the sensor properties -->

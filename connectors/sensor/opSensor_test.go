@@ -210,3 +210,39 @@ func TestTriggers(t *testing.T) {
 	i = ns.DeleteOlder(time.Duration(0))
 	assert.Equal(t, i, 3)
 }
+
+func setSensorPropertyHelper(t *testing.T, op *OpSensor, ctx *base.Context, sensorCat string, sensorName string, sensorProperty string, value interface{}) {
+	res := op.SetSingleSensorProperty(ctx, base.MakeOutputInferType(value), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: sensorProperty})
+	assert.Assert(t, !res.IsError())
+}
+
+func TestGetSensorPropertyByAlias(t *testing.T) {
+	op, ctx := initSensorOp(t)
+
+	setSensorPropertyHelper(t, op, ctx, "test", "sensor1", "intprop", 12)
+	setSensorPropertyHelper(t, op, ctx, "test", "sensor1", "name", "alias sensor name")
+	setSensorPropertyHelper(t, op, ctx, "test", "sensorWithoutIntProp", "name", "not relevant")
+	setSensorPropertyHelper(t, op, ctx, "test", "sensorWithoutIntProp", "someprop", "foo")
+	setSensorPropertyHelper(t, op, ctx, "test2", "sensor2", "name", "alias sensor name")
+	setSensorPropertyHelper(t, op, ctx, "test2", "sensor2", "intprop", 22)
+	setSensorPropertyHelper(t, op, ctx, "test2", "sensor3", "intprop", 22)
+
+	res := op.GetSensorPropertiesByAlias(ctx, base.MakeEmptyOutput(), GetSensorPropertiesByAliasArgs{SensorPropertyName: "intprop", SensorCategory: utils.StringPtr("test")})
+	assert.Equal(t, res.GetString(), `{
+  "alias sensor name": {
+    "intprop": 12
+  }
+}`)
+	res = op.GetSensorPropertiesByAlias(ctx, base.MakeEmptyOutput(), GetSensorPropertiesByAliasArgs{SensorPropertyName: "intprop"})
+	assert.Equal(t, res.GetString(), `{
+  "alias sensor name": {
+    "intprop": 12
+  },
+  "alias sensor name (test2.sensor2)": {
+    "intprop": 22
+  },
+  "test2.sensor3": {
+    "intprop": 22
+  }
+}`)
+}

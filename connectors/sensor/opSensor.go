@@ -187,8 +187,8 @@ func (o *OpSensor) GetSensorAlias(ctx *base.Context, input *base.OperatorIO, arg
 	return o.getSensorAlias(args.SensorCategory, args.SensorName)
 }
 
-// GetSensorProperties returns all properties of a sensor
-func (o *OpSensor) GetSensorProperties(ctx *base.Context, input *base.OperatorIO, args SensorArgs) *base.OperatorIO {
+// GetSensorPropertyKeys returns all properties of a sensor
+func (o *OpSensor) GetSensorPropertyKeys(ctx *base.Context, input *base.OperatorIO, args SensorArgs) *base.OperatorIO {
 	sensorID, err := o.getSensorID(args.SensorCategory, args.SensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
@@ -235,4 +235,58 @@ func (o *OpSensor) GetSensorsPerProperty(ctx *base.Context, input *base.Operator
 		}
 	}
 	return base.MakeObjectOutput(allProperties)
+}
+
+type GetSensorPropertiesByAliasArgs struct {
+	SensorPropertyName string // TODO will be an array of strings later
+	SensorCategory     *string
+}
+
+// GetSensorPropertiesByAlias returns all sensors that have the given property by the sensor alias
+func (o *OpSensor) GetSensorPropertiesByAlias(ctx *base.Context, input *base.OperatorIO, args GetSensorPropertiesByAliasArgs) *base.OperatorIO {
+	categories, err := o.getCategoryIndex()
+	if err != nil {
+		return base.MakeErrorOutputFromError(err)
+	}
+
+	if args.SensorCategory != nil {
+		if !categories.Has(*args.SensorCategory) {
+			return base.MakeOutputError(http.StatusNotFound, "Category %s not found", *args.SensorCategory)
+		}
+	}
+
+	ret := make(map[string]map[string]interface{})
+	for sensorCategory, sensorIDs := range categories.GetOriginalCaseMap() {
+		if args.SensorCategory != nil && *args.SensorCategory != sensorCategory {
+			continue
+		}
+
+		for _, sensorName := range sensorIDs {
+			sensorID, err := o.getSensorID(sensorCategory, sensorName)
+			if err != nil {
+				return base.MakeErrorOutputFromError(err)
+			}
+			alias := o.getSensorAliasByID(sensorID).GetString()
+			property := o.getSensorPropertyByID(sensorID, args.SensorPropertyName)
+			if property.IsError() {
+				continue
+			}
+			if _, ok := ret[alias]; ok {
+				alias = fmt.Sprintf("%s (%s)", alias, sensorID)
+			}
+			if _, ok := ret[alias]; !ok {
+				ret[alias] = make(map[string]interface{})
+			}
+			ret[alias][args.SensorPropertyName] = property.Output
+		}
+	}
+
+	if len(ret) == 0 {
+		if args.SensorCategory != nil {
+			return base.MakeOutputError(http.StatusNotFound, "Property %s not found in category %s", args.SensorPropertyName, *args.SensorCategory)
+		}
+		return base.MakeOutputError(http.StatusNotFound, "Property %s not found", args.SensorPropertyName)
+	}
+
+	return base.MakeObjectOutput(ret)
 }

@@ -146,11 +146,19 @@ func (o *OpSensor) setSensorProperty(ctx *base.Context, input *base.OperatorIO, 
 	return base.MakeEmptyOutput(), newSensor, newProperty, updatedProperty
 }
 
-func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *base.OperatorIO {
+func (o *OpSensor) getSensorPropertyByID(sensorID string, sensorProperty string) *base.OperatorIO {
+	ns := o.getSensorNamespace()
+	return ns.GetValue(sensorID + "." + sensorProperty).GetData()
+}
+func (o *OpSensor) getSensorProperty(sensorCategory string, sensorName string, sensorProperty string) *base.OperatorIO {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error())
 	}
+	return o.getSensorPropertyByID(sensorID, sensorProperty)
+}
+
+func (o *OpSensor) getSensorAliasByID(sensorID string) *base.OperatorIO {
 	ns := o.getSensorNamespace()
 	v := ns.GetValue(sensorID + ".alias")
 	if !v.IsError() {
@@ -166,4 +174,12 @@ func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *bas
 		return v.GetData()
 	}
 	return base.MakePlainOutput(sensorID)
+}
+
+func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *base.OperatorIO {
+	sensorID, err := o.getSensorID(sensorCategory, sensorName)
+	if err != nil {
+		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+	}
+	return o.getSensorAliasByID(sensorID)
 }
