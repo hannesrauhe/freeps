@@ -61,6 +61,13 @@ func (mt *MyTestOperator) MyFavoriteFunction(ctx *Context, mainInput *OperatorIO
 		return MakePlainOutput("42!")
 	}
 
+	if mf.SupportedSliceParam != nil {
+		if len(mf.SupportedSliceParam) == 1 {
+			return MakeSprintfOutput("Slice of length %v, first element is %v", len(mf.SupportedSliceParam), mf.SupportedSliceParam[0])
+		}
+		return MakeSprintfOutput("Slice of length %v, second element is %v", len(mf.SupportedSliceParam), mf.SupportedSliceParam[1])
+	}
+
 	if args != nil && !args.IsEmpty() {
 		return MakePlainOutput("other")
 	}
@@ -128,7 +135,7 @@ func TestOpBuilderSuggestions(t *testing.T) {
 	assert.Assert(t, cmp.Contains(fnl, "MyFavoriteFunction"))
 
 	fal := gop.GetPossibleArgs("MyFavoriteFunction")
-	assert.Equal(t, len(fal), 6)
+	assert.Equal(t, len(fal), 7)
 	assert.Assert(t, cmp.Contains(fal, "Param1"))
 
 	sug := gop.GetArgSuggestions("MyFavoriteFunction", "Param1", NewFunctionArguments(map[string]string{"paRam2": "4", "optparam4": "bla"}))
@@ -192,6 +199,14 @@ func TestOpBuilderExecute(t *testing.T) {
 	// happy path with overwritten default value
 	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "12"}), MakeEmptyOutput())
 	assert.Equal(t, output.GetString(), "42!")
+
+	// happy path with slice parameter
+	fa := NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "supportedsliceparam": "bla"})
+	output = gop.Execute(nil, "MyFavoriteFunction", fa, MakeEmptyOutput())
+	assert.Equal(t, output.GetString(), "Slice of length 1, first element is bla")
+	fa.Append("supportedsliceparam", "blub")
+	output = gop.Execute(nil, "MyFavoriteFunction", fa, MakeEmptyOutput())
+	assert.Equal(t, output.GetString(), "Slice of length 2, second element is blub")
 
 	// wrong function name
 	output = gop.Execute(nil, "MyFavoriteFunctionWrong", NewSingleFunctionArgument("Param1", "test"), MakeEmptyOutput())
