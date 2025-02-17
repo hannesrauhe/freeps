@@ -4,28 +4,45 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 type Host struct {
 	Active             bool
-	AddressSource      string
-	HostName           string
-	IPAddress          string
-	InterfaceType      string
+	AddressSource      *string `json:"AddressSource,omitempty"`
+	Name               string
+	IPAddress          string  `json:"IPAddress,omitempty"`
+	InterfaceType      *string `json:"InterfaceType,omitempty"`
 	LeaseTimeRemaining uint64
-	MACAddress         string
+	MACAddress         string `json:"MACAddress,omitempty"`
+}
+
+func (o *OpFritz) getHostSensorCategory() string {
+	return strings.ReplaceAll(o.name, ".", "_") + "_host"
 }
 
 func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[string]interface{}) (Host, error) {
 	var host Host
+
+	// Name is the same as HostName, but by using "Name" sensors understands it as the preferred alias
+	res["Name"] = res["HostName"]
+	delete(res, "HostName")
+
 	err := utils.MapToObject(res, &host)
 	if err != nil {
 		return host, err
+	}
+	if host.AddressSource != nil && *host.AddressSource == "" {
+		host.AddressSource = nil
+	}
+	if host.InterfaceType != nil && *host.InterfaceType == "" {
+		host.InterfaceType = nil
 	}
 
 	if host.MACAddress == "" {
@@ -33,6 +50,11 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 	}
 	if host.IPAddress == "" {
 		host.IPAddress = byIP
+	}
+
+	opSensor := sensor.GetGlobalSensors()
+	if opSensor == nil {
+		return host, fmt.Errorf("Sensor integration not available")
 	}
 
 	updFn := func(oldHostEntry freepsstore.StoreEntry) *base.OperatorIO {
@@ -60,12 +82,15 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 		return base.MakeObjectOutput(host)
 	}
 	ns := o.getHostsNamespace()
-	if host.MACAddress != "" {
-		ns.UpdateTransaction(host.MACAddress, updFn, ctx)
-	} else if host.IPAddress != "" { // for VPN devices MAC is unkown
-		ns.UpdateTransaction("IP:"+host.IPAddress, updFn, ctx)
+	sensorName := host.MACAddress
+	if sensorName == "" && host.IPAddress != "" { // for VPN devices MAC is unkown
+		sensorName = "IP:" + strings.ReplaceAll(host.IPAddress, ".", ":")
 	}
-	return host, nil
+	if sensorName != "" { // no identifier, no sensor...
+		ns.UpdateTransaction(sensorName, updFn, ctx) // TODO: can be removed in favor of sensors
+		err = opSensor.SetSensorPropertyFromFlattenedObject(ctx, o.getHostSensorCategory(), sensorName, host)
+	}
+	return host, err
 }
 
 func (o *OpFritz) getHostByMac(ctx *base.Context, mac string) (*Host, error) {
@@ -92,7 +117,7 @@ func (o *OpFritz) getHostSuggestions(searchTerm string) map[string]string {
 		if err != nil {
 			continue
 		}
-		macs[fmt.Sprintf("%v (Mac: %v)", h.HostName, mac)] = mac
+		macs[fmt.Sprintf("%v (Mac: %v)", h.Name, mac)] = mac
 	}
 	return macs
 }
@@ -116,11 +141,13 @@ func (o *OpFritz) DiscoverHosts(ctx *base.Context) *base.OperatorIO {
 		newIndex := fmt.Sprintf("%d", i)
 		res, err = o.fl.CallUpnpActionWithArgument("Hosts", "GetGenericHostEntry", "NewIndex", newIndex)
 		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Error when reading host %v: %v", i, err.Error())
+			ctx.GetLogger().Errorf("Error when reading host %v: %v", i, err.Error())
+			// return base.MakeOutputError(http.StatusInternalServerError, "Error when reading host %v: %v", i, err.Error())
 		}
 		_, err := o.addHost(ctx, "", "", res)
 		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "Cannot parse response %v: %v", i, res)
+			ctx.GetLogger().Errorf("Cannot parse response of host %v: %v", i, res)
+			// return base.MakeOutputError(http.StatusInternalServerError, "Cannot parse response %v: %v", i, res)
 		}
 	}
 	return base.MakeSprintfOutput("Discovered %v hosts", numHosts)

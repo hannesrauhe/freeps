@@ -59,7 +59,7 @@ func (gd *FlowDesc) HasAllTags(expectedTags []string) bool {
 		found := false
 		for _, tag := range gd.Tags {
 			tagKey, tagValue := SplitTag(tag)
-			if utils.StringCmpIgnoreCase(tagKey, expectedTagKey) && (tagValue == expectedTagValue || expectedTagValue == "") {
+			if utils.StringEqualsIgnoreCase(tagKey, expectedTagKey) && (tagValue == expectedTagValue || expectedTagValue == "") {
 				found = true
 			}
 		}
@@ -80,7 +80,7 @@ func (gd *FlowDesc) HasAtLeastOneTag(expectedTags []string) bool {
 		expectedTagKey, expectedTagValue := SplitTag(expectedTag)
 		for _, tag := range gd.Tags {
 			tagKey, tagValue := SplitTag(tag)
-			if utils.StringCmpIgnoreCase(tagKey, expectedTagKey) && (tagValue == expectedTagValue || expectedTagValue == "") {
+			if utils.StringEqualsIgnoreCase(tagKey, expectedTagKey) && (tagValue == expectedTagValue || expectedTagValue == "") {
 				return true
 			}
 		}

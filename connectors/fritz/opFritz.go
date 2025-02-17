@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
@@ -58,11 +59,6 @@ func (o *OpFritz) InitCopyOfOperator(ctx *base.Context, config interface{}, name
 	f, err := freepslib.NewFreepsLibWithLogger(cfg, ctx.GetLogger())
 	op := &OpFritz{CR: o.CR, GE: o.GE, name: name, fl: f, fc: cfg}
 	return op, err
-}
-
-// getDeviceNamespace returns the namespace for the device cache
-func (o *OpFritz) getDeviceNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespaceNoError("_" + strings.ToLower(o.name) + "_devices")
 }
 
 // getNetworkDeviceNamespace returns the namespace for the network device cache
@@ -323,45 +319,28 @@ func (o *OpFritz) getTemplates() map[string]string {
 	return r
 }
 
-// getDeviceByAIN returns the device object for the device with the given AIN
-func (o *OpFritz) getDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmDevice, error) {
-	devNs := o.getDeviceNamespace()
-	cachedDev := devNs.GetValueBeforeExpiration(AIN, maxAge).GetData()
-	if cachedDev.IsError() {
-		devl, err := o.getDeviceList(ctx)
-		if devl == nil || err != nil {
-			return nil, err
-		}
-		cachedDev = devNs.GetValue(AIN).GetData()
-	}
-	if cachedDev.IsError() {
-		return nil, fmt.Errorf("Device with AIN \"%v\" not found", AIN)
-	}
-	dev, ok := cachedDev.Output.(freepslib.AvmDevice)
-	if !ok {
-		return nil, fmt.Errorf("Cached record for %v is invalid", AIN)
-	}
-	return &dev, nil
-}
-
 // GetDeviceMap returns all devices by AIN
 func (o *OpFritz) GetDeviceMap(ctx *base.Context) *base.OperatorIO {
-	devl, err := o.getDeviceList(ctx)
-	if devl == nil || err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	devs, err := o.getDeviceIDs(ctx, false)
+	if err != nil {
+		return base.MakeErrorOutputFromError(err)
 	}
-	r := map[string]freepslib.AvmDevice{}
+	opSensor := sensor.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
 
-	devNs := o.getDeviceNamespace()
-	for AIN, cachedDev := range devNs.GetAllValues(0) {
+	r := map[string]freepslib.AvmDevice{}
+	for _, sensorName := range devs {
+		cachedDev := opSensor.GetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), sensorName, "_internal")
+		if cachedDev.IsError() {
+			ctx.GetLogger().Errorf("Failed to get sensor entry for %v: %v", sensorName, cachedDev.GetError())
+			continue
+		}
 		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
 		if !ok {
-			return base.MakeOutputError(http.StatusInternalServerError, "Cached record for %v is invalid", AIN)
+			return base.MakeOutputError(http.StatusInternalServerError, "Cached record for %v is invalid", sensorName)
 		}
-		r[AIN] = dev
+		r[dev.AIN] = dev
 	}
-
-	return base.MakeObjectOutput(devl)
+	return base.MakeObjectOutput(r)
 }
 
 // getTemplateList retrieves the template list and caches
@@ -397,7 +376,10 @@ func (o *OpFritz) Shutdown(ctx *base.Context) {
 }
 
 func (o *OpFritz) loop(initCtx *base.Context) {
-	o.DiscoverHosts(initCtx)
+	res := o.DiscoverHosts(initCtx)
+	if res.IsError() {
+		initCtx.GetLogger().Errorf("Error when discovering hosts: %v", res.GetError())
+	}
 
 	if o.ticker == nil {
 		return
