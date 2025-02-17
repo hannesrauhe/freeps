@@ -5,18 +5,18 @@
 
 <div class="container">
 	<div class="row">
-{{ $sensors := flow_ExecuteOperator "sensor" "GetSensorPropertyByAlias" "propertyName=targetTemp"}}
-{{ $sensorMap := $entry.Output}}
+{{ $sensors := flow_ExecuteOperator "sensor" "GetSensorPropertiesByAlias" "sensorCategory=Fritz_Dev&sensorPropertyName=targetTemperature&sensorPropertyName=temperature&sensorPropertyName=state&sensorPropertyName=AIN" }}
+{{ $sensorMap := $sensors.Output}}
 {{ range $sensorAlias, $value := $sensorMap }}
-	{{ if or $value.targetTemp $value.SimpleOnOff }}
+	{{ if or $value.targetTemperature $value.state }}
 	{{ if divisibleBy $i $gridSize }}</div><div class="row">{{ end }}{{$i = add $i 1}}
 		<div class="col">
-			<header><h4>{{ $value.Name }} {{ if $value.Temperature }} - {{ $value.Temperature.Celsius }} {{ end }} </h4></header>
-		{{ if $value.HKR }}
+			<header><h4>{{ $sensorAlias }} {{ if $value.temperature }} - {{ $value.temperature }} {{ end }} </h4></header>
+		{{ if $value.targetTemperature }}
 			<div style="margin: auto">
 
 			<form action="/fritz/sethkrtsoll" method="GET" target="outputframe" style="display: flex; justify-content: center">
-			<input style="width:80px;" type="number" name="param" min="16" max="56" value="{{ $value.HKR.Tsoll }}" />
+			<input style="width:80px;" type="number" name="param" min="16" max="56" value="{{ $value.targetTemperature }}" /> <!-- off by factor 2 -->
 			<button name="ain" value="{{ $value.AIN }}">Set</button>
 			</form>
 
@@ -34,7 +34,7 @@
 			</div>
 		{{ end}}
 
-		{{ if $value.SimpleOnOff }}
+		{{ if $value.state }}
 			<div style="margin: auto">
 
 			<form action="/fritz/setsimpleonoff"  method="GET" target="outputframe">

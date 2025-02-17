@@ -238,12 +238,16 @@ func (o *OpSensor) GetSensorsPerProperty(ctx *base.Context, input *base.Operator
 }
 
 type GetSensorPropertiesByAliasArgs struct {
-	SensorPropertyName string // TODO will be an array of strings later
+	SensorPropertyName []string
 	SensorCategory     *string
 }
 
 // GetSensorPropertiesByAlias returns all sensors that have the given property by the sensor alias
 func (o *OpSensor) GetSensorPropertiesByAlias(ctx *base.Context, input *base.OperatorIO, args GetSensorPropertiesByAliasArgs) *base.OperatorIO {
+	if len(args.SensorPropertyName) == 0 {
+		return base.MakeOutputError(http.StatusBadRequest, "No SensorPropertyName provided")
+	}
+
 	categories, err := o.getCategoryIndex()
 	if err != nil {
 		return base.MakeErrorOutputFromError(err)
@@ -257,7 +261,7 @@ func (o *OpSensor) GetSensorPropertiesByAlias(ctx *base.Context, input *base.Ope
 
 	ret := make(map[string]map[string]interface{})
 	for sensorCategory, sensorIDs := range categories.GetOriginalCaseMap() {
-		if args.SensorCategory != nil && *args.SensorCategory != sensorCategory {
+		if args.SensorCategory != nil && !utils.StringEqualsIgnoreCase(sensorCategory, *args.SensorCategory) {
 			continue
 		}
 
@@ -266,18 +270,23 @@ func (o *OpSensor) GetSensorPropertiesByAlias(ctx *base.Context, input *base.Ope
 			if err != nil {
 				return base.MakeErrorOutputFromError(err)
 			}
-			alias := o.getSensorAliasByID(sensorID).GetString()
-			property := o.getSensorPropertyByID(sensorID, args.SensorPropertyName)
-			if property.IsError() {
+			thisSensorProperties := map[string]interface{}{}
+			for _, sensorPropertyName := range args.SensorPropertyName {
+				property := o.getSensorPropertyByID(sensorID, sensorPropertyName)
+				if property.IsError() {
+					continue
+				}
+				thisSensorProperties[sensorPropertyName] = property.Output
+			}
+			if len(thisSensorProperties) == 0 {
 				continue
 			}
+
+			alias := o.getSensorAliasByID(sensorID).GetString()
 			if _, ok := ret[alias]; ok {
 				alias = fmt.Sprintf("%s (%s)", alias, sensorID)
 			}
-			if _, ok := ret[alias]; !ok {
-				ret[alias] = make(map[string]interface{})
-			}
-			ret[alias][args.SensorPropertyName] = property.Output
+			ret[alias] = thisSensorProperties
 		}
 	}
 
