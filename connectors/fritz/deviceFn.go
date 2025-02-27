@@ -105,6 +105,9 @@ func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) 
 	if err != nil {
 		ctx.GetLogger().Errorf("Failed to set sensor property for %v: %v", device.DeviceID, err)
 	}
+	if device.AIN == "" {
+		return
+	}
 	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "name", device.Name)
 	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "ain", device.AIN)
 	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "present", device.Present)
@@ -190,6 +193,9 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 // checkDeviceForAlerts set system alerts for certain conditions
 func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice) {
 	deviceId := device.AIN
+	if deviceId == "" {
+		return
+	}
 	if device.HKR != nil {
 		if device.HKR.Batterylow {
 			dur := BatterylowAlertDuration
