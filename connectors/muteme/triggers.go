@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 )
 
 func (mm *MuteMe) setTrigger(ctx *base.Context, flowId string, tags ...string) *base.OperatorIO {
@@ -79,5 +80,11 @@ func (mm *MuteMe) execTriggers(parentCtx *base.Context, touchDuration time.Durat
 		}
 		args.Append("TouchDuration", lastTouchDuration.String())
 	}
+	gs := sensor.GetGlobalSensors()
+	if gs != nil {
+		gs.SetSensorPropertyInternal(ctx, mm.config.Tag, mm.config.Tag, "TouchDuration", lastTouchDuration)
+		gs.SetSensorPropertyInternal(ctx, mm.config.Tag, mm.config.Tag, "TouchCount", lastTouchCounter)
+	}
+
 	return mm.GE.ExecuteFlowByTags(ctx, tags, args, base.MakeEmptyOutput())
 }

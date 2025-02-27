@@ -315,20 +315,15 @@ func (o *FreepsOperatorWrapper) GetName() string {
 	return fullName
 }
 
-func (o *FreepsOperatorWrapper) Execute(ctx *Context, fn string, fa FunctionArguments, input *OperatorIO) *OperatorIO {
-	return o.ExecuteOld(ctx, fn, fa.GetOriginalCaseMapJoined(), input)
-}
-
-// Execute gets the FreepsFunction by name, assignes all parameters based on the args map and calls the function
-func (o *FreepsOperatorWrapper) ExecuteOld(ctx *Context, function string, args map[string]string, mainInput *OperatorIO) *OperatorIO {
+// Execute gets the FreepsFunction by name, assigns all parameters based on the args map and calls the function
+func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, fa FunctionArguments, mainInput *OperatorIO) *OperatorIO {
 	ffm := o.getFunctionMetaData(function)
-	fa := NewFunctionArguments(args)
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
 			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
 		}
-		return MakeOutputError(http.StatusNotFound, fmt.Sprintf("Function \"%v\" not found", function))
+		return MakeOutputError(http.StatusNotFound, "Function \"%v\" not found", function)
 	}
 
 	// execute function immediately if the FreepsFunctionType indicates it needs no arguments
@@ -347,14 +342,14 @@ func (o *FreepsOperatorWrapper) ExecuteOld(ctx *Context, function string, args m
 		return outValue[0].Interface().(*OperatorIO)
 	}
 
-	lowercaseArgs := fa.GetLowerCaseMapOnlyFirst()
+	lowercaseArgs := fa.GetLowerCaseMap()
 
 	// create an initialized instance of the parameter struct
 	paramStruct := o.getInitializedParamStruct(ctx, ffm.FuncValue.Type())
 
 	failOnError := true
 
-	//set all required parameters of the FreepsFunction
+	// set all required parameters of the FreepsFunction
 	err := o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, failOnError)
 	if err != nil && failOnError {
 		return err
@@ -369,14 +364,14 @@ func (o *FreepsOperatorWrapper) ExecuteOld(ctx *Context, function string, args m
 		return outValue[0].Interface().(*OperatorIO)
 	}
 	if ffm.FuncType == FreepsFunctionTypeFullSignature {
-		// pass on case sensitive arguments to function, but only the ones left in the lowercaseArgs map
-		caseArgs := map[string]string{}
-		for k, v := range args {
+		// pass on left-over arguments
+		caseArgs := map[string][]string{}
+		for k, v := range fa.GetOriginalCaseMap() {
 			if _, ok := lowercaseArgs[utils.StringToLower(k)]; ok {
 				caseArgs[k] = v
 			}
 		}
-		leftOverFunctionArguments := NewFunctionArguments(caseArgs)
+		leftOverFunctionArguments := NewFunctionArgumentsFromURLValues(caseArgs)
 		outValue := ffm.FuncValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(mainInput), paramStruct.Elem(), reflect.ValueOf(leftOverFunctionArguments)})
 		return outValue[0].Interface().(*OperatorIO)
 	}
@@ -453,7 +448,7 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 		paramStruct = o.getInitializedParamStruct(nil, ffm.FuncValue.Type())
 
 		//set all required parameters of the FreepsFunction
-		lowercaseArgs := otherArgs.GetLowerCaseMapOnlyFirst()
+		lowercaseArgs := otherArgs.GetLowerCaseMap()
 		o.SetRequiredFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
 		o.SetOptionalFreepsFunctionParameters(paramStruct, lowercaseArgs, false)
 
