@@ -119,20 +119,12 @@ func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO
 		return base.MakeOutputError(http.StatusBadRequest, "no properties to set")
 	}
 
-	updatedProperties := make([]string, 0)
-	for k, v := range fa.GetOriginalCaseMapOnlyFirst() {
-		out, _, _, updated := o.setSensorProperty(ctx, base.MakeOutputGuessType(v), args.SensorCategory, args.SensorName, k)
-		if out.IsError() {
-			return out
-		}
-		if updated {
-			updatedProperties = append(updatedProperties, k)
-		}
+	stringProps := fa.GetOriginalCaseMapOnlyFirst()
+	props := make(map[string]interface{})
+	for k, v := range stringProps {
+		props[k] = v
 	}
-	if len(updatedProperties) > 0 {
-		o.executeTrigger(ctx, args.SensorCategory, args.SensorName, updatedProperties)
-	}
-	return base.MakeEmptyOutput()
+	return o.setSensorProperties(ctx, args.SensorCategory, args.SensorName, props)
 }
 
 type SetSensorPropertyArgs struct {
@@ -143,7 +135,7 @@ type SetSensorPropertyArgs struct {
 
 // SetSingleSensorProperty writes a one or more properties of a sensor
 func (o *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.OperatorIO, args SetSensorPropertyArgs) *base.OperatorIO {
-	out, _, _, updated := o.setSensorProperty(ctx, input, args.SensorCategory, args.SensorName, args.PropertyName)
+	out, _, _, updated := o.setSensorPropertyNoTrigger(ctx, input, args.SensorCategory, args.SensorName, args.PropertyName)
 
 	if out.IsError() {
 		return out

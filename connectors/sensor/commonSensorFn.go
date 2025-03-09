@@ -62,7 +62,7 @@ func (o *OpSensor) getPropertyIndex(sensorID string) (Sensor, error) {
 	return sensorInformation, nil
 }
 
-func (o *OpSensor) setSensorProperty(ctx *base.Context, input *base.OperatorIO, sensorCategory string, sensorName string, sensorProperty string) (*base.OperatorIO, bool, bool, bool) {
+func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.OperatorIO, sensorCategory string, sensorName string, sensorProperty string) (*base.OperatorIO, bool, bool, bool) {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, err.Error()), false, false, false
@@ -144,6 +144,23 @@ func (o *OpSensor) setSensorProperty(ctx *base.Context, input *base.OperatorIO, 
 	}
 
 	return base.MakeEmptyOutput(), newSensor, newProperty, updatedProperty
+}
+
+func (o *OpSensor) setSensorProperties(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) *base.OperatorIO {
+	updatedProperties := make([]string, 0)
+	for k, v := range properties {
+		out, _, _, updated := o.setSensorPropertyNoTrigger(ctx, base.MakeOutputGuessType(v), sensorCategory, sensorName, k)
+		if out.IsError() {
+			return out
+		}
+		if updated {
+			updatedProperties = append(updatedProperties, k)
+		}
+	}
+	if len(updatedProperties) > 0 {
+		o.executeTrigger(ctx, sensorCategory, sensorName, updatedProperties)
+	}
+	return base.MakeEmptyOutput()
 }
 
 func (o *OpSensor) getSensorPropertyByID(sensorID string, sensorProperty string) *base.OperatorIO {

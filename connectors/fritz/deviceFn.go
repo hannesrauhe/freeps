@@ -102,71 +102,74 @@ func (o *OpFritz) getCachedDevices(ctx *base.Context, forceRefresh bool) (map[st
 func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) {
 	//TODO(HR): collect all sensor properties in a map and set them all at once, or at least trigger flows only once
 	opSensor := sensor.GetGlobalSensors()
-	err := opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "_internal", device)
-	if err != nil {
-		ctx.GetLogger().Errorf("Failed to set sensor property for %v: %v", device.DeviceID, err)
-	}
-	if device.AIN == "" {
+	if opSensor == nil {
+		ctx.GetLogger().Errorf("Sensor integration not available")
 		return
 	}
-	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "name", device.Name)
-	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "ain", device.AIN)
-	opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "present", device.Present)
-	if device.Battery != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "battery", *device.Battery)
+	properties := map[string]interface{}{
+		"_internal": device,
 	}
-	if device.BatteryLow != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "batteryLow", *device.BatteryLow)
-	}
-	id := device.DeviceID
-	if device.EtsiUnitInfo != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "parent", device.EtsiUnitInfo.DeviceID)
-	}
-	if device.HKR != nil {
-		targetTemp, err := utils.ConvertToFloat(device.HKR.Tsoll)
-		if err == nil {
-			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "targetTemperature", targetTemp/2)
+	sensorName := device.DeviceID
+	if device.AIN != "" {
+		properties["ain"] = device.AIN
+		properties["name"] = device.Name
+		properties["present"] = device.Present
+		if device.Battery != nil {
+			properties["battery"] = *device.Battery
 		}
-	}
-	if device.Temperature != nil {
-		temperature, err := utils.ConvertToFloat(device.Temperature.Celsius)
-		if err == nil {
-			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "temperature", temperature/10)
+		if device.BatteryLow != nil {
+			properties["batteryLow"] = *device.BatteryLow
 		}
-	}
-	if device.Powermeter != nil {
-		power, err := utils.ConvertToFloat(device.Powermeter.Power)
-		if err == nil {
-			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "power", power/1000)
-		}
-		voltage, err := utils.ConvertToFloat(device.Powermeter.Voltage)
-		if err == nil {
-			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "voltage", voltage/1000)
-		}
-		energy, err := utils.ConvertToFloat(device.Powermeter.Energy)
-		if err == nil {
-			opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "energy", energy/1000)
-		}
-	}
-	if device.Switch != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "state", device.Switch.State)
-	}
-	if device.Button != nil {
-		t := time.Unix(int64(device.Button.LastPressedTimestamp), 0)
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "lastPressed", t)
-	}
-	if device.SimpleOnOff != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "state", device.SimpleOnOff.State)
-	}
-	if device.LevelControl != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "level", device.LevelControl.LevelPercentage)
-	}
-	if device.ColorControl != nil {
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "hue", device.ColorControl.Hue)
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "saturation", device.ColorControl.Saturation)
-		opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), id, "colorTemp", device.ColorControl.Temperature)
-	}
 
+		if device.EtsiUnitInfo != nil {
+			properties["parent"] = device.EtsiUnitInfo.DeviceID
+		}
+		if device.HKR != nil {
+			targetTemp, err := utils.ConvertToFloat(device.HKR.Tsoll)
+			if err == nil {
+				properties["targetTemperature"] = targetTemp / 2
+			}
+		}
+		if device.Temperature != nil {
+			temperature, err := utils.ConvertToFloat(device.Temperature.Celsius)
+			if err == nil {
+				properties["temperature"] = temperature / 10
+			}
+		}
+		if device.Powermeter != nil {
+			power, err := utils.ConvertToFloat(device.Powermeter.Power)
+			if err == nil {
+				properties["power"] = power / 1000
+			}
+			voltage, err := utils.ConvertToFloat(device.Powermeter.Voltage)
+			if err == nil {
+				properties["voltage"] = voltage / 1000
+			}
+			energy, err := utils.ConvertToFloat(device.Powermeter.Energy)
+			if err == nil {
+				properties["energy"] = energy / 1000
+			}
+		}
+		if device.Switch != nil {
+			properties["state"] = device.Switch.State
+		}
+		if device.Button != nil {
+			t := time.Unix(int64(device.Button.LastPressedTimestamp), 0)
+			properties["lastPressed"] = t
+		}
+		if device.SimpleOnOff != nil {
+			properties["state"] = device.SimpleOnOff.State
+		}
+		if device.LevelControl != nil {
+			properties["level"] = device.LevelControl.LevelPercentage
+		}
+		if device.ColorControl != nil {
+			properties["hue"] = device.ColorControl.Hue
+			properties["saturation"] = device.ColorControl.Saturation
+			properties["colorTemp"] = device.ColorControl.Temperature
+		}
+	}
+	opSensor.SetSensorPropertiesInternal(ctx, o.getDeviceSensorCategory(), sensorName, properties)
 }
 
 // getDeviceList retrieves the devicelist and caches
