@@ -27,6 +27,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/hannesrauhe/freepslib v1.4.3 h1:hkpLcSKAre7reCZKQ5UU1dh9jv9DR1RX9ybSH69LbVQ=
 github.com/hannesrauhe/freepslib v1.4.3/go.mod h1:uLxf22dRbnTrgMmwCFduUfig0aaiguY81XPcnnKSMmo=
+github.com/hannesrauhe/freepslib v1.5.0 h1:9+Dy1YTY5ueh8MJqSAn3itvFwQw4NObwjqbhskxjMQw=
+github.com/hannesrauhe/freepslib v1.5.0/go.mod h1:uLxf22dRbnTrgMmwCFduUfig0aaiguY81XPcnnKSMmo=
 github.com/influxdata/influxdb-client-go/v2 v2.14.0 h1:AjbBfJuq+QoaXNcrova8smSjwJdUHnwvfjMF71M1iI4=
 github.com/influxdata/influxdb-client-go/v2 v2.14.0/go.mod h1:Ahpm3QXKMJslpXl3IftVLVezreAUtBOTZssDrjZEFHI=
 github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf h1:7JTmneyiNEwVBOHSjoMxiWAqB992atOeepeFYegn5RU=
