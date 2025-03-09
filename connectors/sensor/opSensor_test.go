@@ -163,11 +163,11 @@ func TestTriggers(t *testing.T) {
 
 	testCat1 := "testcat1"
 	testProp1 := "test_property1"
-	testSensor1 := "testcat1.test_sensor1"
+	testSensor1 := "test_sensor1"
 
 	out := op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), SetTriggerArgs{FlowID: flow1, SensorCategory: &testCat1})
 	out = op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), SetTriggerArgs{FlowID: flow2, ChangedProperty: &testProp1})
-	out = op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), SetTriggerArgs{FlowID: flow3, SensorID: &testSensor1})
+	out = op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), SetTriggerArgs{FlowID: flow3, SensorName: &testSensor1})
 	assert.Assert(t, !out.IsError())
 
 	/* Test the triggers when sensor of the right category and property is activated*/

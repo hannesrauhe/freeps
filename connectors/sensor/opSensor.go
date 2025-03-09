@@ -130,8 +130,7 @@ func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO
 		}
 	}
 	if len(updatedProperties) > 0 {
-		sensorID, _ := o.getSensorID(args.SensorCategory, args.SensorName)
-		o.executeTrigger(ctx, args.SensorCategory, sensorID, updatedProperties)
+		o.executeTrigger(ctx, args.SensorCategory, args.SensorName, updatedProperties)
 	}
 	return base.MakeEmptyOutput()
 }
@@ -151,8 +150,7 @@ func (o *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.Operat
 	}
 
 	if updated {
-		sensorID, _ := o.getSensorID(args.SensorCategory, args.SensorName)
-		o.executeTrigger(ctx, args.SensorCategory, sensorID, []string{args.PropertyName})
+		o.executeTrigger(ctx, args.SensorCategory, args.SensorName, []string{args.PropertyName})
 	}
 
 	return out

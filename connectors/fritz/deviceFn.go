@@ -100,6 +100,7 @@ func (o *OpFritz) getCachedDevices(ctx *base.Context, forceRefresh bool) (map[st
 }
 
 func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) {
+	//TODO(HR): collect all sensor properties in a map and set them all at once, or at least trigger flows only once
 	opSensor := sensor.GetGlobalSensors()
 	err := opSensor.SetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), device.DeviceID, "_internal", device)
 	if err != nil {

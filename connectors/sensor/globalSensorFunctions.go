@@ -53,9 +53,23 @@ func (op *OpSensor) GetSensorPropertyInternal(ctx *base.Context, sensorCategory 
 
 // SetSensorPropertyInternal sets the value of a sensor property
 func (op *OpSensor) SetSensorPropertyInternal(ctx *base.Context, sensorCategory string, sensorName string, propertyName string, value interface{}) error {
-	result, _, _, _ := op.setSensorProperty(ctx, base.MakeOutputInferType(value), sensorCategory, sensorName, propertyName)
+	result, _, _, updated := op.setSensorProperty(ctx, base.MakeOutputInferType(value), sensorCategory, sensorName, propertyName)
 	if result.IsError() {
 		return result.GetError()
 	}
+
+	if updated {
+		op.executeTrigger(ctx, sensorCategory, sensorName, []string{propertyName})
+	}
 	return nil
 }
+
+// SetSensorPropertiesInternal sets the values of multiple sensor properties
+func (op *OpSensor) SetSensorPropertiesInternal(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) error {
+	for propertyName, value := range properties {
+		err := op.SetSensorPropertyInternal(ctx, sensorCategory, sensorName, propertyName, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
