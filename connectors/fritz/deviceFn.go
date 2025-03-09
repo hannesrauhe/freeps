@@ -2,16 +2,22 @@ package fritz
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
 
+func (o *OpFritz) getDeviceSensorCategory() string {
+	return strings.ReplaceAll(o.name, ".", "_") + "_dev"
+}
+
 // GetDevices returns a map of all device AINs
 func (o *OpFritz) GetDevices(ctx *base.Context) *base.OperatorIO {
-	l, err := o.getCachedDeviceList(ctx, true)
+	l, err := o.getCachedDevices(ctx, true)
 	if err != nil {
 		return base.MakeOutputError(500, err.Error())
 	}
@@ -20,32 +26,150 @@ func (o *OpFritz) GetDevices(ctx *base.Context) *base.OperatorIO {
 
 // DeviceSuggestions returns a map of all device names and AINs
 func (o *OpFritz) DeviceSuggestions() map[string]string {
-	l, _ := o.getCachedDeviceList(nil, false)
+	l, _ := o.getCachedDevices(nil, false)
 	return l
 }
 
-func (o *OpFritz) getCachedDeviceList(ctx *base.Context, forceRefresh bool) (map[string]string, error) {
-	devNs := o.getDeviceNamespace()
-	devs := devNs.GetAllValues(0)
+// getDeviceIDs returns a list of all device IDs
+func (o *OpFritz) getDeviceIDs(ctx *base.Context, forceRefresh bool) ([]string, error) {
+	opSensor := sensor.GetGlobalSensors()
+	if opSensor == nil {
+		return nil, fmt.Errorf("Sensor integration not available")
+	}
+	devs, err := opSensor.GetSensorNamesInternal(ctx, o.getDeviceSensorCategory())
+	if err != nil {
+		return nil, err
+	}
 	if forceRefresh || len(devs) == 0 {
 		_, err := o.getDeviceList(ctx)
 		if err != nil {
 			return nil, err
 		}
-		devs = devNs.GetAllValues(0)
 	}
-	r := map[string]string{}
+	return devs, nil
+}
 
-	for AIN, cachedDev := range devs {
+// getDeviceByAIN returns the device object for the device with the given AIN
+func (o *OpFritz) getDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmDevice, error) {
+	devs, err := o.getDeviceIDs(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	opSensor := sensor.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
+	for _, sensorName := range devs {
+		cachedDev := opSensor.GetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), sensorName, "_internal")
+		if cachedDev.IsError() {
+			ctx.GetLogger().Errorf("Failed to get sensor entry for %v: %v", sensorName, cachedDev.GetError())
+			continue
+		}
 		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
 		if !ok {
-			ctx.GetLogger().Errorf("Cached record for %v is invalid", AIN)
+			ctx.GetLogger().Errorf("Failed to convert sensor entry for %v", sensorName)
+			continue
+		}
+		if dev.AIN == AIN {
+			return &dev, nil
+		}
+	}
+	return nil, fmt.Errorf("Device with AIN %v not found", AIN)
+}
+
+func (o *OpFritz) getCachedDevices(ctx *base.Context, forceRefresh bool) (map[string]string, error) {
+	devs, err := o.getDeviceIDs(ctx, forceRefresh)
+	if err != nil {
+		return nil, err
+	}
+	opSensor := sensor.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
+	r := map[string]string{}
+
+	for _, sensorName := range devs {
+		cachedDev := opSensor.GetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), sensorName, "_internal")
+		if cachedDev.IsError() {
+			ctx.GetLogger().Errorf("Failed to get sensor entry for %v: %v", sensorName, cachedDev.GetError())
+			continue
+		}
+		dev, ok := cachedDev.Output.(freepslib.AvmDevice)
+		if !ok {
+			ctx.GetLogger().Errorf("Failed to convert sensor entry for %v", sensorName)
 			continue
 		}
 		r[dev.Name] = dev.AIN
 	}
 
 	return r, nil
+}
+
+func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) {
+	//TODO(HR): collect all sensor properties in a map and set them all at once, or at least trigger flows only once
+	opSensor := sensor.GetGlobalSensors()
+	if opSensor == nil {
+		ctx.GetLogger().Errorf("Sensor integration not available")
+		return
+	}
+	properties := map[string]interface{}{
+		"_internal": device,
+	}
+	sensorName := device.DeviceID
+	if device.AIN != "" {
+		properties["ain"] = device.AIN
+		properties["name"] = device.Name
+		properties["present"] = device.Present
+		if device.Battery != nil {
+			properties["battery"] = *device.Battery
+		}
+		if device.BatteryLow != nil {
+			properties["batteryLow"] = *device.BatteryLow
+		}
+
+		if device.EtsiUnitInfo != nil {
+			properties["parent"] = device.EtsiUnitInfo.DeviceID
+		}
+		if device.HKR != nil {
+			targetTemp, err := utils.ConvertToFloat(device.HKR.Tsoll)
+			if err == nil {
+				properties["targetTemperature"] = targetTemp / 2
+			}
+		}
+		if device.Temperature != nil {
+			temperature, err := utils.ConvertToFloat(device.Temperature.Celsius)
+			if err == nil {
+				properties["temperature"] = temperature / 10
+			}
+		}
+		if device.Powermeter != nil {
+			power, err := utils.ConvertToFloat(device.Powermeter.Power)
+			if err == nil {
+				properties["power"] = power / 1000
+			}
+			voltage, err := utils.ConvertToFloat(device.Powermeter.Voltage)
+			if err == nil {
+				properties["voltage"] = voltage / 1000
+			}
+			energy, err := utils.ConvertToFloat(device.Powermeter.Energy)
+			if err == nil {
+				properties["energy"] = energy / 1000
+			}
+		}
+		if device.Switch != nil {
+			properties["state"] = device.Switch.State
+		}
+		if device.Button != nil {
+			t := time.Unix(int64(device.Button.LastPressedTimestamp), 0)
+			properties["lastPressed"] = t
+		}
+		if device.SimpleOnOff != nil {
+			properties["state"] = device.SimpleOnOff.State
+		}
+		if device.LevelControl != nil {
+			properties["level"] = device.LevelControl.LevelPercentage
+		}
+		if device.ColorControl != nil {
+			properties["hue"] = device.ColorControl.Hue
+			properties["saturation"] = device.ColorControl.Saturation
+			properties["colorTemp"] = device.ColorControl.Temperature
+		}
+	}
+	opSensor.SetSensorPropertiesInternal(ctx, o.getDeviceSensorCategory(), sensorName, properties)
 }
 
 // getDeviceList retrieves the devicelist and caches
@@ -63,32 +187,19 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 		return nil, err
 	}
 	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
-	devNs := o.getDeviceNamespace()
 	for _, dev := range devl.Device {
-		var cachedDevPtr *freepslib.AvmDevice = nil
-		cachedValEntry := devNs.GetValue(dev.AIN)
-		if cachedValEntry != freepsstore.NotFoundEntry {
-			cachedValIo := cachedValEntry.GetData()
-			if cachedValIo == nil {
-				continue
-			}
-			if !cachedValIo.IsObject() {
-				continue
-			}
-			cachedDev, ok := cachedValIo.Output.(freepslib.AvmDevice)
-			if ok {
-				cachedDevPtr = &cachedDev
-			}
-		}
-		devNs.SetValue(dev.AIN, base.MakeObjectOutput(dev), ctx)
-		o.checkDeviceForAlerts(ctx, dev, cachedDevPtr)
+		o.deviceToSensor(ctx, dev)
+		o.checkDeviceForAlerts(ctx, dev)
 	}
 	return devl, nil
 }
 
 // checkDeviceForAlerts set system alerts for certain conditions
-func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice, oldDeviceState *freepslib.AvmDevice) {
+func (o *OpFritz) checkDeviceForAlerts(ctx *base.Context, device freepslib.AvmDevice) {
 	deviceId := device.AIN
+	if deviceId == "" {
+		return
+	}
 	if device.HKR != nil {
 		if device.HKR.Batterylow {
 			dur := BatterylowAlertDuration

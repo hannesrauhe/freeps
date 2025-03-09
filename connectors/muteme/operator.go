@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/sstallion/go-hid"
 )
@@ -86,15 +87,14 @@ func (mma *SetColorArgs) ColorSuggestions() []string {
 	return r
 }
 
-// GetArgSuggestions returns suggestions for the color
-func (mma *SetColorArgs) GetArgSuggestions(op base.FreepsOperator, fn string, arg string, otherArgs map[string]string) map[string]string {
-	return map[string]string{}
-}
-
 // SetColor sets the color of the MuteMe button
 func (mm *MuteMe) SetColor(ctx *base.Context, input *base.OperatorIO, args SetColorArgs) *base.OperatorIO {
 	if err := mm.setColorImpl(args.Color); err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Failed to set color: %v", err)
+	}
+	gs := sensor.GetGlobalSensors()
+	if gs != nil {
+		gs.SetSensorPropertyInternal(ctx, mm.config.Tag, mm.config.Tag, "Color", args.Color)
 	}
 	return base.MakePlainOutput(mm.getColorImpl())
 }
