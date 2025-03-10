@@ -12,13 +12,18 @@ all: build/freepsd build/freepsd-light
 connectors/http/static_server_content/chota.min.css:
 	curl https://raw.githubusercontent.com/jenil/chota/v0.8.1/dist/chota.min.css -o connectors/http/static_server_content/chota.min.css
 
+connectors/http/static_server_content/screenfull.min.js:
+	curl https://raw.githubusercontent.com/sindresorhus/screenfull/refs/tags/v5.2.0/dist/screenfull.min.js -o connectors/http/static_server_content/screenfull.min.js
+
+static_server_content: connectors/http/static_server_content/chota.min.css connectors/http/static_server_content/screenfull.min.js
+
 build:
 	mkdir -p build
 
-build/freepsd: build connectors/http/static_server_content/chota.min.css
+build/freepsd: build static_server_content
 	go build -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP} -X ${PACKAGE}/utils.Branch=${BRANCH}" -o build/freepsd freepsd/freepsd.go
 
-build/freepsd-light: build connectors/http/static_server_content/chota.min.css
+build/freepsd-light: build static_server_content
 	go build -tags nopostgres,nomuteme,nobluetooth,noinflux,notelegram -ldflags="-X ${PACKAGE}/utils.Version=${VERSION} -X ${PACKAGE}/utils.CommitHash=${COMMIT_HASH} -X ${PACKAGE}/utils.BuildTime=${BUILD_TIMESTAMP} -X ${PACKAGE}/utils.Branch=${BRANCH}" -o build/freepsd-light freepsd/freepsd.go
 
 # if you are reading this to learn how freepsd is deployed: freepsd runs without any additional libraries or setup. Just run it.

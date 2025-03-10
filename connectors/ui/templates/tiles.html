@@ -1,11 +1,50 @@
-{{$i := 0}}
-{{$gridSize := 4}}
+{{ $i := 0 }}
+{{ $gridSize := 4 }}
+{{ $opArgs := "sensorCategory=Fritz_Dev&sensorPropertyName=targetTemperature&sensorPropertyName=temperature&sensorPropertyName=state&sensorPropertyName=AIN" }}
+{{ if .arguments.propertyname }}
+	{{ $opArgs = printf "sensorPropertyName=%s" .arguments.propertyname }}
+{{ end }}
+{{ if .arguments.category }}
+	{{ $opArgs = printf "%s&sensorCategory=%s" $opArgs .arguments.category }}
+{{ end }}
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+        // Update button text based on fullscreen state
+        function updateButtonText() {
+            fullscreenBtn.textContent = screenfull.isFullscreen ? 'X' : 'Fullscreen';
+        }
+
+        // Initial button text
+        updateButtonText();
+
+        // Toggle fullscreen when button is clicked
+        fullscreenBtn.addEventListener('click', function() {
+            if (screenfull.isEnabled) {
+                screenfull.toggle();
+            }
+        });
+
+        // Update button text when fullscreen state changes
+        if (screenfull.isEnabled) {
+            screenfull.on('change', updateButtonText);
+        }
+    });
+</script>
+<script src="/screenfull.min.js"></script>
 <link rel="stylesheet" href="/chota.min.css">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <div class="container">
+    <button id="fullscreen-btn" class="button primary" style="position: fixed; top: 10px; right: 10px; z-index: 100;">
+        Fullscreen
+    </button>
 	<div class="row">
-{{ $sensors := flow_ExecuteOperator "sensor" "GetSensorPropertiesByAlias" "sensorCategory=Fritz_Dev&sensorPropertyName=targetTemperature&sensorPropertyName=temperature&sensorPropertyName=state&sensorPropertyName=AIN" }}
+
+{{ $sensors := flow_ExecuteOperator "sensor" "GetSensorPropertiesByAlias" $opArgs }}
 {{ $sensorMap := $sensors.Output}}
 {{ range $sensorAlias, $value := $sensorMap }}
 	{{ if or $value.targetTemperature $value.state }}

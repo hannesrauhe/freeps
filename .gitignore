@@ -2,3 +2,4 @@ build
 freepsd/freepsd
 freepsd/freepsd-light
 connectors/http/static_server_content/chota.min.css
+connectors/http/static_server_content/screenfull.min.js
