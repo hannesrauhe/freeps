@@ -1,6 +1,7 @@
 module github.com/hannesrauhe/freeps
 
 go 1.22
+toolchain go1.23.7
 
 require (
 	github.com/briandowns/openweathermap v0.21.1
@@ -29,8 +30,8 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
-	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 )
