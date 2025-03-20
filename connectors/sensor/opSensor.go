@@ -26,7 +26,7 @@ var _ base.FreepsOperator = &OpSensor{}
 var _ base.FreepsOperatorWithConfig = &OpSensor{}
 
 func (op *OpSensor) GetDefaultConfig() interface{} {
-	return &SensorConfig{Enabled: true}
+	return &SensorConfig{Enabled: true, AliasKeys: []string{"name", "alias"}}
 }
 
 func (op *OpSensor) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {

@@ -177,16 +177,14 @@ func (o *OpSensor) getSensorProperty(sensorCategory string, sensorName string, s
 
 func (o *OpSensor) getSensorAliasByID(sensorID string) *base.OperatorIO {
 	ns := o.getSensorNamespace()
-	v := ns.GetValue(sensorID + ".alias")
-	if !v.IsError() {
-		return v.GetData()
+	for _, key := range o.config.AliasKeys {
+		v := ns.GetValue(sensorID + "." + key)
+		if !v.IsError() {
+			return v.GetData()
+		}
 	}
-	v = ns.GetValue(sensorID + ".name")
-	if !v.IsError() {
-		return v.GetData()
-	}
-	// check if that sensor even exists
-	v = ns.GetValue(sensorID)
+	// check if that sensor even exists (we do this at the end because we assume that an alias exists so we save a lookup in most cases)
+	v := ns.GetValue(sensorID)
 	if v.IsError() {
 		return v.GetData()
 	}

@@ -1,5 +1,6 @@
 package sensor
 
 type SensorConfig struct {
-	Enabled bool
+	Enabled   bool
+	AliasKeys []string
 }
