@@ -115,14 +115,25 @@ type SensorArgs struct {
 
 // SetSensorProperties writes a one or more properties of a sensor
 func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO, args SensorArgs, fa base.FunctionArguments) *base.OperatorIO {
-	if fa.IsEmpty() {
+	if fa.IsEmpty() && input.IsEmpty() {
 		return base.MakeOutputError(http.StatusBadRequest, "no properties to set")
 	}
 
-	stringProps := fa.GetOriginalCaseMapOnlyFirst()
 	props := make(map[string]interface{})
-	for k, v := range stringProps {
-		props[k] = v
+	if !input.IsEmpty() {
+		err := input.ParseJSON(&props)
+		if err != nil {
+			return base.MakeOutputError(http.StatusBadRequest, "invalid input: %v", err)
+		}
+		if len(props) == 0 {
+			return base.MakeOutputError(http.StatusBadRequest, "input is not empty, but no properties found")
+		}
+	} else {
+		stringProps := fa.GetOriginalCaseMapOnlyFirst()
+
+		for k, v := range stringProps {
+			props[k] = v
+		}
 	}
 	return o.setSensorProperties(ctx, args.SensorCategory, args.SensorName, props)
 }
