@@ -94,19 +94,19 @@ func TestSensorName(t *testing.T) {
 	assert.Assert(t, !res.IsError())
 	assert.Equal(t, res.GetString(), sensorCat+"."+sensorName)
 
-	res = op.SetSingleSensorProperty(ctx, base.MakePlainOutput("alias sensor name"), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: "name"})
-	assert.Assert(t, !res.IsError())
-
-	res = op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
-	assert.Assert(t, !res.IsError())
-	assert.Equal(t, res.GetString(), "alias sensor name")
-
 	res = op.SetSingleSensorProperty(ctx, base.MakePlainOutput("sensor name"), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: "alias"})
 	assert.Assert(t, !res.IsError())
 
 	res = op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
 	assert.Assert(t, !res.IsError())
 	assert.Equal(t, res.GetString(), "sensor name")
+
+	res = op.SetSingleSensorProperty(ctx, base.MakePlainOutput("alias sensor name"), SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: "name"})
+	assert.Assert(t, !res.IsError())
+
+	res = op.GetSensorAlias(ctx, base.MakeEmptyOutput(), SensorArgs{SensorCategory: sensorCat, SensorName: sensorName})
+	assert.Assert(t, !res.IsError())
+	assert.Equal(t, res.GetString(), "alias sensor name")
 
 	// allow empty properties
 	sensorProperty = "empty_prop"
