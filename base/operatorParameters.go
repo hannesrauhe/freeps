@@ -123,7 +123,7 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 
 			if !ok {
 				if failOnErr {
-					return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("required Parameter \"%v\" is missing", fieldNameCase))
+					return MakeOutputError(http.StatusBadRequest, "required Parameter \"%v\" is missing", fieldNameCase)
 				} else {
 					continue
 				}
@@ -134,7 +134,7 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 		err := setSupportedField(field, v)
 		if err != nil {
 			if failOnErr {
-				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is invalid: %v", fieldNameCase, err))
+				return MakeOutputError(http.StatusBadRequest, "Parameter \"%v\" is invalid: %v", fieldNameCase, err)
 			}
 			continue
 		}

@@ -34,7 +34,7 @@ func (o *OpSystem) Stats(ctx *base.Context, fn string, args map[string]string, i
 		return base.MakeOutputError(http.StatusBadRequest, "Stats only available on Linux")
 	}
 	if err != nil {
-		base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		base.MakeInternalServerErrorOutput(err)
 	}
 	return base.MakeObjectOutput(s)
 }

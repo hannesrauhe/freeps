@@ -152,12 +152,12 @@ func (p *StoreGetSetEqualArgs) GetKey(fa base.FunctionArguments) (string, error)
 func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
 	key, err := args.GetKey(vars)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 
 	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	e := StoreEntry{}
 	if args.MaxAge != nil {
@@ -176,12 +176,12 @@ func (o *OpStore) Get(ctx *base.Context, input *base.OperatorIO, args StoreGetSe
 func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
 	key, err := args.GetKey(vars)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 
 	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	e := StoreEntry{}
 	if args.MaxAge != nil {
@@ -210,12 +210,12 @@ func (o *OpStore) Equals(ctx *base.Context, input *base.OperatorIO, args StoreGe
 func (o *OpStore) Set(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
 	key, err := args.GetKey(vars)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 
 	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	var e StoreEntry
 	if args.MaxAge != nil {
@@ -249,11 +249,11 @@ func (o *OpStore) SetSimpleValue(ctx *base.Context, input *base.OperatorIO, p St
 func (o *OpStore) Delete(ctx *base.Context, input *base.OperatorIO, args StoreGetSetEqualArgs, vars base.FunctionArguments) *base.OperatorIO {
 	key, err := args.GetKey(vars)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	nsStore.DeleteValue(key)
 	return base.MakeEmptyOutput()
@@ -294,7 +294,7 @@ func (p *CASArgs) KeySuggestions() []string {
 func (o *OpStore) CompareAndSwap(ctx *base.Context, input *base.OperatorIO, args CASArgs) *base.OperatorIO {
 	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	e := nsStore.CompareAndSwap(args.Key, args.Value, input, ctx)
 
@@ -331,7 +331,7 @@ var _ base.FreepsFunctionParametersWithInit = &StoreSearchArgs{}
 func (o *OpStore) Search(ctx *base.Context, input *base.OperatorIO, args StoreSearchArgs) *base.OperatorIO {
 	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	res := nsStore.GetSearchResultWithMetadata(*args.Key, *args.Value, *args.ModifiedBy, *args.MinAge, *args.MaxAge)
 	return o.modifyOutputSingleNamespace(args.Namespace, args.Output, res)
@@ -361,7 +361,7 @@ func (p *IncrementArgs) KeySuggestions() []string {
 func (o *OpStore) Increment(ctx *base.Context, input *base.OperatorIO, args IncrementArgs) *base.OperatorIO {
 	nsStore, err := store.GetNamespace(args.Namespace)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	value := 1
 	if args.Value != nil {

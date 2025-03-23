@@ -38,7 +38,7 @@ type OperatorIO struct {
 	ContentType string `json:",omitempty"`
 }
 
-func MakeErrorOutputFromError(err error) *OperatorIO {
+func MakeInternalServerErrorOutput(err error) *OperatorIO {
 	return &OperatorIO{OutputType: Error, HTTPCode: http.StatusInternalServerError, Output: err}
 }
 
@@ -104,7 +104,7 @@ func MakeOutputInferType(output interface{}) *OperatorIO {
 	case string:
 		return MakePlainOutput(output.(string))
 	case error:
-		return MakeErrorOutputFromError(output.(error))
+		return MakeInternalServerErrorOutput(output.(error))
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return MakeIntegerOutput(output)
 	case float32, float64:
@@ -123,7 +123,7 @@ func MakeOutputGuessType(output interface{}) *OperatorIO {
 	case []byte:
 		return MakeByteOutput(output.([]byte))
 	case error:
-		return MakeErrorOutputFromError(output.(error))
+		return MakeInternalServerErrorOutput(output.(error))
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return MakeIntegerOutput(output)
 	case float32, float64:

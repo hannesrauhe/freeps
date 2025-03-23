@@ -269,7 +269,7 @@ func (oc *OpAlert) GetActiveAlerts(ctx *base.Context, mainInput *base.OperatorIO
 func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
 	activeAlerts, err := oc.getAlerts(args)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	alertNames := make([]string, 0)
 	categories := make(map[string]int, 0)
@@ -307,7 +307,7 @@ func (oc *OpAlert) GetShortAlertString(ctx *base.Context, mainInput *base.Operat
 func (oc *OpAlert) HasAlerts(ctx *base.Context, mainInput *base.OperatorIO, args GetAlertArgs) *base.OperatorIO {
 	activeAlerts, err := oc.getAlerts(args)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	if len(activeAlerts) > 0 {
 		return base.MakeEmptyOutput()
@@ -335,7 +335,7 @@ func (iaa *IsActiveAlertArgs) NameSuggestions(otherArgs base.FunctionArguments, 
 func (oc *OpAlert) GetActiveAlert(ctx *base.Context, mainInput *base.OperatorIO, args IsActiveAlertArgs) *base.OperatorIO {
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_alerts")
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error getting store: %v", err))
+		return base.MakeOutputError(http.StatusInternalServerError, "Error getting store: %v", err)
 	}
 	var a AlertWithMetadata
 	oi := ns.GetValue(getAlertName(args.Name, args.Category))

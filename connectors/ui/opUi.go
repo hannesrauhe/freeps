@@ -155,21 +155,21 @@ func (o *OpUI) createOutput(ctx *base.Context, templateBaseName string, template
 		styles, err := o.getFileBytes("style.html", logger)
 		if err != nil {
 			logger.Error(err)
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 		w.WriteString(fmt.Sprintf("<title>%v</title>", templateBaseName))
 		w.Write(styles)
 		err = t.Execute(&w, templateData)
 		if err != nil {
 			logger.Error(err)
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 
 		if withFooter {
 			tFooter, err := o.parseTemplate(ctx, "footer.html")
 			if err != nil {
 				logger.Errorf("Problem when opening template footer: %v", err)
-				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+				return base.MakeInternalServerErrorOutput(err)
 			}
 
 			var fdata struct {
@@ -181,7 +181,7 @@ func (o *OpUI) createOutput(ctx *base.Context, templateBaseName string, template
 			err = tFooter.Execute(&w, &fdata)
 			if err != nil {
 				logger.Error(err)
-				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+				return base.MakeInternalServerErrorOutput(err)
 			}
 		}
 		return base.MakeByteOutputWithContentType(w.Bytes(), "text/html; charset=utf-8")

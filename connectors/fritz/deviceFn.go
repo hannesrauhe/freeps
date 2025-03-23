@@ -19,7 +19,7 @@ func (o *OpFritz) getDeviceSensorCategory() string {
 func (o *OpFritz) GetDevices(ctx *base.Context) *base.OperatorIO {
 	l, err := o.getCachedDevices(ctx, true)
 	if err != nil {
-		return base.MakeOutputError(500, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	return base.MakeObjectOutput(l)
 }
