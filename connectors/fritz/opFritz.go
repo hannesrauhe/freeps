@@ -366,7 +366,7 @@ func (o *OpFritz) StartListening(ctx *base.Context) {
 	go o.loop(ctx)
 }
 
-// Shutdown (noOp)
+// Shutdown stops the polling loop
 func (o *OpFritz) Shutdown(ctx *base.Context) {
 	if o.ticker == nil {
 		return

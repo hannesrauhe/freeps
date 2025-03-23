@@ -58,28 +58,10 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 		return base.MakeObjectOutput(gim)
 
 	case "stats":
-		return o.Stats(ctx, fn, args, input)
+		return o.ge.ExecuteOperatorByName(ctx, "utils", "metrics", base.NewSingleFunctionArgument("statType", args["statType"]), base.MakeEmptyOutput())
 
 	case "metrics":
 		return base.MakeObjectOutput(o.ge.GetMetrics())
-
-	case "noop":
-		return base.MakeEmptyOutput()
-
-	case "fail":
-		return base.MakeOutputError(http.StatusExpectationFailed, "Fail requested")
-
-	case "echo":
-		if m, ok := args["output"]; ok {
-			return base.MakePlainOutput(m)
-		}
-		return input
-
-	case "hasInput":
-		if input.IsEmpty() {
-			return base.MakeOutputError(http.StatusBadRequest, "Expected input")
-		}
-		return input
 
 	case "version":
 		return base.MakePlainOutput(utils.BuildFullVersion())
@@ -88,7 +70,7 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 }
 
 func (o *OpSystem) GetFunctions() []string {
-	return []string{"shutdown", "reload", "stats", "getFlowDesc", "getFlowInfo", "getFlowDescByTag", "getCollectedErrors", "toDot", "contextToDot", "deleteFlow", "version", "metrics", "noop"}
+	return []string{"shutdown", "reload", "stats", "getFlowDesc", "getFlowInfo", "getFlowDescByTag", "deleteFlow", "version", "metrics"}
 }
 
 func (o *OpSystem) GetPossibleArgs(fn string) []string {
@@ -101,12 +83,6 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 		return []string{"name"}
 	case "GetFlowDescByTag":
 		return []string{"tags", "tag"}
-	case "getCollectedErrors":
-		return []string{"duration"}
-	case "toDot":
-		return []string{"name"}
-	case "contextToDot":
-		return []string{}
 	case "deleteFlow":
 		return []string{"name"}
 	}
