@@ -298,7 +298,7 @@ func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.O
 	if !input.IsEmpty() || !exists {
 		formInputQueryFormat, err := input.ParseFormData()
 		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 		}
 		formInput := utils.URLArgsToMap(formInputQueryFormat)
 		gd = o.buildPartialFlow(formInput)
@@ -318,7 +318,7 @@ func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.O
 			}
 			err := o.ge.AddFlow(ctx, td.FlowName, *gd, true)
 			if err != nil {
-				return base.MakeOutputError(http.StatusBadRequest, err.Error())
+				return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 			}
 		}
 		if _, ok := formInput["SaveTemp"]; ok {

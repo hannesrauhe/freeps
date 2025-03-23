@@ -112,7 +112,7 @@ func (d *WLEDMatrixDisplay) sendCmd(file string, cmd *base.OperatorIO) *base.Ope
 	path := d.conf.Address + "/json/" + file
 	b, err = cmd.GetBytes()
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	breader := bytes.NewReader(b)
 	resp, err := c.Post(path, "application/json", breader)

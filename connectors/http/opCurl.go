@@ -64,7 +64,7 @@ func (o *OpCurl) Post(ctx *base.Context, mainInput *base.OperatorIO, args CurlAr
 		var err error
 		b, err = mainInput.GetBytes()
 		if err != nil {
-			return base.MakeOutputError(http.StatusBadRequest, err.Error())
+			return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 		}
 	}
 	breader := bytes.NewReader(b)
@@ -85,14 +85,14 @@ func (o *OpCurl) Get(ctx *base.Context, mainInput *base.OperatorIO, args CurlArg
 
 func (o *OpCurl) handleResponse(resp *http.Response, err error, ctx *base.Context, args CurlArgs) *base.OperatorIO {
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	defer resp.Body.Close()
 
 	if args.OutputFile == nil {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 		return &base.OperatorIO{HTTPCode: resp.StatusCode, Output: b, OutputType: base.Byte, ContentType: resp.Header.Get("Content-Type")}
 	}
@@ -100,7 +100,7 @@ func (o *OpCurl) handleResponse(resp *http.Response, err error, ctx *base.Contex
 	outputFile := path.Base(*args.OutputFile)
 	dir, err := utils.GetTempDir()
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, "%v", err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	var dstFile *os.File
 	if outputFile == "" || outputFile == "/" || outputFile == "." {

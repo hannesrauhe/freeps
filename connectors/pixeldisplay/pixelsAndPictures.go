@@ -39,7 +39,7 @@ func (op *OpPixelDisplay) getImageFromInput(ctx *base.Context, input *base.Opera
 		ctx.GetLogger().Debugf("Detected type: %v", contentType)
 	}
 	if err != nil {
-		return img, base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return img, base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	return img, base.MakeEmptyOutput()
 }
