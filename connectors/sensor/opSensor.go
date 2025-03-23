@@ -81,7 +81,7 @@ func (op *OpSensor) SensorCategorySuggestions() []string {
 func (op *OpSensor) GetSensorCategories(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	categories, err := op.getSensorCategories()
 	if err != nil {
-		return base.MakeErrorOutputFromError(err)
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	return base.MakeObjectOutput(categories)
 }
@@ -94,7 +94,7 @@ type GetSensorsPerCategoryArgs struct {
 func (op *OpSensor) GetSensorsPerCategory(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerCategoryArgs) *base.OperatorIO {
 	cat, err := op.getCategoryIndex()
 	if err != nil {
-		return base.MakeErrorOutputFromError(err)
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	ret := make(map[string][]string)
 	if args.SensorCategory != nil {
@@ -169,7 +169,7 @@ type GetSensorArgs struct {
 func (o *OpSensor) GetSensorProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorArgs) *base.OperatorIO {
 	sensorID, err := o.getSensorID(args.SensorCategory, args.SensorName)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	ns := o.getSensorNamespace()
 	if args.PropertyName != nil {
@@ -192,11 +192,11 @@ func (o *OpSensor) GetSensorAlias(ctx *base.Context, input *base.OperatorIO, arg
 func (o *OpSensor) GetSensorPropertyKeys(ctx *base.Context, input *base.OperatorIO, args SensorArgs) *base.OperatorIO {
 	sensorID, err := o.getSensorID(args.SensorCategory, args.SensorName)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	sensorInformation, err := o.getPropertyIndex(sensorID)
 	if err != nil {
-		return base.MakeOutputError(http.StatusNotFound, err.Error())
+		return base.MakeOutputError(http.StatusNotFound, "%v", err.Error())
 	}
 	return base.MakeObjectOutput(sensorInformation.Properties)
 }
@@ -209,7 +209,7 @@ type GetSensorsPerPropertyArgs struct {
 func (o *OpSensor) GetSensorsPerProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerPropertyArgs) *base.OperatorIO {
 	categories, err := o.getCategoryIndex()
 	if err != nil {
-		return base.MakeErrorOutputFromError(err)
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	categoriesList := categories.GetOriginalKeys()
 	if args.SensorCategory != nil {
@@ -220,11 +220,11 @@ func (o *OpSensor) GetSensorsPerProperty(ctx *base.Context, input *base.Operator
 		for _, sensor := range categories.GetValues(category) {
 			sensorID, err := o.getSensorID(category, sensor)
 			if err != nil {
-				return base.MakeErrorOutputFromError(err)
+				return base.MakeInternalServerErrorOutput(err)
 			}
 			sensorInformation, err := o.getPropertyIndex(sensorID)
 			if err != nil {
-				return base.MakeErrorOutputFromError(err)
+				return base.MakeInternalServerErrorOutput(err)
 			}
 			for _, property := range sensorInformation.Properties {
 				if _, ok := allProperties[property]; !ok {
@@ -251,7 +251,7 @@ func (o *OpSensor) GetSensorPropertiesByAlias(ctx *base.Context, input *base.Ope
 
 	categories, err := o.getCategoryIndex()
 	if err != nil {
-		return base.MakeErrorOutputFromError(err)
+		return base.MakeInternalServerErrorOutput(err)
 	}
 
 	if args.SensorCategory != nil {
@@ -269,7 +269,7 @@ func (o *OpSensor) GetSensorPropertiesByAlias(ctx *base.Context, input *base.Ope
 		for _, sensorName := range sensorIDs {
 			sensorID, err := o.getSensorID(sensorCategory, sensorName)
 			if err != nil {
-				return base.MakeErrorOutputFromError(err)
+				return base.MakeInternalServerErrorOutput(err)
 			}
 			thisSensorProperties := map[string]interface{}{}
 			for _, sensorPropertyName := range args.SensorPropertyName {

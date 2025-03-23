@@ -52,11 +52,11 @@ func (o *WeatherArgs) Init(ctx *base.Context, op base.FreepsOperator, fn string)
 func (o *OpWeather) Current(ctx *base.Context, mainInput *base.OperatorIO, args WeatherArgs) *base.OperatorIO {
 	wm, err := owm.NewCurrent(*args.Units, *args.Lang, o.conf.APIKey)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	err = wm.CurrentByName(*args.Location)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	if wm.ID == 0 {
 		return base.MakeOutputError(http.StatusInternalServerError, "ID of response is 0")
@@ -79,11 +79,11 @@ func (o *OpWeather) Icon(ctx *base.Context, mainInput *base.OperatorIO, args Ico
 	icon = icon + ".png"
 	_, err := owm.RetrieveIcon(d, icon)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	b, err := os.ReadFile(path.Join(d, icon))
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	return base.MakeByteOutput(b)
 }

@@ -84,7 +84,7 @@ func (o *OpSystem) ExecuteOld(ctx *base.Context, fn string, args map[string]stri
 	case "version":
 		return base.MakePlainOutput(utils.BuildFullVersion())
 	}
-	return base.MakeOutputError(http.StatusBadRequest, "Unknown function: "+fn)
+	return base.MakeOutputError(http.StatusBadRequest, "Unknown function: %v", fn)
 }
 
 func (o *OpSystem) GetFunctions() []string {

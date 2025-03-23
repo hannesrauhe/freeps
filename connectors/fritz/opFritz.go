@@ -147,7 +147,7 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			if err == nil {
 				return base.MakeObjectOutput(&met)
 			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 	case "gettemplates":
 		{
@@ -159,7 +159,7 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			if err == nil {
 				return base.MakeObjectOutput(devl)
 			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 	case "getdeviceinfos":
 		{
@@ -167,7 +167,7 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			if err == nil {
 				return base.MakeObjectOutput(devObject)
 			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 	case "gettemplatelistinfos":
 		{
@@ -175,13 +175,13 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			if err == nil {
 				return base.MakeObjectOutput(tl)
 			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 	case "getdata", "getnetdevices":
 		{
 			r, err := o.fl.GetData()
 			if err != nil {
-				return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+				return base.MakeInternalServerErrorOutput(err)
 			}
 			netDevNs := o.getNetworkDeviceNamespace()
 			for active := range r.Data.Active {
@@ -197,7 +197,7 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			if err == nil {
 				return base.MakeSprintfOutput("Woke up %s", netdev)
 			}
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 	}
 
@@ -209,14 +209,14 @@ func (o *OpFritz) ExecuteDynamic(ctx *base.Context, fn string, args base.Functio
 			vars["fn"] = fn
 			return base.MakeObjectOutput(args)
 		}
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 
 	r, err := o.fl.HomeAutomation(fn, dev, vars)
 	if err == nil {
 		return base.MakeByteOutput(r)
 	}
-	return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+	return base.MakeInternalServerErrorOutput(err)
 }
 
 func (o *OpFritz) GetDynamicFunctions() []string {
@@ -323,7 +323,7 @@ func (o *OpFritz) getTemplates() map[string]string {
 func (o *OpFritz) GetDeviceMap(ctx *base.Context) *base.OperatorIO {
 	devs, err := o.getDeviceIDs(ctx, false)
 	if err != nil {
-		return base.MakeErrorOutputFromError(err)
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	opSensor := sensor.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
 

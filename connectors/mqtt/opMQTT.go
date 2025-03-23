@@ -67,7 +67,7 @@ func (o *OpMQTT) GetSubscriptions(ctx *base.Context) *base.OperatorIO {
 func (o *OpMQTT) TriggerSubscriptionChange(ctx *base.Context) *base.OperatorIO {
 	err := o.impl.startTagSubscriptions()
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	return base.MakeEmptyOutput()
 }
@@ -93,11 +93,11 @@ func (o *OpMQTT) ExecuteDynamic(ctx *base.Context, fn string, fa base.FunctionAr
 		}
 		err = o.impl.publish(topic, msg, qos, retain)
 		if err != nil {
-			return base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			return base.MakeInternalServerErrorOutput(err)
 		}
 		return base.MakeEmptyOutput()
 	}
-	return base.MakeOutputError(http.StatusBadRequest, "Unknown function "+fn)
+	return base.MakeOutputError(http.StatusBadRequest, "Unknown function %v", fn)
 }
 
 func (o *OpMQTT) GetDynamicFunctions() []string {
@@ -144,11 +144,11 @@ func (o *OpMQTT) publishToExternal(args map[string]string, topic string, msg int
 
 	client := MQTT.NewClient(connOpts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, token.Error().Error())
+		return base.MakeInternalServerErrorOutput(token.Error())
 	}
 
 	if token := client.Publish(topic, byte(qos), retain, msg); token.Wait() && token.Error() != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, token.Error().Error())
+		return base.MakeInternalServerErrorOutput(token.Error())
 	}
 	client.Disconnect(250)
 	return base.MakeEmptyOutput()

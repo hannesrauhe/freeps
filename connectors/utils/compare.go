@@ -184,7 +184,7 @@ func (m *OpUtils) boolConv(ctx *base.Context, input *base.OperatorIO, args BoolP
 func (m *OpUtils) IsTrue(ctx *base.Context, input *base.OperatorIO, args BoolParams) *base.OperatorIO {
 	v, err := m.boolConv(ctx, input, args)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	if v {
 		return input
@@ -196,7 +196,7 @@ func (m *OpUtils) IsTrue(ctx *base.Context, input *base.OperatorIO, args BoolPar
 func (m *OpUtils) IsFalse(ctx *base.Context, input *base.OperatorIO, args BoolParams) *base.OperatorIO {
 	v, err := m.boolConv(ctx, input, args)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	if !v {
 		return input

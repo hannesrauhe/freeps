@@ -1,7 +1,6 @@
 package opconfig
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -41,7 +40,7 @@ func (p *SectionParams) SectionNameSuggestions(otherArgs base.FunctionArguments,
 func (oc *OpConfig) GetSection(ctx *base.Context, mainInput *base.OperatorIO, args SectionParams) *base.OperatorIO {
 	b, err := oc.CR.GetSectionBytes(args.SectionName)
 	if err != nil {
-		return base.MakeOutputError(500, err.Error())
+		return base.MakeInternalServerErrorOutput(err)
 	}
 	return base.MakeByteOutput(b)
 }
@@ -50,11 +49,11 @@ func (oc *OpConfig) GetSection(ctx *base.Context, mainInput *base.OperatorIO, ar
 func (oc *OpConfig) RemoveSection(ctx *base.Context, mainInput *base.OperatorIO, args SectionParams) *base.OperatorIO {
 	err := oc.CR.RemoveSection(args.SectionName)
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error removing section \"%v\": %v", args.SectionName, err))
+		return base.MakeOutputError(http.StatusInternalServerError, "Error removing section \"%v\": %v", args.SectionName, err)
 	}
 	err = oc.CR.WriteBackConfigIfChanged()
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error writing config: %v", err))
+		return base.MakeOutputError(http.StatusInternalServerError, "Error writing config: %v", err)
 	}
 	return base.MakeEmptyOutput()
 }
@@ -63,7 +62,7 @@ func (oc *OpConfig) RemoveSection(ctx *base.Context, mainInput *base.OperatorIO,
 func (oc *OpConfig) WriteSection(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
 	args, err := mainInput.ParseFormData()
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 
 	if !args.Has("sectionName") {
@@ -75,11 +74,11 @@ func (oc *OpConfig) WriteSection(ctx *base.Context, mainInput *base.OperatorIO) 
 
 	err = oc.CR.WriteSectionBytes(args.Get("sectionName"), []byte(args.Get("sectionBytes")))
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	err = oc.CR.WriteBackConfigIfChanged()
 	if err != nil {
-		return base.MakeOutputError(http.StatusInternalServerError, fmt.Sprintf("Error writing config: %v", err))
+		return base.MakeOutputError(http.StatusInternalServerError, "Error writing config: %v", err)
 	}
 	return base.MakeEmptyOutput()
 }

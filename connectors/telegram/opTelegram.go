@@ -81,7 +81,7 @@ func (m *OpTelegram) Post(ctx *base.Context, input *base.OperatorIO, args PostAr
 		var byt []byte
 		byt, err = input.GetBytes()
 		if err != nil {
-			base.MakeOutputError(http.StatusInternalServerError, err.Error())
+			base.MakeInternalServerErrorOutput(err)
 		}
 		tphoto := tgbotapi.NewPhoto(args.ChatID, tgbotapi.FileBytes{Name: "picture." + input.ContentType[6:], Bytes: byt})
 		res, err = m.bot.Send(tphoto)

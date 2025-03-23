@@ -134,7 +134,7 @@ func (p *fileStoreNamespace) GetSearchResultWithMetadata(keyPattern string, valu
 func (p *fileStoreNamespace) GetValue(key string) StoreEntry {
 	path, err := p.getFilePath(key)
 	if err != nil {
-		return MakeEntryError(http.StatusBadRequest, err.Error())
+		return MakeEntryError(http.StatusBadRequest, "Failed to get file path: %v", err.Error())
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -159,20 +159,20 @@ func (p *fileStoreNamespace) Len() int {
 func (p *fileStoreNamespace) SetValue(key string, io *base.OperatorIO, modifiedBy *base.Context) StoreEntry {
 	path, err := p.getFilePath(key)
 	if err != nil {
-		return MakeEntryError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, "%v", err.Error())
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		return MakeEntryError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	b, err := io.GetBytes()
 	if err != nil {
-		return MakeEntryError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	_, err = f.Write(b)
 	if err != nil {
-		return MakeEntryError(http.StatusInternalServerError, err.Error())
+		return MakeEntryError(http.StatusInternalServerError, "%v", err.Error())
 	}
 	return makeGenericStoreEntry(io)
 }

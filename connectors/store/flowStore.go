@@ -34,7 +34,7 @@ func GetFlow(name string) (freepsflow.FlowDesc, error) {
 func StoreFlow(name string, gd freepsflow.FlowDesc, modifiedBy *base.Context) *base.OperatorIO {
 	b, err := json.MarshalIndent(gd, "", "  ")
 	if err != nil {
-		return base.MakeOutputError(500, "Failed to marshal flow: "+err.Error())
+		return base.MakeOutputError(500, "Failed to marshal flow: %v", err.Error())
 	}
 	return GetFlowStore().SetValue(name, base.MakeByteOutput(b), modifiedBy).GetData()
 }

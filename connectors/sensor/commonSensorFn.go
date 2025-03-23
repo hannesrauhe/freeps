@@ -65,7 +65,7 @@ func (o *OpSensor) getPropertyIndex(sensorID string) (Sensor, error) {
 func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.OperatorIO, sensorCategory string, sensorName string, sensorProperty string) (*base.OperatorIO, bool, bool, bool) {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error()), false, false, false
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error()), false, false, false
 	}
 
 	ns := o.getSensorNamespace()
@@ -111,7 +111,7 @@ func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.Ope
 				ok := false
 				sensorInformation, ok = v.GetData().Output.(Sensor)
 				if !ok {
-					return base.MakeErrorOutputFromError(fmt.Errorf("existing properties for \"%s\" are in an invalid format", sensorID))
+					return base.MakeInternalServerErrorOutput(fmt.Errorf("existing properties for \"%s\" are in an invalid format", sensorID))
 				}
 				if newProperty {
 					sensorInformation.Properties = append(sensorInformation.Properties, sensorProperty)
@@ -130,7 +130,7 @@ func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.Ope
 		catEnt := ns.UpdateTransaction("_categories", func(v freepsstore.StoreEntry) *base.OperatorIO {
 			categories, ok := v.GetData().Output.(base.FunctionArguments)
 			if !ok {
-				return base.MakeErrorOutputFromError(fmt.Errorf("category index is in an invalid format"))
+				return base.MakeInternalServerErrorOutput(fmt.Errorf("category index is in an invalid format"))
 			}
 			if !categories.ContainsValue(sensorCategory, sensorName) {
 				categories.Append(sensorCategory, sensorName)
@@ -170,7 +170,7 @@ func (o *OpSensor) getSensorPropertyByID(sensorID string, sensorProperty string)
 func (o *OpSensor) getSensorProperty(sensorCategory string, sensorName string, sensorProperty string) *base.OperatorIO {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	return o.getSensorPropertyByID(sensorID, sensorProperty)
 }
@@ -194,7 +194,7 @@ func (o *OpSensor) getSensorAliasByID(sensorID string) *base.OperatorIO {
 func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *base.OperatorIO {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
-		return base.MakeOutputError(http.StatusBadRequest, err.Error())
+		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	return o.getSensorAliasByID(sensorID)
 }
