@@ -20,7 +20,7 @@ func isSupportedField(field reflect.Value, mustBePtr bool) bool {
 	if !field.CanSet() {
 		return false
 	}
-	if field.Kind() == reflect.Ptr && mustBePtr {
+	if (field.Kind() == reflect.Ptr || field.Kind() == reflect.Slice) && mustBePtr {
 		return isSupportedFieldType(field.Type().Elem())
 	}
 	if mustBePtr {
@@ -38,15 +38,8 @@ func getJSONFieldName(field reflect.StructField) string {
 	return parts[0]
 }
 
-// setSupportedField sets the value of the field and converts from string if necessary
-func setSupportedField(field reflect.Value, value string) error {
-	if field.Type().Kind() == reflect.Ptr {
-		newField := reflect.New(field.Type().Elem())
-		field.Set(newField)
-		field = field.Elem()
-	}
-
-	// convert the value to the type of the field, return an error if the conversion fails
+// setElementOfSupportedField convert the value to the type of the field, return an error if the conversion fails
+func setElementOfSupportedField(field reflect.Value, value string) error {
 	switch field.Kind() {
 	case reflect.Int:
 		v, err := utils.StringToInt(value)
@@ -83,8 +76,32 @@ func setSupportedField(field reflect.Value, value string) error {
 	return nil
 }
 
+// setSupportedField sets the value of the field and converts from string if necessary
+func setSupportedField(field reflect.Value, valueSlice []string) error {
+
+	if field.Type().Kind() == reflect.Ptr {
+		newField := reflect.New(field.Type().Elem())
+		field.Set(newField)
+		field = field.Elem()
+		return setElementOfSupportedField(field, valueSlice[0])
+	} else if field.Type().Kind() == reflect.Slice {
+		newField := reflect.MakeSlice(field.Type(), len(valueSlice), len(valueSlice))
+		for i, value := range valueSlice {
+			err := setElementOfSupportedField(newField.Index(i), value)
+			if err != nil {
+				return err
+			}
+		}
+		field.Set(newField)
+		return nil
+	}
+
+	// if the field is not a pointer or a slice, set the value of the field
+	return setElementOfSupportedField(field, valueSlice[0])
+}
+
 // SetRequiredFreepsFunctionParameters sets the parameters of the FreepsFunction based on the args map
-func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncParams reflect.Value, args map[string]string, failOnErr bool) *OperatorIO {
+func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncParams reflect.Value, args map[string][]string, failOnErr bool) *OperatorIO {
 	//make sure all non-pointer fields of the FreepsFunction are set to the values of the args map
 	for i := 0; i < freepsFuncParams.Elem().NumField(); i++ {
 		field := freepsFuncParams.Elem().Field(i)
@@ -128,7 +145,7 @@ func (o *FreepsOperatorWrapper) SetRequiredFreepsFunctionParameters(freepsFuncPa
 }
 
 // SetOptionalFreepsFunctionParameters sets the parameters of the FreepsFunction based on the args map
-func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsFuncParams reflect.Value, args map[string]string, failOnErr bool) *OperatorIO {
+func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsFuncParams reflect.Value, args map[string][]string, failOnErr bool) *OperatorIO {
 	// set all pointer fields of the FreepsFunction to the values of the args map
 	for i := 0; i < freepsFuncParams.Elem().NumField(); i++ {
 		field := freepsFuncParams.Elem().Field(i)
@@ -154,7 +171,7 @@ func (o *FreepsOperatorWrapper) SetOptionalFreepsFunctionParameters(freepsFuncPa
 		err := setSupportedField(field, v)
 		if err != nil {
 			if failOnErr {
-				return MakeOutputError(http.StatusBadRequest, fmt.Sprintf("Parameter \"%v\" is invalid: %v", fieldName, err))
+				return MakeOutputError(http.StatusBadRequest, "Parameter \"%v\" is invalid: %v", fieldName, err)
 			}
 			continue
 		}

@@ -209,8 +209,8 @@ func StringToLower(input string) string {
 	return strings.ToLower(input)
 }
 
-// StringCmpIgnoreCase compares two strings ignoring case
-func StringCmpIgnoreCase(a string, b string) bool {
+// StringEqualsIgnoreCase compares two strings ignoring case
+func StringEqualsIgnoreCase(a string, b string) bool {
 	return strings.ToLower(a) == strings.ToLower(b)
 }
 

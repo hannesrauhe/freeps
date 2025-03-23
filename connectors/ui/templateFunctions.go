@@ -12,7 +12,6 @@ import (
 	"github.com/hannesrauhe/freeps/base"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsflow"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
@@ -131,18 +130,18 @@ func (o *OpUI) createTemplateFuncMap(ctx *base.Context) template.FuncMap {
 			return flowByName
 		},
 		"flow_ExecuteFlow": func(flowName string, mainArgsStr string) *base.OperatorIO {
-			mainArgs, err := utils.URLParseQuery(mainArgsStr)
+			fa, err := base.NewFunctionArgumentsFromURLQuery(mainArgsStr)
 			if err != nil {
 				return base.MakeOutputError(400, "Could not parse mainArgs: %v", err)
 			}
-			return o.ge.ExecuteFlow(ctx, flowName, base.NewFunctionArguments(mainArgs), base.MakeEmptyOutput())
+			return o.ge.ExecuteFlow(ctx, flowName, fa, base.MakeEmptyOutput())
 		},
 		"flow_ExecuteOperator": func(op string, fn string, mainArgsStr string) *base.OperatorIO {
-			mainArgs, err := utils.URLParseQuery(mainArgsStr)
+			fa, err := base.NewFunctionArgumentsFromURLQuery(mainArgsStr)
 			if err != nil {
 				return base.MakeOutputError(400, "Could not parse mainArgs: %v", err)
 			}
-			return o.ge.ExecuteOperatorByName(ctx, op, fn, base.NewFunctionArguments(mainArgs), base.MakeEmptyOutput())
+			return o.ge.ExecuteOperatorByName(ctx, op, fn, fa, base.MakeEmptyOutput())
 		},
 		"flow_GetTagMap": func() map[string][]string {
 			return o.ge.GetTagMap()

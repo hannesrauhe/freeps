@@ -19,6 +19,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	optime "github.com/hannesrauhe/freeps/connectors/time"
@@ -88,7 +89,9 @@ func mainLoop() bool {
 
 	// keep this here so the operators are re-created on reload
 	availableOperators := []base.FreepsOperator{
-		&freepsstore.OpStore{CR: cr, GE: ge},
+		&freepsstore.OpStore{CR: cr, GE: ge}, // must be first so that other operators can use the store
+		&opalert.OpAlert{CR: cr, GE: ge},     // must be second so that other operators can use alerts
+		&sensor.OpSensor{CR: cr, GE: ge},     // must be third so that other operators can use sensors
 		&freepsbluetooth.Bluetooth{GE: ge},
 		&muteme.MuteMe{GE: ge},
 		&freepsflux.OperatorFlux{},
@@ -103,7 +106,6 @@ func mainLoop() bool {
 		&optime.OpTime{},
 		&fritz.OpFritz{CR: cr, GE: ge},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
-		&opalert.OpAlert{CR: cr, GE: ge},
 		&weather.OpWeather{},
 	}
 

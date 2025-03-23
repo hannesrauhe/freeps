@@ -208,12 +208,13 @@ func (g *Flow) executeOperation(parentCtx *base.Context, originalOpDesc *FlowOpe
 		return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "%s", err.Error())
 	}
 
+	combinedArgs := base.NewFunctionArguments(finalOpDesc.Arguments)
 	if finalOpDesc.UseMainArgs {
-		for k, v := range mainArgs.GetOriginalCaseMapOnlyFirst() {
-			if _, ok := finalOpDesc.Arguments[k]; ok {
+		for k, v := range mainArgs.GetOriginalCaseMap() {
+			if combinedArgs.Has(k) {
 				logger.Warnf("Argument %s overwritten by main arg", k)
 			}
-			finalOpDesc.Arguments[k] = v
+			combinedArgs.Set(k, v)
 		}
 	}
 
@@ -234,16 +235,16 @@ func (g *Flow) executeOperation(parentCtx *base.Context, originalOpDesc *FlowOpe
 			return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 500, "Output of \"%s\" cannot be used as arguments: %v", finalOpDesc.ArgumentsFrom, err)
 		}
 		for k, v := range collectedArgs {
-			finalOpDesc.Arguments[k] = v
+			combinedArgs.Set(k, []string{v})
 		}
 	}
 
 	op := g.engine.GetOperator(finalOpDesc.Operator)
 	if op != nil {
-		ctx.GetLogger().Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, finalOpDesc.Arguments)
+		ctx.GetLogger().Debugf("Calling operator \"%v\", Function \"%v\" with arguments \"%v\"", finalOpDesc.Operator, finalOpDesc.Function, combinedArgs.GetOriginalCaseMap())
 		defer ctx.GetLogger().Debugf("Operation \"%s\" finished", originalOpDesc.Name)
 
-		output := g.executeOperationWithOptionalTimeout(ctx, op, finalOpDesc.Function, base.NewFunctionArguments(finalOpDesc.Arguments), input)
+		output := g.executeOperationWithOptionalTimeout(ctx, op, finalOpDesc.Function, combinedArgs, input)
 		g.engine.TriggerOnExecuteOperationHooks(ctx, input, output, g.GetFlowID(), finalOpDesc)
 		return output
 	}
