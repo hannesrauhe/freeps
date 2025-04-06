@@ -23,7 +23,7 @@ func TestMigrateOldConfig(t *testing.T) {
 	op := OperatorInflux{CR: cr, GE: ge}
 	cfg := op.GetDefaultConfig()
 	op.InitCopyOfOperator(ctx, cfg, "influx")
-	assert.Equal(t, cfg.(*InfluxConfig).Enabled, false)
+	assert.Equal(t, cfg.(*InfluxConfig).Enabled, true)
 
 	cr.WriteSectionBytes("freepsflux", []byte(`{
 		"Enabled": true,

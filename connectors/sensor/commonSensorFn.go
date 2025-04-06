@@ -204,13 +204,25 @@ func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *bas
 
 func (o *OpSensor) recordUpdatesAndTrigger(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) {
 	o.executeTriggers(ctx, sensorCategory, sensorName, changedProperties)
-	ii := influx.GetGlobalInfluxInstance()
-	if ii != nil {
-		measurement := sensorCategory + "." + sensorName
-		out := ii.PushFieldsInternal(measurement, map[string]string{}, changedProperties, ctx)
-		if out.IsError() {
-			alertDuration := time.Minute // TODO(HR): configure?
-			o.GE.SetSystemAlert(ctx, "sensor_write_error", "sensor", 3, out.GetError(), &alertDuration)
-		}
+
+	if o.config.InfluxInstancePerCategory == nil {
+		return
 	}
+	//TODO(HR): ignore the name for now
+	_, ok := o.config.InfluxInstancePerCategory[sensorCategory]
+	if !ok {
+		return
+	}
+	ii := influx.GetGlobalInfluxInstance()
+	if ii == nil {
+		return
+	}
+
+	measurement := sensorCategory + "." + sensorName
+	out := ii.PushFieldsInternal(measurement, map[string]string{}, changedProperties, ctx)
+	if out.IsError() {
+		alertDuration := time.Minute // TODO(HR): configure?
+		o.GE.SetSystemAlert(ctx, "sensor_write_error", "sensor", 3, out.GetError(), &alertDuration)
+	}
+
 }
