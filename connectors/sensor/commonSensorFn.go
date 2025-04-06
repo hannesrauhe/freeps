@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/influx"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 )
 
@@ -147,18 +149,19 @@ func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.Ope
 }
 
 func (o *OpSensor) setSensorProperties(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) *base.OperatorIO {
-	updatedProperties := make([]string, 0)
+	updatedProperties := map[string]interface{}{}
 	for k, v := range properties {
 		out, _, _, updated := o.setSensorPropertyNoTrigger(ctx, base.MakeOutputGuessType(v), sensorCategory, sensorName, k)
 		if out.IsError() {
 			return out
 		}
 		if updated {
-			updatedProperties = append(updatedProperties, k)
+			updatedProperties[k] = v
 		}
 	}
 	if len(updatedProperties) > 0 {
-		o.executeTrigger(ctx, sensorCategory, sensorName, updatedProperties)
+
+		o.recordUpdatesAndTrigger(ctx, sensorCategory, sensorName, updatedProperties)
 	}
 	return base.MakeEmptyOutput()
 }
@@ -197,4 +200,17 @@ func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *bas
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	return o.getSensorAliasByID(sensorID)
+}
+
+func (o *OpSensor) recordUpdatesAndTrigger(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) {
+	o.executeTriggers(ctx, sensorCategory, sensorName, changedProperties)
+	ii := influx.GetGlobalInfluxInstance()
+	if ii != nil {
+		measurement := sensorCategory + "." + sensorName
+		out := ii.PushFieldsInternal(measurement, map[string]string{}, changedProperties, ctx)
+		if out.IsError() {
+			alertDuration := time.Minute // TODO(HR): configure?
+			o.GE.SetSystemAlert(ctx, "sensor_write_error", "sensor", 3, out.GetError(), &alertDuration)
+		}
+	}
 }

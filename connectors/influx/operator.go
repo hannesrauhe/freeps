@@ -35,9 +35,14 @@ func (o *OperatorInflux) GetDefaultConfig() interface{} {
 
 func (o *OperatorInflux) migrateConfig(cfg *InfluxConfig) {
 	oldCfgSection := &OldFreepsFluxConfig{}
-	o.CR.ReadSectionWithDefaults("freepsflux", oldCfgSection)
+	oldSectionName := "freepsflux"
+	o.CR.ReadSectionWithDefaults(oldSectionName, oldCfgSection)
 	if len(oldCfgSection.InfluxdbConnections) == 0 {
-		return
+		oldSectionName = "flux"
+		o.CR.ReadSectionWithDefaults(oldSectionName, oldCfgSection)
+		if len(oldCfgSection.InfluxdbConnections) == 0 {
+			return
+		}
 	}
 	oldCfg := oldCfgSection.InfluxdbConnections[0]
 	cfg.Bucket = oldCfg.Bucket
@@ -47,10 +52,10 @@ func (o *OperatorInflux) migrateConfig(cfg *InfluxConfig) {
 	cfg.Enabled = oldCfgSection.Enabled
 	if len(oldCfgSection.InfluxdbConnections) > 1 {
 		oldCfgSection.InfluxdbConnections = oldCfgSection.InfluxdbConnections[1:]
-		o.CR.WriteSection("freepsflux", oldCfgSection, true)
+		o.CR.WriteSection(oldSectionName, oldCfgSection, true)
 	} else {
 		oldCfgSection.InfluxdbConnections = nil
-		o.CR.RemoveSection("freepsflux")
+		o.CR.RemoveSection(oldSectionName)
 	}
 
 }
