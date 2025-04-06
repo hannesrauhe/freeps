@@ -17,6 +17,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/fritz"
 	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
 	influx "github.com/hannesrauhe/freeps/connectors/infux"
+	freepsmetrics "github.com/hannesrauhe/freeps/connectors/metrics"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
@@ -109,6 +110,7 @@ func mainLoop() bool {
 		&fritz.OpFritz{CR: cr, GE: ge},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&weather.OpWeather{},
+		&freepsmetrics.OpMetrics{CR: cr, GE: ge},
 	}
 
 	for _, op := range availableOperators {
