@@ -49,7 +49,7 @@ func (ge *FlowEngine) loadStoredAndEmbeddedFlows(ctx *base.Context) error {
 		}
 		gd.Source = "embedded"
 
-		err = ge.addFlowUnderLock(ctx, e.Name()[:len(e.Name())-5], gd, false, false)
+		err = ge.AddFlowUnderLock(ctx, e.Name()[:len(e.Name())-5], gd, false, false)
 		if err != nil {
 			ctx.GetLogger().Warnf("Could not load embedded flow \"%v\": %v", e.Name(), err)
 		}
@@ -76,7 +76,7 @@ func (ge *FlowEngine) loadStoredAndEmbeddedFlows(ctx *base.Context) error {
 			ctx.GetLogger().Warnf("Could not load stored flow \"%v\": %v", e.Name(), err)
 		}
 
-		err = ge.addFlowUnderLock(ctx, e.Name()[:len(e.Name())-5], gd, false, false)
+		err = ge.AddFlowUnderLock(ctx, e.Name()[:len(e.Name())-5], gd, false, false)
 		if err != nil {
 			ctx.GetLogger().Warnf("Could not load stored flow \"%v\": %v", e.Name(), err)
 		}

@@ -214,6 +214,11 @@ func (m *OpUtils) Fail(ctx *base.Context, input *base.OperatorIO) *base.Operator
 	return base.MakeOutputError(http.StatusExpectationFailed, "Fail")
 }
 
+// NoOp just returns success
+func (m *OpUtils) NoOp(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+	return base.MakeEmptyOutput()
+}
+
 // EchoArgumentsArgs are the arguments for the EchoArguments function
 type EchoArgumentsArgs struct {
 	InputKey *string
