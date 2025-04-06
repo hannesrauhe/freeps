@@ -153,7 +153,7 @@ func (o *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.Operat
 	}
 
 	if updated {
-		o.executeTrigger(ctx, args.SensorCategory, args.SensorName, []string{args.PropertyName})
+		o.recordUpdatesAndTrigger(ctx, args.SensorCategory, args.SensorName, map[string]interface{}{args.PropertyName: input.Output})
 	}
 
 	return out
