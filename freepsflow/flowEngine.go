@@ -458,10 +458,11 @@ func (ge *FlowEngine) AddFlow(ctx *base.Context, flowID string, gd FlowDesc, ove
 
 	ge.flowLock.Lock()
 	defer ge.flowLock.Unlock()
-	return ge.addFlowUnderLock(ctx, flowID, gd, true, overwrite)
+	return ge.AddFlowUnderLock(ctx, flowID, gd, true, overwrite)
 }
 
-func (ge *FlowEngine) addFlowUnderLock(ctx *base.Context, flowName string, gd FlowDesc, writeToDisk bool, overwrite bool) error {
+// AddFlowUnderLock adds a flow without all prechecks and without acquiring a lock, should only be used internally
+func (ge *FlowEngine) AddFlowUnderLock(ctx *base.Context, flowName string, gd FlowDesc, writeToDisk bool, overwrite bool) error {
 	oldFlow, ok := ge.flows[flowName]
 	if ok {
 		if overwrite {

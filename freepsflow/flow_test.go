@@ -1,4 +1,4 @@
-package freepsflow
+package freepsflow_test
 
 import (
 	"os"
@@ -7,9 +7,16 @@ import (
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
+
+	opalert "github.com/hannesrauhe/freeps/connectors/alert"
+	freepsmetrics "github.com/hannesrauhe/freeps/connectors/metrics"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
+	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 )
 
 type MockOperator struct {
@@ -54,18 +61,38 @@ func (*MockOperator) GetHook() interface{} {
 
 var _ base.FreepsBaseOperator = &MockOperator{}
 
-func createValidFlow() FlowDesc {
-	return FlowDesc{Operations: []FlowOperationDesc{{Operator: "system", Function: "noop"}}, Source: "test"}
+func setupEngine(t *testing.T) (*base.Context, *freepsflow.FlowEngine) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
+	ge := freepsflow.NewFlowEngine(ctx, cr, func() {})
+	availableOperators := []base.FreepsOperator{
+		&freepsstore.OpStore{CR: cr, GE: ge}, // must be first so that other operators can use the store
+		&opalert.OpAlert{CR: cr, GE: ge},     // must be second so that other operators can use alerts
+		&sensor.OpSensor{CR: cr, GE: ge},     // must be third so that other operators can use sensors
+		&freepsmetrics.OpMetrics{CR: cr, GE: ge},
+		&freepsutils.OpUtils{},
+	}
+
+	for _, op := range availableOperators {
+		ge.AddOperators(base.MakeFreepsOperators(op, cr, ctx))
+	}
+	return ctx, ge
+}
+
+func createValidFlow() freepsflow.FlowDesc {
+	return freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "noop"}}, Source: "test"}
 }
 
 func TestOperatorErrorChain(t *testing.T) {
-	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	ge := NewFlowEngine(ctx, nil, func() {})
-	ge.flows["test"] = &FlowDesc{Operations: []FlowOperationDesc{
+	ctx, ge := setupEngine(t)
+
+	ge.AddFlowUnderLock(ctx, "test", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
 			"valueType": "bool"}, InputFrom: "_"},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
-	}, OutputFrom: "echook"}
+	}, OutputFrom: "echook"}, false, true)
 	oError := ge.ExecuteFlow(ctx, "test", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 	assert.Assert(t, oError.IsError(), "unexpected output: %v", oError)
 
@@ -79,38 +106,38 @@ func TestOperatorErrorChain(t *testing.T) {
 }
 
 func TestCheckFlow(t *testing.T) {
-	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	ge := NewFlowEngine(ctx, nil, func() {})
-	ge.flows["test_noinput"] = &FlowDesc{Operations: []FlowOperationDesc{
+	ctx, ge := setupEngine(t)
+
+	ge.AddFlowUnderLock(ctx, "test_noinput", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
-	}}
+	}}, false, true)
 	opIO := ge.CheckFlow("test_noinput")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
-	ge.flows["test_noargs"] = &FlowDesc{Operations: []FlowOperationDesc{
+	ge.AddFlowUnderLock(ctx, "test_noargs", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
 		{Operator: "eval", Function: "eval", ArgumentsFrom: "NOTEXISTING"},
-	}}
+	}}, false, true)
 	opIO = ge.CheckFlow("test_noargs")
 
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
-	ge.flows["test_noop"] = &FlowDesc{Operations: []FlowOperationDesc{
+	ge.AddFlowUnderLock(ctx, "test_noop", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
 		{Operator: "NOTHERE"},
-	}}
+	}}, false, true)
 
 	opIO = ge.CheckFlow("test_noargs")
 	assert.Assert(t, opIO.IsError(), "unexpected output: %v", opIO)
 
 	gv := createValidFlow()
-	ge.flows["test_valid"] = &gv
+	ge.AddFlowUnderLock(ctx, "test_valid", gv, false, true)
 	opIO = ge.CheckFlow("test_valid")
 	assert.Assert(t, !opIO.IsError(), "unexpected output: %v", opIO)
 
 	gd, _ := ge.GetFlowDesc("test_valid")
 	assert.Equal(t, gd.Operations[0].Name, "", "original flow should not be modified")
 
-	g, err := NewFlow(ctx, "", gd, ge)
+	g, err := freepsflow.NewFlow(ctx, "", gd, ge)
 	assert.NilError(t, err)
-	assert.Equal(t, g.desc.Operations[0].Name, "#0")
+	assert.Equal(t, g.GetCompleteDesc().Operations[0].Name, "#0")
 }
 
 func fileIsInList(cr *utils.ConfigReader, flowFile string) bool {
@@ -128,18 +155,13 @@ func fileIsInList(cr *utils.ConfigReader, flowFile string) bool {
 }
 
 func TestFlowStorage(t *testing.T) {
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
-	assert.NilError(t, err)
-
-	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	ge := NewFlowEngine(ctx, cr, func() {})
+	ctx, ge := setupEngine(t)
 
 	// expect embedded flows to be loaded
 	assert.Equal(t, len(ge.GetAllFlowDesc()), 2)
 
 	gdir := ge.GetFlowDir()
-	err = ge.AddFlow(ctx, "test1", createValidFlow(), false)
+	err := ge.AddFlow(ctx, "test1", createValidFlow(), false)
 	assert.NilError(t, err)
 	_, err = os.Stat(path.Join(gdir, "test1.json"))
 	assert.NilError(t, err)
@@ -212,11 +234,7 @@ func expectOutput(t *testing.T, op *base.OperatorIO, expectedCode int, expectedO
 }
 
 func TestFlowExecution(t *testing.T) {
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
-	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	assert.NilError(t, err)
-	ge := NewFlowEngine(ctx, cr, func() {})
+	ctx, ge := setupEngine(t)
 
 	expectByTagExtendedExecution := func(tagGroups [][]string, expectedOutputKeys []string) {
 		expectedCode := 200
@@ -241,7 +259,7 @@ func TestFlowExecution(t *testing.T) {
 	expectByTagExecution([]string{"not"}, nil)
 
 	g0 := createValidFlow()
-	err = ge.AddFlow(ctx, "test0", g0, false)
+	err := ge.AddFlow(ctx, "test0", g0, false)
 	assert.NilError(t, err)
 	expectByTagExecution([]string{"t1"}, nil)
 
@@ -307,22 +325,18 @@ func TestFlowExecution(t *testing.T) {
 	assert.DeepEqual(t, ge.GetTagValues("f:a"), []string{})
 }
 
-func test_replace_args(ctx *base.Context, ge *FlowEngine, input1 string, input2 string) *base.OperatorIO {
-	op1 := FlowOperationDesc{Name: "echo_output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input1}}
-	op2 := FlowOperationDesc{Name: "stat_output", Operator: "system", Function: "stats", Arguments: map[string]string{"statType": input1}}
-	op3 := FlowOperationDesc{Name: "output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input2}}
-	g0 := FlowDesc{Operations: []FlowOperationDesc{op1, op2, op3}, Source: "test", OutputFrom: "output"}
+func test_replace_args(ctx *base.Context, ge *freepsflow.FlowEngine, input1 string, input2 string) *base.OperatorIO {
+	op1 := freepsflow.FlowOperationDesc{Name: "echo_output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input1}}
+	op2 := freepsflow.FlowOperationDesc{Name: "stat_output", Operator: "metrics", Function: "stats", Arguments: map[string]string{"statType": input1}}
+	op3 := freepsflow.FlowOperationDesc{Name: "output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input2}}
+	g0 := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{op1, op2, op3}, Source: "test", OutputFrom: "output"}
 
 	ge.AddFlow(ctx, "test0", g0, true)
 	return ge.ExecuteFlow(ctx, "test0", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
 }
 
 func TestArgumentReplacement(t *testing.T) {
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
-	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	assert.NilError(t, err)
-	ge := NewFlowEngine(ctx, cr, func() {})
+	ctx, ge := setupEngine(t)
 
 	/* test simple string replacement */
 	r := test_replace_args(ctx, ge, "test", "Operator output was: ${echo_output}")
@@ -357,36 +371,32 @@ func TestArgumentReplacement(t *testing.T) {
 }
 
 func TestIfElseInputLogic(t *testing.T) {
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
-	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	assert.NilError(t, err)
-	ge := NewFlowEngine(ctx, cr, func() {})
+	ctx, ge := setupEngine(t)
 
-	testFlow := FlowDesc{Operations: []FlowOperationDesc{
-		{Name: "success", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "success"}},
+	testFlow := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
+		{Name: "success", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "success"}},
 		{Name: "fail", Operator: "system", Function: "fail"},
 		/* should be executed because "success" succeeded */
-		{Name: "echo_on_success", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "echo_on_success"}, ExecuteOnSuccessOf: "success"},
+		{Name: "echo_on_success", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "echo_on_success"}, ExecuteOnSuccessOf: "success"},
 		/* should be executed because "fail" failed */
-		{Name: "echo_on_fail", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "echo_on_fail"}, ExecuteOnFailOf: "fail"},
+		{Name: "echo_on_fail", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "echo_on_fail"}, ExecuteOnFailOf: "fail"},
 		/* should be executed because "success" succeeded and "fail" failed */
-		{Name: "echo_on_success_fail", Operator: "system", Function: "echo", Arguments: map[string]string{"output": "echo_on_success_fail"}, ExecuteOnSuccessOf: "success", ExecuteOnFailOf: "fail"},
+		{Name: "echo_on_success_fail", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "echo_on_success_fail"}, ExecuteOnSuccessOf: "success", ExecuteOnFailOf: "fail"},
 		/* should echo the main input */
-		{Name: "echo_main_input", Operator: "system", Function: "echo", InputFrom: "_"},
+		{Name: "echo_main_input", Operator: "utils", Function: "echo", InputFrom: "_"},
 		/* should not be executed because "fail" did not succeed */
-		{Name: "no_echo_main_input_on_success", Operator: "system", Function: "echo", InputFrom: "_", ExecuteOnSuccessOf: "fail"},
+		{Name: "no_echo_main_input_on_success", Operator: "utils", Function: "echo", InputFrom: "_", ExecuteOnSuccessOf: "fail"},
 		/* should not be executed because "success" did not fail */
-		{Name: "no_echo_main_input_on_fail", Operator: "system", Function: "echo", InputFrom: "_", ExecuteOnFailOf: "success"},
+		{Name: "no_echo_main_input_on_fail", Operator: "utils", Function: "echo", InputFrom: "_", ExecuteOnFailOf: "success"},
 		/* should be executed but return an emptry result because there is no input */
-		{Name: "echo_empty_input", Operator: "system", Function: "echo", ExecuteOnSuccessOf: "success"},
+		{Name: "echo_empty_input", Operator: "utils", Function: "echo", ExecuteOnSuccessOf: "success"},
 		/* should echo the first output of the "success" operation*/
-		{Name: "echo_first_output", Operator: "system", Function: "echo", InputFrom: "success"},
+		{Name: "echo_first_output", Operator: "utils", Function: "echo", InputFrom: "success"},
 		/* should echo the first output of the "success" operation because "fail" failed */
-		{Name: "echo_first_output_on_fail", Operator: "system", Function: "echo", InputFrom: "success", ExecuteOnFailOf: "fail"},
-		{Name: "no_echo_first_output_on_success", Operator: "system", Function: "echo", InputFrom: "success", ExecuteOnSuccessOf: "fail"},
+		{Name: "echo_first_output_on_fail", Operator: "utils", Function: "echo", InputFrom: "success", ExecuteOnFailOf: "fail"},
+		{Name: "no_echo_first_output_on_success", Operator: "utils", Function: "echo", InputFrom: "success", ExecuteOnSuccessOf: "fail"},
 		/* should not be executed because "fail" did not succeed */
-		{Name: "no_echo_first_output", Operator: "system", Function: "echo", InputFrom: "fail"},
+		{Name: "no_echo_first_output", Operator: "utils", Function: "echo", InputFrom: "fail"},
 	}, Source: "test"}
 
 	ge.AddFlow(ctx, "test", testFlow, true)
