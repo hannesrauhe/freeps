@@ -89,8 +89,8 @@ func TestOperatorErrorChain(t *testing.T) {
 	ctx, ge := setupEngine(t)
 
 	ge.AddFlowUnderLock(ctx, "test", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
-		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
-			"valueType": "bool"}, InputFrom: "_"},
+		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: base.NewFunctionArguments(map[string]string{"valueName": "FieldsWithType.open.FieldValue",
+			"valueType": "bool"}), InputFrom: "_"},
 		{Name: "echook", Operator: "eval", Function: "echo", InputFrom: "dooropen"},
 	}, OutputFrom: "echook"}, false, true)
 	oError := ge.ExecuteFlow(ctx, "test", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
@@ -326,9 +326,9 @@ func TestFlowExecution(t *testing.T) {
 }
 
 func test_replace_args(ctx *base.Context, ge *freepsflow.FlowEngine, input1 string, input2 string) *base.OperatorIO {
-	op1 := freepsflow.FlowOperationDesc{Name: "echo_output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input1}}
-	op2 := freepsflow.FlowOperationDesc{Name: "stat_output", Operator: "metrics", Function: "stats", Arguments: map[string]string{"statType": input1}}
-	op3 := freepsflow.FlowOperationDesc{Name: "output", Operator: "eval", Function: "echo", Arguments: map[string]string{"output": input2}}
+	op1 := freepsflow.FlowOperationDesc{Name: "echo_output", Operator: "eval", Function: "echo", Arguments: base.NewSingleFunctionArgument("output", input1)}
+	op2 := freepsflow.FlowOperationDesc{Name: "stat_output", Operator: "metrics", Function: "stats", Arguments: base.NewSingleFunctionArgument("statType", input1)}
+	op3 := freepsflow.FlowOperationDesc{Name: "output", Operator: "eval", Function: "echo", Arguments: base.NewSingleFunctionArgument("output", input2)}
 	g0 := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{op1, op2, op3}, Source: "test", OutputFrom: "output"}
 
 	ge.AddFlow(ctx, "test0", g0, true)
@@ -374,23 +374,23 @@ func TestIfElseInputLogic(t *testing.T) {
 	ctx, ge := setupEngine(t)
 
 	testFlow := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
-		{Name: "success", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "success"}},
+		{Name: "success", Operator: "utils", Function: "echo", Arguments: base.NewSingleFunctionArgument("output", "success")},
 		{Name: "fail", Operator: "system", Function: "fail"},
 		/* should be executed because "success" succeeded */
-		{Name: "echo_on_success", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "echo_on_success"}, ExecuteOnSuccessOf: "success"},
+		{Name: "echo_on_success", Operator: "utils", Function: "echo", Arguments: base.NewSingleFunctionArgument("output", "echo_on_success"), ExecuteOnSuccessOf: "success"},
 		/* should be executed because "fail" failed */
-		{Name: "echo_on_fail", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "echo_on_fail"}, ExecuteOnFailOf: "fail"},
+		{Name: "echo_on_fail", Operator: "utils", Function: "echo", Arguments: base.NewSingleFunctionArgument("output", "echo_on_fail"), ExecuteOnFailOf: "fail"},
 		/* should be executed because "success" succeeded and "fail" failed */
-		{Name: "echo_on_success_fail", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "echo_on_success_fail"}, ExecuteOnSuccessOf: "success", ExecuteOnFailOf: "fail"},
+		{Name: "echo_on_success_fail", Operator: "utils", Function: "echo", Arguments: base.NewSingleFunctionArgument("output", "echo_on_success_fail"), ExecuteOnSuccessOf: "success", ExecuteOnFailOf: "fail"},
 		/* should echo the main input */
 		{Name: "echo_main_input", Operator: "utils", Function: "echo", InputFrom: "_"},
 		/* should not be executed because "fail" did not succeed */
 		{Name: "no_echo_main_input_on_success", Operator: "utils", Function: "echo", InputFrom: "_", ExecuteOnSuccessOf: "fail"},
 		/* should not be executed because "success" did not fail */
 		{Name: "no_echo_main_input_on_fail", Operator: "utils", Function: "echo", InputFrom: "_", ExecuteOnFailOf: "success"},
-		/* should be executed but return an emptry result because there is no input */
+		/* should be executed but return an empty result because there is no input */
 		{Name: "echo_empty_input", Operator: "utils", Function: "echo", ExecuteOnSuccessOf: "success"},
-		/* should echo the first output of the "success" operation*/
+		/* should echo the first output of the "success" operation */
 		{Name: "echo_first_output", Operator: "utils", Function: "echo", InputFrom: "success"},
 		/* should echo the first output of the "success" operation because "fail" failed */
 		{Name: "echo_first_output_on_fail", Operator: "utils", Function: "echo", InputFrom: "success", ExecuteOnFailOf: "fail"},

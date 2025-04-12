@@ -131,17 +131,17 @@ func (g *Flow) collectAndReturnOperationError(ctx *base.Context, input *base.Ope
 }
 
 // replaceVariablesInArgs replaces variables of the form ${varName} in plainArgs with the values from the opOutputs
-func (g *Flow) replaceVariablesInArgs(plainArgs map[string]string) (map[string]string, error) {
+func (g *Flow) replaceVariablesInArgs(plainArgs base.FunctionArguments) (base.FunctionArguments, error) {
 	r := make(map[string]string)
 
 	if plainArgs == nil {
-		return r, nil
+		return base.MakeEmptyFunctionArguments(), nil
 	}
 
 	var returnErr error
 
 	re := regexp.MustCompile(`\${([^}]+)}`)
-	for k, v := range plainArgs {
+	for k, v := range plainArgs.GetLowerCaseMapJoined() {
 		r[k] = re.ReplaceAllStringFunc(v, func(match string) string {
 			outputName := match[2 : len(match)-1]
 			if opOutput, exists := g.opOutputs[outputName]; exists {
@@ -173,7 +173,7 @@ func (g *Flow) replaceVariablesInArgs(plainArgs map[string]string) (map[string]s
 			return val
 		})
 	}
-	return r, returnErr
+	return base.NewFunctionArguments(r), returnErr
 }
 
 func (g *Flow) executeOperation(parentCtx *base.Context, originalOpDesc *FlowOperationDesc, mainArgs base.FunctionArguments) *base.OperatorIO {
@@ -208,7 +208,7 @@ func (g *Flow) executeOperation(parentCtx *base.Context, originalOpDesc *FlowOpe
 		return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "%s", err.Error())
 	}
 
-	combinedArgs := base.NewFunctionArguments(finalOpDesc.Arguments)
+	combinedArgs := finalOpDesc.Arguments
 	if finalOpDesc.UseMainArgs {
 		for k, v := range mainArgs.GetOriginalCaseMap() {
 			if combinedArgs.Has(k) {

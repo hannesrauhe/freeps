@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
@@ -14,12 +15,12 @@ type FlowOperationDesc struct {
 	Name               string `json:",omitempty"`
 	Operator           string
 	Function           string
-	Arguments          map[string]string `json:",omitempty"`
-	InputFrom          string            `json:",omitempty"`
-	ExecuteOnSuccessOf string            `json:",omitempty"`
-	ExecuteOnFailOf    string            `json:",omitempty"`
-	ArgumentsFrom      string            `json:",omitempty"`
-	UseMainArgs        bool              `json:",omitempty"`
+	Arguments          base.FunctionArguments `json:",omitempty"`
+	InputFrom          string                 `json:",omitempty"`
+	ExecuteOnSuccessOf string                 `json:",omitempty"`
+	ExecuteOnFailOf    string                 `json:",omitempty"`
+	ArgumentsFrom      string                 `json:",omitempty"`
+	UseMainArgs        bool                   `json:",omitempty"`
 }
 
 // ToQuicklink returns the URL to call a standalone-operation outside of a Flow
@@ -29,11 +30,13 @@ func (gop *FlowOperationDesc) ToQuicklink() string {
 	if gop.Function != "" {
 		s.WriteString("/" + gop.Function)
 	}
-	if len(gop.Arguments) > 0 {
+	if !gop.Arguments.IsEmpty() {
 		s.WriteString("?")
 	}
-	for k, v := range gop.Arguments {
-		s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
+	for k, values := range gop.Arguments.GetOriginalCaseMap() {
+		for _, v := range values {
+			s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
+		}
 	}
 	return s.String()
 }

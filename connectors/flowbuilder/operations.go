@@ -97,7 +97,8 @@ func (m *OpFlowBuilder) SetOperation(ctx *base.Context, input *base.OperatorIO, 
 		if args.ArgumentValue == nil {
 			return base.MakeOutputError(400, "Argument value is missing")
 		}
-		gd.Operations[args.OperationNumber].Arguments[*args.ArgumentName] = *args.ArgumentValue
+
+		gd.Operations[args.OperationNumber].Arguments.Append(*args.ArgumentName, *args.ArgumentValue)
 	}
 	return freepsstore.StoreFlow(args.FlowName, gd, ctx)
 }

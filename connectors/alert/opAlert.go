@@ -375,7 +375,7 @@ func (oc *OpAlert) GetAlertSetters(ctx *base.Context, mainInput *base.OperatorIO
 		for _, op := range desc.Operations {
 			fn := strings.ToLower(op.Function)
 			if strings.ToLower(op.Operator) == "alert" && (fn == "setalert" || fn == "resetalert") {
-				args := base.NewFunctionArguments(op.Arguments)
+				args := op.Arguments
 				fullName := args.GetOrDefault("category", "") + "." + args.GetOrDefault("name", "")
 				if _, ok := ret[fullName]; !ok {
 					ret[fullName] = []string{}

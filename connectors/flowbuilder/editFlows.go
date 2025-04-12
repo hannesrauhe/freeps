@@ -26,7 +26,7 @@ func (m *OpFlowBuilder) buildDefaultOperation() freepsflow.FlowOperationDesc {
 	return freepsflow.FlowOperationDesc{
 		Operator:  "system",
 		Function:  "noop",
-		Arguments: map[string]string{},
+		Arguments: base.MakeEmptyFunctionArguments(),
 	}
 }
 

@@ -197,7 +197,7 @@ func (o *OpUI) createOutput(ctx *base.Context, templateBaseName string, template
 }
 
 func (o *OpUI) buildPartialFlow(formInput map[string]string) *freepsflow.FlowDesc {
-	standardOP := []freepsflow.FlowOperationDesc{{Operator: "flow", Function: "storeUI", Arguments: map[string]string{}}}
+	standardOP := []freepsflow.FlowOperationDesc{{Operator: "flow", Function: "storeUI", Arguments: base.MakeEmptyFunctionArguments()}}
 
 	gd := &freepsflow.FlowDesc{}
 	v, ok := formInput["FlowJSON"]
@@ -217,15 +217,15 @@ func (o *OpUI) buildPartialFlow(formInput map[string]string) *freepsflow.FlowDes
 	}
 	gopd := &gd.Operations[targetNum]
 	if gopd.Arguments == nil {
-		gopd.Arguments = make(map[string]string)
+		gopd.Arguments = base.MakeEmptyFunctionArguments()
 	}
 	for k, v := range formInput {
 		if utils.StringStartsWith(k, "arg.") {
-			gopd.Arguments[k[4:]] = v
+			gopd.Arguments.Append(k[4:], v)
 		} else if k == "newArg" && v != "" {
-			gopd.Arguments[v] = ""
+			gopd.Arguments.Append(v, "")
 		} else if k == "delArg" {
-			delete(gopd.Arguments, v)
+			//TODO: implement delete
 		} else if k == "addTag" && v != "" {
 			gd.AddTags(v)
 		} else if k == "delTag" {
@@ -358,7 +358,7 @@ func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.O
 	td.FlowJSON = string(b)
 	gopd := &gd.Operations[targetNum]
 	td.Numop = targetNum
-	td.Args = gopd.Arguments
+	td.Args = gopd.Arguments.GetOriginalCaseMapJoined()
 	for _, k := range o.ge.GetOperators() {
 		td.OpSuggestions[k] = (k == gopd.Operator)
 	}
@@ -371,7 +371,7 @@ func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.O
 		for _, k := range mod.GetPossibleArgs(gopd.Function) {
 			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, base.NewFunctionArguments(td.Args))
 		}
-		for k := range gopd.Arguments {
+		for _, k := range gopd.Arguments.GetOriginalKeys() {
 			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, base.NewFunctionArguments(td.Args))
 		}
 	}
