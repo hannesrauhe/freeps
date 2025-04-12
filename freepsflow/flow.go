@@ -203,12 +203,12 @@ func (g *Flow) executeOperation(parentCtx *base.Context, originalOpDesc *FlowOpe
 	finalOpDesc := &FlowOperationDesc{}
 	*finalOpDesc = *originalOpDesc
 	var err error
-	finalOpDesc.Arguments, err = g.replaceVariablesInArgs(originalOpDesc.Arguments)
+	finalOpDesc.FunctionArgs, err = g.replaceVariablesInArgs(originalOpDesc.FunctionArgs)
 	if err != nil {
 		return g.collectAndReturnOperationError(ctx, input, finalOpDesc, 404, "%s", err.Error())
 	}
 
-	combinedArgs := finalOpDesc.Arguments
+	combinedArgs := finalOpDesc.FunctionArgs
 	if finalOpDesc.UseMainArgs {
 		for k, v := range mainArgs.GetOriginalCaseMap() {
 			if combinedArgs.Has(k) {

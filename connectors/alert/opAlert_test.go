@@ -114,7 +114,7 @@ func TestOpAlert(t *testing.T) {
 func createTestFlow(keyToSet string) freepsflow.FlowDesc {
 	arguments := base.NewSingleFunctionArgument("key", keyToSet)
 	arguments.Append("namespace", "test")
-	gd := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: arguments}}}
+	gd := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", FunctionArgs: arguments}}}
 	return gd
 }
 

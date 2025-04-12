@@ -197,7 +197,7 @@ func (o *OpUI) createOutput(ctx *base.Context, templateBaseName string, template
 }
 
 func (o *OpUI) buildPartialFlow(formInput map[string]string) *freepsflow.FlowDesc {
-	standardOP := []freepsflow.FlowOperationDesc{{Operator: "flow", Function: "storeUI", Arguments: base.MakeEmptyFunctionArguments()}}
+	standardOP := []freepsflow.FlowOperationDesc{{Operator: "flow", Function: "storeUI", FunctionArgs: base.MakeEmptyFunctionArguments()}}
 
 	gd := &freepsflow.FlowDesc{}
 	v, ok := formInput["FlowJSON"]
@@ -216,14 +216,14 @@ func (o *OpUI) buildPartialFlow(formInput map[string]string) *freepsflow.FlowDes
 		gd.Operations = append(gd.Operations, standardOP...)
 	}
 	gopd := &gd.Operations[targetNum]
-	if gopd.Arguments == nil {
-		gopd.Arguments = base.MakeEmptyFunctionArguments()
+	if gopd.FunctionArgs == nil {
+		gopd.FunctionArgs = base.MakeEmptyFunctionArguments()
 	}
 	for k, v := range formInput {
 		if utils.StringStartsWith(k, "arg.") {
-			gopd.Arguments.Append(k[4:], v)
+			gopd.FunctionArgs.Append(k[4:], v)
 		} else if k == "newArg" && v != "" {
-			gopd.Arguments.Append(v, "")
+			gopd.FunctionArgs.Append(v, "")
 		} else if k == "delArg" {
 			//TODO: implement delete
 		} else if k == "addTag" && v != "" {
@@ -358,7 +358,7 @@ func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.O
 	td.FlowJSON = string(b)
 	gopd := &gd.Operations[targetNum]
 	td.Numop = targetNum
-	td.Args = gopd.Arguments.GetOriginalCaseMapJoined()
+	td.Args = gopd.FunctionArgs.GetOriginalCaseMapJoined()
 	for _, k := range o.ge.GetOperators() {
 		td.OpSuggestions[k] = (k == gopd.Operator)
 	}
@@ -371,7 +371,7 @@ func (o *OpUI) editFlow(ctx *base.Context, vars map[string]string, input *base.O
 		for _, k := range mod.GetPossibleArgs(gopd.Function) {
 			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, base.NewFunctionArguments(td.Args))
 		}
-		for _, k := range gopd.Arguments.GetOriginalKeys() {
+		for _, k := range gopd.FunctionArgs.GetOriginalKeys() {
 			td.ArgSuggestions[k] = mod.GetArgSuggestions(gopd.Function, k, base.NewFunctionArguments(td.Args))
 		}
 	}

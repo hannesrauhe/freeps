@@ -114,7 +114,7 @@ func (m *OpTelegram) getArgsButtons(arg string, tcr *TelegramCallbackResponse) [
 	if op == nil {
 		return make([]*ButtonWrapper, 0)
 	}
-	argOptions := op.GetArgSuggestions(ta.Function, arg, ta.Arguments)
+	argOptions := op.GetArgSuggestions(ta.Function, arg, ta.FunctionArgs)
 	keys := make([]*ButtonWrapper, 0, len(argOptions)+2)
 	tcr.F = true
 	keys = append(keys, m.newJSONButton("<Execute>", tcr))
@@ -236,7 +236,7 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.sendStartMessage(&msg)
 			return
 		}
-		tpl := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: tcr.C, Arguments: base.MakeEmptyFunctionArguments(), UseMainArgs: true, InputFrom: "_"}}, Source: "telegram"}
+		tpl := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: tcr.C, FunctionArgs: base.MakeEmptyFunctionArguments(), UseMainArgs: true, InputFrom: "_"}}, Source: "telegram"}
 		freepsstore.StoreFlow(tcr.T, tpl, ctx)
 		op, gd = m.getCurrentOp(tcr.T)
 		msg.Text = "Pick a function for " + gd.Operations[0].Operator
@@ -260,10 +260,10 @@ func (m *OpTelegram) respond(chat *tgbotapi.Chat, callbackData string, inputText
 			m.setChatState(ctx, *chat, tcr)
 		} else {
 			if tcr.P >= 0 {
-				if gd.Operations[0].Arguments == nil {
-					gd.Operations[0].Arguments = base.MakeEmptyFunctionArguments()
+				if gd.Operations[0].FunctionArgs == nil {
+					gd.Operations[0].FunctionArgs = base.MakeEmptyFunctionArguments()
 				}
-				gd.Operations[0].Arguments.Append(args[tcr.P], tcr.C)
+				gd.Operations[0].FunctionArgs.Append(args[tcr.P], tcr.C)
 				freepsstore.StoreFlow(tcr.T, *gd, ctx)
 			}
 			tcr.C = ""

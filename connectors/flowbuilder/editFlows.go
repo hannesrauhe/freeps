@@ -24,9 +24,9 @@ func (arg *FlowFromStoreArgs) FlowNameSuggestions(otherArgs base.FunctionArgumen
 
 func (m *OpFlowBuilder) buildDefaultOperation() freepsflow.FlowOperationDesc {
 	return freepsflow.FlowOperationDesc{
-		Operator:  "system",
-		Function:  "noop",
-		Arguments: base.MakeEmptyFunctionArguments(),
+		Operator:     "system",
+		Function:     "noop",
+		FunctionArgs: base.MakeEmptyFunctionArguments(),
 	}
 }
 
