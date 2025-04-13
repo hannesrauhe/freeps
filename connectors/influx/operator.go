@@ -80,9 +80,14 @@ func (o *OperatorInflux) InitCopyOfOperator(ctx *base.Context, config interface{
 		GE:     o.GE,
 		config: cfg,
 	}
-	if globalInflux == nil {
-		globalInflux = newOp
+	instanceName := "default"
+	if len(name) > len("influx") {
+		instanceName = name[len("influx."):]
 	}
+	if globalInflux == nil {
+		globalInflux = make(map[string]*OperatorInflux)
+	}
+	globalInflux[instanceName] = newOp
 	return newOp, nil
 }
 

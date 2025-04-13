@@ -1,8 +1,14 @@
 package influx
 
-var globalInflux *OperatorInflux
+var globalInflux map[string]*OperatorInflux
 
 // GetGlobalInfluxInstance returns the global sensor instance, that can be used by other operators to manage their sensors
-func GetGlobalInfluxInstance() *OperatorInflux {
-	return globalInflux
+func GetGlobalInfluxInstance(instanceName string) *OperatorInflux {
+	if globalInflux == nil {
+		return nil
+	}
+	if op, ok := globalInflux[instanceName]; ok {
+		return op
+	}
+	return nil
 }

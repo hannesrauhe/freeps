@@ -205,24 +205,45 @@ func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *bas
 func (o *OpSensor) recordUpdatesAndTrigger(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) {
 	o.executeTriggers(ctx, sensorCategory, sensorName, changedProperties)
 
-	if o.config.InfluxInstancePerCategory == nil {
+	if o.config.InfluxInstancePerCategory == nil || o.config.InfluxPropertiesPerCategory == nil {
 		return
 	}
-	//TODO(HR): ignore the name for now
-	_, ok := o.config.InfluxInstancePerCategory[sensorCategory]
+	instanceName, ok := o.config.InfluxInstancePerCategory[sensorCategory]
 	if !ok {
 		return
 	}
-	ii := influx.GetGlobalInfluxInstance()
+
+	alertDuration := time.Minute // TODO(HR): configure?
+
+	var propertiesToWrite map[string]interface{}
+	propertyKeysToWrite, ok := o.config.InfluxPropertiesPerCategory[sensorCategory]
+	if !ok {
+		o.GE.SetSystemAlert(ctx, "sensor_influx_config_error", "sensor", 3, fmt.Errorf("Properties for category %v not defined", sensorCategory), &alertDuration)
+		return
+	} else {
+		propertiesToWrite = map[string]interface{}{}
+		for _, k := range propertyKeysToWrite {
+			if k == "*" {
+				propertiesToWrite = changedProperties
+				break
+			}
+			v, ok := changedProperties[k]
+			if ok {
+				propertiesToWrite[k] = v
+			}
+		}
+	}
+
+	ii := influx.GetGlobalInfluxInstance(instanceName)
 	if ii == nil {
+		o.GE.SetSystemAlert(ctx, "sensor_influx_setup_error", "sensor", 2, fmt.Errorf("No Influx instance with name %s", instanceName), &alertDuration)
 		return
 	}
 
 	measurement := sensorCategory + "." + sensorName
-	out := ii.PushFieldsInternal(measurement, map[string]string{}, changedProperties, ctx)
+	out := ii.PushFieldsInternal(measurement, map[string]string{}, propertiesToWrite, ctx)
 	if out.IsError() {
-		alertDuration := time.Minute // TODO(HR): configure?
-		o.GE.SetSystemAlert(ctx, "sensor_write_error", "sensor", 3, out.GetError(), &alertDuration)
+		o.GE.SetSystemAlert(ctx, "sensor_influx_write_error", "sensor", 3, out.GetError(), &alertDuration)
 	}
 
 }
