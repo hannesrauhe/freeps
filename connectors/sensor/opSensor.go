@@ -77,6 +77,10 @@ func (op *OpSensor) SensorCategorySuggestions() []string {
 	return cat
 }
 
+func (op *OpSensor) PropertyTypeSuggestions(otherArgs base.FunctionArguments) []string {
+	return base.GetPossibleOutputTypes()
+}
+
 // GetSensorCategories returns all sensor categories
 func (op *OpSensor) GetSensorCategories(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	categories, err := op.getSensorCategories()
@@ -113,7 +117,7 @@ type SensorArgs struct {
 	SensorCategory string
 }
 
-// SetSensorProperties writes a one or more properties of a sensor
+// SetSensorProperties writes one or more properties of a sensor
 func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO, args SensorArgs, fa base.FunctionArguments) *base.OperatorIO {
 	if fa.IsEmpty() && input.IsEmpty() {
 		return base.MakeOutputError(http.StatusBadRequest, "no properties to set")
@@ -142,10 +146,26 @@ type SetSensorPropertyArgs struct {
 	SensorName     string
 	SensorCategory string
 	PropertyName   string
+	PropertyValue  *string
+	PropertyType   *string
 }
 
-// SetSingleSensorProperty writes a one or more properties of a sensor
+// SetSingleSensorProperty writes one or more properties of a sensor
 func (o *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.OperatorIO, args SetSensorPropertyArgs) *base.OperatorIO {
+	if args.PropertyValue != nil {
+		if args.PropertyType == nil {
+			input = base.MakeOutputGuessType(*args.PropertyValue)
+		} else {
+			t, err := base.GetOutputT(*args.PropertyType)
+			if err != nil {
+				return base.MakeOutputError(http.StatusBadRequest, "invalid sensor property type requested: %v", err)
+			}
+			input, err = base.MakeOutputWithGivenType(*args.PropertyValue, t)
+			if err != nil {
+				return base.MakeOutputError(http.StatusBadRequest, "invalid sensor property value: %v", err)
+			}
+		}
+	}
 	out, _, _, updated := o.setSensorPropertyNoTrigger(ctx, input, args.SensorCategory, args.SensorName, args.PropertyName)
 
 	if out.IsError() {
