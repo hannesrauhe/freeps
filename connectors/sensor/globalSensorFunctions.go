@@ -1,8 +1,6 @@
 package sensor
 
 import (
-	"fmt"
-
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/jeremywohl/flatten"
@@ -15,7 +13,7 @@ func GetGlobalSensors() *OpSensor {
 	return globalSensor
 }
 
-// SetSensorPropertyFromFlattenedObject sets the properties of a sensor by flattening a given object and setting the properties as key-value pairs where each value is converted to a string
+// SetSensorPropertyFromFlattenedObject sets the properties of a sensor by flattening a given object and setting the properties as key-value pairs
 func (op *OpSensor) SetSensorPropertyFromFlattenedObject(ctx *base.Context, sensorCategory string, sensorName string, properties interface{}) error {
 	m1, err := utils.ObjectToMap(properties)
 	if err != nil {
@@ -25,16 +23,7 @@ func (op *OpSensor) SetSensorPropertyFromFlattenedObject(ctx *base.Context, sens
 	if err != nil {
 		return err
 	}
-	m3 := make(map[string]string)
-	for k, v := range m2 {
-		m3[k] = fmt.Sprintf("%v", v)
-	}
-	fa := base.NewFunctionArguments(m3)
-	io := op.SetSensorProperties(ctx, base.MakeEmptyOutput(), SensorArgs{SensorName: sensorName, SensorCategory: sensorCategory}, fa)
-	if io.IsError() {
-		return io.GetError()
-	}
-	return nil
+	return op.SetSensorPropertiesInternal(ctx, sensorCategory, sensorName, m2)
 }
 
 // GetSensorNamesInternal returns the names of all sensors of a given category
@@ -59,7 +48,7 @@ func (op *OpSensor) SetSensorPropertyInternal(ctx *base.Context, sensorCategory 
 	}
 
 	if updated {
-		op.executeTrigger(ctx, sensorCategory, sensorName, []string{propertyName})
+		op.recordUpdatesAndTrigger(ctx, sensorCategory, sensorName, map[string]interface{}{propertyName: value})
 	}
 	return nil
 }
