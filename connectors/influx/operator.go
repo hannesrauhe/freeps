@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -18,11 +19,12 @@ import (
 
 // OperatorInflux is that enabled InfluxDB Flux queries to be executed
 type OperatorInflux struct {
-	CR       *utils.ConfigReader
-	GE       *freepsflow.FlowEngine
-	config   *InfluxConfig
-	client   influxdb2.Client
-	writeApi api.WriteAPI
+	CR             *utils.ConfigReader
+	GE             *freepsflow.FlowEngine
+	config         *InfluxConfig
+	client         influxdb2.Client
+	writeApi       api.WriteAPI
+	storeNamespace freepsstore.StoreNamespace
 }
 
 var _ base.FreepsOperatorWithConfig = &OperatorInflux{}
@@ -65,14 +67,18 @@ func (o *OperatorInflux) InitCopyOfOperator(ctx *base.Context, config interface{
 	cfg := config.(*InfluxConfig)
 	if cfg.URL == "" {
 		o.migrateConfig(cfg)
+
+		if cfg.Enabled == false {
+			return nil, fmt.Errorf("Old freepsflux config found, but disabled, disabling InfluxDB operator")
+		}
 	}
 
-	if cfg.Enabled == false {
-		return nil, fmt.Errorf("Old freepsflux config found, but disabled, disabling InfluxDB operator")
-	}
-
-	if cfg.URL == "" || cfg.Token == "" || cfg.Bucket == "" || cfg.Org == "" {
+	if (cfg.URL == "" || cfg.Token == "" || cfg.Bucket == "" || cfg.Org == "") && cfg.StoreNamespace == "" {
 		return nil, errors.New("Failed to create InfluxDB client, settings are not complete")
+	}
+
+	if cfg.StoreNamespace != "" && cfg.URL != "" {
+		return nil, errors.New("Both store namespace and InfluxDB URL are set, please use only one")
 	}
 
 	newOp := &OperatorInflux{
@@ -93,6 +99,21 @@ func (o *OperatorInflux) InitCopyOfOperator(ctx *base.Context, config interface{
 
 func (o *OperatorInflux) StartListening(ctx *base.Context) {
 	cfg := o.config
+
+	if cfg.StoreNamespace != "" {
+		s := freepsstore.GetGlobalStore()
+		if s == nil {
+			o.GE.SetSystemAlert(ctx, "init_error", "influx", 2, errors.New("Store is not initialized"), &o.config.WriteAlertDuration)
+			return
+		}
+		ns, err := s.GetNamespace(cfg.StoreNamespace)
+		if err != nil {
+			o.GE.SetSystemAlert(ctx, "init_error", "influx", 2, fmt.Errorf("Failed to get store namespace %v: %v", cfg.StoreNamespace, err), &o.config.WriteAlertDuration)
+			return
+		}
+		o.storeNamespace = ns
+	}
+
 	influxOptions := influxdb2.DefaultOptions()
 	client := influxdb2.NewClientWithOptions(cfg.URL, cfg.Token, influxOptions)
 	if client == nil {

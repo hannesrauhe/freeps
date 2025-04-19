@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
+	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -79,4 +80,48 @@ func TestMigrateOldConfig(t *testing.T) {
 	err = cr.ReadSectionWithDefaults("freepsflux", old)
 	assert.NilError(t, err)
 	assert.Equal(t, len(old.InfluxdbConnections), 0)
+}
+
+func TestPushFieldsInternal(t *testing.T) {
+	tdir := t.TempDir()
+	cr, err := utils.NewConfigReader(logrus.StandardLogger(), path.Join(tdir, "test_config.json"))
+	assert.NilError(t, err)
+	ctx := base.NewBaseContextWithReason(logrus.StandardLogger(), "")
+	ge := freepsflow.NewFlowEngine(ctx, cr, func() {})
+
+	config := &InfluxConfig{
+		Enabled:        true,
+		StoreNamespace: "_influx",
+	}
+	cr.WriteSection("influx", config, true)
+
+	availableOperators := []base.FreepsOperator{
+		&freepsstore.OpStore{CR: cr, GE: ge},
+		&OperatorInflux{CR: cr, GE: ge},
+	}
+	for _, op := range availableOperators {
+		ge.AddOperators(base.MakeFreepsOperators(op, cr, ctx))
+	}
+
+	ge.StartListening(ctx)
+
+	op := GetGlobalInfluxInstance("default")
+	assert.Assert(t, op != nil)
+	st := freepsstore.GetGlobalStore()
+	assert.Assert(t, st != nil)
+
+	// Test with empty fields
+	result := op.PushFieldsInternal("measurement", nil, nil, ctx)
+	assert.Equal(t, result.IsEmpty(), true)
+
+	// Test with non-empty fields
+	result = op.PushFieldsInternal("measurement", nil, map[string]interface{}{"field1": 1, "field2": "2"}, ctx)
+	assert.Equal(t, result.IsEmpty(), true)
+
+	vs := op.storeNamespace.GetAllValues(10)
+	assert.Equal(t, len(vs), 1)
+	for _, v := range vs {
+		linebuffer := v.GetString()
+		assert.Assert(t, utils.StringStartsWith(linebuffer, "measurement, field1=1i,field2=\"2\""), "Line protocol looks unexpected: %v", linebuffer)
+	}
 }

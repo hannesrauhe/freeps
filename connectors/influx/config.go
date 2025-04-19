@@ -18,6 +18,7 @@ type OldFreepsFluxConfig struct {
 
 type InfluxConfig struct {
 	Enabled            bool
+	StoreNamespace     string
 	URL                string
 	Token              string
 	Org                string
