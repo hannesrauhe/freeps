@@ -3,7 +3,6 @@
 package influx
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -25,7 +24,7 @@ func (o *OperatorInflux) PushFieldsInternal(measurement string, tags map[string]
 	if o.storeNamespace != nil {
 		b := strings.Builder{}
 		write.PointToLineProtocolBuffer(p, &b, time.Second)
-		o.storeNamespace.SetValue(fmt.Sprintf("%d", time.Now().Unix()), base.MakePlainOutput(b.String()), ctx)
+		o.storeNamespace.SetValue("", base.MakePlainOutput(b.String()), ctx)
 
 		return base.MakeEmptyOutput()
 	}

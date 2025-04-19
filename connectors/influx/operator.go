@@ -106,7 +106,10 @@ func (o *OperatorInflux) StartListening(ctx *base.Context) {
 			o.GE.SetSystemAlert(ctx, "init_error", "influx", 2, errors.New("Store is not initialized"), &o.config.WriteAlertDuration)
 			return
 		}
-		ns, err := s.GetNamespace(cfg.StoreNamespace)
+		ns, err := s.CreateNamespace(cfg.StoreNamespace, freepsstore.StoreNamespaceConfig{
+			NamespaceType: "log",
+			AutoTrim:      100,
+		})
 		if err != nil {
 			o.GE.SetSystemAlert(ctx, "init_error", "influx", 2, fmt.Errorf("Failed to get store namespace %v: %v", cfg.StoreNamespace, err), &o.config.WriteAlertDuration)
 			return
