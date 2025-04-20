@@ -77,10 +77,6 @@ func (o *OperatorInflux) InitCopyOfOperator(ctx *base.Context, config interface{
 		return nil, errors.New("Failed to create InfluxDB client, settings are not complete")
 	}
 
-	if cfg.StoreNamespace != "" && cfg.URL != "" {
-		return nil, errors.New("Both store namespace and InfluxDB URL are set, please use only one")
-	}
-
 	newOp := &OperatorInflux{
 		CR:     o.CR,
 		GE:     o.GE,

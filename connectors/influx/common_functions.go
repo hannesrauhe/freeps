@@ -25,13 +25,15 @@ func (o *OperatorInflux) PushFieldsInternal(measurement string, tags map[string]
 		b := strings.Builder{}
 		write.PointToLineProtocolBuffer(p, &b, time.Second)
 		o.storeNamespace.SetValue("", base.MakePlainOutput(b.String()), ctx)
-
-		return base.MakeEmptyOutput()
 	}
 
-	if o.writeApi == nil {
+	if o.writeApi != nil {
+		o.writeApi.WritePoint(p)
+	}
+
+	if o.writeApi == nil && o.config.URL != "" {
 		return base.MakeOutputError(500, "InfluxDB write API not initialized")
 	}
-	o.writeApi.WritePoint(p)
+
 	return base.MakeEmptyOutput()
 }
