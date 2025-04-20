@@ -7,16 +7,11 @@ import (
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/freepsd/helper"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	log "github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
-
-	opalert "github.com/hannesrauhe/freeps/connectors/alert"
-	freepsmetrics "github.com/hannesrauhe/freeps/connectors/metrics"
-	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
-	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 )
 
 type MockOperator struct {
@@ -61,32 +56,12 @@ func (*MockOperator) GetHook() interface{} {
 
 var _ base.FreepsBaseOperator = &MockOperator{}
 
-func setupEngine(t *testing.T) (*base.Context, *freepsflow.FlowEngine) {
-	tdir := t.TempDir()
-	cr, err := utils.NewConfigReader(log.StandardLogger(), path.Join(tdir, "test_config.json"))
-	assert.NilError(t, err)
-	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
-	ge := freepsflow.NewFlowEngine(ctx, cr, func() {})
-	availableOperators := []base.FreepsOperator{
-		&freepsstore.OpStore{CR: cr, GE: ge}, // must be first so that other operators can use the store
-		&opalert.OpAlert{CR: cr, GE: ge},     // must be second so that other operators can use alerts
-		&sensor.OpSensor{CR: cr, GE: ge},     // must be third so that other operators can use sensors
-		&freepsmetrics.OpMetrics{CR: cr, GE: ge},
-		&freepsutils.OpUtils{},
-	}
-
-	for _, op := range availableOperators {
-		ge.AddOperators(base.MakeFreepsOperators(op, cr, ctx))
-	}
-	return ctx, ge
-}
-
 func createValidFlow() freepsflow.FlowDesc {
 	return freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "noop"}}, Source: "test"}
 }
 
 func TestOperatorErrorChain(t *testing.T) {
-	ctx, ge := setupEngine(t)
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
 	ge.AddFlowUnderLock(ctx, "test", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
 		{Name: "dooropen", Operator: "eval", Function: "eval", Arguments: map[string]string{"valueName": "FieldsWithType.open.FieldValue",
@@ -106,7 +81,7 @@ func TestOperatorErrorChain(t *testing.T) {
 }
 
 func TestCheckFlow(t *testing.T) {
-	ctx, ge := setupEngine(t)
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
 	ge.AddFlowUnderLock(ctx, "test_noinput", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
 		{Operator: "eval", Function: "eval", InputFrom: "NOTEXISTING"},
@@ -155,7 +130,7 @@ func fileIsInList(cr *utils.ConfigReader, flowFile string) bool {
 }
 
 func TestFlowStorage(t *testing.T) {
-	ctx, ge := setupEngine(t)
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
 	// expect embedded flows to be loaded
 	assert.Equal(t, len(ge.GetAllFlowDesc()), 2)
@@ -234,7 +209,7 @@ func expectOutput(t *testing.T, op *base.OperatorIO, expectedCode int, expectedO
 }
 
 func TestFlowExecution(t *testing.T) {
-	ctx, ge := setupEngine(t)
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
 	expectByTagExtendedExecution := func(tagGroups [][]string, expectedOutputKeys []string) {
 		expectedCode := 200
@@ -336,7 +311,7 @@ func test_replace_args(ctx *base.Context, ge *freepsflow.FlowEngine, input1 stri
 }
 
 func TestArgumentReplacement(t *testing.T) {
-	ctx, ge := setupEngine(t)
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
 	/* test simple string replacement */
 	r := test_replace_args(ctx, ge, "test", "Operator output was: ${echo_output}")
@@ -371,7 +346,7 @@ func TestArgumentReplacement(t *testing.T) {
 }
 
 func TestIfElseInputLogic(t *testing.T) {
-	ctx, ge := setupEngine(t)
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
 	testFlow := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
 		{Name: "success", Operator: "utils", Function: "echo", Arguments: map[string]string{"output": "success"}},

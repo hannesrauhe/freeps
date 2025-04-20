@@ -38,6 +38,40 @@ type OperatorIO struct {
 	ContentType string `json:",omitempty"`
 }
 
+func GetOutputT(typeDescription string) (OutputT, error) {
+	typeDescription = strings.ToLower(typeDescription)
+	switch typeDescription {
+	case "error":
+		return Error, nil
+	case "plain", "text", "string":
+		return PlainText, nil
+	case "byte", "bytes":
+		return Byte, nil
+	case "object":
+		return Object, nil
+	case "integer", "int", "int64", "int32", "int16", "int8", "uint", "uint64", "uint32", "uint16", "uint8":
+		return Integer, nil
+	case "floating", "float", "float64", "float32", "double", "floatingpoint", "numeric", "number", "decimal":
+		return FloatingPoint, nil
+	case "empty", "":
+		return Empty, nil
+	default:
+		return Empty, fmt.Errorf("Unknown output type: %s", typeDescription)
+	}
+}
+
+func GetPossibleOutputTypes() []string {
+	return []string{
+		string(Empty),
+		string(Error),
+		string(PlainText),
+		string(Byte),
+		string(Object),
+		string(Integer),
+		string(FloatingPoint),
+	}
+}
+
 func MakeInternalServerErrorOutput(err error) *OperatorIO {
 	return &OperatorIO{OutputType: Error, HTTPCode: http.StatusInternalServerError, Output: err}
 }
@@ -147,6 +181,45 @@ func MakeOutputGuessType(output interface{}) *OperatorIO {
 		return MakePlainOutput(str)
 	default:
 		return MakeObjectOutput(output)
+	}
+}
+
+func MakeOutputWithGivenType(output interface{}, outputType OutputT) (*OperatorIO, error) {
+	switch outputType {
+	case Empty:
+		return MakeEmptyOutput(), nil
+	case Byte:
+		value, ok := output.([]byte)
+		if !ok {
+			return nil, fmt.Errorf("expected []byte, got %T", output)
+		}
+		return MakeByteOutput(value), nil
+	case PlainText:
+		value, ok := output.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected string, got %T", output)
+		}
+		return MakePlainOutput(value), nil
+	case Error:
+		value, ok := output.(error)
+		if !ok {
+			return nil, fmt.Errorf("expected error, got %T", output)
+		}
+		return MakeInternalServerErrorOutput(value), nil
+	case Integer:
+		value, err := utils.ConvertToInt64(output)
+		if err != nil {
+			return nil, err
+		}
+		return MakeIntegerOutput(value), nil
+	case FloatingPoint:
+		value, err := utils.ConvertToFloat(output)
+		if err != nil {
+			return nil, err
+		}
+		return MakeFloatOutput(value), nil
+	default:
+		return MakeObjectOutput(output), nil
 	}
 }
 

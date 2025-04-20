@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/connectors/influx"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 )
 
@@ -147,18 +149,19 @@ func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.Ope
 }
 
 func (o *OpSensor) setSensorProperties(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) *base.OperatorIO {
-	updatedProperties := make([]string, 0)
+	updatedProperties := map[string]interface{}{}
 	for k, v := range properties {
 		out, _, _, updated := o.setSensorPropertyNoTrigger(ctx, base.MakeOutputGuessType(v), sensorCategory, sensorName, k)
 		if out.IsError() {
 			return out
 		}
 		if updated {
-			updatedProperties = append(updatedProperties, k)
+			updatedProperties[k] = v
 		}
 	}
 	if len(updatedProperties) > 0 {
-		o.executeTrigger(ctx, sensorCategory, sensorName, updatedProperties)
+
+		o.recordUpdatesAndTrigger(ctx, sensorCategory, sensorName, updatedProperties)
 	}
 	return base.MakeEmptyOutput()
 }
@@ -197,4 +200,50 @@ func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *bas
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
 	}
 	return o.getSensorAliasByID(sensorID)
+}
+
+func (o *OpSensor) recordUpdatesAndTrigger(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) {
+	o.executeTriggers(ctx, sensorCategory, sensorName, changedProperties)
+
+	if o.config.InfluxInstancePerCategory == nil || o.config.InfluxPropertiesPerCategory == nil {
+		return
+	}
+	instanceName, ok := o.config.InfluxInstancePerCategory[sensorCategory]
+	if !ok {
+		return
+	}
+
+	alertDuration := time.Minute // TODO(HR): configure?
+
+	var propertiesToWrite map[string]interface{}
+	propertyKeysToWrite, ok := o.config.InfluxPropertiesPerCategory[sensorCategory]
+	if !ok {
+		o.GE.SetSystemAlert(ctx, "sensor_influx_config_error", "sensor", 3, fmt.Errorf("Properties for category %v not defined", sensorCategory), &alertDuration)
+		return
+	} else {
+		propertiesToWrite = map[string]interface{}{}
+		for _, k := range propertyKeysToWrite {
+			if k == "*" {
+				propertiesToWrite = changedProperties
+				break
+			}
+			v, ok := changedProperties[k]
+			if ok {
+				propertiesToWrite[k] = v
+			}
+		}
+	}
+
+	ii := influx.GetGlobalInfluxInstance(instanceName)
+	if ii == nil {
+		o.GE.SetSystemAlert(ctx, "sensor_influx_setup_error", "sensor", 2, fmt.Errorf("No Influx instance with name %s", instanceName), &alertDuration)
+		return
+	}
+
+	measurement := sensorCategory + "." + sensorName
+	out := ii.PushFieldsInternal(measurement, map[string]string{}, propertiesToWrite, ctx)
+	if out.IsError() {
+		o.GE.SetSystemAlert(ctx, "sensor_influx_write_error", "sensor", 3, out.GetError(), &alertDuration)
+	}
+
 }
