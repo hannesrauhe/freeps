@@ -19,7 +19,7 @@ require (
 	github.com/mackerelio/go-osstat v0.2.5
 	github.com/muka/go-bluetooth v0.0.0-20240701044517-04c4f09c514e
 	github.com/sirupsen/logrus v1.9.3
-	github.com/sstallion/go-hid v0.14.1
+	github.com/sstallion/go-hid v0.15.0
 	golang.org/x/image v0.26.0
 	gotest.tools/v3 v3.5.2
 )
