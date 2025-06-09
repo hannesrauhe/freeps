@@ -16,7 +16,7 @@ require (
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/keep94/sunrise v1.0.1
 	github.com/lib/pq v1.10.9
-	github.com/mackerelio/go-osstat v0.2.5
+	github.com/mackerelio/go-osstat v0.2.6
 	github.com/muka/go-bluetooth v0.0.0-20240701044517-04c4f09c514e
 	github.com/sirupsen/logrus v1.9.3
 	github.com/sstallion/go-hid v0.14.1
@@ -33,6 +33,6 @@ require (
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )
