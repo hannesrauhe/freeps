@@ -47,7 +47,7 @@ type TopicTrigger struct {
 }
 
 // TopicSuggestions returns known topics
-func (tt *TopicTrigger) TopicSuggestions(o *OpMQTT) []string {
+func (tt *TopicTrigger) TopicSuggestions(otherArgs base.FunctionArguments, o *OpMQTT) []string {
 	maxSize := 20
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_mqtt")
 	if err != nil {
