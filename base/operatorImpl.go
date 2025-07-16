@@ -55,7 +55,9 @@ func MakeFreepsOperators(anyClass FreepsOperator, cr *utils.ConfigReader, ctx *C
 	o.createFunctionMap(ctx)
 
 	if len(o.functionMetaDataMap) == 0 {
-		ctx.GetLogger().Panicf("No compatible freeps functions found for operator \"%v\"", o.GetName())
+		// indicates an implementation error. Note: this is currently also printed for the dummy operator, hence only debug level
+		ctx.GetLogger().Debugf("No compatible freeps functions found for operator \"%v\"", o.GetName())
+		return nil
 	}
 
 	if cr == nil {
