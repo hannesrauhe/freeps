@@ -6,20 +6,22 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/utils"
 )
 
 // FlowOperationDesc defines which operator to execute with Arguments and where to take the input from
 type FlowOperationDesc struct {
-	Name               string `json:",omitempty"`
-	Operator           string
-	Function           string
-	Arguments          map[string]string `json:",omitempty"`
-	InputFrom          string            `json:",omitempty"`
-	ExecuteOnSuccessOf string            `json:",omitempty"`
-	ExecuteOnFailOf    string            `json:",omitempty"`
-	ArgumentsFrom      string            `json:",omitempty"`
-	UseMainArgs        bool              `json:",omitempty"`
+	Name                string `json:",omitempty"`
+	Operator            string
+	Function            string
+	FunctionArgs        base.FunctionArguments `json:",omitempty"`
+	ArgumentsDeprecated map[string]string      `json:"arguments,omitempty"` // deprecated, use FunctionArgs instead, only kept for parsing old flows
+	InputFrom           string                 `json:",omitempty"`
+	ExecuteOnSuccessOf  string                 `json:",omitempty"`
+	ExecuteOnFailOf     string                 `json:",omitempty"`
+	ArgumentsFrom       string                 `json:",omitempty"`
+	UseMainArgs         bool                   `json:",omitempty"`
 }
 
 // ToQuicklink returns the URL to call a standalone-operation outside of a Flow
@@ -29,11 +31,13 @@ func (gop *FlowOperationDesc) ToQuicklink() string {
 	if gop.Function != "" {
 		s.WriteString("/" + gop.Function)
 	}
-	if len(gop.Arguments) > 0 {
+	if !gop.FunctionArgs.IsEmpty() {
 		s.WriteString("?")
 	}
-	for k, v := range gop.Arguments {
-		s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
+	for k, values := range gop.FunctionArgs.GetOriginalCaseMap() {
+		for _, v := range values {
+			s.WriteString(url.QueryEscape(k) + "=" + url.QueryEscape(v) + "&")
+		}
 	}
 	return s.String()
 }
@@ -185,7 +189,8 @@ func (gd *FlowDesc) GetCompleteDesc(flowID string, ge *FlowEngine) (*FlowDesc, e
 	}
 
 	// create a copy of each operation and add it to the flow
-	for i, op := range gd.Operations {
+	for i, origOp := range gd.Operations {
+		op := origOp
 		if op.Name == ROOT_SYMBOL {
 			return &completeFlowDesc, errors.New("Operation name cannot be " + ROOT_SYMBOL)
 		}
@@ -221,9 +226,16 @@ func (gd *FlowDesc) GetCompleteDesc(flowID string, ge *FlowEngine) (*FlowDesc, e
 			}
 		}
 		outputNames[op.Name] = true
+		if len(op.ArgumentsDeprecated) > 0 {
+			if op.FunctionArgs == nil {
+				op.FunctionArgs = base.NewFunctionArguments(op.ArgumentsDeprecated)
+			} else {
+				for k, v := range op.ArgumentsDeprecated {
+					op.FunctionArgs.Append(k, v)
+				}
+			}
+		}
 		completeFlowDesc.Operations[i] = op
-
-		// op.args are not copied, because they aren't modified during execution
 	}
 	if gd.OutputFrom == "" {
 		if len(gd.Operations) == 1 {
