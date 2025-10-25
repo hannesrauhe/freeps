@@ -21,6 +21,7 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
 	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/smtp"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	optime "github.com/hannesrauhe/freeps/connectors/time"
@@ -110,6 +111,7 @@ func mainLoop() bool {
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&weather.OpWeather{},
 		&freepsmetrics.OpMetrics{CR: cr, GE: ge},
+		&smtp.OpSMTP{CR: cr, GE: ge},
 	}
 
 	for _, op := range availableOperators {
