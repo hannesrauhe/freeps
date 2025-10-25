@@ -23,15 +23,17 @@ func (o *OpSensor) FlowIDSuggestions() map[string]string {
 	return flowNames
 }
 
-func (o *OpSensor) executeTrigger(ctx *base.Context, sensorCategory string, sensorName string, changedProperties []string) *base.OperatorIO {
+func (o *OpSensor) executeTriggers(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) *base.OperatorIO {
 	// TODO(HR): async?
 	categorySelectTags := []string{fmt.Sprintf("sensorCategory:%v", sensorCategory), "sensorCategory:*"}
 	nameSelectTags := []string{fmt.Sprintf("sensorName:%v", sensorName), "sensorName:*"}
 	propertySelectTags := []string{"sensorProperty:*"}
-	for _, property := range changedProperties {
-		propertySelectTags = append(propertySelectTags, fmt.Sprintf("sensorProperty:%v", property))
+	for propertyName, _ := range changedProperties {
+		propertySelectTags = append(propertySelectTags, fmt.Sprintf("sensorProperty:%v", propertyName))
 	}
 	tagGroups := [][]string{{"sensor"}, categorySelectTags, propertySelectTags, nameSelectTags}
+
+	//TODO(HR): send properties as args/input?
 	args := base.MakeEmptyFunctionArguments()
 	return o.GE.ExecuteFlowByTagsExtended(ctx, tagGroups, args, base.MakeEmptyOutput())
 }

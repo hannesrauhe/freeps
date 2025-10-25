@@ -2,10 +2,12 @@ package freepsflow
 
 import (
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 type DummyOperator struct {
 	GE     *FlowEngine
+	CR     *utils.ConfigReader
 	config DummyConfig
 }
 
