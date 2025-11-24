@@ -8,7 +8,7 @@ require (
 	github.com/briandowns/openweathermap v0.21.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
-	github.com/godbus/dbus/v5 v5.1.0
+	github.com/godbus/dbus/v5 v5.2.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/hannesrauhe/freepslib v1.5.0
