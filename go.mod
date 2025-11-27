@@ -7,6 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/briandowns/openweathermap v0.21.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
+	github.com/emersion/go-smtp v0.24.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/godbus/dbus/v5 v5.2.0
 	github.com/google/uuid v1.6.0
@@ -27,14 +28,13 @@ require (
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6 // indirect
-	github.com/emersion/go-smtp v0.24.0 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
-	github.com/oapi-codegen/runtime v1.1.1 // indirect
-	golang.org/x/net v0.44.0 // indirect
+	github.com/oapi-codegen/runtime v1.1.2 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 )
