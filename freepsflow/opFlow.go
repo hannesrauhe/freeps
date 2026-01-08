@@ -77,8 +77,9 @@ func (o *OpFlow) GetArgSuggestions(fn string, arg string, otherArgs base.Functio
 			continue
 		}
 		// build a map of all arguments that will be passed to this operation on execution
+		// this is only for suggestions, so we are going to ignore arguments with multiple values
 		thisOpArgs := make(map[string]string)
-		for k, v := range op.Arguments {
+		for k, v := range op.FunctionArgs.GetOriginalCaseMapOnlyFirst() {
 			thisOpArgs[k] = v
 		}
 		for k, v := range otherArgs.GetOriginalCaseMapOnlyFirst() {
