@@ -1,8 +1,6 @@
 module github.com/hannesrauhe/freeps
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.25.0
 
 require (
 	github.com/briandowns/openweathermap v0.21.1
@@ -17,7 +15,7 @@ require (
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/keep94/sunrise v1.0.1
 	github.com/lib/pq v1.10.9
-	github.com/mackerelio/go-osstat v0.2.6
+	github.com/mackerelio/go-osstat v0.2.7
 	github.com/muka/go-bluetooth v0.0.0-20240701044517-04c4f09c514e
 	github.com/sirupsen/logrus v1.9.4
 	github.com/sstallion/go-hid v0.15.0
@@ -35,6 +33,6 @@ require (
 	github.com/oapi-codegen/runtime v1.1.2 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 )
