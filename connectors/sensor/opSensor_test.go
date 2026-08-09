@@ -127,7 +127,9 @@ func TestSensorCategory(t *testing.T) {
 }
 
 func createTestFlow(keyToSet string) freepsflow.FlowDesc {
-	gd := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", Arguments: map[string]string{"namespace": "test", "key": keyToSet}}}}
+	arguments := base.NewSingleFunctionArgument("key", keyToSet)
+	arguments.Append("namespace", "test")
+	gd := freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{{Operator: "utils", Function: "echoArguments"}, {Operator: "store", Function: "set", InputFrom: "#0", FunctionArgs: arguments}}}
 	return gd
 }
 

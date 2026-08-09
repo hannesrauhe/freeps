@@ -131,7 +131,7 @@ func (h *HookStore) OnExecuteOperation(ctx *base.Context, input *base.OperatorIO
 		return base.MakeObjectOutput(fnInfo)
 	}, ctx)
 
-	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", flowName, opDetails.Name), base.MakeObjectOutput(opDetails.Arguments), ctx)
+	out2 := h.debugNs.SetValue(fmt.Sprintf("OperationArguments:%s.%s", flowName, opDetails.Name), base.MakeObjectOutput(opDetails.FunctionArgs), ctx)
 	if out1.IsError() {
 		return out1.GetError()
 	}
