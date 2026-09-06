@@ -24,6 +24,29 @@ Freeps turns all of that into something like `GET /fritz/setSwitch?switchid=…&
 Everything else in the project grew out of that: the REST-first shape, the meaningful status codes,
 the "one curl call should be enough" attitude, and the `-m` one-shot CLI mode.
 
+### The SMTP connector exists because the FritzBox cannot call back
+
+The FritzBox API is **pull only**. There is no webhook, no callback, no push of any kind — to learn
+that a sensor tripped or a device changed state, freeps has to *ask*, and it does so by polling the
+API once a minute (`PollDuration` in `connectors/fritz/opFritz.go`). That means up to a minute of
+latency on every event, which is a long time to wait for a light to come on.
+
+But the FritzBox *can* send e-mail when events happen.
+
+So freeps runs a small SMTP **server** (the `smtp` connector, port 2525 by default — not 25, so it
+needs no privileges). Point the FritzBox's mail notifications at it, and the mail *is* the event
+notification: it arrives the moment the sensor fires, well before the next poll. The body becomes
+the flow input, the subject and sender become arguments, and flows tagged `smtp` plus
+`sender:<from>` or `to:<recipient>` are triggered.
+
+```bash
+curl -X POST 'localhost:8080/smtp/setSenderTrigger?flowID=doorbell&sender=fritzbox@fritz.box'
+```
+
+It is a strange-looking dependency for a home automation tool — until you know that it was the only
+way to get an event out of the FritzBox faster than polling. The `smtp` connector is not about
+sending mail; it is the FritzBox's missing push mechanism.
+
 **Consequence:** when adding a connector, the job is to make a messy external system look like the
 rest of freeps — not to pass its API through.
 

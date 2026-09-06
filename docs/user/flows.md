@@ -211,6 +211,7 @@ Connectors use tags like these:
 |---|---|
 | MQTT message | `mqtt`, `topic:<topic>` |
 | Telegram command | `telegram` |
+| Incoming e-mail | `smtp`, `sender:<from>` (and per recipient `smtp`, `to:<recipient>`) |
 | Sensor value change | `sensor`, `sensorCategory:<c>`, `sensorName:<n>`, `sensorProperty:<p>` |
 | FritzBox device change | the fritz instance name (default `fritz`) |
 | Bluetooth discovery | `bluetooth`, `discovered` |
@@ -223,8 +224,13 @@ remember the tag syntax:
 curl -X POST 'localhost:8080/mqtt/setTopicTrigger?flowID=myflow&topic=home/temperature'
 curl -X POST 'localhost:8080/sensor/setSensorTrigger?flowID=myflow&sensorName=livingroom'
 curl -X POST 'localhost:8080/telegram/setTopicTrigger?flowID=myflow'
+curl -X POST 'localhost:8080/smtp/setSenderTrigger?flowID=myflow&sender=fritzbox@fritz.box'
 curl -X POST 'localhost:8080/fritz/setHostActiveTrigger?flowID=myflow&macAddress=AA:BB:CC:DD:EE:FF'
 ```
+
+The `smtp` connector is an SMTP **server** (port 2525 by default) that freeps listens on, not a way
+to send mail — it exists so devices that cannot call an API can still report events by e-mailing
+freeps. See [the FritzBox's missing push mechanism](../design-principles.md#the-smtp-connector-exists-because-the-fritzbox-cannot-call-back).
 
 The UI reserves some tags for itself: `ui,tile` shows a flow as a tile on the dashboard,
 `ui,footer` puts a link in the footer.
