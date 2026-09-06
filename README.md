@@ -4,6 +4,18 @@ Freeps is a small home automation tool built around the Fritzbox. It exposes a v
 
 The project was started because the Apps available to control the FritzBox Smart Devices are too slow and lack integration features in other systems. While the FritzBox itself also offers a REST API, the authentication mechanism is not very well supported by other system. A Raspberry Pi can easily run freeps and serve as a bridge to the FritzBox.
 
+## Documentation
+
+The [documentation](docs/README.md) is split into [user documentation](docs/user/)
+(configuring freeps, calling its API, writing flows) and [internal documentation](docs/internal/)
+(how the operator framework, the dynamic REST API and the flow engine work).
+
+Start with [Getting started](docs/user/getting-started.md), and read the
+[design principles](docs/design-principles.md) to understand the deliberate choices behind it —
+that freeps exists to make the FritzBox's XML and challenge-auth API pleasant to use, that it runs
+without internet access, and that it has **no authentication whatsoever** and is meant to run on a
+trusted home network only.
+
 ## Install
 
 You can create a user, install a standard systemd service and put the `freepsd` binary in place by running:

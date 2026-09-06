@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/briandowns/openweathermap v0.21.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
-	github.com/emersion/go-smtp v0.24.0
+	github.com/emersion/go-smtp v0.25.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/google/uuid v1.6.0
@@ -17,9 +17,9 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/mackerelio/go-osstat v0.2.8
 	github.com/muka/go-bluetooth v0.0.0-20240701044517-04c4f09c514e
-	github.com/sirupsen/logrus v1.9.4
+	github.com/sirupsen/logrus v1.10.2
 	github.com/sstallion/go-hid v0.15.0
-	golang.org/x/image v0.44.0
+	golang.org/x/image v0.45.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -30,9 +30,9 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
-	github.com/oapi-codegen/runtime v1.4.2 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	github.com/oapi-codegen/runtime v1.7.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )
