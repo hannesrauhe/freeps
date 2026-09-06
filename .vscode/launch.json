@@ -4,17 +4,8 @@
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
-
-
     {
-      "name": "Launch Package",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${fileDirname}"
-    },
-    {
-      "name": "Launch freepsd",
+      "name": "freepsd",
       "type": "go",
       "request": "launch",
       "mode": "auto",
@@ -22,7 +13,7 @@
       "args": []
     },
     {
-      "name": "Launch freepsd-light",
+      "name": "freepsd-light",
       "type": "go",
       "request": "launch",
       "mode": "auto",
