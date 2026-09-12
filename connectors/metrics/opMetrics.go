@@ -11,6 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// OpMetrics provides system metrics such as CPU, memory, load, disk, network and uptime
+// statistics, as well as information about the freeps build itself.
 type OpMetrics struct {
 	CR     *utils.ConfigReader
 	GE     *freepsflow.FlowEngine

@@ -32,7 +32,7 @@ func (m *OpRegexp) FindStringIndex(ctx *base.Context, input *base.OperatorIO, ar
 	return base.MakePlainOutput(str[loc[0]:loc[1]])
 }
 
-// FindStringSubmatchIndex returns the first match of the given regexp
+// FindStringSubmatchIndex returns the first capturing group of the first match of the given regexp
 func (m *OpRegexp) FindStringSubmatchIndex(ctx *base.Context, input *base.OperatorIO, args RegexpArgs) *base.OperatorIO {
 	re, err := regexp.Compile(args.Regexp)
 	if err != nil {

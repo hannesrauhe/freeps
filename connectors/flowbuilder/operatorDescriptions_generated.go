@@ -5,26 +5,26 @@ package flowbuilder
 
 // operatorDescriptions maps the lowercase operator name to its description.
 var operatorDescriptions = map[string]string{
-	"alert": "FreepsOperator that can be used to retrieve and modify the config",
+	"alert": "FreepsOperator that can be used to set, query and reset alerts.",
 	"bluetooth": "operator that provides bluetooth functionality and implements the FreepsGenericOperator interface",
 	"config": "FreepsOperator that can be used to retrieve and modify the config",
-	"curl": "",
+	"curl": "executes HTTP requests (GET, POST and form POST) and returns either the response body or information about the downloaded file.",
 	"flowbuilder": "operator to build and modify flows",
-	"fritz": "",
+	"fritz": "exposes the devices of an AVM FRITZ!Box smart home and the Upnp functions it advertises, and turns device presence into sensors and alerts.",
 	"influx": "enabled InfluxDB Flux queries to be executed",
 	"math": "freeps operator that provides math operations",
-	"metrics": "",
-	"mqtt": "",
+	"metrics": "provides system metrics such as CPU, memory, load, disk, network and uptime statistics, as well as information about the freeps build itself.",
+	"mqtt": "connects to an MQTT broker to publish messages and to trigger flows from the topics it subscribes to.",
 	"muteme": "implements the FreepsOperator interface to control the MuteMe button",
 	"pixeldisplay": "implements base.FreepsOperatorWithShutdown, wraps all functions of the Pixeldisplay interface and calls them on the default display",
 	"regexp": "collection of regexp operations",
 	"sensor": "operator to manage sensors of different types in your Smart Home, these sensors can be created by the user or by other operators. The operator provices a set of methods to interact with the sensors.",
 	"smtp": "implements the FreepsOperator interface to trigger actions via OpSMTP",
-	"store": "",
-	"telegram": "",
-	"time": "",
+	"store": "namespaced key-value store used to share and persist values between flows, optionally backed by Postgres.",
+	"telegram": "sends messages to Telegram chats and triggers flows from incoming messages and callback buttons received by the bot.",
+	"time": "provides time-related functions, including the current time, day and night based on sunrise and sunset at a location, and sleeping for a duration.",
 	"utils": "collection of utility operations",
-	"weather": "",
+	"weather": "retrieves the current weather from OpenWeatherMap, stores it as a sensor and can serve the matching weather icons.",
 }
 
 // functionDescriptions maps the lowercase operator name to the descriptions of
@@ -108,7 +108,7 @@ var functionDescriptions = map[string]map[string]string{
 	},
 	"regexp": {
 		"FindStringIndex": "returns the first match of the given regexp",
-		"FindStringSubmatchIndex": "returns the first match of the given regexp",
+		"FindStringSubmatchIndex": "returns the first capturing group of the first match of the given regexp",
 	},
 	"sensor": {
 		"GetSensorAlias": "returns the property \"name\" for the sensor or the id if this property does not exist",
@@ -172,5 +172,9 @@ var functionDescriptions = map[string]map[string]string{
 		"StringReplace": "replaces the given search string with the given replace string",
 		"StringReplaceMulti": "replaces given args framed with \"%\" with their values",
 		"StringSplit": "splits the input by the given separator and returns the part at the given position",
+	},
+	"weather": {
+		"Current": "retrieves the current weather for the given location from OpenWeatherMap, stores it in the weather sensor and returns it as an object.",
+		"Icon": "downloads the weather icon with the given name from OpenWeatherMap and returns it as a PNG image.",
 	},
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
+// OpStore is a namespaced key-value store used to share and persist values between flows,
+// optionally backed by Postgres.
 type OpStore struct {
 	CR *utils.ConfigReader
 	GE *freepsflow.FlowEngine

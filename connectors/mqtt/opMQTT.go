@@ -14,6 +14,8 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
+// OpMQTT connects to an MQTT broker to publish messages and to trigger flows from the
+// topics it subscribes to.
 type OpMQTT struct {
 	CR   *utils.ConfigReader
 	GE   *freepsflow.FlowEngine
