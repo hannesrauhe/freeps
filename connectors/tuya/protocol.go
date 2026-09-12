@@ -117,7 +117,7 @@ func parseHeader(data []byte) (prefix uint32, seqno, cmd uint32, total int, err 
 		if length > maxPayloadLength {
 			return 0, 0, 0, 0, fmt.Errorf("tuya: corrupt frame, claims length %d", length)
 		}
-		return p, seqno, cmd, 16 + int(length) + 4, nil
+		return p, seqno, cmd, 18 + int(length) + 4, nil
 	}
 	return 0, 0, 0, 0, fmt.Errorf("tuya: unknown frame prefix %08x", p)
 }
@@ -164,21 +164,22 @@ func unpack55AA(data []byte, hmacKey []byte) (*message55AA, error) {
 
 // pack6699 builds a protocol 3.5 frame (AES-GCM):
 //
-//	prefix(2) | 0(2) | seqno(4) | cmd(4) | length(4) | iv(12) | ct | tag(16) | suffix(4)
+//	prefix(4) | 0(2) | seqno(4) | cmd(4) | length(4) | iv(12) | ct+tag(16) | suffix(4)
 //
-// The GCM AAD is data[4:16] (everything between prefix and encrypted body).
+// The GCM AAD is data[4:18] (everything between prefix and encrypted body).
 func pack6699(seqno, cmd uint32, payload, key, iv []byte) ([]byte, error) {
 	gcm, err := newGCM(key)
 	if err != nil {
 		return nil, err
 	}
-	length := len(payload) + 12 + 16 + 4 // iv + tag + suffix
-	hdr := make([]byte, 16)
-	binary.BigEndian.PutUint16(hdr[0:], prefix6699)
+	length := len(payload) + 12 + 16 // iv + tag (suffix NOT counted, as in tinytuya)
+	hdr := make([]byte, 18)
+	binary.BigEndian.PutUint32(hdr[0:], prefix6699)
+	binary.BigEndian.PutUint16(hdr[4:], 0)
 	binary.BigEndian.PutUint32(hdr[6:], seqno)
 	binary.BigEndian.PutUint32(hdr[10:], cmd)
 	binary.BigEndian.PutUint32(hdr[14:], uint32(length))
-	ct, err := gcmEncrypt(gcm, iv, payload, hdr[4:16])
+	ct, err := gcmEncrypt(gcm, iv, payload, hdr[4:18])
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +203,7 @@ func unpack6699(data []byte, key []byte) (*message55AA, error) {
 	if len(data) < total {
 		return nil, errShortFrame
 	}
-	body := data[16 : total-4] // iv | ct | tag
+	body := data[18 : total-4] // iv | ct | tag
 	if len(body) < 12+16 {
 		return nil, errShortFrame
 	}
@@ -212,7 +213,7 @@ func unpack6699(data []byte, key []byte) (*message55AA, error) {
 	if err != nil {
 		return nil, err
 	}
-	plain, err := gcmDecrypt(gcm, iv, ct, data[4:16])
+	plain, err := gcmDecrypt(gcm, iv, ct, data[4:18])
 	if err != nil {
 		return nil, fmt.Errorf("tuya: 6699 frame failed authentication: %w", err)
 	}

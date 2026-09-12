@@ -99,6 +99,7 @@ func (d *Device) SendQuery(conn net.Conn, sessionKey []byte, seqno uint32) error
 	if err != nil {
 		return err
 	}
+	conn.SetWriteDeadline(time.Now().Add(d.writeTimeout()))
 	_, err = conn.Write(req)
 	return err
 }
@@ -110,8 +111,16 @@ func (d *Device) SendHeartbeat(conn net.Conn, sessionKey []byte, seqno uint32) e
 	if err != nil {
 		return err
 	}
+	conn.SetWriteDeadline(time.Now().Add(d.writeTimeout()))
 	_, err = conn.Write(req)
 	return err
+}
+
+func (d *Device) writeTimeout() time.Duration {
+	if d.readTimeout > 0 {
+		return d.readTimeout
+	}
+	return 5 * time.Second
 }
 
 // Status performs a one-shot query: connect, negotiate, query, read one

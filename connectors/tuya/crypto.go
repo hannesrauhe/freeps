@@ -14,8 +14,7 @@ import (
 // aesECBEncrypt encrypts with AES-ECB, PKCS#7 padded to 16 bytes.
 func aesECBEncrypt(key, plain []byte) ([]byte, error) {
 	bs := aes.BlockSize
-	padded := make([]byte, len(plain))
-	padded = append(padded, plain...)
+	padded := append([]byte{}, plain...)
 	pad := bs - len(padded)%bs
 	for i := 0; i < pad; i++ {
 		padded = append(padded, byte(pad))
