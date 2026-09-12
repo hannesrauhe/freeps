@@ -25,6 +25,7 @@ import (
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
 	optime "github.com/hannesrauhe/freeps/connectors/time"
+	"github.com/hannesrauhe/freeps/connectors/tuya"
 	"github.com/hannesrauhe/freeps/connectors/ui"
 	freepsutils "github.com/hannesrauhe/freeps/connectors/utils"
 	"github.com/hannesrauhe/freeps/connectors/weather"
@@ -110,6 +111,7 @@ func mainLoop() bool {
 		&fritz.OpFritz{CR: cr, GE: ge},
 		&mqtt.OpMQTT{CR: cr, GE: ge},
 		&weather.OpWeather{},
+		&tuya.OpTuya{CR: cr, GE: ge},
 		&freepsmetrics.OpMetrics{CR: cr, GE: ge},
 		&smtp.OpSMTP{CR: cr, GE: ge},
 	}
