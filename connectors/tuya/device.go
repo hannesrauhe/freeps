@@ -245,7 +245,7 @@ func (d *Device) encode(seqno, cmd uint32, payload, key []byte) ([]byte, error) 
 		if err != nil {
 			return nil, err
 		}
-		return pack55AA(seqno, cmd, enc, key), nil
+		return pack55AA(seqno, cmd, enc, key)
 	case d.Version >= 3.2: // 3.2, 3.3
 		enc, err := aesECBEncrypt(key, payload)
 		if err != nil {
@@ -254,9 +254,9 @@ func (d *Device) encode(seqno, cmd uint32, payload, key []byte) ([]byte, error) 
 		if !noHeaderCmds[cmd] {
 			enc = append(versionHeader(d.Version), enc...)
 		}
-		return pack55AA(seqno, cmd, enc, nil), nil
+		return pack55AA(seqno, cmd, enc, nil)
 	default: // 3.1: unencrypted except CONTROL (not needed for read-only)
-		return pack55AA(seqno, cmd, payload, nil), nil
+		return pack55AA(seqno, cmd, payload, nil)
 	}
 }
 

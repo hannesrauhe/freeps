@@ -72,12 +72,18 @@ func TestAES(t *testing.T) {
 func TestPack55AA(t *testing.T) {
 	v := loadVectors(t)
 	c := v["frame_55aa_crc"]
-	got := pack55AA(1, 0x0a, hx(t, str(c, "payload")), nil)
+	got, err := pack55AA(1, 0x0a, hx(t, str(c, "payload")), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if hex.EncodeToString(got) != str(c, "frame") {
 		t.Errorf("55AA/CRC frame mismatch:\n got %x\nwant %s", got, str(c, "frame"))
 	}
 	m := v["frame_55aa_hmac"]
-	got = pack55AA(1, 0x0a, hx(t, str(m, "payload")), hx(t, str(m, "key")))
+	got, err = pack55AA(1, 0x0a, hx(t, str(m, "payload")), hx(t, str(m, "key")))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if hex.EncodeToString(got) != str(m, "frame") {
 		t.Errorf("55AA/HMAC frame mismatch:\n got %x\nwant %s", got, str(m, "frame"))
 	}

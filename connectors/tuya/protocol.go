@@ -59,10 +59,15 @@ var errShortFrame = errors.New("tuya: frame too short / truncated")
 //
 // length counts payload+crc+suffix. If hmacKey is non-nil the crc field is a
 // 32-byte HMAC-SHA256 (protocol >= 3.4), otherwise a 4-byte CRC32 (IEEE).
-func pack55AA(seqno, cmd uint32, payload []byte, hmacKey []byte) []byte {
+// Payloads beyond maxPayloadLength are rejected (the frame length field is
+// uint32 and tuya devices cannot handle such frames anyway).
+func pack55AA(seqno, cmd uint32, payload []byte, hmacKey []byte) ([]byte, error) {
 	endLen := 8
 	if hmacKey != nil {
 		endLen = 36
+	}
+	if len(payload) > maxPayloadLength {
+		return nil, fmt.Errorf("tuya: payload of %d bytes exceeds limit %d", len(payload), maxPayloadLength)
 	}
 	buf := make([]byte, 0, 16+len(payload)+endLen)
 	hdr := make([]byte, 16)
@@ -81,7 +86,7 @@ func pack55AA(seqno, cmd uint32, payload []byte, hmacKey []byte) []byte {
 	}
 	sfx := make([]byte, 4)
 	binary.BigEndian.PutUint32(sfx, suffix55AA)
-	return append(buf, sfx...)
+	return append(buf, sfx...), nil
 }
 
 // message55AA is a decoded 0x55AA frame.
@@ -168,6 +173,9 @@ func unpack55AA(data []byte, hmacKey []byte) (*message55AA, error) {
 //
 // The GCM AAD is data[4:18] (everything between prefix and encrypted body).
 func pack6699(seqno, cmd uint32, payload, key, iv []byte) ([]byte, error) {
+	if len(payload) > maxPayloadLength {
+		return nil, fmt.Errorf("tuya: payload of %d bytes exceeds limit %d", len(payload), maxPayloadLength)
+	}
 	gcm, err := newGCM(key)
 	if err != nil {
 		return nil, err
