@@ -197,19 +197,24 @@ func TestListOperatorsAndFunctions(t *testing.T) {
 	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 	fb := &flowbuilder.OpFlowBuilder{GE: ge}
 
-	// listOperators returns the names of all registered operators
+	// listOperators returns name and description of all registered operators
 	out := fb.ListOperators(ctx, base.MakeEmptyOutput(), flowbuilder.ListOperatorsArgs{})
 	assert.Assert(t, !out.IsError(), "ListOperators failed: %v", out)
-	ops := []string{}
+	ops := []flowbuilder.OperatorDetail{}
 	assert.NilError(t, out.ParseJSON(&ops))
-	assert.Assert(t, contains(ops, "utils"), "utils operator should be listed, got %v", ops)
+	assert.Assert(t, contains(operatorNames(ops), "utils"), "utils operator should be listed, got %v", ops)
+	// the description comes from the doc comment of the operator type
+	assert.Assert(t, operatorDetails(ops)["Utils"].Description != "", "the utils operator should have a description, got %v", ops)
 
-	// listFunctions returns the functions of an operator
+	// listFunctions returns name and description of the functions of an operator
 	out = fb.ListFunctions(ctx, base.MakeEmptyOutput(), flowbuilder.ListFunctionsArgs{Operator: "utils"})
 	assert.Assert(t, !out.IsError(), "ListFunctions failed: %v", out)
-	fns := []string{}
+	fns := []flowbuilder.FunctionDetail{}
 	assert.NilError(t, out.ParseJSON(&fns))
-	assert.Assert(t, contains(fns, "extract"), "extract should be listed for utils, got %v", fns)
+	assert.Assert(t, contains(functionNames(fns), "extract"), "extract should be listed for utils, got %v", fns)
+
+	// the description comes from the doc comment of the method
+	assert.Assert(t, functionDetails(fns)["Extract"].Description != "", "the extract function should have a description, got %v", fns)
 
 	// an unknown operator is a 404
 	out = fb.ListFunctions(ctx, base.MakeEmptyOutput(), flowbuilder.ListFunctionsArgs{Operator: "doesNotExist"})
@@ -220,12 +225,18 @@ func TestOperatorArgsAndSuggestions(t *testing.T) {
 	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 	fb := &flowbuilder.OpFlowBuilder{GE: ge}
 
-	// operatorArgs lists the arguments of a function
+	// operatorArgs lists the arguments of a function, with type, requiredness and description
 	out := fb.OperatorArgs(ctx, base.MakeEmptyOutput(), flowbuilder.OperatorArgsArgs{Operator: "utils", Function: "extract"})
 	assert.Assert(t, !out.IsError(), "OperatorArgs failed: %v", out)
+	argDescs := []base.ArgumentDescription{}
+	assert.NilError(t, out.ParseJSON(&argDescs))
+	assert.Equal(t, len(argDescs), 3)
 	argNames := []string{}
-	assert.NilError(t, out.ParseJSON(&argNames))
-	assert.Assert(t, contains(argNames, "Type"), "type should be an argument of extract, got %v", argNames)
+	for _, a := range argDescs {
+		argNames = append(argNames, a.Name)
+	}
+	assert.Assert(t, contains(argNames, "Type"), "type should be an argument of extract, got %v", argDescs)
+	assert.Assert(t, argumentDescriptions(argDescs)["Type"].Description != "", "the type argument should have a description")
 
 	// argDetails returns the suggestions defined by the operator, together with the description
 	out = fb.ArgDetails(ctx, base.MakeEmptyOutput(), flowbuilder.ArgDetailsArgs{Operator: "utils", Function: "extract"})
@@ -283,6 +294,46 @@ func contains(list []string, value string) bool {
 		}
 	}
 	return false
+}
+
+func operatorNames(list []flowbuilder.OperatorDetail) []string {
+	names := []string{}
+	for _, o := range list {
+		names = append(names, o.Name)
+	}
+	return names
+}
+
+func operatorDetails(list []flowbuilder.OperatorDetail) map[string]flowbuilder.OperatorDetail {
+	byName := map[string]flowbuilder.OperatorDetail{}
+	for _, o := range list {
+		byName[o.Name] = o
+	}
+	return byName
+}
+
+func functionNames(list []flowbuilder.FunctionDetail) []string {
+	names := []string{}
+	for _, f := range list {
+		names = append(names, f.Name)
+	}
+	return names
+}
+
+func functionDetails(list []flowbuilder.FunctionDetail) map[string]flowbuilder.FunctionDetail {
+	byName := map[string]flowbuilder.FunctionDetail{}
+	for _, f := range list {
+		byName[f.Name] = f
+	}
+	return byName
+}
+
+func argumentDescriptions(list []base.ArgumentDescription) map[string]base.ArgumentDescription {
+	byName := map[string]base.ArgumentDescription{}
+	for _, a := range list {
+		byName[a.Name] = a
+	}
+	return byName
 }
 
 func strPtr(s string) *string { return &s }

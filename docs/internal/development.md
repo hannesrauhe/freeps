@@ -38,6 +38,9 @@ checked in.
 4. Register it in the `availableOperators` slice in `freepsd/freepsd.go`. Respect the ordering
    comment — store, alerts and sensors must come before operators that use them.
 5. `curl localhost:8080/mything/<function>` — there is nothing else to wire up.
+6. Run `make generate` to add the operator and its functions to the descriptions that
+   `/flowbuilder/listOperators` and `/flowbuilder/listFunctions` serve. The generated file is
+   committed, so the build works without this step — the descriptions are just missing.
 
 To make it configurable, implement `FreepsOperatorWithConfig` and return a pointer to a config
 struct from `GetDefaultConfig()`. The config section is read at startup, defaults are written back
@@ -49,8 +52,13 @@ To give it a background goroutine or listener, implement `StartListening`/`Shutd
 
 - **Required arguments are plain fields, optional ones are pointers.** This is enforced by the
   framework, not a style choice.
+- **Operator and function descriptions are the Go doc comments** on the operator type and its
+  methods. `make generate` harvests them into
+  `connectors/flowbuilder/operatorDescriptions_generated.go`; nothing reads them at runtime.
+  Write them the usual Go way (`// Extract extracts the value of …`), the leading identifier is
+  stripped for the API.
 - **Argument descriptions go in an optional ``doc:"..."`` struct tag** on the parameter field.
-  `base.DescribeArguments()` exposes them (with type and requiredness) for API and UI use.
+  `GetArgumentDescriptions()` exposes them (with type and requiredness) for API and UI use.
   Tags are optional; add them where the argument name is not self-explanatory.
 - **Return meaningful HTTP codes**: `base.MakeOutputError(404, ...)`, `400` for bad input, `417`
   for "a previous step failed". Never `panic`.

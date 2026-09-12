@@ -5,9 +5,14 @@ BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 BUILD_TIMESTAMP=$(shell date '+%Y-%m-%dT%H:%M:%S')
 INSTALL_PREFIX=/usr/local
 
-.PHONY: build/freepsd build/freepsd-light
+.PHONY: build/freepsd build/freepsd-light generate
 
 all: build/freepsd build/freepsd-light
+
+# regenerates the operator and function descriptions that the flowbuilder metadata API serves.
+# The generated file is committed, so a plain "go build" works without running this.
+generate:
+	go run ./tools/docgen -o connectors/flowbuilder/operatorDescriptions_generated.go
 
 connectors/http/static_server_content/chota.min.css:
 	curl https://raw.githubusercontent.com/jenil/chota/v0.8.1/dist/chota.min.css -o connectors/http/static_server_content/chota.min.css

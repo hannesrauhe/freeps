@@ -68,11 +68,6 @@ func TestArgumentDescriptions(t *testing.T) {
 
 	// names are matched case insensitively, like everywhere else
 	assert.Equal(t, len(gop.GetArgumentDescriptions("describedfunction")), 7)
-
-	// the helper is a shortcut for the interface method
-	desc := DescribeArguments(gop, "describedfunction")
-	assert.Equal(t, len(desc), 7)
-	assert.Equal(t, desc[0].Description, byName[desc[0].Name].Description)
 }
 
 func TestArgumentDescriptionsDynamic(t *testing.T) {
@@ -113,13 +108,11 @@ func (o *noDescriptionsOperator) GetArgumentDescriptions(fn string) []ArgumentDe
 
 var _ FreepsBaseOperator = &noDescriptionsOperator{}
 
-func TestDescribeArgumentsFallback(t *testing.T) {
-	desc := DescribeArguments(&noDescriptionsOperator{}, "fn")
+func TestNameOnlyArgumentDescriptions(t *testing.T) {
+	op := &noDescriptionsOperator{}
+	desc := op.GetArgumentDescriptions("fn")
 	assert.Equal(t, len(desc), 1)
 	assert.Equal(t, desc[0].Name, "Arg1")
 	assert.Equal(t, desc[0].Description, "")
 	assert.Equal(t, desc[0].Type, "")
-
-	desc = DescribeArguments(nil, "fn")
-	assert.Equal(t, len(desc), 0)
 }

@@ -21,11 +21,16 @@ The operator metadata that drives the UI is available over HTTP as a four level 
 one endpoint per level, so a client can walk from operators down to argument details:
 
 ```bash
-curl 'localhost:8080/flowbuilder/listOperators'                                # ["Utils", ...]
-curl 'localhost:8080/flowbuilder/listFunctions?operator=utils'                 # ["Extract", ...]
-curl 'localhost:8080/flowbuilder/operatorArgs?operator=utils&function=extract' # ["Key", "Type", ...]
+curl 'localhost:8080/flowbuilder/listOperators'                                # [{"Name":"Utils","Description":"collection of utility operations"}, ...]
+curl 'localhost:8080/flowbuilder/listFunctions?operator=utils'                 # [{"Name":"Extract","Description":"extracts the value of a given key…"}, ...]
+curl 'localhost:8080/flowbuilder/operatorArgs?operator=utils&function=extract' # [{"Name":"Key","Type":"string","Required":true,"Description":"…"}, ...]
 curl 'localhost:8080/flowbuilder/argDetails?operator=utils&function=extract'
 ```
+
+Every level returns objects with a `Name` and a human-readable `Description`: for arguments
+it comes from the optional `doc` struct tag, for operators and functions from their Go doc
+comments (harvested by `make generate`). Operators or functions without a doc comment simply
+have an empty description.
 
 `argDetails` returns one object per argument with name, type, requiredness, description (from
 the optional `doc` struct tag) and value suggestions — exactly the drop-down contents the flow
@@ -116,10 +121,10 @@ Note that `GET /flow/` (with an empty flow name) is a 404, not a listing — see
 | `POST /flowbuilder/removeOperation` | Delete one operation |
 | `POST /flowbuilder/promoteFlow` | Copy a draft from the store into the engine |
 | `GET /flowbuilder/executeFlowFromStore?flowName=…` | Run a draft without registering it |
-| `GET /flowbuilder/listOperators` | Names of all registered operators |
-| `GET /flowbuilder/listFunctions?operator=…` | Functions of one operator |
-| `GET /flowbuilder/operatorArgs?operator=…&function=…` | Argument names of one function |
-| `GET /flowbuilder/argDetails?operator=…&function=…` | Name, type, requiredness, description and suggestions of every argument |
+| `GET /flowbuilder/listOperators` | Name and description of all registered operators |
+| `GET /flowbuilder/listFunctions?operator=…` | Name and description of the functions of one operator |
+| `GET /flowbuilder/operatorArgs?operator=…&function=…` | Name, type, requiredness and description of every argument |
+| `GET /flowbuilder/argDetails?operator=…&function=…` | The same, plus the value suggestions for every argument |
 
 ## The web UI
 

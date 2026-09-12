@@ -337,7 +337,7 @@ type StringAppendArgs struct {
 	StringToAppend string
 }
 
-// StringReplaceMulti replaces given args framed with "%" with their values
+// StringAppend appends args.StringToAppend to the input string, or to args.InputString if set
 func (m *OpUtils) StringAppend(ctx *base.Context, input *base.OperatorIO, args StringAppendArgs) *base.OperatorIO {
 	inputStr := input.GetString()
 	if args.InputString != nil {

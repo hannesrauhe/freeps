@@ -19,15 +19,6 @@ type ArgumentDescription struct {
 
 var _ FreepsBaseOperator = &FreepsOperatorWrapper{}
 
-// DescribeArguments returns the descriptions of all arguments of the given function of the
-// given operator. It is a nil-safe shortcut for op.GetArgumentDescriptions(fn).
-func DescribeArguments(op FreepsBaseOperator, fn string) []ArgumentDescription {
-	if op == nil {
-		return []ArgumentDescription{}
-	}
-	return op.GetArgumentDescriptions(fn)
-}
-
 // NameOnlyArgumentDescriptions returns an ArgumentDescription with only the name set for every
 // argument of the given function. It is the default implementation for operators that implement
 // FreepsBaseOperator directly and therefore have no parameter structs to describe.

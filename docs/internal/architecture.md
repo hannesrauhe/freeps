@@ -2,6 +2,8 @@
 
 The shape of these three layers is driven by the [design principles](../design-principles.md):
 reflection instead of code generation, one route instead of a router, and no auth layer.
+The one exception is `tools/docgen`, which harvests operator doc comments into a committed
+file for the metadata API — it generates no code an operator author has to write or maintain.
 
 Three layers, from bottom to top:
 
@@ -57,11 +59,11 @@ operator is a config variation, the name is the config section name instead (e.g
 | `Name []string` | repeatable |
 | `Name int64` | accepts a plain integer **or** a Go duration string (`30s`, `5m`) — it is the conventional type for durations |
 | ``json:"other"`` | alternative argument name |
-| ``doc:"..."`` | human-readable description of the argument, **optional** — see `DescribeArguments` |
+| ``doc:"..."`` | human-readable description of the argument, **optional** — see `GetArgumentDescriptions` |
 
 Missing required fields produce a 400 automatically.
 
-**Argument descriptions.** `base.DescribeArguments(op, fn)` returns name, type, requiredness
+**Argument descriptions.** `op.GetArgumentDescriptions(fn)` returns name, type, requiredness
 and the `doc` tag for every argument of a function. The tag is optional and arguments without
 it are described by name only, so descriptions can be added incrementally. Args structs are
 shared between functions (`StoreGetSetEqualArgs` serves seven store functions); if an argument
