@@ -57,8 +57,15 @@ operator is a config variation, the name is the config section name instead (e.g
 | `Name []string` | repeatable |
 | `Name int64` | accepts a plain integer **or** a Go duration string (`30s`, `5m`) — it is the conventional type for durations |
 | ``json:"other"`` | alternative argument name |
+| ``doc:"..."`` | human-readable description of the argument, **optional** — see `DescribeArguments` |
 
 Missing required fields produce a 400 automatically.
+
+**Argument descriptions.** `base.DescribeArguments(op, fn)` returns name, type, requiredness
+and the `doc` tag for every argument of a function. The tag is optional and arguments without
+it are described by name only, so descriptions can be added incrementally. Args structs are
+shared between functions (`StoreGetSetEqualArgs` serves seven store functions); if an argument
+means something different per function, either say so in the tag or split the struct.
 
 **Capability interfaces** — implement to opt into behaviour:
 

@@ -580,6 +580,11 @@ func (o *OpUI) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionA
 	return r
 }
 
+// GetArgumentDescriptions returns the possible arguments by name only
+func (o *OpUI) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(o, fn)
+}
+
 // StartListening (noOp)
 func (o *OpUI) StartListening(ctx *base.Context) {
 }

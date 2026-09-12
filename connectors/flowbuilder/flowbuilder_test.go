@@ -3,6 +3,7 @@ package flowbuilder_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -190,6 +191,98 @@ func TestListFlows(t *testing.T) {
 	assert.Assert(t, exists, "tagged flow should be listed for its tag")
 	_, exists = flows["listedFlow"]
 	assert.Assert(t, !exists, "untagged flow should not be listed for a tag")
+}
+
+func TestListOperatorsAndFunctions(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+	fb := &flowbuilder.OpFlowBuilder{GE: ge}
+
+	// listOperators returns the names of all registered operators
+	out := fb.ListOperators(ctx, base.MakeEmptyOutput(), flowbuilder.ListOperatorsArgs{})
+	assert.Assert(t, !out.IsError(), "ListOperators failed: %v", out)
+	ops := []string{}
+	assert.NilError(t, out.ParseJSON(&ops))
+	assert.Assert(t, contains(ops, "utils"), "utils operator should be listed, got %v", ops)
+
+	// listFunctions returns the functions of an operator
+	out = fb.ListFunctions(ctx, base.MakeEmptyOutput(), flowbuilder.ListFunctionsArgs{Operator: "utils"})
+	assert.Assert(t, !out.IsError(), "ListFunctions failed: %v", out)
+	fns := []string{}
+	assert.NilError(t, out.ParseJSON(&fns))
+	assert.Assert(t, contains(fns, "extract"), "extract should be listed for utils, got %v", fns)
+
+	// an unknown operator is a 404
+	out = fb.ListFunctions(ctx, base.MakeEmptyOutput(), flowbuilder.ListFunctionsArgs{Operator: "doesNotExist"})
+	assert.Assert(t, out.IsError(), "ListFunctions with an unknown operator should fail")
+}
+
+func TestOperatorArgsAndSuggestions(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+	fb := &flowbuilder.OpFlowBuilder{GE: ge}
+
+	// operatorArgs lists the arguments of a function
+	out := fb.OperatorArgs(ctx, base.MakeEmptyOutput(), flowbuilder.OperatorArgsArgs{Operator: "utils", Function: "extract"})
+	assert.Assert(t, !out.IsError(), "OperatorArgs failed: %v", out)
+	argNames := []string{}
+	assert.NilError(t, out.ParseJSON(&argNames))
+	assert.Assert(t, contains(argNames, "Type"), "type should be an argument of extract, got %v", argNames)
+
+	// argDetails returns the suggestions defined by the operator, together with the description
+	out = fb.ArgDetails(ctx, base.MakeEmptyOutput(), flowbuilder.ArgDetailsArgs{Operator: "utils", Function: "extract"})
+	assert.Assert(t, !out.IsError(), "ArgDetails failed: %v", out)
+	details := []flowbuilder.ArgDetail{}
+	assert.NilError(t, out.ParseJSON(&details))
+	assert.Equal(t, len(details), 3)
+	byName := map[string]flowbuilder.ArgDetail{}
+	for _, d := range details {
+		byName[d.Name] = d
+	}
+	_, exists := byName["Type"].Suggestions["string"]
+	assert.Assert(t, exists, "string should be a suggestion for the type argument, got %v", byName["Type"].Suggestions)
+	assert.Assert(t, byName["Type"].Description != "", "the type argument should have a description")
+	assert.Equal(t, byName["Type"].Required, false)
+	assert.Equal(t, byName["Type"].Type, "string")
+	assert.Equal(t, byName["Key"].Required, true)
+
+	// an unknown operator is a 404
+	out = fb.ArgDetails(ctx, base.MakeEmptyOutput(), flowbuilder.ArgDetailsArgs{Operator: "doesNotExist", Function: "extract"})
+	assert.Assert(t, out.IsError(), "ArgDetails with an unknown operator should fail")
+
+	// invalid otherArgs is a 400
+	out = fb.ArgDetails(ctx, base.MakeEmptyOutput(), flowbuilder.ArgDetailsArgs{Operator: "utils", Function: "extract", OtherArgs: strPtr("%zz")})
+	assert.Assert(t, out.IsError(), "ArgDetails with invalid otherArgs should fail")
+}
+
+func TestArgDetailsContextSensitive(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+	fb := &flowbuilder.OpFlowBuilder{GE: ge}
+
+	// write a value so that the store has a namespace and a key to suggest
+	out := ge.ExecuteOperatorByName(ctx, "store", "setSimpleValue", base.NewFunctionArguments(map[string]string{"namespace": "testing", "key": "testkey", "value": "testvalue"}), base.MakeEmptyOutput())
+	assert.Assert(t, !out.IsError(), "setSimpleValue failed: %v", out)
+
+	// otherArgs are passed to the suggestion functions, so they can be context sensitive
+	out = fb.ArgDetails(ctx, base.MakeEmptyOutput(), flowbuilder.ArgDetailsArgs{Operator: "store", Function: "get", OtherArgs: strPtr("namespace=testing")})
+	assert.Assert(t, !out.IsError(), "ArgDetails failed: %v", out)
+	details := []flowbuilder.ArgDetail{}
+	assert.NilError(t, out.ParseJSON(&details))
+	byName := map[string]flowbuilder.ArgDetail{}
+	for _, d := range details {
+		byName[d.Name] = d
+	}
+	// the namespace argument has the store namespaces as suggestions
+	assert.Assert(t, len(byName["Namespace"].Suggestions) > 0, "the namespace argument should have suggestions, got %v", byName["Namespace"].Suggestions)
+	// the doc tags of the store args struct provide descriptions
+	assert.Assert(t, byName["Key"].Description != "", "the key argument should have a description")
+}
+
+func contains(list []string, value string) bool {
+	for _, v := range list {
+		if strings.EqualFold(v, value) {
+			return true
+		}
+	}
+	return false
 }
 
 func strPtr(s string) *string { return &s }

@@ -3,3 +3,7 @@ freepsd/freepsd
 freepsd/freepsd-light
 connectors/http/static_server_content/chota.min.css
 connectors/http/static_server_content/screenfull.min.js
+
+# Local copy of the config of my smart home instance (contains tokens and passwords).
+# It has its own git repo for history, and must never end up in this repository.
+freeps-config-on-raspi/

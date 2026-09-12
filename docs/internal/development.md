@@ -49,6 +49,9 @@ To give it a background goroutine or listener, implement `StartListening`/`Shutd
 
 - **Required arguments are plain fields, optional ones are pointers.** This is enforced by the
   framework, not a style choice.
+- **Argument descriptions go in an optional ``doc:"..."`` struct tag** on the parameter field.
+  `base.DescribeArguments()` exposes them (with type and requiredness) for API and UI use.
+  Tags are optional; add them where the argument name is not self-explanatory.
 - **Return meaningful HTTP codes**: `base.MakeOutputError(404, ...)`, `400` for bad input, `417`
   for "a previous step failed". Never `panic`.
 - **Suggestion helpers.** A method on the *argument struct* named `<Field>Suggestions` returning

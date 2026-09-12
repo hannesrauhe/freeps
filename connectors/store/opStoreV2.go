@@ -84,14 +84,14 @@ func (o *OpStore) GetNamespaces(ctx *base.Context) *base.OperatorIO {
 
 // StoreGetSetEqualArgs are the arguments for the Get, Set and Equal function
 type StoreGetSetEqualArgs struct {
-	Namespace    string
-	Key          *string
-	KeyArgName   *string
-	Output       *string
-	DefaultValue *string // only used for Get
-	Value        *string
-	ValueArgName *string // only used for Equals/Set
-	MaxAge       *time.Duration
+	Namespace    string  `doc:"the store namespace to read from or write to"`
+	Key          *string `doc:"the key to access, mutually exclusive with keyArgName"`
+	KeyArgName   *string `doc:"name of another argument that holds the key, use this to avoid quoting issues"`
+	Output       *string `doc:"output format: hierarchy (default), flat, direct, arguments, full, bool or empty"`
+	DefaultValue *string `doc:"value to return if the key does not exist (Get only)"`
+	Value        *string `doc:"the value to store (Set/Equals only)"`
+	ValueArgName *string        `doc:"name of another argument that holds the value (Set/Equals only)"`
+	MaxAge       *time.Duration `doc:"maximum age of the value, e.g. 10m. Older values are treated as missing (Get only)"`
 }
 
 // Init initializes the args with default values

@@ -272,6 +272,11 @@ func (o *OpExec) GetArgSuggestions(fn string, arg string, otherArgs base.Functio
 	return map[string]string{}
 }
 
+// GetArgumentDescriptions returns the possible command line arguments by name only
+func (o *OpExec) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(o, fn)
+}
+
 // StartListening (noOp)
 func (o *OpExec) StartListening(ctx *base.Context) {
 }
