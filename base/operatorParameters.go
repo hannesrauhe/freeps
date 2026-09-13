@@ -189,23 +189,55 @@ func ParamListToParamMap(args []string) map[string]string {
 	return argMap
 }
 
-// GetCommonParameterSuggestions returns the default suggestions for the argument argName of type argType
-func (o *FreepsOperatorWrapper) GetCommonParameterSuggestions(parmStruct reflect.Value, paramName string) []string {
-	paramKind := reflect.Invalid
-	for i := 0; i < parmStruct.Elem().NumField(); i++ {
-		field := parmStruct.Elem().Field(i)
-		fieldName := utils.StringToLower(parmStruct.Elem().Type().Field(i).Name)
-		if fieldName != paramName {
+// getSupportedStructField returns the struct field of paramStruct with the given lower case name,
+// as long as its type is supported as a function argument (including pointers and slices).
+func getSupportedStructField(paramStruct reflect.Value, paramName string) (reflect.StructField, bool) {
+	structValue := paramStruct.Elem()
+	for i := 0; i < structValue.NumField(); i++ {
+		fieldType := structValue.Type().Field(i)
+		if utils.StringToLower(fieldType.Name) != paramName {
 			continue
 		}
-		if isSupportedField(field, false) {
-			paramKind = field.Kind()
-			break
+		field := structValue.Field(i)
+		if isSupportedField(field, false) || isSupportedField(field, true) {
+			return fieldType, true
 		}
-		if isSupportedField(field, true) {
-			paramKind = field.Type().Elem().Kind()
-			break
+	}
+	return reflect.StructField{}, false
+}
+
+// getFieldOptions returns the values of the "options" struct tag of the given field, which is a
+// comma separated list of the values the argument may take. It is the declarative alternative to
+// a <Field>Suggestions method and should be used for arguments with a fixed set of values. Use
+// the method instead when the values need labels or have to be computed at runtime.
+func getFieldOptions(paramStruct reflect.Value, paramName string) []string {
+	fieldType, exists := getSupportedStructField(paramStruct, paramName)
+	if !exists {
+		return nil
+	}
+	optionsTag := fieldType.Tag.Get("options")
+	if optionsTag == "" {
+		return nil
+	}
+	options := []string{}
+	for _, option := range strings.Split(optionsTag, ",") {
+		option = strings.TrimSpace(option)
+		if option != "" {
+			options = append(options, option)
 		}
+	}
+	return options
+}
+
+// GetCommonParameterSuggestions returns the default suggestions for the argument argName of type argType
+func (o *FreepsOperatorWrapper) GetCommonParameterSuggestions(parmStruct reflect.Value, paramName string) []string {
+	fieldType, exists := getSupportedStructField(parmStruct, paramName)
+	if !exists {
+		return []string{}
+	}
+	paramKind := fieldType.Type.Kind()
+	if paramKind == reflect.Ptr || paramKind == reflect.Slice {
+		paramKind = fieldType.Type.Elem().Kind()
 	}
 
 	switch paramKind {

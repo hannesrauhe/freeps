@@ -62,9 +62,18 @@ To give it a background goroutine or listener, implement `StartListening`/`Shutd
   Tags are optional; add them where the argument name is not self-explanatory.
 - **Return meaningful HTTP codes**: `base.MakeOutputError(404, ...)`, `400` for bad input, `417`
   for "a previous step failed". Never `panic`.
-- **Suggestion helpers.** A method on the *argument struct* named `<Field>Suggestions` returning
-  `[]string` or `map[string]string` feeds autocomplete in the UI. See
-  `FlowFromStoreArgs.FlowNameSuggestions`.
+- **Value suggestions** for an argument come from, in this order:
+  1. a ``options:"a,b,c"`` struct tag — use this for a fixed set of values, it needs no code:
+     `Kind []string \`options:"manual,helper,event"\``
+  2. a method on the *argument struct* named `<Field>Suggestions` returning `[]string` or
+     `map[string]string` — use this when the values need labels or must be computed at runtime
+     (flow names, sensor names, …). A method on the *operator* also works and serves all its
+     functions.
+  3. type defaults (`bool` → `true`/`false`, ints, durations for `int64` fields whose name
+     contains time/duration/age).
+
+  Suggestions feed the UI drop downs and `/flowbuilder/argDetails`; they are hints, nothing is
+  validated against them. See `TestOptionsTag` in `base/argumentDescriptions_test.go`.
 - **Never write to the config file directly** — go through `utils.ConfigReader`, which serializes
   and keeps backups.
 - Flows and config are written with `WriteObjectToFile`, which renames the previous version to

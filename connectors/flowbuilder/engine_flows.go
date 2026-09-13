@@ -11,8 +11,7 @@ import (
 
 /*
 This file contains the helpers and functions to work with flows that are registered in the flow
-engine (as opposed to the draft flows in the store). Flows in the engine are persisted in the
-"graphs" directory of the config directory and can be executed directly.
+engine (as opposed to the draft flows in the store). Flows in the engine are persisted in the config directory and can be executed directly.
 
 All mutating functions of the flowbuilder can work on either layer, controlled by the "Live"
 argument: if Live is true the flow is read from and written to the engine, otherwise the draft
@@ -61,7 +60,7 @@ func (arg *CreateFlowArgs) FlowIDSuggestions(otherArgs base.FunctionArguments, m
 
 // CreateFlow creates (or replaces) a flow directly in the flow engine. The flow definition is
 // expected as JSON (a serialized FlowDesc) in the input of the call, the flowID is given as an
-// argument. The flow is validated before it is added and is persisted in the graphs directory,
+// argument. The flow is validated before it is added and is persisted,
 // so that it survives a restart and can be executed with /flow/<flowID> .
 func (m *OpFlowBuilder) CreateFlow(ctx *base.Context, input *base.OperatorIO, args CreateFlowArgs) *base.OperatorIO {
 	if args.FlowID == "" {
@@ -83,16 +82,90 @@ func (m *OpFlowBuilder) CreateFlow(ctx *base.Context, input *base.OperatorIO, ar
 
 // ListFlowsArgs are the arguments for the ListFlows function
 type ListFlowsArgs struct {
-	// Tags is an optional comma separated list of tags. If given, only flows that carry all
-	// of the given tags are returned.
-	Tags *string
+	Tags    *string  `doc:"comma separated tags, only flows with all of them are returned"`
+	Kind    []string `doc:"kinds (manual, helper, event), repeat the argument for multiple. Only flows of one of the given kinds are returned, flows without a kind count as manual." options:"manual,helper,event"`
+	Details *bool    `doc:"return the full definitions including the operations, instead of the brief description"`
 }
 
-// ListFlows returns the flow descriptions of all flows that are currently registered in the flow
-// engine, or only the ones with a given tag if the Tags argument is set.
+// ListFlows returns all flows in the flow engine, filtered by Tags and/or Kind. By default only
+// the brief description (DisplayName, Description, Kind, Tags) is returned, use Details=true for
+// the full definitions.
 func (m *OpFlowBuilder) ListFlows(ctx *base.Context, input *base.OperatorIO, args ListFlowsArgs) *base.OperatorIO {
+	flows := map[string]freepsflow.FlowDesc{}
 	if args.Tags != nil && *args.Tags != "" {
-		return base.MakeObjectOutput(m.GE.GetFlowDescByTag(strings.Split(*args.Tags, ",")))
+		flows = m.GE.GetFlowDescByTag(strings.Split(*args.Tags, ","))
+	} else {
+		for id, gd := range m.GE.GetAllFlowDesc() {
+			flows[id] = *gd
+		}
 	}
-	return base.MakeObjectOutput(m.GE.GetAllFlowDesc())
+	if len(args.Kind) > 0 {
+		kinds := make([]string, 0, len(args.Kind))
+		for _, k := range args.Kind {
+			kinds = append(kinds, strings.ToLower(strings.TrimSpace(k)))
+		}
+		filtered := map[string]freepsflow.FlowDesc{}
+		for id, gd := range flows {
+			for _, k := range kinds {
+				if (k == freepsflow.FlowKindManual && gd.IsManual()) || strings.EqualFold(gd.Kind, k) {
+					filtered[id] = gd
+					break
+				}
+			}
+		}
+		flows = filtered
+	}
+	if args.Details != nil && *args.Details {
+		return base.MakeObjectOutput(flows)
+	}
+	brief := map[string]freepsflow.FlowBriefDesc{}
+	for id, gd := range flows {
+		brief[id] = gd.Brief(id)
+	}
+	return base.MakeObjectOutput(brief)
+}
+
+// SetFlowDescriptionArgs are the arguments for the SetFlowDescription function
+type SetFlowDescriptionArgs struct {
+	FlowName    string `doc:"the name of the flow"`
+	Description string `doc:"the new description, empty clears it"`
+	Live        *bool  `doc:"operate on the flow in the engine (persisted) instead of the draft in the store"`
+}
+
+// SetFlowDescription sets the Description of a flow in the store (or in the flow engine if Live
+// is set) without touching the operations. An empty description clears it.
+func (m *OpFlowBuilder) SetFlowDescription(ctx *base.Context, input *base.OperatorIO, args SetFlowDescriptionArgs) *base.OperatorIO {
+	live := args.Live != nil && *args.Live
+	gd, err := m.loadFlow(args.FlowName, live)
+	if err != nil {
+		return base.MakeOutputError(404, "Flow not found: %v", err)
+	}
+	gd.Description = args.Description
+	return m.saveFlow(ctx, args.FlowName, gd, live)
+}
+
+// SetFlowKindArgs are the arguments for the SetFlowKind function
+type SetFlowKindArgs struct {
+	FlowName string `doc:"the name of the flow"`
+	Kind     string `doc:"manual, helper or event. Empty resets to the default (manual)." options:"manual,helper,event"`
+	Live     *bool  `doc:"operate on the flow in the engine (persisted in the graphs directory) instead of the draft in the store"`
+}
+
+// SetFlowKind sets the Kind of a flow in the store (or in the flow engine if Live is set)
+// without touching the operations. Valid kinds are "manual", "helper" and "event"; an empty
+// kind resets it to the default ("manual").
+func (m *OpFlowBuilder) SetFlowKind(ctx *base.Context, input *base.OperatorIO, args SetFlowKindArgs) *base.OperatorIO {
+	live := args.Live != nil && *args.Live
+	kind := strings.ToLower(strings.TrimSpace(args.Kind))
+	switch kind {
+	case "", freepsflow.FlowKindManual, freepsflow.FlowKindHelper, freepsflow.FlowKindEvent:
+	default:
+		return base.MakeOutputError(400, "Invalid kind \"%s\", valid kinds are manual, helper and event", args.Kind)
+	}
+	gd, err := m.loadFlow(args.FlowName, live)
+	if err != nil {
+		return base.MakeOutputError(404, "Flow not found: %v", err)
+	}
+	gd.Kind = kind
+	return m.saveFlow(ctx, args.FlowName, gd, live)
 }

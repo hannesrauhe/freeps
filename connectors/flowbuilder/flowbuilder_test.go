@@ -173,25 +173,73 @@ func TestListFlows(t *testing.T) {
 	out = fb.CreateFlow(ctx, base.MakeByteOutput([]byte(taggedFlowJSON)), flowbuilder.CreateFlowArgs{FlowID: "taggedFlow"})
 	assert.Assert(t, !out.IsError(), "CreateFlow failed: %v", out)
 
-	// without tags all flows are listed
+	// by default all flows are listed, in the brief form without operations
 	out = fb.ListFlows(ctx, base.MakeEmptyOutput(), flowbuilder.ListFlowsArgs{})
 	assert.Assert(t, !out.IsError(), "ListFlows failed: %v", out)
+	brief := map[string]freepsflow.FlowBriefDesc{}
+	assert.NilError(t, out.ParseJSON(&brief))
+	_, exists := brief["listedFlow"]
+	assert.Assert(t, exists, "created flow should be listed")
+	_, exists = brief["taggedFlow"]
+	assert.Assert(t, exists, "tagged flow should be listed")
+	assert.Equal(t, brief["listedFlow"].DisplayName, "test flow")
+
 	flows := map[string]freepsflow.FlowDesc{}
 	assert.NilError(t, out.ParseJSON(&flows))
-	_, exists := flows["listedFlow"]
-	assert.Assert(t, exists, "created flow should be listed")
-	_, exists = flows["taggedFlow"]
-	assert.Assert(t, exists, "tagged flow should be listed")
+	assert.Equal(t, len(flows["listedFlow"].Operations), 0, "the default listing must not contain operations")
+
+	// with details=true the full definitions are returned
+	out = fb.ListFlows(ctx, base.MakeEmptyOutput(), flowbuilder.ListFlowsArgs{Details: boolPtr(true)})
+	assert.Assert(t, !out.IsError(), "ListFlows with details failed: %v", out)
+	flows = map[string]freepsflow.FlowDesc{}
+	assert.NilError(t, out.ParseJSON(&flows))
+	assert.Equal(t, len(flows["listedFlow"].Operations), 1, "details=true must contain the operations")
 
 	// with a tag only the matching flows are listed
 	out = fb.ListFlows(ctx, base.MakeEmptyOutput(), flowbuilder.ListFlowsArgs{Tags: strPtr("mytag")})
 	assert.Assert(t, !out.IsError(), "ListFlows with tag failed: %v", out)
-	flows = map[string]freepsflow.FlowDesc{}
-	assert.NilError(t, out.ParseJSON(&flows))
-	_, exists = flows["taggedFlow"]
+	brief = map[string]freepsflow.FlowBriefDesc{}
+	assert.NilError(t, out.ParseJSON(&brief))
+	_, exists = brief["taggedFlow"]
 	assert.Assert(t, exists, "tagged flow should be listed for its tag")
-	_, exists = flows["listedFlow"]
+	_, exists = brief["listedFlow"]
 	assert.Assert(t, !exists, "untagged flow should not be listed for a tag")
+
+	// without a kind all flows count as manual
+	out = fb.ListFlows(ctx, base.MakeEmptyOutput(), flowbuilder.ListFlowsArgs{Kind: []string{"manual"}})
+	assert.Assert(t, !out.IsError(), "ListFlows with kind=manual failed: %v", out)
+	brief = map[string]freepsflow.FlowBriefDesc{}
+	assert.NilError(t, out.ParseJSON(&brief))
+	_, exists = brief["listedFlow"]
+	assert.Assert(t, exists, "a flow without kind should be listed for kind=manual")
+
+	// after setting a kind it is only listed for that kind
+	out = fb.SetFlowKind(ctx, base.MakeEmptyOutput(), flowbuilder.SetFlowKindArgs{FlowName: "listedFlow", Kind: "helper", Live: boolPtr(true)})
+	assert.Assert(t, !out.IsError(), "SetFlowKind failed: %v", out)
+	out = fb.ListFlows(ctx, base.MakeEmptyOutput(), flowbuilder.ListFlowsArgs{Kind: []string{"manual"}})
+	brief = map[string]freepsflow.FlowBriefDesc{}
+	assert.NilError(t, out.ParseJSON(&brief))
+	_, exists = brief["listedFlow"]
+	assert.Assert(t, !exists, "a helper flow should not be listed for kind=manual")
+	out = fb.ListFlows(ctx, base.MakeEmptyOutput(), flowbuilder.ListFlowsArgs{Kind: []string{"helper"}})
+	brief = map[string]freepsflow.FlowBriefDesc{}
+	assert.NilError(t, out.ParseJSON(&brief))
+	_, exists = brief["listedFlow"]
+	assert.Assert(t, exists, "a helper flow should be listed for kind=helper")
+	assert.Equal(t, brief["listedFlow"].Kind, "helper", "the brief description should contain the kind")
+
+	// an invalid kind must be rejected
+	out = fb.SetFlowKind(ctx, base.MakeEmptyOutput(), flowbuilder.SetFlowKindArgs{FlowName: "listedFlow", Kind: "bogus", Live: boolPtr(true)})
+	assert.Assert(t, out.IsError(), "an invalid kind should fail")
+
+	// the description can be set without touching the operations
+	out = fb.SetFlowDescription(ctx, base.MakeEmptyOutput(), flowbuilder.SetFlowDescriptionArgs{FlowName: "listedFlow", Description: "a nice flow", Live: boolPtr(true)})
+	assert.Assert(t, !out.IsError(), "SetFlowDescription failed: %v", out)
+	gd, exists := ge.GetFlowDesc("listedFlow")
+	assert.Assert(t, exists)
+	assert.Equal(t, gd.Description, "a nice flow")
+	assert.Equal(t, gd.Kind, "helper", "setting the description must not change the kind")
+	assert.Equal(t, len(gd.Operations), 1, "setting the description must not change the operations")
 }
 
 func TestListOperatorsAndFunctions(t *testing.T) {

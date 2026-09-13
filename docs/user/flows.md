@@ -41,6 +41,7 @@ Top level fields:
 |---|---|
 | `DisplayName` | Shown in the UI; defaults to the flow ID |
 | `Description` | Optional free-text description of what the flow does; returned by `listFlows` and `getFlow` |
+| `Kind` | Who invokes the flow: `manual` (default), `helper` or `event`. Descriptive only — see [Kind](#kind-manual-helper-or-event) |
 | `Tags` | Free-form labels, used for triggering and for UI grouping |
 | `OutputFrom` | Which operation's output is the flow's output |
 | `Operations` | The operations, in execution order |
@@ -187,7 +188,9 @@ stored under a different key) and `overwrite`.
 ```bash
 curl 'localhost:8080/flowbuilder/getFlow?flowID=myflow'
 curl 'localhost:8080/flowbuilder/listFlows'
+curl 'localhost:8080/flowbuilder/listFlows?details=true'
 curl 'localhost:8080/flowbuilder/listFlows?tags=cron'
+curl 'localhost:8080/flowbuilder/listFlows?kind=manual'
 curl -X POST 'localhost:8080/flowbuilder/deleteFlow?flowID=myflow'
 ```
 
@@ -236,6 +239,32 @@ freeps. See [the FritzBox's missing push mechanism](../design-principles.md#the-
 The UI reserves some tags for itself: `ui,tile` shows a flow as a tile on the dashboard,
 `ui,footer` puts a link in the footer.
 
+## Kind: manual, helper or event
+
+Where tags say *how* a flow gets triggered, `Kind` says *who* is meant to invoke it. It is purely
+descriptive metadata — it never changes execution, triggering stays driven by tags alone. It exists
+so a UI or a script can tell "switch on the light" apart from a plumbing flow nobody calls by hand.
+
+| Kind | Meaning |
+|---|---|
+| `manual` | Meant to be invoked by a human, e.g. "switch on the light". This is the default when `Kind` is empty, so flows written before the field existed keep their meaning. |
+| `helper` | Only called by other flows (shared sub-steps). |
+| `event` | Triggered by an event source — a connector or cron, usually via tags. |
+
+Set it without touching the operations:
+
+```bash
+curl -X POST 'localhost:8080/flowbuilder/setFlowKind?flowName=myflow&kind=manual&live=true'
+curl -X POST 'localhost:8080/flowbuilder/setFlowDescription?flowName=myflow&description=Switch+on+the+light&live=true'
+```
+
+Filter by it (`kind` is a repeatable argument, ANDed with `tags`):
+
+```bash
+curl 'localhost:8080/flowbuilder/listFlows?kind=manual'                  # only the human-facing actions
+curl 'localhost:8080/flowbuilder/listFlows?kind=manual&kind=helper'      # several kinds
+```
+
 ### Scheduling
 
 **There is no scheduler inside freeps.** The embedded `garbageCollect` flow carries the tags
@@ -248,7 +277,8 @@ The UI reserves some tags for itself: `ui,tile` shows a flow as a tile on the da
 ## Listing flows
 
 ```bash
-curl 'localhost:8080/flowbuilder/listFlows'                 # definitions of all flows
+curl 'localhost:8080/flowbuilder/listFlows'                 # brief description of all flows
+curl 'localhost:8080/flowbuilder/listFlows?details=true'    # full definitions incl. operations
 curl 'localhost:8080/system/GetFlowDescByTag'               # same, legacy spelling is case-sensitive
 curl 'localhost:8080/ui/flowInfo.html'                      # human readable
 ```

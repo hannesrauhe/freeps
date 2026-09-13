@@ -116,3 +116,60 @@ func TestNameOnlyArgumentDescriptions(t *testing.T) {
 	assert.Equal(t, desc[0].Description, "")
 	assert.Equal(t, desc[0].Type, "")
 }
+
+type OptionsFuncArgs struct {
+	Kind    string   `options:"manual,helper,event"`
+	OptKind *string  `options:"a, b ,c"`
+	Plain   []string `options:"x,y"`
+	// an options method must win over the tag
+	WithMethod *string `options:"fromtag"`
+	NoTag      *string
+	// an empty tag is no tag
+	EmptyTag *string `options:""`
+}
+
+type OptionsTestOperator struct{}
+
+func (o *OptionsTestOperator) WithOptions(ctx *Context, mainInput *OperatorIO, args OptionsFuncArgs) *OperatorIO {
+	return MakeEmptyOutput()
+}
+
+// WithMethodSuggestions is the escape hatch: it wins over the options tag.
+func (a *OptionsFuncArgs) WithMethodSuggestions() []string {
+	return []string{"frommethod"}
+}
+
+func TestOptionsTag(t *testing.T) {
+	ctx := NewBaseContextWithReason(logrus.StandardLogger(), "")
+	gop := MakeFreepsOperators(&OptionsTestOperator{}, nil, ctx)[0]
+
+	// the tag values become the suggestions, key and value are the same
+	assert.Equal(t, gop.GetArgSuggestions("WithOptions", "Kind", MakeEmptyFunctionArguments())["manual"], "manual")
+	kindSug := gop.GetArgSuggestions("WithOptions", "Kind", MakeEmptyFunctionArguments())
+	assert.Equal(t, len(kindSug), 3)
+	_, hasEvent := kindSug["event"]
+	assert.Assert(t, hasEvent, "the last value of the tag should be a suggestion")
+
+	// values are trimmed, and pointers and slices work the same way
+	optKind := gop.GetArgSuggestions("WithOptions", "OptKind", MakeEmptyFunctionArguments())
+	assert.Equal(t, len(optKind), 3)
+	_, hasB := optKind["b"]
+	assert.Assert(t, hasB, "spaces around tag values should be trimmed")
+	assert.Equal(t, len(gop.GetArgSuggestions("WithOptions", "Plain", MakeEmptyFunctionArguments())), 2)
+
+	// a suggestion method takes precedence over the tag
+	methodSug := gop.GetArgSuggestions("WithOptions", "WithMethod", MakeEmptyFunctionArguments())
+	assert.Equal(t, len(methodSug), 1)
+	_, fromMethod := methodSug["frommethod"]
+	assert.Assert(t, fromMethod, "the method should win over the tag")
+
+	// without a tag the common suggestions for the type are used (bool -> true/false)
+	boolSug := gop.GetArgSuggestions("WithOptions", "NoTag", MakeEmptyFunctionArguments())
+	assert.Equal(t, len(boolSug), 0, "a string without tag has no suggestions")
+
+	// an empty options tag behaves like no tag at all
+	assert.Equal(t, len(gop.GetArgSuggestions("WithOptions", "EmptyTag", MakeEmptyFunctionArguments())), 0)
+
+	// argument names are matched case insensitively
+	assert.Equal(t, len(gop.GetArgSuggestions("WithOptions", "kind", MakeEmptyFunctionArguments())), 3)
+}

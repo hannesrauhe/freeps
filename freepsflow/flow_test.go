@@ -128,6 +128,16 @@ func TestExecuteFlowEmptyName(t *testing.T) {
 	assert.Equal(t, out.GetStatusCode(), 404)
 }
 
+func TestFlowKind(t *testing.T) {
+	// an empty kind counts as manual, so flows from before the field existed keep their meaning
+	assert.Assert(t, (&freepsflow.FlowDesc{}).IsManual(), "a flow without kind should be manual")
+	assert.Assert(t, (&freepsflow.FlowDesc{Kind: freepsflow.FlowKindManual}).IsManual())
+	assert.Assert(t, (&freepsflow.FlowDesc{Kind: "MANUAL"}).IsManual(), "kind should be matched case-insensitively")
+	assert.Assert(t, !(&freepsflow.FlowDesc{Kind: freepsflow.FlowKindHelper}).IsManual())
+	assert.Assert(t, !(&freepsflow.FlowDesc{Kind: freepsflow.FlowKindEvent}).IsManual())
+	assert.Assert(t, !(&freepsflow.FlowDesc{Kind: "bogus"}).IsManual(), "an unknown kind should not count as manual")
+}
+
 func TestCheckFlow(t *testing.T) {
 	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 

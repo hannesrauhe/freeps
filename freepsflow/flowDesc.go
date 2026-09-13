@@ -38,20 +38,63 @@ func (gop *FlowOperationDesc) ToQuicklink() string {
 	return s.String()
 }
 
+// Flow kinds (values of FlowDesc.Kind). The kind describes who invokes a flow; it never
+// changes how a flow is triggered - triggering is driven by Tags alone. An empty Kind means
+// FlowKindManual, so flows written before this field existed keep their meaning.
+const (
+	// FlowKindManual is a flow that is meant to be invoked by a human, e.g. "switch on the light"
+	FlowKindManual = "manual"
+	// FlowKindHelper is a flow that is only called by other flows
+	FlowKindHelper = "helper"
+	// FlowKindEvent is a flow that is triggered by an event source (connector or cron), e.g. via tags
+	FlowKindEvent = "event"
+)
+
 // FlowDesc contains a number of operations and defines which output to use
 type FlowDesc struct {
 	FlowID      string `json:",omitempty"` // is only assigned when the flow is added to the engine and will be overwritten
 	DisplayName string
 	Description string `json:",omitempty"` // optional human-readable description of what the flow does
+	Kind        string `json:",omitempty"` // manual (default if empty), helper or event - see FlowKind constants. Descriptive only, triggering is done by Tags.
 	Tags        []string
 	Source      string
 	OutputFrom  string
 	Operations  []FlowOperationDesc
 }
 
+// IsManual returns true if the flow is meant to be invoked by a human. An empty Kind counts as
+// manual, so flows that were written before the Kind field exists are treated as manual.
+func (gd *FlowDesc) IsManual() bool {
+	return gd.Kind == "" || strings.EqualFold(gd.Kind, FlowKindManual)
+}
+
+// FlowBriefDesc is a flow description without the operations - enough to show a flow in a list
+// or to decide what it does, without transferring the whole definition.
+type FlowBriefDesc struct {
+	DisplayName string
+	Description string   `json:",omitempty"`
+	Kind        string   `json:",omitempty"`
+	Tags        []string `json:",omitempty"`
+}
+
+// Brief returns the description of the flow without its operations. The flowID is only used to
+// fill in the default DisplayName, same as in GetCompleteDesc.
+func (gd *FlowDesc) Brief(flowID string) FlowBriefDesc {
+	displayName := gd.DisplayName
+	if displayName == "" && len(flowID) > 1 {
+		displayName = strings.ToUpper(flowID[0:1]) + flowID[1:]
+	}
+	return FlowBriefDesc{
+		DisplayName: displayName,
+		Description: gd.Description,
+		Kind:        gd.Kind,
+		Tags:        gd.Tags,
+	}
+}
+
 // HasAllTags return true if the FlowDesc contains all given tags
 func (gd *FlowDesc) HasAllTags(expectedTags []string) bool {
-	if expectedTags == nil || len(expectedTags) == 0 {
+	if len(expectedTags) == 0 {
 		return true
 	}
 
