@@ -23,6 +23,7 @@ var operatorDescriptions = map[string]string{
 	"store": "namespaced key-value store used to share and persist values between flows, optionally backed by Postgres.",
 	"telegram": "sends messages to Telegram chats and triggers flows from incoming messages and callback buttons received by the bot.",
 	"time": "provides time-related functions, including the current time, day and night based on sunrise and sunset at a location, and sleeping for a duration.",
+	"tuya": "keeps a persistent connection to each configured Tuya device and publishes its data points as sensors whenever the device pushes an update. Read-only: it never sends control commands.",
 	"utils": "collection of utility operations",
 	"weather": "retrieves the current weather from OpenWeatherMap, stores it as a sensor and can serve the matching weather icons.",
 }
@@ -70,7 +71,7 @@ var functionDescriptions = map[string]map[string]string{
 		"GetFlow": "returns a flow from the flow engine",
 		"GetFlowFromStore": "returns a flow from the store",
 		"ListFlows": "returns the flow descriptions of all flows that are currently registered in the flow engine, or only the ones with a given tag if the Tags argument is set.",
-		"ListFunctions": "returns name and description of all functions of the given operator.",
+		"ListFunctions": "returns name and description of all functions of the given operator, sorted alphabetically. Operators are free to order their functions as they like (exec puts \"run\" first), so the stable order is created here rather than in GetFunctions.",
 		"ListOperators": "returns name and description of all operators that are currently registered in the flow engine.",
 		"OperatorArgs": "returns name, type, requiredness and description of all arguments of the given function of the given operator. This is the same list as ArgDetails, without the value suggestions.",
 		"PromoteFlow": "takes a (draft) flow from the store and registers it in the flow engine, which validates it and persists it in the graphs directory. This is the step that makes a flow that was built programmatically (or in the UI editor) permanent and executable with /flow/<name> .",
@@ -146,6 +147,11 @@ var functionDescriptions = map[string]map[string]string{
 		"Now": "returns the current time",
 		"Sleep": "sleeps for the given duration unless aborted",
 		"Sunrise": "returns the SunriseOutput for the given location",
+	},
+	"tuya": {
+		"ListDevices": "returns the configured device names with their ids, protocol versions and connection state (keys are not returned).",
+		"Query": "forces a fresh full query of the device over the persistent connection and returns the result. Use Status for the cached values.",
+		"Status": "returns the last known data points of a device as reported by the persistent connection. It does NOT open a new connection (a Tuya device only accepts one at a time); use Query for a forced fresh read.",
 	},
 	"utils": {
 		"ConvertFormDataToInput": "takes the \"input\" field from the form data and passes it on directly",
