@@ -37,8 +37,6 @@ the optional `doc` struct tag) and value suggestions — exactly the drop-down c
 editor shows. It accepts an optional `otherArgs` argument in URL query format (e.g.
 `otherArgs=namespace=testing`), which is passed to the suggestion functions so they can return
 context sensitive suggestions.
-Operator and function names are matched case-insensitively; an unknown operator is a 404 that
-lists the available operators.
 
 In addition:
 
