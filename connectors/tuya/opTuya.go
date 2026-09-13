@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -45,7 +46,8 @@ type TuyaConfig struct {
 
 // OpTuya keeps a persistent connection to each configured Tuya device and
 // publishes its data points as sensors whenever the device pushes an update.
-// Read-only: it never sends control commands.
+// Control commands are sent over the same persistent connection, since a Tuya
+// device only accepts one TCP connection at a time.
 type OpTuya struct {
 	CR       *utils.ConfigReader
 	GE       *freepsflow.FlowEngine
@@ -233,6 +235,70 @@ func (o *OpTuya) Query(ctx *base.Context, mainInput *base.OperatorIO, args Query
 	return base.MakeObjectOutput(dps)
 }
 
+// SetSwitchArgs are the arguments for the SetSwitch function.
+type SetSwitchArgs struct {
+	Device string
+	On     bool
+}
+
+// SetSwitch turns the main switch (data point 1) of a device on or off over
+// the persistent connection. The device confirms by pushing the new state,
+// which updates the sensors.
+func (o *OpTuya) SetSwitch(ctx *base.Context, mainInput *base.OperatorIO, args SetSwitchArgs) *base.OperatorIO {
+	return o.setDPSValues(args.Device, map[string]interface{}{"1": args.On})
+}
+
+// SetDPSArgs are the arguments for the SetDPS function.
+type SetDPSArgs struct {
+	Device string
+	DPS    string
+	Value  string
+}
+
+// SetDPS sets an arbitrary data point to a value, which is parsed as bool,
+// int or float first and used as string otherwise, e.g. dps=2 value=55 sets
+// the target humidity of a dehumidifier to 55%.
+func (o *OpTuya) SetDPS(ctx *base.Context, mainInput *base.OperatorIO, args SetDPSArgs) *base.OperatorIO {
+	if args.DPS == "" {
+		return base.MakeOutputError(400, "tuya: dps argument is required")
+	}
+	return o.setDPSValues(args.Device, map[string]interface{}{args.DPS: parseDPSValue(args.Value)})
+}
+
+// setDPSValues sends a control command for one configured device.
+func (o *OpTuya) setDPSValues(device string, dps map[string]interface{}) *base.OperatorIO {
+	o.mu.Lock()
+	w := o.watchers[device]
+	o.mu.Unlock()
+	if w == nil {
+		return base.MakeOutputError(404, "tuya: no watcher for device %q", device)
+	}
+	if err := w.Control(dps); err != nil {
+		return base.MakeOutputError(500, "tuya: %v", err)
+	}
+	return base.MakeObjectOutput(dps)
+}
+
+// parseDPSValue converts a string argument into the JSON type the data point
+// most likely expects: only the literals true/false become a bool (so that a
+// numeric data point can still be set to "1"), then integer, then float, and
+// anything else stays a string (for enum dps like fan_speed_enum).
+func parseDPSValue(s string) interface{} {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	if v, err := utils.ConvertToInt64(s); err == nil {
+		return v
+	}
+	if v, err := utils.ConvertToFloat(s); err == nil {
+		return v
+	}
+	return s
+}
+
 // ListDevices returns the configured device names with their ids, protocol
 // versions and connection state (keys are not returned).
 func (o *OpTuya) ListDevices(ctx *base.Context, mainInput *base.OperatorIO) *base.OperatorIO {
@@ -326,13 +392,22 @@ type deviceWatcher struct {
 	connected bool
 	lastErr   error
 
-	queryNow chan chan error
+	queryNow   chan chan error
+	controlNow chan controlRequest
+}
+
+// controlRequest is a request to send a CONTROL frame on the persistent
+// connection; the result is reported back on resp.
+type controlRequest struct {
+	dps  map[string]interface{}
+	resp chan error
 }
 
 // newWatcher builds a watcher for the given device.
 func newWatcher(op *OpTuya, name string, dev *Device, cfg DeviceConfig, ctx *base.Context) *deviceWatcher {
 	return &deviceWatcher{op: op, name: name, dev: dev, cfg: cfg, ctx: ctx,
-		stop: make(chan struct{}), queryNow: make(chan chan error, 1)}
+		stop: make(chan struct{}), queryNow: make(chan chan error, 1),
+		controlNow: make(chan controlRequest, 1)}
 }
 
 func (w *deviceWatcher) snapshot() (map[string]interface{}, bool, error) {
@@ -375,6 +450,28 @@ func (w *deviceWatcher) forceQuery() (map[string]interface{}, error) {
 	}
 	dps, _, err := w.snapshot()
 	return dps, err
+}
+
+// Control sets data points on the device by asking the running watcher to
+// send a CONTROL frame over the persistent connection. It succeeds as soon as
+// the frame is written; the device confirms by pushing the new state back,
+// which updates the sensors via applyDPS.
+func (w *deviceWatcher) Control(dps map[string]interface{}) error {
+	if w.controlNow == nil {
+		return fmt.Errorf("tuya: watcher for %q not running", w.name)
+	}
+	resp := make(chan error, 1)
+	select {
+	case w.controlNow <- controlRequest{dps: dps, resp: resp}:
+	case <-w.stop:
+		return fmt.Errorf("tuya: watcher stopped")
+	}
+	select {
+	case err := <-resp:
+		return err
+	case <-time.After(10 * time.Second):
+		return fmt.Errorf("tuya: control %q timed out", w.name)
+	}
 }
 
 func (w *deviceWatcher) run() {
@@ -435,6 +532,21 @@ func (w *deviceWatcher) runOnce() error {
 					pendingQuery <- fmt.Errorf("tuya: superseded query")
 				}
 				pendingQuery = resp
+			}
+		default:
+		}
+		// a control command from the operator side? send CONTROL now
+		select {
+		case req := <-w.controlNow:
+			if err := w.dev.SendControl(conn, sessionKey, seqno, req.dps); err != nil {
+				req.resp <- err
+			} else {
+				seqno++
+				// the write succeeded; the device confirms by pushing the
+				// new state back, which updates lastDPS and the sensors
+				// via applyDPS. No optimistic local update, so a rejected
+				// command cannot diverge from the device until reconcile.
+				req.resp <- nil
 			}
 		default:
 		}

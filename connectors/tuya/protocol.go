@@ -24,6 +24,7 @@ const (
 	cmdControl          = 7
 	cmdHeartbeat        = 9
 	cmdDPQuery          = 0x0a
+	cmdControlNew       = 0x0d // CONTROL_NEW: control for protocol >= 3.4
 	cmdUpdatedps        = 0x12
 )
 
@@ -44,11 +45,13 @@ func versionHeader(version float64) []byte {
 }
 
 // noHeaderCmds are commands that are sent without the "3.x\x00..." protocol
-// header (and whose responses may or may not carry one).
+// header (and whose responses may or may not carry one). This mirrors
+// tinytuya's NO_PROTOCOL_HEADER_CMDS: notably CONTROL_NEW (0x0d) is NOT in
+// this list, its payload gets the version header prepended.
 var noHeaderCmds = map[uint32]bool{
 	cmdDPQuery: true, cmdUpdatedps: true, cmdHeartbeat: true,
 	cmdSessKeyNegStart: true, cmdSessKeyNegResp: true, cmdSessKeyNegFinish: true,
-	0x0d: true, 0x40: true,
+	0x10: true, 0x40: true,
 }
 
 var errShortFrame = errors.New("tuya: frame too short / truncated")

@@ -250,6 +250,11 @@ func (p *goPackage) describe(typeName string) map[string]string {
 				if d.Recv == nil || len(d.Recv.List) != 1 || receiverName(d.Recv.List[0].Type) != typeName {
 					continue
 				}
+				// the runtime registers functions via reflection, which only
+				// sees exported methods - unexported helpers are not endpoints
+				if !token.IsExported(d.Name.Name) {
+					continue
+				}
 				if !isFreepsFunction(p.fset, d) {
 					continue
 				}
