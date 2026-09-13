@@ -84,9 +84,21 @@ codes are meaningful:
 |---|---|
 | 200 | Success |
 | 400 | Bad arguments, or a validation error — the body contains the message |
-| 404 | Unknown flow / unknown key |
+| 404 | Unknown flow / unknown key / unknown operator or function |
 | 417 | A previous operation in a flow failed |
 | 500 | Internal error |
+
+For an operator whose functions are Go methods, an unknown function is a `404` and an empty
+function name is a `400`, each listing the valid names so a typo can be corrected without a
+second request. (Operators with dynamic functions — `store`, `mqtt`, `fritz`, `exec` — read the
+name themselves and answer with their own errors instead.)
+
+```bash
+curl 'localhost:8080/utils/nosuchfn'
+# Function "nosuchfn" not found in operator "Utils". Available functions: ConvertFormDataToInput, Echo, ...
+curl 'localhost:8080/curl/'
+# No function given for operator "Curl". Available functions: Get, Post, PostForm
+```
 
 Every response carries an `X-Freeps-ID` header with the request's trace ID, which you can find in
 the log.
@@ -101,8 +113,9 @@ curl 'localhost:8080/flow/<flowID>?arg=value'      # run one flow
 curl 'localhost:8080/flowbytag/<tag>'              # run all flows carrying a tag
 ```
 
-Note that `GET /flow/` (with an empty flow name) is a 404, not a listing — see
-[flows](flows.md#listing-flows) for how to list them.
+Note that `GET /flow/` (with an empty flow name) is not a listing — it is a `400` whose body
+lists the available flows. For the flow *definitions* see
+[flows](flows.md#listing-flows).
 
 ## The flowbuilder API
 

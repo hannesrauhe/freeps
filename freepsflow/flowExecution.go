@@ -3,6 +3,8 @@ package freepsflow
 import (
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
 )
@@ -10,6 +12,14 @@ import (
 func (ge *FlowEngine) prepareFlowExecution(ctx *base.Context, flowName string) (*Flow, *base.OperatorIO) {
 	ge.flowLock.Lock()
 	defer ge.flowLock.Unlock()
+	if flowName == "" {
+		names := make([]string, 0, len(ge.flows))
+		for n := range ge.flows {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		return nil, base.MakeOutputError(400, "No flow given. Available flows: %s", strings.Join(names, ", "))
+	}
 	gi, exists := ge.getFlowDescUnlocked(flowName)
 	if !exists {
 		return nil, base.MakeOutputError(404, "No flow with name \"%s\" found", flowName)
@@ -45,6 +55,11 @@ func (ge *FlowEngine) ExecuteFlow(ctx *base.Context, flowName string, mainArgs b
 
 // ExecuteOperatorByName executes an operator directly
 func (ge *FlowEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	// Without this check the ad-hoc flow validation would report an unknown operator as a
+	// 500 "Flow preparation failed"; a direct call by name deserves a 404 with the list.
+	if !ge.HasOperator(opName) {
+		return base.MakeOutputError(404, "No operator with name \"%s\" found. Available operators: %s", opName, strings.Join(ge.GetOperators(), ", "))
+	}
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
 	return ge.ExecuteAdHocFlow(ctx, name, FlowDesc{Operations: []FlowOperationDesc{{Operator: opName, Function: fn, UseMainArgs: true, InputFrom: ROOT_SYMBOL}}}, mainArgs, mainInput)
 }

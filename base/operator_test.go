@@ -3,6 +3,8 @@ package base
 import (
 	"fmt"
 	"path"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -223,6 +225,33 @@ func TestOpBuilderExecute(t *testing.T) {
 	assert.Assert(t, output.IsError(), "")
 	output = gop.Execute(nil, "MyFavoriteFunction", NewFunctionArguments(map[string]string{"Param1": "test", "param2": "12", "optparamwithdefault": "blub"}), MakeEmptyOutput())
 	assert.Assert(t, output.IsError(), "")
+}
+
+// TestFunctionNotFoundMessage checks that an unknown function is a 404 listing the valid
+// ones, and that GetFunctions is sorted (it is built from a map, so it used to be random).
+func TestFunctionNotFoundMessage(t *testing.T) {
+	gops := MakeFreepsOperators(&MyTestOperator{}, nil, NewBaseContextWithReason(logrus.StandardLogger(), ""))
+	gop := gops[0]
+	output := gop.Execute(nil, "nosuchfunction", MakeEmptyFunctionArguments(), MakeEmptyOutput())
+	assert.Equal(t, output.GetStatusCode(), 404)
+	s := output.GetString()
+	assert.Assert(t, strings.Contains(s, "nosuchfunction"), s)
+	assert.Assert(t, strings.Contains(s, "MyFavoriteFunction"), s)
+	assert.Assert(t, strings.Contains(s, "Simple1"), s)
+	// a method that is not a valid FreepsFunction must not be advertised
+	assert.Assert(t, !strings.Contains(s, "AnotherUnusedFunctionWrongReturn"), s)
+
+	// an empty function name is a bad request rather than a not-found, and still lists the functions
+	output = gop.Execute(nil, "", MakeEmptyFunctionArguments(), MakeEmptyOutput())
+	assert.Equal(t, output.GetStatusCode(), 400)
+	assert.Assert(t, strings.Contains(output.GetString(), "No function given"), output.GetString())
+	assert.Assert(t, strings.Contains(output.GetString(), "MyFavoriteFunction"), output.GetString())
+
+	// GetFunctions is sorted case-insensitively
+	fns := gop.GetFunctions()
+	assert.Assert(t, sort.SliceIsSorted(fns, func(i, j int) bool {
+		return strings.ToLower(fns[i]) < strings.ToLower(fns[j])
+	}), "GetFunctions is not sorted case-insensitively: %v", fns)
 }
 
 type MyTestOperatorConfig struct {
