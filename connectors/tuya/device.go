@@ -29,6 +29,26 @@ type Device struct {
 
 	dialTimeout time.Duration
 	readTimeout time.Duration
+	port        int // TCP port, defaults to the standard 6668; tests override it
+
+	// now overrides the wall clock used in payload timestamps; tests set it
+	// to generate byte-exact frames.
+	now func() time.Time
+}
+
+func (d *Device) tcpAddr() string {
+	p := d.port
+	if p == 0 {
+		p = tcpPort
+	}
+	return net.JoinHostPort(d.IP, fmt.Sprint(p))
+}
+
+func (d *Device) timestamp() int64 {
+	if d.now != nil {
+		return d.now().Unix()
+	}
+	return time.Now().Unix()
 }
 
 func (d *Device) timeouts() (time.Duration, time.Duration) {
@@ -59,7 +79,7 @@ func (d *Device) Connect() (net.Conn, []byte, error) {
 		return nil, nil, err
 	}
 	dt, rt := d.timeouts()
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(d.IP, fmt.Sprint(tcpPort)), dt)
+	conn, err := net.DialTimeout("tcp", d.tcpAddr(), dt)
 	if err != nil {
 		return nil, nil, fmt.Errorf("tuya: connect %s: %w", d.IP, err)
 	}
@@ -108,6 +128,74 @@ func (d *Device) SendQuery(conn net.Conn, sessionKey []byte, seqno uint32) error
 func (d *Device) SendHeartbeat(conn net.Conn, sessionKey []byte, seqno uint32) error {
 	payload := fmt.Sprintf(`{"gwId":"%s","devId":"%s"}`, d.ID, d.ID)
 	req, err := d.encode(seqno, cmdHeartbeat, []byte(payload), sessionKey)
+	if err != nil {
+		return err
+	}
+	conn.SetWriteDeadline(time.Now().Add(d.writeTimeout()))
+	_, err = conn.Write(req)
+	return err
+}
+
+// controlPayload is the JSON sent for a CONTROL (cmd 7) request on protocol
+// 3.2/3.3: the dps are top-level and "t" is a string. The struct field order
+// matches tinytuya's payload byte-for-byte.
+type controlPayload struct {
+	DevID string                 `json:"devId"`
+	UID   string                 `json:"uid"`
+	T     string                 `json:"t"`
+	DPS   map[string]interface{} `json:"dps"`
+}
+
+func (d *Device) controlPayloadBytes(dps map[string]interface{}) ([]byte, error) {
+	return json.Marshal(controlPayload{
+		DevID: d.ID, UID: d.ID, T: fmt.Sprintf("%d", d.timestamp()), DPS: dps,
+	})
+}
+
+// controlNewPayload is the JSON sent for a CONTROL on protocol >= 3.4, which
+// the device expects as CONTROL_NEW (cmd 13) inside a version-5 envelope with
+// a numeric "t" (payload layout verified against tinytuya 1.20).
+type controlNewPayload struct {
+	Protocol int    `json:"protocol"`
+	T        int64  `json:"t"`
+	Data     struct {
+		DPS map[string]interface{} `json:"dps"`
+	} `json:"data"`
+}
+
+func (d *Device) controlNewPayloadBytes(dps map[string]interface{}) ([]byte, error) {
+	var p controlNewPayload
+	p.Protocol = 5
+	p.T = d.timestamp()
+	p.Data.DPS = dps
+	return json.Marshal(p)
+}
+
+// SendControl sets one or more data points on the device (keys are DPS ids,
+// e.g. {"1": true}). It must be called on the already-open connection — a
+// Tuya device only accepts one TCP connection at a time. Protocol 3.1 uses a
+// different (md5/base64) CONTROL encoding and is not supported.
+func (d *Device) SendControl(conn net.Conn, sessionKey []byte, seqno uint32, dps map[string]interface{}) error {
+	if len(dps) == 0 {
+		return fmt.Errorf("tuya: control requires at least one dps value")
+	}
+	var payload []byte
+	var cmd uint32
+	var err error
+	switch {
+	case d.Version >= 3.4:
+		cmd = cmdControlNew
+		payload, err = d.controlNewPayloadBytes(dps)
+	case d.Version >= 3.2:
+		cmd = cmdControl
+		payload, err = d.controlPayloadBytes(dps)
+	default:
+		return fmt.Errorf("tuya: control commands are not supported for protocol version %.1f", d.Version)
+	}
+	if err != nil {
+		return fmt.Errorf("tuya: cannot build control payload: %w", err)
+	}
+	req, err := d.encode(seqno, cmd, payload, sessionKey)
 	if err != nil {
 		return err
 	}
