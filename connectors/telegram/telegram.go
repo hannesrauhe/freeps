@@ -321,15 +321,27 @@ func (m *OpTelegram) mainLoop() {
 
 	updates := m.bot.GetUpdatesChan(u)
 
-	for update := range updates {
-		if update.CallbackQuery != nil {
-			m.respond(update.CallbackQuery.Message.Chat, update.CallbackQuery.Data, "")
-			continue
+loop:
+	for {
+		select {
+		case <-m.stopChan:
+			// Shutdown was requested: leave immediately instead of waiting for
+			// the library poller to notice the stop (it retries with a 3 second
+			// sleep after the aborted request returns with an error).
+			break loop
+		case update, more := <-updates:
+			if !more { // StopReceivingUpdates was called on the bot
+				break loop
+			}
+			if update.CallbackQuery != nil {
+				m.respond(update.CallbackQuery.Message.Chat, update.CallbackQuery.Data, "")
+				continue
+			}
+			if update.Message == nil { // ignore any non-Message updates
+				continue
+			}
+			m.respond(update.Message.Chat, "", update.Message.Text)
 		}
-		if update.Message == nil { // ignore any non-Message updates
-			continue
-		}
-		m.respond(update.Message.Chat, "", update.Message.Text)
 	}
 	log.Print("Telegram Main Loop stopped")
 	m.closeChan <- 1
