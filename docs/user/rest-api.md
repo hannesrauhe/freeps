@@ -126,7 +126,7 @@ lists the available flows. For the flow *definitions* see
 |---|---|
 | `POST /flowbuilder/createFlow?flowID=…` | Create/replace a flow from a JSON body, directly in the engine |
 | `GET /flowbuilder/getFlow?flowID=…` | Read a flow from the engine |
-| `GET /flowbuilder/listFlows[?tags=a,b]` | List flows with their definitions |
+| `GET /flowbuilder/listFlows[?tags=a,b][&kind=k][&details=true]` | List flows (brief by default, full definitions with `details=true`). `kind` is repeatable |
 | `POST /flowbuilder/deleteFlow?flowID=…` | Delete a flow (a backup is kept in the store) |
 | `POST /flowbuilder/addOperation` | Insert an operation |
 | `POST /flowbuilder/setOperation` | Change one operation |

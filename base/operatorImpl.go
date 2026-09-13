@@ -467,16 +467,20 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 
 		// call the parameter struct's suggestion function
 		res = o.callParamSuggestionFunction(paramStruct, lkArgName, otherArgs)
+		if len(res) == 0 {
+			// no method for this argument, fall back to the declarative "options" struct tag
+			res = ParamListToParamMap(getFieldOptions(paramStruct, lkArgName))
+		}
 	}
 
-	if res != nil && len(res) > 0 {
+	if len(res) > 0 {
 		return res
 	}
 
 	// check if operator itself has Suggestions for this argument
 	operatorStruct := reflect.ValueOf(o.opInstance)
 	res = o.callParamSuggestionFunction(operatorStruct, lkArgName, otherArgs)
-	if res != nil && len(res) > 0 {
+	if len(res) > 0 {
 		return res
 	}
 

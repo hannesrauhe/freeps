@@ -46,7 +46,7 @@ type PromoteFlowArgs struct {
 }
 
 // PromoteFlow takes a (draft) flow from the store and registers it in the flow engine, which
-// validates it and persists it in the graphs directory. This is the step that makes a flow that
+// validates it and persists it in the config directory. This is the step that makes a flow that
 // was built programmatically (or in the UI editor) permanent and executable with /flow/<name> .
 func (m *OpFlowBuilder) PromoteFlow(ctx *base.Context, input *base.OperatorIO, args PromoteFlowArgs) *base.OperatorIO {
 	storeName := args.FlowName
