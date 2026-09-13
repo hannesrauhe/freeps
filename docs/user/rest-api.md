@@ -88,9 +88,10 @@ codes are meaningful:
 | 417 | A previous operation in a flow failed |
 | 500 | Internal error |
 
-An unknown operator or function is a `404` whose body lists the valid names, so a typo can be
-corrected without a second request. Leaving the function name out entirely is a `400` with the
-same list:
+For an operator whose functions are Go methods, an unknown function is a `404` and an empty
+function name is a `400`, each listing the valid names so a typo can be corrected without a
+second request. (Operators with dynamic functions — `store`, `mqtt`, `fritz`, `exec` — read the
+name themselves and answer with their own errors instead.)
 
 ```bash
 curl 'localhost:8080/utils/nosuchfn'
