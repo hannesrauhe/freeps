@@ -23,6 +23,7 @@ type OpTelegram struct {
 	tgc         TelegramConfig
 	lastMessage int
 	closeChan   chan int
+	stopChan    chan struct{}
 	bot         *tgbotapi.BotAPI
 	wasStarted  bool
 	ctx         *base.Context
@@ -38,7 +39,7 @@ func (m *OpTelegram) GetDefaultConfig() interface{} {
 
 // InitCopyOfOperator creates a copy of the operator and initializes it with the given config
 func (m *OpTelegram) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
-	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), closeChan: make(chan int), wasStarted: false, ctx: ctx}
+	newM := OpTelegram{GE: m.GE, tgc: *config.(*TelegramConfig), closeChan: make(chan int), stopChan: make(chan struct{}), wasStarted: false, ctx: ctx}
 	if newM.tgc.Token == "" {
 		return nil, fmt.Errorf("Telegram token is empty")
 	}
@@ -108,6 +109,10 @@ func (m *OpTelegram) Shutdown(ctx *base.Context) {
 		return
 	}
 	m.bot.StopReceivingUpdates()
+	// StopReceivingUpdates only closes a channel inside the library, which its
+	// poller notices once the current long-poll request returns. Don't wait for
+	// that - tell the main loop to leave and wait for its completion instead.
+	close(m.stopChan)
 	<-m.closeChan
 	m.wasStarted = false
 }
