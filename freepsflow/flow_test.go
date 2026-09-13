@@ -112,6 +112,22 @@ func TestExecuteOperatorByNameUnknownOperator(t *testing.T) {
 	}), "GetOperators is not sorted case-insensitively: %v", names)
 }
 
+// TestExecuteFlowEmptyName checks that executing without a flow name is a 400 listing the
+// available flows, while an unknown name stays a 404.
+func TestExecuteFlowEmptyName(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+	ge.AddFlowUnderLock(ctx, "aflow", createValidFlow(), false, true)
+
+	out := ge.ExecuteFlow(ctx, "", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Equal(t, out.GetStatusCode(), 400)
+	s := out.GetString()
+	assert.Assert(t, strings.Contains(s, "No flow given"), s)
+	assert.Assert(t, strings.Contains(s, "aflow"), s)
+
+	out = ge.ExecuteFlow(ctx, "nosuchflow", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Equal(t, out.GetStatusCode(), 404)
+}
+
 func TestCheckFlow(t *testing.T) {
 	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 

@@ -91,11 +91,14 @@ codes are meaningful:
 | 500 | Internal error |
 
 An unknown operator or function is a `404` whose body lists the valid names, so a typo can be
-corrected without a second request:
+corrected without a second request. Leaving the function name out entirely is a `400` with the
+same list:
 
 ```bash
 curl 'localhost:8080/utils/nosuchfn'
 # Function "nosuchfn" not found in operator "Utils". Available functions: ConvertFormDataToInput, Echo, ...
+curl 'localhost:8080/curl/'
+# No function given for operator "Curl". Available functions: Get, Post, PostForm
 ```
 
 Every response carries an `X-Freeps-ID` header with the request's trace ID, which you can find in
@@ -111,8 +114,9 @@ curl 'localhost:8080/flow/<flowID>?arg=value'      # run one flow
 curl 'localhost:8080/flowbytag/<tag>'              # run all flows carrying a tag
 ```
 
-Note that `GET /flow/` (with an empty flow name) is a 404, not a listing — see
-[flows](flows.md#listing-flows) for how to list them.
+Note that `GET /flow/` (with an empty flow name) is not a listing — it is a `400` whose body
+lists the available flows. For the flow *definitions* see
+[flows](flows.md#listing-flows).
 
 ## The flowbuilder API
 

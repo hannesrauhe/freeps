@@ -254,4 +254,4 @@ curl 'localhost:8080/ui/flowInfo.html'                      # human readable
 ```
 
 `GET /flow/` is **not** a listing — it is an attempt to execute a flow with an empty name and
-returns 404.
+returns a `400` that lists the available flow names.

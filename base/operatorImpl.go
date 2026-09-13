@@ -321,13 +321,16 @@ func (o *FreepsOperatorWrapper) GetName() string {
 
 // Execute gets the FreepsFunction by name, assigns all parameters based on the args map and calls the function
 func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, fa FunctionArguments, mainInput *OperatorIO) *OperatorIO {
+	// list the valid functions, so a caller with a typo can correct it without a second request
+	if function == "" {
+		return MakeOutputError(http.StatusBadRequest, "No function given for operator \"%v\". Available functions: %v", o.GetName(), strings.Join(o.GetFunctions(), ", "))
+	}
 	ffm := o.getFunctionMetaData(function)
 	if ffm == nil {
 		dynmaicOp, ok := o.opInstance.(FreepsOperatorWithDynamicFunctions)
 		if ok {
 			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
 		}
-		// list the valid functions, so a caller with a typo can correct it without a second request
 		return MakeOutputError(http.StatusNotFound, "Function \"%v\" not found in operator \"%v\". Available functions: %v", function, o.GetName(), strings.Join(o.GetFunctions(), ", "))
 	}
 

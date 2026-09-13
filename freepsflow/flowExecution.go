@@ -3,6 +3,7 @@ package freepsflow
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -11,6 +12,14 @@ import (
 func (ge *FlowEngine) prepareFlowExecution(ctx *base.Context, flowName string) (*Flow, *base.OperatorIO) {
 	ge.flowLock.Lock()
 	defer ge.flowLock.Unlock()
+	if flowName == "" {
+		names := make([]string, 0, len(ge.flows))
+		for n := range ge.flows {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		return nil, base.MakeOutputError(400, "No flow given. Available flows: %s", strings.Join(names, ", "))
+	}
 	gi, exists := ge.getFlowDescUnlocked(flowName)
 	if !exists {
 		return nil, base.MakeOutputError(404, "No flow with name \"%s\" found", flowName)
