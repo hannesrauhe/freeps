@@ -30,6 +30,8 @@ const AlertDeviceAlertDuration = 15 * time.Minute
 const ParseErrorDuration = 5 * time.Minute
 const PollDuration = time.Minute
 
+// OpFritz exposes the devices of an AVM FRITZ!Box smart home and the Upnp functions it
+// advertises, and turns device presence into sensors and alerts.
 type OpFritz struct {
 	CR                *utils.ConfigReader
 	GE                *freepsflow.FlowEngine

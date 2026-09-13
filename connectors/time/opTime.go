@@ -8,6 +8,8 @@ import (
 	"github.com/keep94/sunrise"
 )
 
+// OpTime provides time-related functions, including the current time, day and night based
+// on sunrise and sunset at a location, and sleeping for a duration.
 type OpTime struct {
 }
 

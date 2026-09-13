@@ -85,9 +85,9 @@ func (m *OpUtils) Flatten(ctx *base.Context, input *base.OperatorIO, args Flatte
 
 // ExtractArgs are the arguments for the Extract function
 type ExtractArgs struct {
-	Key         string
-	Type        *string
-	ContentType *string
+	Key         string  `doc:"the key to extract from the input object"`
+	Type        *string `doc:"type to convert the value to, see the type suggestions"`
+	ContentType *string `doc:"content type of the input, defaults to application/json"`
 }
 
 // TypeSuggestions returns a list of possible types for the given key
@@ -337,7 +337,7 @@ type StringAppendArgs struct {
 	StringToAppend string
 }
 
-// StringReplaceMulti replaces given args framed with "%" with their values
+// StringAppend appends args.StringToAppend to the input string, or to args.InputString if set
 func (m *OpUtils) StringAppend(ctx *base.Context, input *base.OperatorIO, args StringAppendArgs) *base.OperatorIO {
 	inputStr := input.GetString()
 	if args.InputString != nil {

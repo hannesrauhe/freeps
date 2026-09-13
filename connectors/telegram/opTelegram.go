@@ -18,6 +18,8 @@ type ChatState struct {
 	CallbackResponse *TelegramCallbackResponse
 }
 
+// OpTelegram sends messages to Telegram chats and triggers flows from incoming messages
+// and callback buttons received by the bot.
 type OpTelegram struct {
 	GE          *freepsflow.FlowEngine
 	tgc         TelegramConfig

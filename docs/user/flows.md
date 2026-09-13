@@ -40,6 +40,7 @@ Top level fields:
 | Field | Meaning |
 |---|---|
 | `DisplayName` | Shown in the UI; defaults to the flow ID |
+| `Description` | Optional free-text description of what the flow does; returned by `listFlows` and `getFlow` |
 | `Tags` | Free-form labels, used for triggering and for UI grouping |
 | `OutputFrom` | Which operation's output is the flow's output |
 | `Operations` | The operations, in execution order |

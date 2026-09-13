@@ -18,6 +18,8 @@ type OpenWeatherMapConfig struct {
 	Lang     string
 }
 
+// OpWeather retrieves the current weather from OpenWeatherMap, stores it as a sensor and
+// can serve the matching weather icons.
 type OpWeather struct {
 	conf OpenWeatherMapConfig
 }
@@ -49,6 +51,8 @@ func (o *WeatherArgs) Init(ctx *base.Context, op base.FreepsOperator, fn string)
 	o.Lang = &c.Lang
 }
 
+// Current retrieves the current weather for the given location from OpenWeatherMap, stores
+// it in the weather sensor and returns it as an object.
 func (o *OpWeather) Current(ctx *base.Context, mainInput *base.OperatorIO, args WeatherArgs) *base.OperatorIO {
 	wm, err := owm.NewCurrent(*args.Units, *args.Lang, o.conf.APIKey)
 	if err != nil {
@@ -73,6 +77,8 @@ type IconArgs struct {
 	Icon string
 }
 
+// Icon downloads the weather icon with the given name from OpenWeatherMap and returns it
+// as a PNG image.
 func (o *OpWeather) Icon(ctx *base.Context, mainInput *base.OperatorIO, args IconArgs) *base.OperatorIO {
 	d, _ := utils.GetTempDir()
 	icon := path.Base(args.Icon)

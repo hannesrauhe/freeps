@@ -41,6 +41,10 @@ func (*MockOperator) GetArgSuggestions(fn string, arg string, otherArgs base.Fun
 	return map[string]string{}
 }
 
+func (*MockOperator) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(&MockOperator{}, fn)
+}
+
 // StartListening (noOp)
 func (*MockOperator) StartListening(ctx *base.Context) {
 }
