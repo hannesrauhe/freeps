@@ -42,6 +42,7 @@ func (gop *FlowOperationDesc) ToQuicklink() string {
 type FlowDesc struct {
 	FlowID      string `json:",omitempty"` // is only assigned when the flow is added to the engine and will be overwritten
 	DisplayName string
+	Description string `json:",omitempty"` // optional human-readable description of what the flow does
 	Tags        []string
 	Source      string
 	OutputFrom  string

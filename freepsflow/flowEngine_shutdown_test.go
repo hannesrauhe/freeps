@@ -34,6 +34,9 @@ func (*reentrantOp) GetArgSuggestions(fn string, arg string, otherArgs base.Func
 func (*reentrantOp) GetName() string                  { return "reentrant" }
 func (*reentrantOp) GetHook() interface{}             { return nil }
 func (*reentrantOp) StartListening(ctx *base.Context) {}
+func (o *reentrantOp) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(o, fn)
+}
 
 func (o *reentrantOp) Shutdown(ctx *base.Context) {
 	// This would deadlock if FlowEngine.Shutdown still held the (non-reentrant)
@@ -61,6 +64,9 @@ func (*blockedListenerOp) GetArgSuggestions(fn string, arg string, otherArgs bas
 }
 func (*blockedListenerOp) GetName() string      { return "blockedlistener" }
 func (*blockedListenerOp) GetHook() interface{} { return nil }
+func (o *blockedListenerOp) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(o, fn)
+}
 
 func (o *blockedListenerOp) StartListening(ctx *base.Context) {
 	go func() {

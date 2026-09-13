@@ -13,6 +13,8 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
+// OpCurl executes HTTP requests (GET, POST and form POST) and returns either the response
+// body or information about the downloaded file.
 type OpCurl struct {
 	CR       *utils.ConfigReader
 	GE       *freepsflow.FlowEngine

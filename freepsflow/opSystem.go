@@ -89,6 +89,11 @@ func (o *OpSystem) GetPossibleArgs(fn string) []string {
 	return []string{"name"}
 }
 
+// GetArgumentDescriptions returns the possible arguments by name only
+func (o *OpSystem) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(o, fn)
+}
+
 func (o *OpSystem) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	if arg == "name" {
 		agd := o.ge.GetAllFlowDesc()

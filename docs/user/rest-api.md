@@ -17,12 +17,32 @@ So `POST /store/setSimpleValue?key=foo&value=bar` calls function `setSimpleValue
 
 ## Finding out what is available
 
-There is **no machine-readable index** of operators and functions over HTTP — the metadata exists
-internally (it drives the UI) but is not exposed as an endpoint. In practice:
+The operator metadata that drives the UI is available over HTTP as a four level ladder —
+one endpoint per level, so a client can walk from operators down to argument details:
+
+```bash
+curl 'localhost:8080/flowbuilder/listOperators'                                # [{"Name":"Utils","Description":"collection of utility operations"}, ...]
+curl 'localhost:8080/flowbuilder/listFunctions?operator=utils'                 # [{"Name":"Extract","Description":"extracts the value of a given key…"}, ...]
+curl 'localhost:8080/flowbuilder/operatorArgs?operator=utils&function=extract' # [{"Name":"Key","Type":"string","Required":true,"Description":"…"}, ...]
+curl 'localhost:8080/flowbuilder/argDetails?operator=utils&function=extract'
+```
+
+Every level returns objects with a `Name` and a human-readable `Description`: for arguments
+it comes from the optional `doc` struct tag, for operators and functions from their Go doc
+comments (harvested by `make generate`). Operators or functions without a doc comment simply
+have an empty description.
+
+`argDetails` returns one object per argument with name, type, requiredness, description (from
+the optional `doc` struct tag) and value suggestions — exactly the drop-down contents the flow
+editor shows. It accepts an optional `otherArgs` argument in URL query format (e.g.
+`otherArgs=namespace=testing`), which is passed to the suggestion functions so they can return
+context sensitive suggestions.
+
+In addition:
 
 - **The flow editor at `/ui/editFlow`** shows, for the selected operation, a button for every
   operator and every function, and the argument names for the selected function. This is the
-  quickest way to learn an API.
+  quickest way to learn an API interactively.
 - **`/ui/flowInfo.html`** lists all flows, `/ui/store.html` the store namespaces,
   `/ui/editconfig.html` the config, `/ui/alerts.html` and `/ui/sensors.html` the current alerts
   and sensor values.
@@ -100,6 +120,10 @@ Note that `GET /flow/` (with an empty flow name) is a 404, not a listing — see
 | `POST /flowbuilder/removeOperation` | Delete one operation |
 | `POST /flowbuilder/promoteFlow` | Copy a draft from the store into the engine |
 | `GET /flowbuilder/executeFlowFromStore?flowName=…` | Run a draft without registering it |
+| `GET /flowbuilder/listOperators` | Name and description of all registered operators |
+| `GET /flowbuilder/listFunctions?operator=…` | Name and description of the functions of one operator |
+| `GET /flowbuilder/operatorArgs?operator=…&function=…` | Name, type, requiredness and description of every argument |
+| `GET /flowbuilder/argDetails?operator=…&function=…` | The same, plus the value suggestions for every argument |
 
 ## The web UI
 

@@ -13,7 +13,7 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-// OpAlert is a FreepsOperator that can be used to retrieve and modify the config
+// OpAlert is a FreepsOperator that can be used to set, query and reset alerts.
 type OpAlert struct {
 	CR                *utils.ConfigReader
 	GE                *freepsflow.FlowEngine

@@ -65,6 +65,11 @@ func (o *OpFlow) GetPossibleArgs(fn string) []string {
 	return possibleArgs
 }
 
+// GetArgumentDescriptions returns the possible arguments of the flow by name only
+func (o *OpFlow) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(o, fn)
+}
+
 // GetArgSuggestions returns suggestions based on the suggestions of the operators in the flow
 func (o *OpFlow) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
 	agd, exists := o.ge.GetFlowDesc(fn)
@@ -146,6 +151,11 @@ func (o *OpFlowByTag) GetFunctions() []string {
 // GetPossibleArgs returns the additonalTags Option
 func (o *OpFlowByTag) GetPossibleArgs(fn string) []string {
 	return []string{"additionalTags"}
+}
+
+// GetArgumentDescriptions returns the possible arguments by name only
+func (o *OpFlowByTag) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return base.NameOnlyArgumentDescriptions(o, fn)
 }
 
 // GetArgSuggestions returns addtional tags
