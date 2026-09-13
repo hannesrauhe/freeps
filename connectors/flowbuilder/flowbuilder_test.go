@@ -32,9 +32,9 @@ func TestCreateFlow(t *testing.T) {
 	assert.Equal(t, gd.DisplayName, "test flow")
 	assert.Equal(t, len(gd.Operations), 1)
 
-	// the flow must be persisted in the graphs directory
+	// the flow must be persisted in the config directory
 	_, err := os.Stat(path.Join(cr.GetConfigDir(), "graphs", "createdFlow.json"))
-	assert.NilError(t, err, "flow file should be written to the graphs directory")
+	assert.NilError(t, err, "flow file should be written to the config directory")
 
 	// and it must be executable
 	out = ge.ExecuteFlow(ctx, "createdFlow", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())

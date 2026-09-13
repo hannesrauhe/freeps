@@ -18,7 +18,7 @@ type AddOperation struct {
 	ArgumentsFrom      *string
 	UseMainArgs        *bool
 	// Live makes the operation work on the flow in the flow engine (which is persisted in the
-	// graphs directory) instead of the draft flow in the store
+	// config directory) instead of the draft flow in the store
 	Live *bool
 }
 
@@ -76,7 +76,7 @@ type SetOperationArgs struct {
 	ArgumentName    *string
 	ArgumentValue   *string
 	// Live makes the operation work on the flow in the flow engine (which is persisted in the
-	// graphs directory) instead of the draft flow in the store
+	// config directory) instead of the draft flow in the store
 	Live *bool
 }
 
@@ -117,7 +117,7 @@ type RemoveOperationArgs struct {
 	FlowName        string
 	OperationNumber int
 	// Live makes the operation work on the flow in the flow engine (which is persisted in the
-	// graphs directory) instead of the draft flow in the store
+	// config directory) instead of the draft flow in the store
 	Live *bool
 }
 

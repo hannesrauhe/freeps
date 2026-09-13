@@ -31,7 +31,7 @@ func (m *OpFlowBuilder) loadFlow(flowName string, live bool) (freepsflow.FlowDes
 }
 
 // saveFlow writes a flow either to the flow engine (live=true, which also persists it to the
-// graphs directory) or to the store (live=false)
+// config directory) or to the store (live=false)
 func (m *OpFlowBuilder) saveFlow(ctx *base.Context, flowName string, gd freepsflow.FlowDesc, live bool) *base.OperatorIO {
 	if live {
 		if err := m.GE.AddFlow(ctx, flowName, gd, true); err != nil {
@@ -148,7 +148,7 @@ func (m *OpFlowBuilder) SetFlowDescription(ctx *base.Context, input *base.Operat
 type SetFlowKindArgs struct {
 	FlowName string `doc:"the name of the flow"`
 	Kind     string `doc:"manual, helper or event. Empty resets to the default (manual)." options:"manual,helper,event"`
-	Live     *bool  `doc:"operate on the flow in the engine (persisted in the graphs directory) instead of the draft in the store"`
+	Live     *bool  `doc:"operate on the flow in the engine (persisted) instead of the draft in the store"`
 }
 
 // SetFlowKind sets the Kind of a flow in the store (or in the flow engine if Live is set)
