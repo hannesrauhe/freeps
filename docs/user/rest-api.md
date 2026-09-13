@@ -37,7 +37,8 @@ the optional `doc` struct tag) and value suggestions — exactly the drop-down c
 editor shows. It accepts an optional `otherArgs` argument in URL query format (e.g.
 `otherArgs=namespace=testing`), which is passed to the suggestion functions so they can return
 context sensitive suggestions.
-Operator and function names are matched case-insensitively; an unknown operator is a 404.
+Operator and function names are matched case-insensitively; an unknown operator is a 404 that
+lists the available operators.
 
 In addition:
 
@@ -85,9 +86,17 @@ codes are meaningful:
 |---|---|
 | 200 | Success |
 | 400 | Bad arguments, or a validation error — the body contains the message |
-| 404 | Unknown flow / unknown key |
+| 404 | Unknown flow / unknown key / unknown operator or function |
 | 417 | A previous operation in a flow failed |
 | 500 | Internal error |
+
+An unknown operator or function is a `404` whose body lists the valid names, so a typo can be
+corrected without a second request:
+
+```bash
+curl 'localhost:8080/utils/nosuchfn'
+# Function "nosuchfn" not found in operator "Utils". Available functions: ConvertFormDataToInput, Echo, ...
+```
 
 Every response carries an `X-Freeps-ID` header with the request's trace ID, which you can find in
 the log.

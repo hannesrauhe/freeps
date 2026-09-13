@@ -3,6 +3,7 @@ package freepsflow
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
 )
@@ -45,6 +46,11 @@ func (ge *FlowEngine) ExecuteFlow(ctx *base.Context, flowName string, mainArgs b
 
 // ExecuteOperatorByName executes an operator directly
 func (ge *FlowEngine) ExecuteOperatorByName(ctx *base.Context, opName string, fn string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	// Without this check the ad-hoc flow validation would report an unknown operator as a
+	// 500 "Flow preparation failed"; a direct call by name deserves a 404 with the list.
+	if !ge.HasOperator(opName) {
+		return base.MakeOutputError(404, "No operator with name \"%s\" found. Available operators: %s", opName, strings.Join(ge.GetOperators(), ", "))
+	}
 	name := fmt.Sprintf("OnDemand/%v/%v", opName, fn)
 	return ge.ExecuteAdHocFlow(ctx, name, FlowDesc{Operations: []FlowOperationDesc{{Operator: opName, Function: fn, UseMainArgs: true, InputFrom: ROOT_SYMBOL}}}, mainArgs, mainInput)
 }

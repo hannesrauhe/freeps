@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -325,7 +327,8 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, fa Functi
 		if ok {
 			return dynmaicOp.ExecuteDynamic(ctx, utils.StringToLower(function), fa, mainInput)
 		}
-		return MakeOutputError(http.StatusNotFound, "Function \"%v\" not found", function)
+		// list the valid functions, so a caller with a typo can correct it without a second request
+		return MakeOutputError(http.StatusNotFound, "Function \"%v\" not found in operator \"%v\". Available functions: %v", function, o.GetName(), strings.Join(o.GetFunctions(), ", "))
 	}
 
 	// execute function immediately if the FreepsFunctionType indicates it needs no arguments
@@ -381,7 +384,7 @@ func (o *FreepsOperatorWrapper) Execute(ctx *Context, function string, fa Functi
 	return MakeOutputError(http.StatusInternalServerError, "Function could not be executed")
 }
 
-// GetFunctions returns all methods of the opClass
+// GetFunctions returns all methods of the opClass, sorted alphabetically.
 func (o *FreepsOperatorWrapper) GetFunctions() []string {
 	list := []string{}
 
@@ -393,6 +396,11 @@ func (o *FreepsOperatorWrapper) GetFunctions() []string {
 	if ok {
 		list = append(list, dynmaicOp.GetDynamicFunctions()...)
 	}
+	// Method names are PascalCase while dynamic function names are usually lowercase, which
+	// a plain byte sort would group instead of interleaving.
+	sort.Slice(list, func(i, j int) bool {
+		return strings.ToLower(list[i]) < strings.ToLower(list[j])
+	})
 	return list
 }
 

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -82,6 +83,33 @@ func TestOperatorErrorChain(t *testing.T) {
 	// test that output of single operation is directly returned and not merged
 	oDirect := ge.ExecuteOperatorByName(ctx, "eval", "echo", base.NewSingleFunctionArgument("output", "true"), base.MakeEmptyOutput())
 	assert.Assert(t, oDirect.IsPlain(), "unexpected output: %v", oDirect)
+}
+
+// TestExecuteOperatorByNameUnknownOperator checks that calling an unknown operator directly
+// is a 404 listing the available operators (not the 500 the ad-hoc flow validation would
+// produce), and that GetOperators reports each name once even though the backward
+// compatibility aliases share a GetName.
+func TestExecuteOperatorByNameUnknownOperator(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+
+	out := ge.ExecuteOperatorByName(ctx, "nosuchoperator", "fn", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Equal(t, out.GetStatusCode(), 404)
+	s := out.GetString()
+	assert.Assert(t, strings.Contains(s, "nosuchoperator"), s)
+	assert.Assert(t, strings.Contains(s, "Available operators:"), s)
+	assert.Assert(t, strings.Contains(s, "Utils"), s)
+
+	seen := map[string]bool{}
+	names := ge.GetOperators()
+	for _, name := range names {
+		assert.Assert(t, !seen[name], "GetOperators returned %v twice", name)
+		seen[name] = true
+	}
+	// sorted case-insensitively, so the mixed-case names ("Alert" vs "eval") interleave
+	// alphabetically instead of grouping all capitals before all lowercase names.
+	assert.Assert(t, sort.SliceIsSorted(names, func(i, j int) bool {
+		return strings.ToLower(names[i]) < strings.ToLower(names[j])
+	}), "GetOperators is not sorted case-insensitively: %v", names)
 }
 
 func TestCheckFlow(t *testing.T) {

@@ -3,6 +3,7 @@ package flowbuilder_test
 import (
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"testing"
 
@@ -215,6 +216,11 @@ func TestListOperatorsAndFunctions(t *testing.T) {
 
 	// the description comes from the doc comment of the method
 	assert.Assert(t, functionDetails(fns)["Extract"].Description != "", "the extract function should have a description, got %v", fns)
+
+	// the endpoint returns a stable order, whatever order the operator itself uses
+	assert.Assert(t, sort.SliceIsSorted(fns, func(i, j int) bool {
+		return strings.ToLower(fns[i].Name) < strings.ToLower(fns[j].Name)
+	}), "listFunctions should be sorted, got %v", functionNames(fns))
 
 	// an unknown operator is a 404
 	out = fb.ListFunctions(ctx, base.MakeEmptyOutput(), flowbuilder.ListFunctionsArgs{Operator: "doesNotExist"})

@@ -1,6 +1,7 @@
 package flowbuilder
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -57,7 +58,9 @@ func (arg *ListFunctionsArgs) OperatorSuggestions(otherArgs base.FunctionArgumen
 	return operatorNameSuggestions(m)
 }
 
-// ListFunctions returns name and description of all functions of the given operator.
+// ListFunctions returns name and description of all functions of the given operator, sorted
+// alphabetically. Operators are free to order their functions as they like (exec puts "run"
+// first), so the stable order is created here rather than in GetFunctions.
 func (m *OpFlowBuilder) ListFunctions(ctx *base.Context, input *base.OperatorIO, args ListFunctionsArgs) *base.OperatorIO {
 	op := m.GE.GetOperator(args.Operator)
 	if op == nil {
@@ -68,6 +71,9 @@ func (m *OpFlowBuilder) ListFunctions(ctx *base.Context, input *base.OperatorIO,
 	for _, name := range op.GetFunctions() {
 		details = append(details, FunctionDetail{Name: name, Description: descriptions[name]})
 	}
+	sort.Slice(details, func(i, j int) bool {
+		return strings.ToLower(details[i].Name) < strings.ToLower(details[j].Name)
+	})
 	return base.MakeObjectOutput(details)
 }
 

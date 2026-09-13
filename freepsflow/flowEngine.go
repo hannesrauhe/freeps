@@ -310,14 +310,27 @@ func (ge *FlowEngine) HasOperator(opName string) bool {
 	return exists
 }
 
-// GetOperators returns the list of available operators
+// GetOperators returns an alphabetically sorted list of operators.
 func (ge *FlowEngine) GetOperators() []string {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	r := make([]string, 0, len(ge.operators))
+	seen := make(map[string]bool, len(ge.operators))
 	for _, op := range ge.operators {
-		r = append(r, op.GetName())
+		name := op.GetName()
+		// The backward compatibility aliases "graph" and "graphbytag" report the same
+		// GetName as "flow" and "flowbytag".
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		r = append(r, name)
 	}
+	// Names mix original case ("Alert") with lowercase ("eval"), which a plain byte sort
+	// would group instead of interleaving.
+	sort.Slice(r, func(i, j int) bool {
+		return strings.ToLower(r[i]) < strings.ToLower(r[j])
+	})
 	return r
 }
 
