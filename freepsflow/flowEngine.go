@@ -530,15 +530,30 @@ func (ge *FlowEngine) StartListening(pctx *base.Context) {
 	}
 }
 
-// Shutdown should be called for graceful shutdown
-func (ge *FlowEngine) Shutdown(ctx *base.Context) {
+// getOperatorSnapshot returns a copy of the operator list to reduce the time
+// the operatorLock is held. Operators must not be locked while their Shutdown
+// is executed, see Shutdown.
+func (ge *FlowEngine) getOperatorSnapshot() []base.FreepsBaseOperator {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
-
+	r := make([]base.FreepsBaseOperator, 0, len(ge.operators))
 	for _, op := range ge.operators {
 		if op != nil {
-			ctx.GetLogger().Debugf("Stopping %v", op.GetName())
-			op.Shutdown(ctx)
+			r = append(r, op)
 		}
+	}
+	return r
+}
+
+// Shutdown should be called for graceful shutdown
+func (ge *FlowEngine) Shutdown(ctx *base.Context) {
+	// The operatorLock is deliberately released before calling Shutdown on the
+	// individual operators: a Shutdown implementation may block until one of its
+	// background goroutines has finished, and that goroutine may call back into
+	// the flow engine (e.g. GetOperator while handling a queued event). Since
+	// operatorLock is not reentrant, holding it here would deadlock.
+	for _, op := range ge.getOperatorSnapshot() {
+		ctx.GetLogger().Debugf("Stopping %v", op.GetName())
+		op.Shutdown(ctx)
 	}
 }
