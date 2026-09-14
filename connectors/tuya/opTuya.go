@@ -39,6 +39,11 @@ type TuyaConfig struct {
 	// though pushes work, to recover from missed frames. Set to 0 to
 	// disable; 10-30 minutes is a sensible range.
 	ReconcileDuration time.Duration
+	// AlertGraceDuration is how long a device has to be continuously
+	// unreachable before a DeviceUnreachable alert is raised. Short network
+	// blips (the watcher reconnects within one cycle) stay silent. Set to 0
+	// for the default of 2 minutes.
+	AlertGraceDuration time.Duration
 	// SensorCategory is the sensor category the values are written to.
 	SensorCategory string
 	Devices        map[string]DeviceConfig
@@ -63,9 +68,12 @@ var _ base.FreepsOperatorWithShutdown = &OpTuya{}
 const (
 	defaultHeartbeat      = 12 * time.Second
 	defaultReconcile      = 15 * time.Minute
-	reconnectDelay        = 10 * time.Second
 	defaultSensorCategory = "tuya"
+	defaultAlertGrace     = 5 * time.Minute
 )
+
+// reconnectDelay is a var so that tests can shorten it.
+var reconnectDelay = 10 * time.Second
 
 // defaultDPSNames are data point ids that are common enough to not need
 // configuration. Device-specific codes should be added in the config.
@@ -87,10 +95,11 @@ var defaultDPSNames = map[string]string{
 
 func (o *OpTuya) GetDefaultConfig() interface{} {
 	return &TuyaConfig{
-		HeartbeatDuration: defaultHeartbeat,
-		ReconcileDuration: defaultReconcile,
-		SensorCategory:    defaultSensorCategory,
-		Devices:           map[string]DeviceConfig{},
+		HeartbeatDuration:  defaultHeartbeat,
+		ReconcileDuration:  defaultReconcile,
+		AlertGraceDuration: defaultAlertGrace,
+		SensorCategory:     defaultSensorCategory,
+		Devices:            map[string]DeviceConfig{},
 	}
 }
 
@@ -106,14 +115,13 @@ func (o *OpTuya) InitCopyOfOperator(ctx *base.Context, config interface{}, fullO
 	if nc.SensorCategory == "" {
 		nc.SensorCategory = defaultSensorCategory
 	}
-	// instance name from a dotted section, e.g. "tuya.lan" -> "lan"
-	name := fullOperatorName
-	if len(name) > len("tuya.") && name[:5] == "tuya." {
-		name = name[5:]
-	} else {
-		name = "default"
+	if nc.AlertGraceDuration <= 0 {
+		nc.AlertGraceDuration = defaultAlertGrace
 	}
-	return &OpTuya{CR: o.CR, GE: o.GE, name: name, config: nc}, nil
+	// The full config section name ("tuya", or "tuya.<instance>" for a second
+	// operator) is kept as the operator name and used as the alert category,
+	// following the convention of the fritz operator.
+	return &OpTuya{CR: o.CR, GE: o.GE, name: fullOperatorName, config: nc}, nil
 }
 
 // deviceNames returns the configured device names, sorted for stable output.
@@ -392,6 +400,11 @@ type deviceWatcher struct {
 	connected bool
 	lastErr   error
 
+	// firstFail is when the device started to be continuously unreachable
+	// (zero while it is known to be working). It implements the alert grace
+	// period: short blips that reconnect sooner never alert.
+	firstFail time.Time
+
 	queryNow   chan chan error
 	controlNow chan controlRequest
 }
@@ -483,9 +496,18 @@ func (w *deviceWatcher) run() {
 		w.mu.Unlock()
 		if err != nil {
 			w.ctx.GetLogger().Warnf("tuya watcher %q: %v (reconnecting in %v)", w.name, err, reconnectDelay)
-			dur := 3 * reconnectDelay
-			w.op.GE.SetSystemAlert(w.ctx, "DeviceUnreachable"+w.name, w.op.name, 2,
-				fmt.Errorf("tuya device %q unreachable: %v", w.name, err), &dur)
+			if w.firstFail.IsZero() {
+				w.firstFail = time.Now()
+			}
+			// Only alert once the device has been unreachable for the
+			// grace period: wifi blips that reconnect within a cycle or
+			// two should not raise an alert. While the device stays down
+			// the alert is re-set every cycle, which keeps it alive.
+			if time.Since(w.firstFail) >= w.op.config.AlertGraceDuration {
+				dur := 3 * reconnectDelay
+				w.op.GE.SetSystemAlert(w.ctx, "DeviceUnreachable"+w.name, w.op.name, 2,
+					fmt.Errorf("tuya device %q unreachable: %v", w.name, err), &dur)
+			}
 		}
 		select {
 		case <-w.stop:
@@ -507,7 +529,6 @@ func (w *deviceWatcher) runOnce() error {
 	w.connected = true
 	w.mu.Unlock()
 	w.ctx.GetLogger().Infof("tuya: connected to %q at %s", w.name, w.dev.IP)
-	w.op.GE.ResetSystemAlert(w.ctx, "DeviceUnreachable"+w.name, w.op.name)
 
 	r := &frameReader{conn: conn}
 	seqno := uint32(3) // 1 and 2 were used by session negotiation (3.4+)
@@ -585,6 +606,15 @@ func (w *deviceWatcher) runOnce() error {
 		}
 		full := msg.cmd == cmdDPQuery
 		w.applyDPS(dps, full)
+		if full {
+			// A complete state is the proof that the device really works
+			// again - a TCP connection that dies before answering does not
+			// get here, so the grace period is not restarted too early.
+			w.mu.Lock()
+			w.firstFail = time.Time{}
+			w.mu.Unlock()
+			w.op.GE.ResetSystemAlert(w.ctx, "DeviceUnreachable"+w.name, w.op.name)
+		}
 		if full && pendingQuery != nil {
 			pendingQuery <- nil
 			pendingQuery = nil
