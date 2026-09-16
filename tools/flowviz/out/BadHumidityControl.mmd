@@ -1,0 +1,37 @@
+%% BadHumidityControl — 10 ops — Bathroom humidity control: run the dehumidifier (tuya) while the bathroom is sealed; Bad Steckdose stays permanently powered and only meters. (cron minutely)
+%% tags: cron, minutely
+flowchart TD
+    n0(["#0<br/>Utils/Echo<br/><i>Output=ignore Args</i><br/>⚠ result unused"])
+    n1(["#1 BathroomState<br/>Store/Search<br/><i>Key=bathroom_state, MaxAge=5m, MinAge=3m, …</i>"])
+    n2{{"#2 TurnControlOn<br/>Utils/StringEqual<br/><i>Value=sealed</i>"}}
+    n3["#3 TurnControlOffStore<br/>Store/setSimpleValue<br/><i>Key=humidity_control, Namespace=default, Value=off</i>"]
+    n4["#4 TurnControlOnStore<br/>Store/setSimpleValue<br/><i>Key=humidity_control, Namespace=default, Value=on</i>"]
+    n5["#5 HumidityControlOn<br/>PixelDisplay/SetBackgroundLayer<br/><i>ImageName=Greendot.png, LayerName=HumidityControl</i>"]
+    n6["#6 HumidityControlOff<br/>PixelDisplay/ResetBackgroundLayer<br/><i>LayerName=HumidityControl</i>"]
+    n7["#7<br/>tuya/setswitch<br/><i>device=dehumidifier, on=true</i>"]
+    n8["#8<br/>tuya/setswitch<br/><i>device=dehumidifier, on=false</i>"]
+    n9(["#9<br/>Fritz/setswitchon<br/><i>device=11630 0386939</i>"])
+    TRIGGER([⚡ cron minutely]):::trigger
+    TRIGGER --> n0
+    TRIGGER --> n1
+    TRIGGER --> n9
+    n1 --> n2
+    n1 --> n3
+    n2 -.->|no| n3
+    n2 -->|yes| n4
+    n2 -->|yes| n5
+    n3 --> n6
+    n4 --> n7
+    n3 --> n8
+    classDef c622c21 fill:#ffffff,stroke:#616161,color:#212121
+    class n0,n2 c622c21
+    classDef cbfb9ac fill:#f5f5f5,stroke:#9e9e9e,color:#212121
+    class n1,n3,n4 cbfb9ac
+    classDef c6f4c27 fill:#fff8e1,stroke:#f9a825,color:#f57f17
+    class n5,n6 c6f4c27
+    classDef c92cff9 fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    class n7,n8 c92cff9
+    classDef c4bfdd7 fill:#e1f5fe,stroke:#0277bd,color:#01579b
+    class n9 c4bfdd7
+    classDef trigger fill:#fffde7,stroke:#fbc02d,color:#5d4037
+    classDef subflow fill:#e0f2f1,stroke:#00695c,color:#004d40
