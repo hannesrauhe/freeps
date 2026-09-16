@@ -31,8 +31,24 @@ func (ge *FlowEngine) prepareFlowExecution(ctx *base.Context, flowName string) (
 	return g, base.MakeEmptyOutput()
 }
 
+// rejectDeactivated rejects the execution of a deactivated flow. Calling a flow that is switched
+// off is almost always a mistake, so this raises an alert as well - otherwise a flow that gets
+// deactivated by accident would simply stop working without anybody noticing.
+//
+// It must be called without holding flowLock: the alert triggers flows again, which would
+// deadlock on the (non reentrant) lock.
+func (ge *FlowEngine) rejectDeactivated(ctx *base.Context, flowName string, mainArgs base.FunctionArguments) *base.OperatorIO {
+	err := fmt.Errorf("Flow \"%s\" is deactivated and was called with arguments \"%v\"", flowName, mainArgs)
+	ctx.GetLogger().Warnf(err.Error())
+	ge.SetSystemAlert(ctx, fmt.Sprintf("deactivated.%s", flowName), "system", 2, err, &ge.config.AlertDuration)
+	return base.MakeOutputError(http.StatusForbidden, "%v", err)
+}
+
 // ExecuteAdHocFlow executes a flow directly
 func (ge *FlowEngine) ExecuteAdHocFlow(ctx *base.Context, fullName string, gd FlowDesc, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	if gd.IsDeactivated() {
+		return ge.rejectDeactivated(ctx, fullName, mainArgs)
+	}
 	g, err := NewFlow(ctx, fullName, &gd, ge)
 	if err != nil {
 		return base.MakeOutputError(500, "Flow preparation failed: %s", err.Error())
@@ -44,6 +60,9 @@ func (ge *FlowEngine) ExecuteAdHocFlow(ctx *base.Context, fullName string, gd Fl
 
 // ExecuteFlow executes a flow stored in the engine
 func (ge *FlowEngine) ExecuteFlow(ctx *base.Context, flowName string, mainArgs base.FunctionArguments, mainInput *base.OperatorIO) *base.OperatorIO {
+	if gd, exists := ge.GetFlowDesc(flowName); exists && gd.IsDeactivated() {
+		return ge.rejectDeactivated(ctx, flowName, mainArgs)
+	}
 	g, o := ge.prepareFlowExecution(ctx, flowName)
 	if g == nil {
 		return o

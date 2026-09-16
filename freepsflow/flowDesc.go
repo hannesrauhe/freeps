@@ -38,9 +38,10 @@ func (gop *FlowOperationDesc) ToQuicklink() string {
 	return s.String()
 }
 
-// Flow kinds (values of FlowDesc.Kind). The kind describes who invokes a flow; it never
-// changes how a flow is triggered - triggering is driven by Tags alone. An empty Kind means
-// FlowKindManual, so flows written before this field existed keep their meaning.
+// Flow kinds (values of FlowDesc.Kind). The kind describes who invokes a flow; apart from
+// FlowKindDeactivated it never changes how a flow is triggered - triggering is driven by Tags
+// alone. An empty Kind means FlowKindManual, so flows written before this field existed keep
+// their meaning.
 const (
 	// FlowKindManual is a flow that is meant to be invoked by a human, e.g. "switch on the light"
 	FlowKindManual = "manual"
@@ -48,6 +49,9 @@ const (
 	FlowKindHelper = "helper"
 	// FlowKindEvent is a flow that is triggered by an event source (connector or cron), e.g. via tags
 	FlowKindEvent = "event"
+	// FlowKindDeactivated is a flow that is switched off. Executing it is rejected and raises a
+	// severity 2 alert, so a flow that is deactivated by mistake does not fail silently.
+	FlowKindDeactivated = "deactivated"
 )
 
 // FlowDesc contains a number of operations and defines which output to use
@@ -55,7 +59,7 @@ type FlowDesc struct {
 	FlowID      string `json:",omitempty"` // is only assigned when the flow is added to the engine and will be overwritten
 	DisplayName string
 	Description string `json:",omitempty"` // optional human-readable description of what the flow does
-	Kind        string `json:",omitempty"` // manual (default if empty), helper or event - see FlowKind constants. Descriptive only, triggering is done by Tags.
+	Kind        string `json:",omitempty"` // manual (default if empty), helper, event or deactivated - see FlowKind constants.
 	Tags        []string
 	Source      string
 	OutputFrom  string
@@ -66,6 +70,11 @@ type FlowDesc struct {
 // manual, so flows that were written before the Kind field exists are treated as manual.
 func (gd *FlowDesc) IsManual() bool {
 	return gd.Kind == "" || strings.EqualFold(gd.Kind, FlowKindManual)
+}
+
+// IsDeactivated returns true if the flow is switched off and must not be executed.
+func (gd *FlowDesc) IsDeactivated() bool {
+	return strings.EqualFold(gd.Kind, FlowKindDeactivated)
 }
 
 // FlowBriefDesc is a flow description without the operations - enough to show a flow in a list

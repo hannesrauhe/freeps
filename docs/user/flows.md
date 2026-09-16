@@ -41,7 +41,7 @@ Top level fields:
 |---|---|
 | `DisplayName` | Shown in the UI; defaults to the flow ID |
 | `Description` | Optional free-text description of what the flow does; returned by `listFlows` and `getFlow` |
-| `Kind` | Who invokes the flow: `manual` (default), `helper` or `event`. Descriptive only — see [Kind](#kind-manual-helper-or-event) |
+| `Kind` | Who invokes the flow: `manual` (default), `helper`, `event` or `deactivated`. Only `deactivated` changes behaviour — see [Kind](#kind-manual-helper-event-deactivated) |
 | `Tags` | Free-form labels, used for triggering and for UI grouping |
 | `OutputFrom` | Which operation's output is the flow's output |
 | `Operations` | The operations, in execution order |
@@ -239,17 +239,20 @@ freeps. See [the FritzBox's missing push mechanism](../design-principles.md#the-
 The UI reserves some tags for itself: `ui,tile` shows a flow as a tile on the dashboard,
 `ui,footer` puts a link in the footer.
 
-## Kind: manual, helper or event
+## Kind: manual, helper, event, deactivated
 
-Where tags say *how* a flow gets triggered, `Kind` says *who* is meant to invoke it. It is purely
-descriptive metadata — it never changes execution, triggering stays driven by tags alone. It exists
-so a UI or a script can tell "switch on the light" apart from a plumbing flow nobody calls by hand.
+Where tags say *how* a flow gets triggered, `Kind` says *who* is meant to invoke it. For
+`manual`, `helper` and `event` it is descriptive metadata only — it never changes execution,
+triggering stays driven by tags alone. It exists so a UI or a script can tell "switch on the
+light" apart from a plumbing flow nobody calls by hand. The one exception is `deactivated`, which
+does gate execution (see the table).
 
 | Kind | Meaning |
 |---|---|
 | `manual` | Meant to be invoked by a human, e.g. "switch on the light". This is the default when `Kind` is empty, so flows written before the field existed keep their meaning. |
 | `helper` | Only called by other flows (shared sub-steps). |
 | `event` | Triggered by an event source — a connector or cron, usually via tags. |
+| `deactivated` | Switched off. Executing the flow is rejected with HTTP 403 and raises a severity 2 alert `deactivated.<flowID>` (category `system`), so a flow that is called by accident does not silently stop working. This applies however it is called — directly, from the API, or from another flow. |
 
 Set it without touching the operations:
 

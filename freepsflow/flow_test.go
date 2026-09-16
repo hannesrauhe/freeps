@@ -1,11 +1,14 @@
 package freepsflow_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/freepsd/helper"
@@ -136,6 +139,68 @@ func TestFlowKind(t *testing.T) {
 	assert.Assert(t, !(&freepsflow.FlowDesc{Kind: freepsflow.FlowKindHelper}).IsManual())
 	assert.Assert(t, !(&freepsflow.FlowDesc{Kind: freepsflow.FlowKindEvent}).IsManual())
 	assert.Assert(t, !(&freepsflow.FlowDesc{Kind: "bogus"}).IsManual(), "an unknown kind should not count as manual")
+
+	assert.Assert(t, (&freepsflow.FlowDesc{Kind: freepsflow.FlowKindDeactivated}).IsDeactivated())
+	assert.Assert(t, (&freepsflow.FlowDesc{Kind: "DEACTIVATED"}).IsDeactivated(), "kind should be matched case-insensitively")
+	assert.Assert(t, !(&freepsflow.FlowDesc{}).IsDeactivated(), "a flow without kind is not deactivated")
+	assert.Assert(t, !(&freepsflow.FlowDesc{Kind: freepsflow.FlowKindManual}).IsDeactivated())
+}
+
+// alertRecorder captures the alerts the flow engine forwards to its hooks.
+type alertRecorder struct {
+	mu     sync.Mutex
+	alerts []string
+}
+
+func (r *alertRecorder) OnSystemAlert(ctx *base.Context, name string, category string, severity int, err error, expiresIn *time.Duration) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.alerts = append(r.alerts, fmt.Sprintf("%s.%s:%d", category, name, severity))
+	return nil
+}
+
+func (r *alertRecorder) OnResetSystemAlert(ctx *base.Context, name string, category string) error {
+	return nil
+}
+
+func (r *alertRecorder) snapshot() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string{}, r.alerts...)
+}
+
+func TestDeactivatedFlow(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+	rec := &alertRecorder{}
+	ge.AddHook(freepsflow.NewFreepsHookWrapper(rec))
+
+	deactivated := createValidFlow()
+	deactivated.Kind = freepsflow.FlowKindDeactivated
+	ge.AddFlowUnderLock(ctx, "off", deactivated, false, true)
+	ge.AddFlowUnderLock(ctx, "on", createValidFlow(), false, true)
+
+	// a deactivated flow is not executed and raises a severity 2 alert
+	out := ge.ExecuteFlow(ctx, "off", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Equal(t, out.GetStatusCode(), 403)
+	assert.Assert(t, strings.Contains(out.GetString(), "deactivated"), out.GetString())
+	assert.DeepEqual(t, rec.snapshot(), []string{"system.deactivated.off:2"})
+
+	// the same happens when it is called through the flow operator
+	ge.AddFlowUnderLock(ctx, "callsOff", freepsflow.FlowDesc{Operations: []freepsflow.FlowOperationDesc{
+		{Operator: "flow", Function: "off"},
+	}}, false, true)
+	out = ge.ExecuteFlow(ctx, "callsOff", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Assert(t, out.IsError(), "a flow calling a deactivated flow must fail")
+	assert.Equal(t, len(rec.snapshot()), 2, "the alert should be raised again")
+
+	// an ad-hoc flow with the kind set is rejected as well
+	out = ge.ExecuteAdHocFlow(ctx, "off", deactivated, base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Equal(t, out.GetStatusCode(), 403)
+
+	// flows of any other kind are executed, including the default (no kind)
+	out = ge.ExecuteFlow(ctx, "on", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Assert(t, !out.IsError(), "a flow that is not deactivated should run: %v", out)
+	assert.Equal(t, len(rec.snapshot()), 3, "running a normal flow must not raise an alert")
 }
 
 func TestCheckFlow(t *testing.T) {

@@ -78,7 +78,7 @@ var functionDescriptions = map[string]map[string]string{
 		"RemoveOperation": "removes an operation from a flow in the store (or in the flow engine if Live is set)",
 		"RestoreDeletedFlowFromStore": "restores a flow from the backup in store",
 		"SetFlowDescription": "sets the Description of a flow in the store (or in the flow engine if Live is set) without touching the operations. An empty description clears it.",
-		"SetFlowKind": "sets the Kind of a flow in the store (or in the flow engine if Live is set) without touching the operations. Valid kinds are \"manual\", \"helper\" and \"event\"; an empty kind resets it to the default (\"manual\").",
+		"SetFlowKind": "sets the Kind of a flow in the store (or in the flow engine if Live is set) without touching the operations. An empty kind resets it to the default (\"manual\").",
 		"SetOperation": "sets the fields of an operation given by the number in a flow in the store (or in the flow engine if Live is set)",
 	},
 	"fritz": {

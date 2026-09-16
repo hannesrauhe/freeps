@@ -83,7 +83,7 @@ func (m *OpFlowBuilder) CreateFlow(ctx *base.Context, input *base.OperatorIO, ar
 // ListFlowsArgs are the arguments for the ListFlows function
 type ListFlowsArgs struct {
 	Tags    *string  `doc:"comma separated tags, only flows with all of them are returned"`
-	Kind    []string `doc:"kinds (manual, helper, event), repeat the argument for multiple. Only flows of one of the given kinds are returned, flows without a kind count as manual." options:"manual,helper,event"`
+	Kind    []string `doc:"kinds (manual, helper, event, deactivated), repeat the argument for multiple. Only flows of one of the given kinds are returned, flows without a kind count as manual." options:"manual,helper,event,deactivated"`
 	Details *bool    `doc:"return the full definitions including the operations, instead of the brief description"`
 }
 
@@ -147,20 +147,19 @@ func (m *OpFlowBuilder) SetFlowDescription(ctx *base.Context, input *base.Operat
 // SetFlowKindArgs are the arguments for the SetFlowKind function
 type SetFlowKindArgs struct {
 	FlowName string `doc:"the name of the flow"`
-	Kind     string `doc:"manual, helper or event. Empty resets to the default (manual)." options:"manual,helper,event"`
+	Kind     string `doc:"manual, helper, event or deactivated. Empty resets to the default (manual)." options:"manual,helper,event,deactivated"`
 	Live     *bool  `doc:"operate on the flow in the engine (persisted) instead of the draft in the store"`
 }
 
 // SetFlowKind sets the Kind of a flow in the store (or in the flow engine if Live is set)
-// without touching the operations. Valid kinds are "manual", "helper" and "event"; an empty
-// kind resets it to the default ("manual").
+// without touching the operations. An empty kind resets it to the default ("manual").
 func (m *OpFlowBuilder) SetFlowKind(ctx *base.Context, input *base.OperatorIO, args SetFlowKindArgs) *base.OperatorIO {
 	live := args.Live != nil && *args.Live
 	kind := strings.ToLower(strings.TrimSpace(args.Kind))
 	switch kind {
-	case "", freepsflow.FlowKindManual, freepsflow.FlowKindHelper, freepsflow.FlowKindEvent:
+	case "", freepsflow.FlowKindManual, freepsflow.FlowKindHelper, freepsflow.FlowKindEvent, freepsflow.FlowKindDeactivated:
 	default:
-		return base.MakeOutputError(400, "Invalid kind \"%s\", valid kinds are manual, helper and event", args.Kind)
+		return base.MakeOutputError(400, "Invalid kind \"%s\", valid kinds are manual, helper, event and deactivated", args.Kind)
 	}
 	gd, err := m.loadFlow(args.FlowName, live)
 	if err != nil {
