@@ -37,9 +37,23 @@ type WLEDMatrixDisplay struct {
 	backgroundLayerLock sync.Mutex
 	backgroundLayer     map[string]image.RGBA
 	imgChan             chan ImagesWithMetadata
-	drawingDoneChan     chan bool
+	doneChan            chan struct{} // closed when the draw loop has stopped
+	stopChan            chan struct{} // closed by Shutdown, makes the draw loop leave even with a full queue
+	stopOnce            sync.Once
 	color               color.Color
 	bgColor             color.Color
+}
+
+// Timeout for WLED requests and the shutdown wait: an unreachable device must
+// never block the shutdown of the daemon. Vars so tests can shorten them.
+var (
+	wledRequestTimeout   = 10 * time.Second
+	shutdownWaitDuration = 15 * time.Second
+)
+
+// newWLEDHTTPClient returns an HTTP client that cannot block forever on an unreachable device.
+func newWLEDHTTPClient() *http.Client {
+	return &http.Client{Timeout: wledRequestTimeout}
 }
 
 type WLEDSegmentResponse struct {
@@ -74,14 +88,15 @@ func NewWLEDMatrixDisplay(cfg WLEDMatrixDisplayConfig) (*WLEDMatrixDisplay, erro
 		}
 	}
 	disp.imgChan = make(chan ImagesWithMetadata, cfg.ImageQueueSize)
-	disp.drawingDoneChan = make(chan bool)
+	disp.doneChan = make(chan struct{})
+	disp.stopChan = make(chan struct{})
 	go disp.drawLoop(cfg.MinDisplayDuration)
 	return disp, nil
 }
 
 func (d *WLEDMatrixDisplay) getState() (WLEDResponse, *base.OperatorIO) {
 	var state WLEDResponse
-	c := http.Client{}
+	c := newWLEDHTTPClient()
 
 	var err error
 	path := d.conf.Address + "/json/state"
@@ -105,7 +120,7 @@ func (d *WLEDMatrixDisplay) getState() (WLEDResponse, *base.OperatorIO) {
 }
 
 func (d *WLEDMatrixDisplay) sendCmd(file string, cmd *base.OperatorIO) *base.OperatorIO {
-	c := http.Client{}
+	c := newWLEDHTTPClient()
 
 	var b []byte
 	var err error
@@ -126,10 +141,19 @@ func (d *WLEDMatrixDisplay) sendCmd(file string, cmd *base.OperatorIO) *base.Ope
 	return &base.OperatorIO{HTTPCode: resp.StatusCode, Output: bout, OutputType: base.Byte, ContentType: resp.Header.Get("Content-Type")}
 }
 
+// Shutdown stops the draw loop, waiting at most shutdownWaitDuration for it:
+// a stuck or slow WLED device must not block the shutdown of the daemon.
 func (d *WLEDMatrixDisplay) Shutdown(ctx *base.Context) {
-	close(d.imgChan)
+	d.stopOnce.Do(func() {
+		close(d.stopChan)
+		close(d.imgChan)
+	})
 	ctx.GetLogger().Debugf("Waiting for drawing to pixeldisplay to finish\n")
-	<-d.drawingDoneChan
+	select {
+	case <-d.doneChan:
+	case <-time.After(shutdownWaitDuration):
+		ctx.GetLogger().Warnf("Timeout while waiting for the pixeldisplay draw loop to stop, continuing shutdown without it")
+	}
 }
 
 func (d *WLEDMatrixDisplay) drawImageImmediately(dst *image.RGBA) *base.OperatorIO {
@@ -294,16 +318,29 @@ func (d *WLEDMatrixDisplay) IsOn() bool {
 	return state.On
 }
 
-// drawLoop starts a loop that draws an image from a channel to the display and then sleeps for the given duration
+// drawLoop draws images from the queue to the display, sleeping waitDuration between pictures.
+// It leaves when the queue is drained or stopChan is closed, and closes doneChan on exit.
 func (d *WLEDMatrixDisplay) drawLoop(waitDuration time.Duration) {
 	timeoutDuration := 2 * time.Minute
+	defer close(d.doneChan)
 	for {
-		animationWithMetadata, ok := <-d.imgChan
-		if !ok {
-			break
+		var animationWithMetadata ImagesWithMetadata
+		select {
+		case <-d.stopChan:
+			return
+		case a, ok := <-d.imgChan:
+			if !ok {
+				return
+			}
+			animationWithMetadata = a
 		}
 
 		for numPic, singleImage := range animationWithMetadata.Animation {
+			select {
+			case <-d.stopChan:
+				return
+			default:
+			}
 			delay := time.Now().Sub(animationWithMetadata.Created)
 			if delay > timeoutDuration {
 				animationWithMetadata.Ctx.GetLogger().Errorf("Timeout when drawing to Pixeldisplay, delay is: %s, skipping next picture/rest of animation", delay)
@@ -322,5 +359,4 @@ func (d *WLEDMatrixDisplay) drawLoop(waitDuration time.Duration) {
 			}
 		}
 	}
-	d.drawingDoneChan <- true
 }

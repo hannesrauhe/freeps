@@ -65,7 +65,7 @@ func (h *WLEDSegmentHolder) SendToWLEDSegment(address string, dst image.RGBA, ba
 	if segmentLength > 256 {
 		return base.MakeOutputError(http.StatusBadRequest, "Cannot set more than 256 pixels at a time")
 	}
-	c := http.Client{}
+	c := newWLEDHTTPClient()
 
 	path := address + "/json"
 
