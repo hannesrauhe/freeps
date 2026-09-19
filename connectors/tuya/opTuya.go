@@ -75,6 +75,14 @@ const (
 // reconnectDelay is a var so that tests can shorten it.
 var reconnectDelay = 10 * time.Second
 
+// maxReconnectDelay caps the exponential backoff. A var (not const) so that
+// tests can disable the growth.
+var maxReconnectDelay = 5 * time.Minute
+
+// maxBackoffShift keeps the shift arithmetic below 64 bits; the effective
+// cap is maxReconnectDelay anyway.
+const maxBackoffShift = 6
+
 // defaultDPSNames are data point ids that are common enough to not need
 // configuration. Device-specific codes should be added in the config.
 var defaultDPSNames = map[string]string{
@@ -405,6 +413,12 @@ type deviceWatcher struct {
 	// period: short blips that reconnect sooner never alert.
 	firstFail time.Time
 
+	// consecutiveFails drives the reconnect backoff: it is reset to 0 on
+	// every successful connection and grown on every failure, so a device
+	// that is gone (or wedged holding its single connection slot) is probed
+	// with exponentially growing gaps instead of being hammered forever.
+	consecutiveFails int
+
 	queryNow   chan chan error
 	controlNow chan controlRequest
 }
@@ -487,6 +501,21 @@ func (w *deviceWatcher) Control(dps map[string]interface{}) error {
 	}
 }
 
+// nextReconnectDelay returns how long to wait before the next reconnect
+// attempt, given the number of consecutive failures so far: reconnectDelay
+// doubled per attempt, capped at maxReconnectDelay.
+func (w *deviceWatcher) nextReconnectDelay() time.Duration {
+	n := w.consecutiveFails
+	if n > maxBackoffShift {
+		n = maxBackoffShift
+	}
+	delay := reconnectDelay << n
+	if delay > maxReconnectDelay {
+		delay = maxReconnectDelay
+	}
+	return delay
+}
+
 func (w *deviceWatcher) run() {
 	for {
 		err := w.runOnce()
@@ -494,17 +523,27 @@ func (w *deviceWatcher) run() {
 		w.connected = false
 		w.lastErr = err
 		w.mu.Unlock()
+		delay := reconnectDelay
 		if err != nil {
-			w.ctx.GetLogger().Warnf("tuya watcher %q: %v (reconnecting in %v)", w.name, err, reconnectDelay)
+			// Exponential backoff: a device that is gone — or wedged,
+			// holding its single TCP connection slot and resetting every
+			// new one — must not be hammered every 10s forever. The gap
+			// doubles per failed attempt up to maxReconnectDelay.
+			// consecutiveFails is only touched from this goroutine.
+			delay = w.nextReconnectDelay()
+			w.consecutiveFails++
+			w.ctx.GetLogger().Warnf("tuya watcher %q: %v (reconnecting in %v)", w.name, err, delay)
 			if w.firstFail.IsZero() {
 				w.firstFail = time.Now()
 			}
 			// Only alert once the device has been unreachable for the
 			// grace period: wifi blips that reconnect within a cycle or
 			// two should not raise an alert. While the device stays down
-			// the alert is re-set every cycle, which keeps it alive.
+			// the alert is re-set every cycle, which keeps it alive — the
+			// expiry is tied to the (growing) retry gap so the alert does
+			// not expire while we are waiting for the next attempt.
 			if time.Since(w.firstFail) >= w.op.config.AlertGraceDuration {
-				dur := 3 * reconnectDelay
+				dur := 2 * delay
 				w.op.GE.SetSystemAlert(w.ctx, "DeviceUnreachable"+w.name, w.op.name, 2,
 					fmt.Errorf("tuya device %q unreachable: %v", w.name, err), &dur)
 			}
@@ -512,7 +551,7 @@ func (w *deviceWatcher) run() {
 		select {
 		case <-w.stop:
 			return
-		case <-time.After(reconnectDelay):
+		case <-time.After(delay):
 		}
 	}
 }
@@ -610,9 +649,12 @@ func (w *deviceWatcher) runOnce() error {
 			// A complete state is the proof that the device really works
 			// again - a TCP connection that dies before answering does not
 			// get here, so the grace period is not restarted too early.
+			// (consecutiveFails is only touched from this goroutine, the
+			// lock here is for firstFail which ListDevices reads.)
 			w.mu.Lock()
 			w.firstFail = time.Time{}
 			w.mu.Unlock()
+			w.consecutiveFails = 0
 			w.op.GE.ResetSystemAlert(w.ctx, "DeviceUnreachable"+w.name, w.op.name)
 		}
 		if full && pendingQuery != nil {

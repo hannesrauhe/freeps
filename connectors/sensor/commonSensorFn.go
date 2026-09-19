@@ -3,6 +3,7 @@ package sensor
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -48,7 +49,10 @@ func (o *OpSensor) getSensorCategories() ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	return categories.GetOriginalKeys(), nil
+	// GetOriginalKeys returns the keys in random (map) order, sort so that the API response is stable
+	keys := categories.GetOriginalKeys()
+	slices.Sort(keys)
+	return keys, nil
 }
 
 func (o *OpSensor) getPropertyIndex(sensorID string) (Sensor, error) {
