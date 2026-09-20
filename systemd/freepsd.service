@@ -8,10 +8,6 @@ User=freeps
 ExecStart=/usr/bin/freepsd -c /etc/freepsd/config.json
 Restart=always
 RestartSec=5
-# Kill (and via Restart=always restart) freepsd if it ever grows beyond this.
-# Safety net for leaks: a runaway freepsd must not take down a 1GB Raspberry Pi.
-# Normal RSS is well under 100M; 256M is a generous multiple.
-MemoryMax=256M
 
 [Install]
 WantedBy=multi-user.target

@@ -281,7 +281,11 @@ func (o *OpTuya) SetDPS(ctx *base.Context, mainInput *base.OperatorIO, args SetD
 	return o.setDPSValues(args.Device, map[string]interface{}{args.DPS: parseDPSValue(args.Value)})
 }
 
-// setDPSValues sends a control command for one configured device.
+// setDPSValues sends a control command for one configured device. It is
+// idempotent: if the device already reports exactly the requested values, no
+// command is sent. A Tuya device beeps on every control command, so re-sending
+// a state it is already in is audible noise (the minutely flow used to beep
+// three times per transition because of its 3-5m trigger window).
 func (o *OpTuya) setDPSValues(device string, dps map[string]interface{}) *base.OperatorIO {
 	o.mu.Lock()
 	w := o.watchers[device]
@@ -289,10 +293,51 @@ func (o *OpTuya) setDPSValues(device string, dps map[string]interface{}) *base.O
 	if w == nil {
 		return base.MakeOutputError(404, "tuya: no watcher for device %q", device)
 	}
+	// Only trust the cached state while connected: after a disconnect the
+	// last values may be stale, and a fresh command is the safe default.
+	if last, connected, _ := w.snapshot(); connected && dpsAlreadySet(last, dps) {
+		return base.MakeObjectOutput(dps)
+	}
 	if err := w.Control(dps); err != nil {
 		return base.MakeOutputError(500, "tuya: %v", err)
 	}
 	return base.MakeObjectOutput(dps)
+}
+
+// dpsAlreadySet reports whether every requested data point already equals the
+// last value the device reported. A data point that was never seen counts as
+// not matching, so the command is still sent. Numbers compare by value
+// regardless of int/float (the device reports JSON numbers as float64).
+func dpsAlreadySet(last, want map[string]interface{}) bool {
+	for k, w := range want {
+		l, ok := last[k]
+		if !ok || !dpsValueEqual(l, w) {
+			return false
+		}
+	}
+	return true
+}
+
+func dpsValueEqual(a, b interface{}) bool {
+	if af, ok := dpsAsFloat(a); ok {
+		if bf, ok := dpsAsFloat(b); ok {
+			return af == bf
+		}
+		return false
+	}
+	return a == b
+}
+
+func dpsAsFloat(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case int64:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	}
+	return 0, false
 }
 
 // parseDPSValue converts a string argument into the JSON type the data point
