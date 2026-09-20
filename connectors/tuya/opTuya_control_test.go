@@ -205,3 +205,97 @@ func TestSetSwitchNoWatcher(t *testing.T) {
 		t.Fatalf("expected an error, got %v", res)
 	}
 }
+
+// TestSetSwitchIdempotent checks that a control command is only sent when the
+// device does not already report the requested value: the dehumidifier beeps
+// on every command, so re-sending a state it is already in is audible noise.
+func TestSetSwitchIdempotent(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+	key := []byte("0123456789abcdef")
+	fake := newFakeDevice(t, key)
+	defer fake.listener.Close()
+
+	op := &OpTuya{
+		GE:   ge,
+		name: "test",
+		config: TuyaConfig{
+			Enabled:           true,
+			HeartbeatDuration: 200 * time.Millisecond,
+			SensorCategory:    "tuya",
+		},
+	}
+	dev := &Device{
+		ID: "dev1234567890abcdef", Key: string(key), IP: "127.0.0.1",
+		Version: 3.3, port: fake.port(),
+		dialTimeout: time.Second, readTimeout: time.Second,
+	}
+	w := newWatcher(op, "testdev", dev, DeviceConfig{},
+		base.NewBaseContextWithReason(logrus.New(), "test"))
+	go w.run()
+	defer func() { close(w.stop); w.closeConn() }()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, connected, _ := w.snapshot(); connected {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("watcher did not connect to fake device")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	op.mu.Lock()
+	op.watchers = map[string]*deviceWatcher{"testdev": w}
+	op.mu.Unlock()
+
+	// simulate the device reporting switch=true
+	w.applyDPS(map[string]interface{}{"1": true}, true)
+
+	// setting it to true again must NOT send a command (no beep)
+	if res := op.SetSwitch(ctx, base.MakeEmptyOutput(), SetSwitchArgs{Device: "testdev", On: true}); res.IsError() {
+		t.Fatalf("SetSwitch(true) errored: %v", res.GetError())
+	}
+	select {
+	case dps := <-fake.controls:
+		t.Errorf("redundant SetSwitch(true) sent a command: %v", dps)
+	case <-time.After(500 * time.Millisecond):
+		// good: nothing sent
+	}
+
+	// setting it to false is a real change and must send
+	if res := op.SetSwitch(ctx, base.MakeEmptyOutput(), SetSwitchArgs{Device: "testdev", On: false}); res.IsError() {
+		t.Fatalf("SetSwitch(false) errored: %v", res.GetError())
+	}
+	select {
+	case dps := <-fake.controls:
+		if dps["1"] != false {
+			t.Errorf("fake device got dps %v, want 1=false", dps)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("real change did not send a CONTROL frame")
+	}
+}
+
+// TestDPSAlreadySet covers the value comparison, incl. int/float equivalence
+// (the device reports JSON numbers as float64) and unseen data points.
+func TestDPSAlreadySet(t *testing.T) {
+	last := map[string]interface{}{"1": true, "2": float64(65), "6": float64(48)}
+	cases := []struct {
+		name string
+		want map[string]interface{}
+		set  bool
+	}{
+		{"same bool", map[string]interface{}{"1": true}, true},
+		{"diff bool", map[string]interface{}{"1": false}, false},
+		{"int vs float equal", map[string]interface{}{"2": int64(65)}, true},
+		{"int vs float diff", map[string]interface{}{"2": int64(55)}, false},
+		{"unseen dps", map[string]interface{}{"99": true}, false},
+		{"multi all match", map[string]interface{}{"1": true, "6": 48}, true},
+		{"multi one diff", map[string]interface{}{"1": true, "6": 49}, false},
+	}
+	for _, c := range cases {
+		if got := dpsAlreadySet(last, c.want); got != c.set {
+			t.Errorf("%s: dpsAlreadySet = %v, want %v", c.name, got, c.set)
+		}
+	}
+}
