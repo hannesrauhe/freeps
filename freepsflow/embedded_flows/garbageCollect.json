@@ -1,4 +1,6 @@
 {
+    "Kind": "event",
+    "Description": "Delete store entries from the _context namespace that are older than 24 hours (triggered hourly via cron)",
     "Tags": [
         "system",
         "cron",
