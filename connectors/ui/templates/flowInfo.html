@@ -25,12 +25,19 @@
         </select>
     </form>
     <div class="row">
+        <style>
+            .flowicon svg { fill: currentColor; vertical-align: middle; }
+            .flowicon { margin-right: 0.5em; }
+        </style>
         <table>
-        <tr><th>Flow</th><th>Actions</th><th>Tags</th></tr>
+        <tr><th>Flow</th><th>Description</th><th>Kind</th><th>Actions</th><th>Tags</th></tr>
             {{ range $flowName, $info := flow_GetFlowSortedByNamesByTag $requestedTag }}
             {{ $flowID := $info.FlowID }}
-            <tr><td> <a href="/flow/{{ $flowID }}">{{ $flowName }}</a> </td>
-                <td><a href="/flow/{{ $flowID }}" target="outputframe">Execute</a>, <a href="/ui/edit?flow={{ $flowID }}">Edit</a>, <a href="/flowBuilder/deleteFlow?flowID={{ $flowID }}&redirect={{$.selfURL}}" >Delete</a></td>
+            {{ $kind := $info.Kind }}{{ if eq $kind "" }}{{ $kind = "manual" }}{{ end }}
+            <tr><td>{{ $flowName }}</td>
+                <td>{{ $info.Description }}</td>
+                <td>{{ $kind }}</td>
+                <td><a class="flowicon" href="/flow/{{ $flowID }}" target="outputframe" title="Execute"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></a><a class="flowicon" href="/ui/edit?flow={{ $flowID }}" title="Edit"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></a><a class="flowicon" href="/flowBuilder/deleteFlow?flowID={{ $flowID }}&redirect={{$.selfURL}}" title="Delete"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></a></td>
                 <td>{{ range $index, $t := $info.Tags }} <a href="/ui/flowInfo.html?tag={{ $t }}">{{ $t }}</a>, {{end}}</td></tr>
             {{ end }}
         </table>
