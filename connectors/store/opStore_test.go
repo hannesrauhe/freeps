@@ -85,7 +85,7 @@ func TestStoreExpiration(t *testing.T) {
 	assert.Assert(t, out != nil)
 	assert.Assert(t, !out.IsError(), "Unexpected error when setting value for tests: %v", out)
 
-	vars["maxAge"] = "älter als Papa"
+	vars["maxAge"] = "older than dad"
 	out = s.Execute(ctx, "get", base.NewFunctionArguments(vars), input)
 	assert.Assert(t, out.IsError())
 	assert.Equal(t, out.GetStatusCode(), http.StatusBadRequest)

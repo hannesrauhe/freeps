@@ -17,6 +17,7 @@ import (
 	freepshttp "github.com/hannesrauhe/freeps/connectors/http"
 	influx "github.com/hannesrauhe/freeps/connectors/influx"
 	freepsmetrics "github.com/hannesrauhe/freeps/connectors/metrics"
+	opmistral "github.com/hannesrauhe/freeps/connectors/mistral"
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
@@ -114,6 +115,7 @@ func mainLoop() bool {
 		&tuya.OpTuya{CR: cr, GE: ge},
 		&freepsmetrics.OpMetrics{CR: cr, GE: ge},
 		&smtp.OpSMTP{CR: cr, GE: ge},
+		&opmistral.OpMistral{},
 	}
 
 	for _, op := range availableOperators {
