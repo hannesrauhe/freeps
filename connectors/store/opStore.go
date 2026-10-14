@@ -29,12 +29,6 @@ func (o *OpStore) GetDefaultConfig() interface{} {
 func (o *OpStore) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
 	store.namespaces = map[string]StoreNamespace{}
 	store.config = config.(*StoreConfig)
-	if cfg, ok := store.config.Namespaces["_sensors"]; ok {
-		if _, exists := store.config.Namespaces["_devices"]; !exists {
-			store.config.Namespaces["_devices"] = cfg
-		}
-		delete(store.config.Namespaces, "_sensors")
-	}
 	if store.config.PostgresConnStr != "" {
 		err := store.initPostgres()
 		if err != nil {
