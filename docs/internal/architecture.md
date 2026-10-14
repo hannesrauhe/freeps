@@ -142,7 +142,7 @@ called automatically; a panic in a hook is recovered and turned into an alert.
 ## Storage
 
 `connectors/store` is a namespaced key/value store used both by users and internally. Namespaces
-starting with `_` are internal and created on demand: `_flows`, `_sensors`, `_alerts`, `_mqtt`,
+starting with `_` are internal and created on demand: `_flows`, `_devices`, `_alerts`, `_mqtt`,
 `_influx`, `_smtp`, `_pixeldisplay`, `_files`, `_debug`, `_execution_log`, `_context`.
 
 Backends are chosen per namespace in the `store` config section: `memory` (the default for any

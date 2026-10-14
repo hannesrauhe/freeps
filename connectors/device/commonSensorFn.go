@@ -14,7 +14,7 @@ import (
 
 // getSensorNanmespace returns the namespaces of the sensors
 func (op *OpDevice) getSensorNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespaceNoError("_sensors")
+	return freepsstore.GetGlobalStore().GetNamespaceNoError("_devices")
 }
 
 // getSensorID calculates the sensor ID from the category and name
