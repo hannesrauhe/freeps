@@ -11,6 +11,7 @@ import (
 	opalert "github.com/hannesrauhe/freeps/connectors/alert"
 	freepsbluetooth "github.com/hannesrauhe/freeps/connectors/bluetooth"
 	opconfig "github.com/hannesrauhe/freeps/connectors/config"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	freepsexec "github.com/hannesrauhe/freeps/connectors/exec"
 	"github.com/hannesrauhe/freeps/connectors/flowbuilder"
 	"github.com/hannesrauhe/freeps/connectors/fritz"
@@ -21,7 +22,6 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/mqtt"
 	"github.com/hannesrauhe/freeps/connectors/muteme"
 	"github.com/hannesrauhe/freeps/connectors/pixeldisplay"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
 	"github.com/hannesrauhe/freeps/connectors/smtp"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/connectors/telegram"
@@ -96,7 +96,7 @@ func mainLoop() bool {
 		&freepsstore.OpStore{CR: cr, GE: ge},   // must be first so that other operators can use the store
 		&opalert.OpAlert{CR: cr, GE: ge},       // must be second so that other operators can use alerts
 		&influx.OperatorInflux{CR: cr, GE: ge}, // must come before other operators that use influx
-		&sensor.OpSensor{CR: cr, GE: ge},       // must be third so that other operators can use sensors
+		&device.OpSensor{CR: cr, GE: ge},       // must be third so that other operators can use sensors
 		&freepsbluetooth.Bluetooth{GE: ge},
 		&muteme.MuteMe{GE: ge},
 		// &freepsflux.OperatorFlux{}, DEPRECATED

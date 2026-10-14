@@ -1,4 +1,4 @@
-package sensor
+package device
 
 import (
 	"net/http"

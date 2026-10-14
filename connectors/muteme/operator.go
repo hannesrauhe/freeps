@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/sstallion/go-hid"
 )
@@ -92,7 +92,7 @@ func (mm *MuteMe) SetColor(ctx *base.Context, input *base.OperatorIO, args SetCo
 	if err := mm.setColorImpl(args.Color); err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "Failed to set color: %v", err)
 	}
-	gs := sensor.GetGlobalSensors()
+	gs := device.GetGlobalSensors()
 	if gs != nil {
 		gs.SetSensorPropertyInternal(ctx, mm.config.Tag, mm.config.Tag, "Color", args.Color)
 	}

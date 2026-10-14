@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
@@ -327,7 +327,7 @@ func (o *OpFritz) GetDeviceMap(ctx *base.Context) *base.OperatorIO {
 	if err != nil {
 		return base.MakeInternalServerErrorOutput(err)
 	}
-	opSensor := sensor.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
+	opSensor := device.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
 
 	r := map[string]freepslib.AvmDevice{}
 	for _, sensorName := range devs {

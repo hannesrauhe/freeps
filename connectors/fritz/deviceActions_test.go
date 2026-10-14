@@ -3,12 +3,12 @@ package fritz
 import (
 	"testing"
 
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/hannesrauhe/freepslib"
 	"gotest.tools/v3/assert"
 )
 
-func findAction(actions []*sensor.Action, name string) *sensor.Action {
+func findAction(actions []*device.Action, name string) *device.Action {
 	for _, a := range actions {
 		if a.Name == name {
 			return a

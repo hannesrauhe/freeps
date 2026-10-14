@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 )
 
 // writableDPS are the data point ids known to be settable, everything else stays read-only.
@@ -25,8 +25,8 @@ var writableDPS = map[string]bool{
 
 // actionsForDevice turns every writable data point into a set<Name> action, e.g. setHumidity.
 // It is pure so that it can be tested without a device.
-func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*sensor.Action {
-	var actions []*sensor.Action
+func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*device.Action {
+	var actions []*device.Action
 	// sorted iteration keeps the first of two equally named points (DPS 1 and 101 are both "switch")
 	dpsNames := namesFor(cfg)
 	dpsIDs := make([]string, 0, len(dpsNames))
@@ -40,11 +40,11 @@ func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*sen
 		if actionName == "" || hasAction(actions, actionName) {
 			continue
 		}
-		actions = append(actions, &sensor.Action{
+		actions = append(actions, &device.Action{
 			Name:     actionName,
 			Operator: operatorName, Function: "setdps",
 			Fixed: map[string]string{"device": name, "dps": dps},
-			Params: []sensor.ActionParam{{
+			Params: []device.ActionParam{{
 				Name: "value", Type: "string",
 				Doc: "value to set on " + dpsNames[dps],
 			}},
@@ -53,7 +53,7 @@ func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*sen
 	return actions
 }
 
-func hasAction(actions []*sensor.Action, name string) bool {
+func hasAction(actions []*device.Action, name string) bool {
 	for _, action := range actions {
 		if action.Name == name {
 			return true
@@ -80,7 +80,7 @@ func actionNameFor(cfg DeviceConfig, dps string, dpsName string) string {
 
 // registerActions publishes the actions of all configured devices.
 func (o *OpTuya) registerActions(ctx *base.Context) {
-	opSensor := sensor.GetGlobalSensors()
+	opSensor := device.GetGlobalSensors()
 	if opSensor == nil {
 		ctx.GetLogger().Debugf("sensor integration not available, cannot register tuya actions")
 		return

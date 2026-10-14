@@ -1,37 +1,37 @@
-package sensor_test
+package device_test
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/hannesrauhe/freeps/freepsd/helper"
 	"gotest.tools/v3/assert"
 )
 
-func initActions(t *testing.T) (*sensor.OpSensor, *base.Context) {
+func initActions(t *testing.T) (*device.OpSensor, *base.Context) {
 	ctx, _, _ := helper.SetupEngineWithCommonOperators(t, nil)
-	return sensor.GetGlobalSensors(), ctx
+	return device.GetGlobalSensors(), ctx
 }
 
 // echoAction targets the utils operator's EchoArguments function, which
 // returns the arguments it received, so tests can assert the raw arguments.
-func echoAction(name string, fixed map[string]string, params ...sensor.ActionParam) *sensor.Action {
-	return &sensor.Action{Name: name, Operator: "Utils", Function: "EchoArguments", Fixed: fixed, Params: params}
+func echoAction(name string, fixed map[string]string, params ...device.ActionParam) *device.Action {
+	return &device.Action{Name: name, Operator: "Utils", Function: "EchoArguments", Fixed: fixed, Params: params}
 }
 
-func execute(op *sensor.OpSensor, ctx *base.Context, actionName string, args map[string]string) *base.OperatorIO {
-	return op.ExecuteAction(ctx, base.MakeEmptyOutput(), sensor.ActionArgs{
+func execute(op *device.OpSensor, ctx *base.Context, actionName string, args map[string]string) *base.OperatorIO {
+	return op.ExecuteAction(ctx, base.MakeEmptyOutput(), device.ActionArgs{
 		DeviceCategory: "act", DeviceName: "dev", ActionName: actionName,
 	}, base.NewFunctionArguments(args))
 }
 
 func TestExecuteActionSucceeds(t *testing.T) {
 	op, ctx := initActions(t)
-	err := op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+	err := op.SetDeviceActionsInternal("act", "dev", []*device.Action{
 		echoAction("setTargetTemperature", map[string]string{"device": "real"},
-			sensor.ActionParam{Name: "temperature", Raw: "param", Type: "float", Scale: 2,
+			device.ActionParam{Name: "temperature", Raw: "param", Type: "float", Scale: 2,
 				Values: map[string]string{"off": "253"}}),
 	})
 	assert.NilError(t, err)
@@ -44,8 +44,8 @@ func TestExecuteActionSucceeds(t *testing.T) {
 
 func TestExecuteActionRejectsBadArgs(t *testing.T) {
 	op, ctx := initActions(t)
-	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
-		echoAction("setLevel", nil, sensor.ActionParam{Name: "level", Type: "int"}),
+	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*device.Action{
+		echoAction("setLevel", nil, device.ActionParam{Name: "level", Type: "int"}),
 	}))
 
 	res := execute(op, ctx, "setLevel", map[string]string{"level": "50", "extra": "1"})
@@ -64,14 +64,14 @@ func TestExecuteActionRejectsBadArgs(t *testing.T) {
 func TestGetActionsAndListing(t *testing.T) {
 	op, ctx := initActions(t)
 	assert.NilError(t, op.SetSensorPropertiesInternal(ctx, "act", "dev", map[string]interface{}{"name": "My Device"}))
-	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*device.Action{
 		echoAction("turnOn", map[string]string{"device": "real"}),
-		echoAction("setLevel", nil, sensor.ActionParam{Name: "level", Type: "int", Doc: "percent"}),
+		echoAction("setLevel", nil, device.ActionParam{Name: "level", Type: "int", Doc: "percent"}),
 	}))
 
-	res := op.GetActions(ctx, base.MakeEmptyOutput(), sensor.DeviceArgs{DeviceCategory: "act", DeviceName: "dev"})
+	res := op.GetActions(ctx, base.MakeEmptyOutput(), device.DeviceArgs{DeviceCategory: "act", DeviceName: "dev"})
 	assert.Assert(t, !res.IsError(), "%v", res.GetError())
-	actions := map[string]sensor.ActionInfo{}
+	actions := map[string]device.ActionInfo{}
 	assert.NilError(t, res.ParseJSON(&actions))
 	assert.Equal(t, len(actions), 2)
 	assert.Equal(t, actions["setLevel"].Params[0].Name, "level")
@@ -79,14 +79,14 @@ func TestGetActionsAndListing(t *testing.T) {
 	assert.Assert(t, !strings.Contains(res.GetString(), "EchoArguments"))
 
 	res = op.GetActionsPerCategory(ctx, base.MakeEmptyOutput())
-	perCategory := map[string][]sensor.DeviceActions{}
+	perCategory := map[string][]device.DeviceActions{}
 	assert.NilError(t, res.ParseJSON(&perCategory))
 	assert.Equal(t, len(perCategory["act"]), 1)
 	assert.Equal(t, perCategory["act"][0].ID, "act.dev")
 	assert.Equal(t, perCategory["act"][0].Alias, "My Device")
 	assert.Equal(t, len(perCategory["act"][0].Actions), 2)
 
-	res = op.GetActionParams(ctx, base.MakeEmptyOutput(), sensor.ActionArgs{DeviceCategory: "act", DeviceName: "dev", ActionName: "setLevel"})
+	res = op.GetActionParams(ctx, base.MakeEmptyOutput(), device.ActionArgs{DeviceCategory: "act", DeviceName: "dev", ActionName: "setLevel"})
 	params := []base.ArgumentDescription{}
 	assert.NilError(t, res.ParseJSON(&params))
 	assert.Equal(t, len(params), 1)
@@ -96,10 +96,10 @@ func TestGetActionsAndListing(t *testing.T) {
 
 func TestSetDeviceActionsReplaces(t *testing.T) {
 	op, ctx := initActions(t)
-	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*device.Action{
 		echoAction("turnOn", nil), echoAction("turnOff", nil),
 	}))
-	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*device.Action{
 		echoAction("toggle", nil),
 	}))
 
@@ -115,11 +115,11 @@ func TestSetDeviceActionsReplaces(t *testing.T) {
 
 func TestSetDeviceActionsValidation(t *testing.T) {
 	op, _ := initActions(t)
-	assert.ErrorContains(t, op.SetDeviceActionsInternal("act", "de.v", []*sensor.Action{}), "cannot contain a dot")
-	assert.ErrorContains(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+	assert.ErrorContains(t, op.SetDeviceActionsInternal("act", "de.v", []*device.Action{}), "cannot contain a dot")
+	assert.ErrorContains(t, op.SetDeviceActionsInternal("act", "dev", []*device.Action{
 		{Name: "", Operator: "Utils", Function: "EchoArguments"},
 	}), "empty name")
-	assert.ErrorContains(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+	assert.ErrorContains(t, op.SetDeviceActionsInternal("act", "dev", []*device.Action{
 		{Name: "broken", Operator: "", Function: ""},
 	}), "no target")
 }
@@ -128,10 +128,10 @@ func TestSetDeviceActionsValidation(t *testing.T) {
 // which is what the flow editor and the argDetails endpoint ask for.
 func TestExecuteActionFreeArgSuggestions(t *testing.T) {
 	_, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
-	op := sensor.GetGlobalSensors()
-	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+	op := device.GetGlobalSensors()
+	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*device.Action{
 		echoAction("setTargetTemperature", nil,
-			sensor.ActionParam{Name: "temperature", Raw: "param", Type: "float", Scale: 2,
+			device.ActionParam{Name: "temperature", Raw: "param", Type: "float", Scale: 2,
 				Values: map[string]string{"off": "253", "comfort": "36"}}),
 	}))
 
