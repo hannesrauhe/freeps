@@ -162,3 +162,13 @@ func (p ActionParam) valueNames() []string {
 	sort.Strings(names)
 	return names
 }
+
+// valueSuggestions returns the readable labels as value suggestions, the label itself is what
+// a caller sends and toRaw translates back to the raw value.
+func (p ActionParam) valueSuggestions() map[string]string {
+	sug := make(map[string]string, len(p.Values))
+	for label := range p.Values {
+		sug[label] = label
+	}
+	return sug
+}

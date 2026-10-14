@@ -19,6 +19,10 @@ func (op *OpSensor) getSensorNamespace() freepsstore.StoreNamespace {
 
 // getSensorID calculates the sensor ID from the category and name
 func (op *OpSensor) getSensorID(category string, name string) (string, error) {
+	return sensorIDFromCategoryName(category, name)
+}
+
+func sensorIDFromCategoryName(category string, name string) (string, error) {
 	if strings.Contains(category, ".") || strings.Contains(name, ".") {
 		return "", fmt.Errorf("SensorName and SensorCategory cannot contain a dot")
 	}

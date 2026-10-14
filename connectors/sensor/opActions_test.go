@@ -147,3 +147,31 @@ func TestSetDeviceActionsValidation(t *testing.T) {
 		{Name: "broken", Operator: "", Function: ""},
 	}), "no target")
 }
+
+// the free parameters of ExecuteAction get their value suggestions from the selected action,
+// which is what the flow editor and the argDetails endpoint ask for.
+func TestExecuteActionFreeArgSuggestions(t *testing.T) {
+	_, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+	op := sensor.GetGlobalSensors()
+	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
+		echoAction("setTargetTemperature", nil,
+			sensor.ActionParam{Name: "temperature", Raw: "param", Type: "float", Scale: 2,
+				Values: map[string]string{"off": "253", "comfort": "36"}}),
+	}))
+
+	sensorOp := ge.GetOperator("sensor")
+	otherArgs := base.NewFunctionArguments(map[string]string{
+		"deviceCategory": "act", "deviceName": "dev", "actionName": "setTargetTemperature",
+	})
+
+	sug := sensorOp.GetArgSuggestions("executeAction", "temperature", otherArgs)
+	assert.Equal(t, sug["off"], "off")
+	assert.Equal(t, sug["comfort"], "comfort")
+	assert.Equal(t, len(sug), 2)
+
+	// an argument that is not a parameter of the action has no suggestions
+	assert.Equal(t, len(sensorOp.GetArgSuggestions("executeAction", "nonsense", otherArgs)), 0)
+	// without a selected action there is nothing to suggest
+	assert.Equal(t, len(sensorOp.GetArgSuggestions("executeAction", "temperature",
+		base.NewFunctionArguments(map[string]string{"deviceCategory": "act", "deviceName": "dev"}))), 0)
+}

@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/hannesrauhe/freeps/base"
+	"github.com/hannesrauhe/freeps/utils"
 )
 
 // GetActions returns the actions that can be executed on a device, with their
@@ -58,6 +59,27 @@ type ActionArgs struct {
 	DeviceCategory string
 	ActionName     string
 }
+
+// FreeArgSuggestions suggests the values of the readable parameters of the selected action,
+// so the flow editor can offer them for arguments like "value" or "temperature".
+func (args *ActionArgs) FreeArgSuggestions(argName string, otherArgs base.FunctionArguments) map[string]string {
+	sensorID, err := sensorIDFromCategoryName(args.DeviceCategory, args.DeviceName)
+	if err != nil {
+		return map[string]string{}
+	}
+	action := getDeviceAction(sensorID, args.ActionName)
+	if action == nil {
+		return map[string]string{}
+	}
+	for _, param := range action.Params {
+		if utils.StringEqualsIgnoreCase(param.Name, argName) {
+			return param.valueSuggestions()
+		}
+	}
+	return map[string]string{}
+}
+
+var _ base.FreepsFunctionParametersWithFreeArgs = &ActionArgs{}
 
 // GetActionParams returns the parameters of an action as a list of argument
 // descriptions, using the readable names a caller has to use.
