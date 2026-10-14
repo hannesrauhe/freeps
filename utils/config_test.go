@@ -86,3 +86,15 @@ func TestReadMergeConfig(t *testing.T) {
 	assert.Equal(t, myConfig.Foo, "external")
 	assert.Equal(t, myConfig.Foo2, "overwritenInConfig")
 }
+
+// A renamed section is readable under its new name with the content preserved, so an old
+// config file keeps working after an operator rename (e.g. the sensor section -> device).
+func TestConfigSectionRename(t *testing.T) {
+	configFileBytes := []byte(`{"sensor": {"Foo": "fromSensor"}}`)
+
+	myConfig := defaultConfig
+	newb, err := ReadSectionWithDefaults(configFileBytes, "device", &myConfig, "")
+	assert.NilError(t, err)
+	assert.Equal(t, len(newb), 0, "section should be found, not written as new")
+	assert.Equal(t, myConfig.Foo, "fromSensor")
+}

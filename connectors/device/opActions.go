@@ -11,7 +11,7 @@ import (
 // GetActions returns the actions that can be executed on a device, with their
 // readable parameters. Operators like fritz or tuya register them automatically,
 // so a user can control a device without knowing the operator functions behind it.
-func (op *OpSensor) GetActions(ctx *base.Context, input *base.OperatorIO, args DeviceArgs) *base.OperatorIO {
+func (op *OpDevice) GetActions(ctx *base.Context, input *base.OperatorIO, args DeviceArgs) *base.OperatorIO {
 	sensorID, err := op.getSensorID(args.DeviceCategory, args.DeviceName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err)
@@ -30,7 +30,7 @@ func (op *OpSensor) GetActions(ctx *base.Context, input *base.OperatorIO, args D
 // GetActionsPerCategory returns all devices that have actions, by category. The
 // alias of each device is included so that the device id can be mapped back to a
 // friendly name without a second request.
-func (op *OpSensor) GetActionsPerCategory(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+func (op *OpDevice) GetActionsPerCategory(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	ret := map[string][]DeviceActions{}
 	for _, sensorID := range getActionDeviceIDs() {
 		actions := getDeviceActions(sensorID)
@@ -83,7 +83,7 @@ var _ base.FreepsFunctionParametersWithFreeArgs = &ActionArgs{}
 
 // GetActionParams returns the parameters of an action as a list of argument
 // descriptions, using the readable names a caller has to use.
-func (op *OpSensor) GetActionParams(ctx *base.Context, input *base.OperatorIO, args ActionArgs) *base.OperatorIO {
+func (op *OpDevice) GetActionParams(ctx *base.Context, input *base.OperatorIO, args ActionArgs) *base.OperatorIO {
 	sensorID, err := op.getSensorID(args.DeviceCategory, args.DeviceName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err)
@@ -97,8 +97,8 @@ func (op *OpSensor) GetActionParams(ctx *base.Context, input *base.OperatorIO, a
 
 // ExecuteAction executes an action of a device and returns an error if it fails. All arguments
 // besides the action itself are the readable parameters of the action, e.g.
-// /sensor/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60
-func (op *OpSensor) ExecuteAction(ctx *base.Context, input *base.OperatorIO, args ActionArgs, callerArgs base.FunctionArguments) *base.OperatorIO {
+// /device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60
+func (op *OpDevice) ExecuteAction(ctx *base.Context, input *base.OperatorIO, args ActionArgs, callerArgs base.FunctionArguments) *base.OperatorIO {
 	sensorID, err := op.getSensorID(args.DeviceCategory, args.DeviceName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err)
@@ -115,7 +115,7 @@ func (op *OpSensor) ExecuteAction(ctx *base.Context, input *base.OperatorIO, arg
 
 // ActionNameSuggestions returns the actions of the given device, so that the
 // flow editor can offer them.
-func (op *OpSensor) ActionNameSuggestions(otherArgs base.FunctionArguments) map[string]string {
+func (op *OpDevice) ActionNameSuggestions(otherArgs base.FunctionArguments) map[string]string {
 	if !otherArgs.Has("DeviceCategory") || !otherArgs.Has("DeviceName") {
 		return map[string]string{}
 	}
@@ -131,7 +131,7 @@ func (op *OpSensor) ActionNameSuggestions(otherArgs base.FunctionArguments) map[
 }
 
 // DeviceNameSuggestions are the devices an action can be executed on, the same ones that have sensors.
-func (op *OpSensor) DeviceNameSuggestions(otherArgs base.FunctionArguments) map[string]string {
+func (op *OpDevice) DeviceNameSuggestions(otherArgs base.FunctionArguments) map[string]string {
 	if otherArgs.Has("DeviceCategory") {
 		translated := base.MakeEmptyFunctionArguments()
 		translated.Set("SensorCategory", []string{otherArgs.Get("DeviceCategory")})
@@ -141,7 +141,7 @@ func (op *OpSensor) DeviceNameSuggestions(otherArgs base.FunctionArguments) map[
 }
 
 // DeviceCategorySuggestions are the categories of the devices that have sensors.
-func (op *OpSensor) DeviceCategorySuggestions() []string {
+func (op *OpDevice) DeviceCategorySuggestions() []string {
 	return op.SensorCategorySuggestions()
 }
 

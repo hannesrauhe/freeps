@@ -61,13 +61,13 @@ name follows the operator: `fritz` exposes its AVM command names (`setswitchon`,
 (`setSwitch`, `setHumidity`, ...).
 
 ```bash
-curl 'localhost:8080/sensor/getActionsPerCategory'   # which devices have actions (id + alias)
-curl 'localhost:8080/sensor/getActions?deviceCategory=tuya&deviceName=dehumidifier'
+curl 'localhost:8080/device/getActionsPerCategory'   # which devices have actions (id + alias)
+curl 'localhost:8080/device/getActions?deviceCategory=tuya&deviceName=dehumidifier'
 # -> {"setHumidity":{"Params":[{"Name":"value","Type":"string"}]}, "setSwitch":..., ...}
 
-curl 'localhost:8080/sensor/getActionParams?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll'
-curl -X POST 'localhost:8080/sensor/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60'
-curl -X POST 'localhost:8080/sensor/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll&temperature=21.5'
+curl 'localhost:8080/device/getActionParams?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll&temperature=21.5'
 ```
 
 Everything besides `deviceCategory`, `deviceName` and `actionName` is a parameter of the action.

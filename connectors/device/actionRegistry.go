@@ -18,7 +18,7 @@ var (
 )
 
 // SetDeviceActionsInternal replaces all actions of a device, which keeps registration idempotent across polls.
-func (op *OpSensor) SetDeviceActionsInternal(sensorCategory string, sensorName string, actions []*Action) error {
+func (op *OpDevice) SetDeviceActionsInternal(sensorCategory string, sensorName string, actions []*Action) error {
 	id, err := op.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func (op *OpSensor) SetDeviceActionsInternal(sensorCategory string, sensorName s
 }
 
 // DeleteActionsInternal removes all actions of a device.
-func (op *OpSensor) DeleteActionsInternal(sensorCategory string, sensorName string) error {
+func (op *OpDevice) DeleteActionsInternal(sensorCategory string, sensorName string) error {
 	id, err := op.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return err
@@ -93,7 +93,7 @@ func categoryOfSensorID(sensorID string) string {
 }
 
 // executeAction runs an action after translating its readable parameters to the raw operator arguments.
-func (op *OpSensor) executeAction(ctx *base.Context, input *base.OperatorIO, sensorID string, action *Action, callerArgs base.FunctionArguments) *base.OperatorIO {
+func (op *OpDevice) executeAction(ctx *base.Context, input *base.OperatorIO, sensorID string, action *Action, callerArgs base.FunctionArguments) *base.OperatorIO {
 	args, err := action.buildArgs(callerArgs)
 	if err != nil {
 		return base.MakeOutputError(400, "%v", err)

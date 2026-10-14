@@ -33,7 +33,7 @@ func SetupEngineWithCommonOperators(t *testing.T, configSections map[string]inte
 	availableOperators := []base.FreepsOperator{
 		&freepsstore.OpStore{CR: cr, GE: ge}, // must be first so that other operators can use the store
 		&opalert.OpAlert{CR: cr, GE: ge},     // must be second so that other operators can use alerts
-		&device.OpSensor{CR: cr, GE: ge},     // must be third so that other operators can use sensors
+		&device.OpDevice{CR: cr, GE: ge},     // must be third so that other operators can use sensors
 		&freepsmetrics.OpMetrics{CR: cr, GE: ge},
 		&freepsutils.OpUtils{},
 	}

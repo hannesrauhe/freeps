@@ -90,8 +90,7 @@ func TestOperatorErrorChain(t *testing.T) {
 
 // TestExecuteOperatorByNameUnknownOperator checks that calling an unknown operator directly
 // is a 404 listing the available operators (not the 500 the ad-hoc flow validation would
-// produce), and that GetOperators reports each name once even though the backward
-// compatibility aliases share a GetName.
+// produce), and that GetOperators reports each name once.
 func TestExecuteOperatorByNameUnknownOperator(t *testing.T) {
 	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
@@ -113,6 +112,28 @@ func TestExecuteOperatorByNameUnknownOperator(t *testing.T) {
 	assert.Assert(t, sort.SliceIsSorted(names, func(i, j int) bool {
 		return strings.ToLower(names[i]) < strings.ToLower(names[j])
 	}), "GetOperators is not sorted case-insensitively: %v", names)
+}
+
+// A retired operator name keeps resolving to its replacement, so old flows and URLs work.
+func TestOperatorNameAlias(t *testing.T) {
+	ctx, ge, _ := helper.SetupEngineWithCommonOperators(t, nil)
+
+	assert.Assert(t, ge.HasOperator("sensor"), "\"sensor\" should resolve to the device operator")
+	assert.Assert(t, ge.GetOperator("sensor") != nil, "GetOperator(\"sensor\") returned nil")
+	assert.Equal(t, ge.GetOperator("sensor").GetName(), ge.GetOperator("device").GetName())
+
+	// the alias must be usable to actually execute, not just be found
+	out := ge.ExecuteOperatorByName(ctx, "sensor", "getSensorCategories", base.MakeEmptyFunctionArguments(), base.MakeEmptyOutput())
+	assert.Assert(t, !out.IsError(), "executing via the alias failed: %v", out.GetString())
+
+	// the pre-1.4 graph aliases resolve to the flow operators and are not listed separately
+	assert.Assert(t, ge.HasOperator("graph"), "\"graph\" should resolve to the flow operator")
+	assert.Equal(t, ge.GetOperator("graph").GetName(), ge.GetOperator("flow").GetName())
+	assert.Equal(t, ge.GetOperator("graphbytag").GetName(), ge.GetOperator("flowbytag").GetName())
+	for _, name := range ge.GetOperators() {
+		assert.Assert(t, !strings.EqualFold(name, "graph") && !strings.EqualFold(name, "graphbytag"),
+			"GetOperators should not list the retired alias %v", name)
+	}
 }
 
 // TestExecuteFlowEmptyName checks that executing without a flow name is a 400 listing the

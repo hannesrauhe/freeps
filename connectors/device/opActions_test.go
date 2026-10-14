@@ -10,7 +10,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func initActions(t *testing.T) (*device.OpSensor, *base.Context) {
+func initActions(t *testing.T) (*device.OpDevice, *base.Context) {
 	ctx, _, _ := helper.SetupEngineWithCommonOperators(t, nil)
 	return device.GetGlobalSensors(), ctx
 }
@@ -21,7 +21,7 @@ func echoAction(name string, fixed map[string]string, params ...device.ActionPar
 	return &device.Action{Name: name, Operator: "Utils", Function: "EchoArguments", Fixed: fixed, Params: params}
 }
 
-func execute(op *device.OpSensor, ctx *base.Context, actionName string, args map[string]string) *base.OperatorIO {
+func execute(op *device.OpDevice, ctx *base.Context, actionName string, args map[string]string) *base.OperatorIO {
 	return op.ExecuteAction(ctx, base.MakeEmptyOutput(), device.ActionArgs{
 		DeviceCategory: "act", DeviceName: "dev", ActionName: actionName,
 	}, base.NewFunctionArguments(args))

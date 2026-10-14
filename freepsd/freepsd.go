@@ -96,7 +96,7 @@ func mainLoop() bool {
 		&freepsstore.OpStore{CR: cr, GE: ge},   // must be first so that other operators can use the store
 		&opalert.OpAlert{CR: cr, GE: ge},       // must be second so that other operators can use alerts
 		&influx.OperatorInflux{CR: cr, GE: ge}, // must come before other operators that use influx
-		&device.OpSensor{CR: cr, GE: ge},       // must be third so that other operators can use sensors
+		&device.OpDevice{CR: cr, GE: ge},       // must be third so that other operators can use sensors
 		&freepsbluetooth.Bluetooth{GE: ge},
 		&muteme.MuteMe{GE: ge},
 		// &freepsflux.OperatorFlux{}, DEPRECATED
