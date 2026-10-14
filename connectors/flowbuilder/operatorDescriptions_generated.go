@@ -117,7 +117,7 @@ var functionDescriptions = map[string]map[string]string{
 		"FindStringSubmatchIndex": "returns the first capturing group of the first match of the given regexp",
 	},
 	"sensor": {
-		"ExecuteAction": "executes an action of a device. All arguments besides the action itself are the readable parameters of the action, e.g. /sensor/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60",
+		"ExecuteAction": "executes an action of a device and returns an error if it fails. All arguments besides the action itself are the readable parameters of the action, e.g. /sensor/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60",
 		"GetActionParams": "returns the parameters of an action as a list of argument descriptions, using the readable names a caller has to use.",
 		"GetActions": "returns the actions that can be executed on a device, with their readable parameters. Operators like fritz or tuya register them automatically, so a user can control a device without knowing the operator functions behind it.",
 		"GetActionsPerCategory": "returns all devices that have actions, by category. The alias of each device is included so that the device id can be mapped back to a friendly name without a second request.",

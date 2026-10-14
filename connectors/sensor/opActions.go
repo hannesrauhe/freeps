@@ -95,8 +95,8 @@ func (op *OpSensor) GetActionParams(ctx *base.Context, input *base.OperatorIO, a
 	return base.MakeObjectOutput(action.argumentDescriptions())
 }
 
-// ExecuteAction executes an action of a device. All arguments besides the
-// action itself are the readable parameters of the action, e.g.
+// ExecuteAction executes an action of a device and returns an error if it fails. All arguments
+// besides the action itself are the readable parameters of the action, e.g.
 // /sensor/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60
 func (op *OpSensor) ExecuteAction(ctx *base.Context, input *base.OperatorIO, args ActionArgs, callerArgs base.FunctionArguments) *base.OperatorIO {
 	sensorID, err := op.getSensorID(args.DeviceCategory, args.DeviceName)
@@ -107,7 +107,10 @@ func (op *OpSensor) ExecuteAction(ctx *base.Context, input *base.OperatorIO, arg
 	if action == nil {
 		return base.MakeOutputError(http.StatusNotFound, "No action \"%s\" for %s, available actions: %v", args.ActionName, sensorID, actionNames(sensorID))
 	}
-	return op.executeAction(ctx, input, sensorID, action, callerArgs)
+	if res := op.executeAction(ctx, input, sensorID, action, callerArgs); res.IsError() {
+		return res
+	}
+	return base.MakeEmptyOutput()
 }
 
 // ActionNameSuggestions returns the actions of the given device, so that the

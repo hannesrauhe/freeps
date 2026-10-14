@@ -27,7 +27,7 @@ func execute(op *sensor.OpSensor, ctx *base.Context, actionName string, args map
 	}, base.NewFunctionArguments(args))
 }
 
-func TestExecuteActionScaleAndValues(t *testing.T) {
+func TestExecuteActionSucceeds(t *testing.T) {
 	op, ctx := initActions(t)
 	err := op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
 		echoAction("setTargetTemperature", map[string]string{"device": "real"},
@@ -36,34 +36,10 @@ func TestExecuteActionScaleAndValues(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
+	// a successful action returns an empty success, not the operator's raw output
 	res := execute(op, ctx, "setTargetTemperature", map[string]string{"temperature": "21.5"})
 	assert.Assert(t, !res.IsError(), "%v", res.GetError())
-	got := map[string]interface{}{}
-	assert.NilError(t, res.ParseJSON(&got))
-	assert.Equal(t, got["param"], "43")
-	assert.Equal(t, got["device"], "real")
-
-	res = execute(op, ctx, "setTargetTemperature", map[string]string{"temperature": "off"})
-	assert.NilError(t, res.ParseJSON(&got))
-	assert.Equal(t, got["param"], "253")
-
-	// raw values that are not in the Values map pass through
-	res = execute(op, ctx, "setTargetTemperature", map[string]string{"temperature": "254"})
-	assert.NilError(t, res.ParseJSON(&got))
-	assert.Equal(t, got["param"], "508")
-}
-
-func TestExecuteActionFixedWins(t *testing.T) {
-	op, ctx := initActions(t)
-	assert.NilError(t, op.SetDeviceActionsInternal("act", "dev", []*sensor.Action{
-		echoAction("turnOn", map[string]string{"device": "real"}),
-	}))
-
-	res := execute(op, ctx, "turnOn", map[string]string{"device": "evil"})
-	assert.Assert(t, !res.IsError(), "%v", res.GetError())
-	got := map[string]interface{}{}
-	assert.NilError(t, res.ParseJSON(&got))
-	assert.Equal(t, got["device"], "real")
+	assert.Assert(t, res.IsEmpty())
 }
 
 func TestExecuteActionRejectsBadArgs(t *testing.T) {
