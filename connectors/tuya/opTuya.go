@@ -26,7 +26,8 @@ type DeviceConfig struct {
 	// DPSNames maps the numeric data point ids reported by the device to
 	// sensor property names, e.g. {"6":"humidity", "7":"temperature"}.
 	// Unmapped data points are ignored.
-	DPSNames map[string]string
+	DPSNames    map[string]string
+	ActionNames map[string]string // overrides the action name of a data point, an empty value hides it
 }
 
 // TuyaConfig is the config for the tuya operator (section "tuya").
@@ -393,6 +394,7 @@ func (o *OpTuya) DevicesSuggestions(ctx *base.Context) *base.OperatorIO {
 
 // StartListening starts one watcher goroutine per configured device.
 func (o *OpTuya) StartListening(ctx *base.Context) {
+	o.registerActions(ctx)
 	o.mu.Lock()
 	if len(o.watchers) > 0 {
 		o.mu.Unlock()

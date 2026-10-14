@@ -7,10 +7,10 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/emersion/go-smtp v0.25.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
-	github.com/godbus/dbus/v5 v5.2.2
+	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/hannesrauhe/freepslib v1.5.1
+	github.com/hannesrauhe/freepslib v1.5.2
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/keep94/sunrise v1.0.1
@@ -19,7 +19,7 @@ require (
 	github.com/muka/go-bluetooth v0.0.0-20240701044517-04c4f09c514e
 	github.com/sirupsen/logrus v1.10.2
 	github.com/sstallion/go-hid v0.15.0
-	golang.org/x/image v0.46.0
+	golang.org/x/image v0.47.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -31,8 +31,8 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/oapi-codegen/runtime v1.7.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 )

@@ -52,6 +52,29 @@ In addition:
 Which operators are reachable depends on which are enabled in the config — a section with
 `"enabled": false` removes the operator and all of its endpoints.
 
+## Device actions
+
+Operators that control devices (fritz, tuya) register *actions* per device, so you can
+control a device without knowing the operator functions or raw encodings behind it. The action
+name follows the operator: `fritz` exposes its AVM command names (`setswitchon`, `sethkrtsoll`,
+`setlevelpercentage`, ...), `tuya` derives readable names from the data points of a device
+(`setSwitch`, `setHumidity`, ...).
+
+```bash
+curl 'localhost:8080/sensor/getActionsPerCategory'   # which devices have actions (id + alias)
+curl 'localhost:8080/sensor/getActions?deviceCategory=tuya&deviceName=dehumidifier'
+# -> {"setHumidity":{"Params":[{"Name":"value","Type":"string"}]}, "setSwitch":..., ...}
+
+curl 'localhost:8080/sensor/getActionParams?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll'
+curl -X POST 'localhost:8080/sensor/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60'
+curl -X POST 'localhost:8080/sensor/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll&temperature=21.5'
+```
+
+Everything besides `deviceCategory`, `deviceName` and `actionName` is a parameter of the action.
+Parameters can be readable even when the operator function takes raw values: the heating action
+`sethkrtsoll` takes `temperature` in °C (or the labels `off`/`comfort`/`eco`) instead of a
+half-degree code. Unknown parameters are rejected with a list of the valid ones.
+
 ## Arguments
 
 Arguments come from the URL query string. For `POST` requests there are three conventions:

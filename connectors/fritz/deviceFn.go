@@ -189,6 +189,7 @@ func (o *OpFritz) getDeviceList(ctx *base.Context) (*freepslib.AvmDeviceList, er
 	o.GE.ResetSystemAlert(ctx, "FailedConnection", o.name)
 	for _, dev := range devl.Device {
 		o.deviceToSensor(ctx, dev)
+		o.deviceToActions(ctx, dev)
 		o.checkDeviceForAlerts(ctx, dev)
 	}
 	return devl, nil
