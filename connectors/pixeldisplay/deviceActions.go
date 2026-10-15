@@ -7,12 +7,17 @@ import (
 	"github.com/hannesrauhe/freeps/connectors/device"
 )
 
-// deviceName is the single device the display is registered as.
-const deviceName = "display"
+// deviceCategory is the sensor category shared by all pixeldisplay instances.
+const deviceCategory = "pixeldisplay"
 
-// deviceCategory is the sensor category the display is registered under, derived from the operator name.
-func (op *OpPixelDisplay) deviceCategory() string {
-	return strings.ReplaceAll(op.name, ".", "_")
+// deviceName is the device name of this instance: the instance part of the operator name, "Default" for the plain one.
+func (op *OpPixelDisplay) deviceName() string {
+	name := strings.TrimPrefix(op.name, deviceCategory)
+	name = strings.ReplaceAll(strings.TrimPrefix(name, "."), ".", "_")
+	if name == "" {
+		return "Default"
+	}
+	return name
 }
 
 // actionsForDisplay exposes the display's own operator functions as readable actions. Pure, so it needs no device.
@@ -29,13 +34,13 @@ func actionsForDisplay(operatorName string) []*device.Action {
 	}
 }
 
-// setSensorProperty updates one property of the display device, used to keep the sensor in sync with the display.
+// setSensorProperty updates one property of this display, used to keep the sensor in sync with the display.
 func (op *OpPixelDisplay) setSensorProperty(ctx *base.Context, property string, value interface{}) {
 	opSensor := device.GetGlobalSensors()
 	if opSensor == nil {
 		return
 	}
-	if err := opSensor.SetSensorPropertyInternal(ctx, op.deviceCategory(), deviceName, property, value); err != nil {
+	if err := opSensor.SetSensorPropertyInternal(ctx, deviceCategory, op.deviceName(), property, value); err != nil {
 		ctx.GetLogger().Errorf("Failed to update pixeldisplay property %s: %v", property, err)
 	}
 }
@@ -47,12 +52,11 @@ func (op *OpPixelDisplay) registerDevice(ctx *base.Context) {
 		ctx.GetLogger().Debugf("sensor integration not available, cannot register pixeldisplay device")
 		return
 	}
-	category := op.deviceCategory()
-	if err := opSensor.SetSensorPropertiesInternal(ctx, category, deviceName,
-		map[string]interface{}{"name": "Pixel Display"}); err != nil {
+	if err := opSensor.SetSensorPropertiesInternal(ctx, deviceCategory, op.deviceName(),
+		map[string]interface{}{"name": op.deviceName()}); err != nil {
 		ctx.GetLogger().Errorf("Failed to register pixeldisplay device: %v", err)
 	}
-	if err := opSensor.SetDeviceActionsInternal(category, deviceName, actionsForDisplay(op.name)); err != nil {
+	if err := opSensor.SetDeviceActionsInternal(deviceCategory, op.deviceName(), actionsForDisplay(op.name)); err != nil {
 		ctx.GetLogger().Errorf("Failed to register pixeldisplay actions: %v", err)
 	}
 }
