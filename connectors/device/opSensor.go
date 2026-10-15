@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
@@ -244,16 +245,16 @@ func (o *OpDevice) GetSensorsPerProperty(ctx *base.Context, input *base.Operator
 			}
 			sensorInformation, err := o.getPropertyIndex(sensorID)
 			if err != nil {
-				return base.MakeInternalServerErrorOutput(err)
+				// the sensor is in the category index but has no property index, skip it instead of failing
+				continue
 			}
 			for _, property := range sensorInformation.Properties {
-				if _, ok := allProperties[property]; !ok {
-					allProperties[property] = []string{sensorID}
-				} else {
-					allProperties[property] = append(allProperties[property], sensorID)
-				}
+				allProperties[property] = append(allProperties[property], sensorID)
 			}
 		}
+	}
+	for _, sensors := range allProperties {
+		slices.Sort(sensors)
 	}
 	return base.MakeObjectOutput(allProperties)
 }

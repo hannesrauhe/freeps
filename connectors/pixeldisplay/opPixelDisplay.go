@@ -19,6 +19,7 @@ type OpPixelDisplay struct {
 	config  OpConfig
 	display Pixeldisplay
 	t2p     *text2pixeldisplay
+	name    string
 }
 
 var _ base.FreepsOperatorWithShutdown = &OpPixelDisplay{}
@@ -46,12 +47,13 @@ func (op *OpPixelDisplay) InitCopyOfOperator(ctx *base.Context, config interface
 	if err != nil {
 		return nil, err
 	}
-	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(disp)}
+	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(disp), name: name}
 	return newOp, nil
 }
 
-// StartListening is a noop
+// StartListening registers the display as a device with its actions.
 func (op *OpPixelDisplay) StartListening(ctx *base.Context) {
+	op.registerDevice(ctx)
 }
 
 // Shutdown shuts down the display
