@@ -13,7 +13,7 @@ func (op *OpDevice) GetDeviceCategories(ctx *base.Context, input *base.OperatorI
 	return op.GetSensorCategories(ctx, input)
 }
 
-// GetDevicesByAliasArgs selects which devices, properties and actions to list.
+// GetDevicesByAliasArgs returns a alias->DeviceInfo map filtered by properties
 type GetDevicesByAliasArgs struct {
 	PropertyName   []string `doc:"the properties to return, at least one of PropertyName or ActionName"`
 	ActionName     []string `doc:"the actions to return, a device without any of them is left out"`

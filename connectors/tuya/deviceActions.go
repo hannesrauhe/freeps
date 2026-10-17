@@ -37,7 +37,17 @@ func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*dev
 
 	for _, dps := range dpsIDs {
 		actionName := actionNameFor(cfg, dps, dpsNames[dps])
-		if actionName == "" || hasAction(actions, actionName) {
+		if actionName == "" {
+			continue
+		}
+		_, overridden := cfg.ActionNames[dps]
+		if !overridden {
+			if canonical := canonicalActions(operatorName, name, dps, actionName); canonical != nil {
+				actions = append(actions, canonical...)
+				continue
+			}
+		}
+		if hasAction(actions, actionName) {
 			continue
 		}
 		actions = append(actions, &device.Action{
@@ -51,6 +61,31 @@ func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*dev
 		})
 	}
 	return actions
+}
+
+// canonicalActions maps the derived names of universal capabilities to the canonical action
+// names, so clients can control any device the same way. It returns nil for everything else.
+func canonicalActions(operatorName string, name string, dps string, actionName string) []*device.Action {
+	switch {
+	case actionName == "setSwitch" && dps == "1":
+		// the main switch has its own function with a bool argument, which takes the fixed state
+		return []*device.Action{
+			{Name: device.ActionTurnOn, Operator: operatorName, Function: "setswitch",
+				Fixed: map[string]string{"device": name, "on": "true"}},
+			{Name: device.ActionTurnOff, Operator: operatorName, Function: "setswitch",
+				Fixed: map[string]string{"device": name, "on": "false"}},
+		}
+	case actionName == "setHumidity":
+		return []*device.Action{{
+			Name: device.ActionSetTargetHumidity, Operator: operatorName, Function: "setdps",
+			Fixed: map[string]string{"device": name, "dps": dps},
+			Params: []device.ActionParam{{
+				Name: "humidity", Raw: "value", Type: "int",
+				Doc: "target humidity in percent",
+			}},
+		}}
+	}
+	return nil
 }
 
 func hasAction(actions []*device.Action, name string) bool {

@@ -12,7 +12,10 @@ const deviceCategory = "pixeldisplay"
 
 // deviceName is the device name of this instance: the instance part of the operator name, "Default" for the plain one.
 func (op *OpPixelDisplay) deviceName() string {
-	name := strings.TrimPrefix(op.name, deviceCategory)
+	name := op.name
+	if len(name) >= len(deviceCategory) && strings.EqualFold(name[:len(deviceCategory)], deviceCategory) {
+		name = name[len(deviceCategory):]
+	}
 	name = strings.ReplaceAll(strings.TrimPrefix(name, "."), ".", "_")
 	if name == "" {
 		return "Default"
@@ -26,7 +29,7 @@ func actionsForDisplay(operatorName string) []*device.Action {
 		{Name: "turnOn", Operator: operatorName, Function: "TurnOn"},
 		{Name: "turnOff", Operator: operatorName, Function: "TurnOff"},
 		{Name: "setBrightness", Operator: operatorName, Function: "SetBrightness",
-			Params: []device.ActionParam{{Name: "brightness", Type: "int", Doc: "0-255"}}},
+			Params: []device.ActionParam{{Name: "brightness", Type: "int", Scale: 2.55, Doc: "brightness in percent"}}},
 		{Name: "setColor", Operator: operatorName, Function: "SetColor",
 			Params: []device.ActionParam{{Name: "color", Type: "string", Doc: "hex color, e.g. #ff0000"}}},
 		{Name: "drawText", Operator: operatorName, Function: "DrawText",

@@ -22,28 +22,40 @@ func TestActionsForSwitch(t *testing.T) {
 	actions := actionsForDevice("fritz", dev)
 	assert.Equal(t, len(actions), 3)
 
-	on := findAction(actions, "setswitchon")
+	on := findAction(actions, "turnOn")
 	assert.Assert(t, on != nil)
 	assert.Equal(t, on.Operator, "fritz")
+	assert.Equal(t, on.Function, "setswitchon")
 	assert.Equal(t, on.Fixed["device"], "ain1")
 	assert.Equal(t, len(on.Params), 0)
 
-	assert.Assert(t, findAction(actions, "setswitchoff") != nil)
-	assert.Assert(t, findAction(actions, "setswitchtoggle") != nil)
-	// the device has no simple on/off part, so that command must not show up
-	assert.Assert(t, findAction(actions, "setsimpleonoff") == nil)
+	assert.Equal(t, findAction(actions, "turnOff").Function, "setswitchoff")
+	assert.Equal(t, findAction(actions, "toggle").Function, "setswitchtoggle")
 }
 
 func TestActionsForSimpleOnOff(t *testing.T) {
 	dev := freepslib.AvmDevice{AIN: "ain2", DeviceID: "43", SimpleOnOff: &freepslib.AvmDeviceSimpleonoff{}}
 	actions := actionsForDevice("fritz", dev)
-	assert.Equal(t, len(actions), 1)
+	assert.Equal(t, len(actions), 2)
 
-	onoff := findAction(actions, "setsimpleonoff")
-	assert.Assert(t, onoff != nil)
-	assert.Equal(t, len(onoff.Params), 1)
-	assert.Equal(t, onoff.Params[0].Name, "onoff")
-	assert.Assert(t, onoff.Params[0].Optional)
+	// the on/off part is stateless, so the state goes in as a fixed raw argument
+	on := findAction(actions, "turnOn")
+	assert.Assert(t, on != nil)
+	assert.Equal(t, on.Function, "setsimpleonoff")
+	assert.Equal(t, on.Fixed["onoff"], "1")
+	assert.Equal(t, findAction(actions, "turnOff").Fixed["onoff"], "0")
+	// the on/off part cannot toggle
+	assert.Assert(t, findAction(actions, "toggle") == nil)
+}
+
+// a device with both parts must not list turnOn twice, the first capability wins
+func TestActionsForSwitchAndSimpleOnOff(t *testing.T) {
+	dev := freepslib.AvmDevice{AIN: "ain3", DeviceID: "25",
+		SimpleOnOff: &freepslib.AvmDeviceSimpleonoff{}, Switch: &freepslib.AvmDeviceSwitch{}}
+	actions := actionsForDevice("fritz", dev)
+	assert.Equal(t, len(actions), 3)
+	assert.Equal(t, findAction(actions, "turnOn").Function, "setsimpleonoff")
+	assert.Equal(t, findAction(actions, "toggle").Function, "setswitchtoggle")
 }
 
 func TestActionsForHKR(t *testing.T) {
@@ -52,8 +64,9 @@ func TestActionsForHKR(t *testing.T) {
 	actions := actionsForDevice("fritz", dev)
 	assert.Equal(t, len(actions), 1)
 
-	hkr := findAction(actions, "sethkrtsoll")
+	hkr := findAction(actions, "setTargetTemperature")
 	assert.Assert(t, hkr != nil)
+	assert.Equal(t, hkr.Function, "sethkrtsoll")
 	// the raw param argument is replaced by a readable temperature
 	assert.Equal(t, len(hkr.Params), 1)
 	param := hkr.Params[0]
@@ -70,17 +83,22 @@ func TestActionsForLight(t *testing.T) {
 	dev := freepslib.AvmDevice{AIN: "ain5", DeviceID: "2000",
 		ColorControl: &freepslib.AvmDeviceColorcontrol{}, LevelControl: &freepslib.AvmDeviceLevelcontrol{}}
 	actions := actionsForDevice("fritz", dev)
-	assert.Equal(t, len(actions), 3)
+	assert.Equal(t, len(actions), 2)
 
-	color := findAction(actions, "setcolor")
-	assert.Assert(t, color != nil)
-	assert.Equal(t, len(color.Params), 3)
+	// the raw hue/saturation color command has no canonical equivalent and stays hidden
+	assert.Assert(t, findAction(actions, "setColor") == nil)
 
-	level := findAction(actions, "setlevelpercentage")
-	assert.Assert(t, level != nil)
-	assert.Equal(t, level.Params[0].Name, "level")
+	brightness := findAction(actions, "setBrightness")
+	assert.Assert(t, brightness != nil)
+	assert.Equal(t, brightness.Function, "setlevelpercentage")
+	assert.Equal(t, brightness.Params[0].Name, "brightness")
+	assert.Equal(t, brightness.Params[0].Raw, "level")
+	assert.Equal(t, brightness.Params[0].Type, "int")
 
-	assert.Assert(t, findAction(actions, "setcolortemperature") != nil)
+	colorTemp := findAction(actions, "setColorTemperature")
+	assert.Assert(t, colorTemp != nil)
+	assert.Equal(t, colorTemp.Function, "setcolortemperature")
+	assert.Equal(t, colorTemp.Params[0].Type, "int")
 }
 
 func TestActionsForButton(t *testing.T) {

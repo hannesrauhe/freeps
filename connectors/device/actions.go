@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -121,7 +122,12 @@ func (p ActionParam) toRaw(value string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("\"%s\" is not a number and not one of %s", value, strings.Join(p.valueNames(), ", "))
 	}
-	return strconv.FormatFloat(number*p.Scale, 'f', -1, 64), nil
+	scaled := number * p.Scale
+	if strings.HasPrefix(p.Type, "int") {
+		// the target argument is an int, so a scaled value must not come out with decimals
+		return strconv.Itoa(int(math.Round(scaled))), nil
+	}
+	return strconv.FormatFloat(scaled, 'f', -1, 64), nil
 }
 
 func (a *Action) hasParam(name string) bool {

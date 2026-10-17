@@ -40,6 +40,20 @@ func TestBuildArgsFixedWins(t *testing.T) {
 	assert.Equal(t, built.Get("device"), "real")
 }
 
+// an int parameter must never receive decimals from a scale factor
+func TestBuildArgsIntScaleRounds(t *testing.T) {
+	action := &Action{Name: "setBrightness", Operator: "pixeldisplay", Function: "SetBrightness",
+		Params: []ActionParam{{Name: "brightness", Type: "int", Scale: 2.55}}}
+
+	built, err := action.buildArgs(base.NewFunctionArguments(map[string]string{"brightness": "40"}))
+	assert.NilError(t, err)
+	assert.Equal(t, built.Get("brightness"), "102")
+
+	built, err = action.buildArgs(base.NewFunctionArguments(map[string]string{"brightness": "100"}))
+	assert.NilError(t, err)
+	assert.Equal(t, built.Get("brightness"), "255")
+}
+
 func TestBuildArgsRejectsBadArgs(t *testing.T) {
 	action := &Action{Name: "setLevel", Operator: "fritz", Function: "setlevelpercentage",
 		Params: []ActionParam{{Name: "level", Type: "int"}}}

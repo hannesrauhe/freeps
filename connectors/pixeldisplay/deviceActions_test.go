@@ -25,13 +25,18 @@ func TestActionsForDisplay(t *testing.T) {
 	assert.Equal(t, brightness.Function, "SetBrightness")
 	assert.Equal(t, len(brightness.Params), 1)
 	assert.Equal(t, brightness.Params[0].Name, "brightness")
+	// the canonical contract is percent, WLED takes 0-255
+	assert.Equal(t, brightness.Params[0].Scale, 2.55)
 
 	assert.Equal(t, byName["turnOn"].Function, "TurnOn")
 	assert.Equal(t, len(byName["turnOn"].Params), 0)
 }
 
 func TestDeviceName(t *testing.T) {
+	// the operator name is derived from the struct, so it is capitalized
+	assert.Equal(t, (&OpPixelDisplay{name: "PixelDisplay"}).deviceName(), "Default")
 	assert.Equal(t, (&OpPixelDisplay{name: "pixeldisplay"}).deviceName(), "Default")
+	assert.Equal(t, (&OpPixelDisplay{name: "PixelDisplay.albert"}).deviceName(), "albert")
 	assert.Equal(t, (&OpPixelDisplay{name: "pixeldisplay.matrix"}).deviceName(), "matrix")
 	assert.Equal(t, (&OpPixelDisplay{name: "pixeldisplay.a.b"}).deviceName(), "a_b")
 }

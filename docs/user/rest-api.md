@@ -54,26 +54,36 @@ Which operators are reachable depends on which are enabled in the config — a s
 
 ## Device actions
 
-Operators that control devices (fritz, tuya) register *actions* per device, so you can
-control a device without knowing the operator functions or raw encodings behind it. The action
-name follows the operator: `fritz` exposes its AVM command names (`setswitchon`, `sethkrtsoll`,
-`setlevelpercentage`, ...), `tuya` derives readable names from the data points of a device
-(`setSwitch`, `setHumidity`, ...).
+Operators that control devices (fritz, tuya, pixeldisplay) register *actions* per device, so you can
+control a device without knowing the operator functions or raw encodings behind it. Universal
+capabilities use the same canonical name on every operator:
+
+| Action | Parameters |
+|---|---|
+| `turnOn`, `turnOff`, `toggle` | none |
+| `setBrightness` | `brightness`: int, percent 0-100 |
+| `setColor` | `color`: hex string, e.g. `#ff0000` |
+| `setColorTemperature` | `temperature`: int, Kelvin |
+| `setTargetTemperature` | `temperature`: float, °C, plus `off`/`comfort`/`eco` labels where the device has them |
+| `setTargetHumidity` | `humidity`: int, percent |
+
+Capabilities a device kind has on its own keep a descriptive name (`setWorkMode`, `setFanSpeed`,
+`drawText`, ...), always with typed, readable parameters.
 
 ```bash
 curl 'localhost:8080/device/getActionsPerCategory'   # which devices have actions (id + alias)
 curl 'localhost:8080/device/getActions?deviceCategory=tuya&deviceName=dehumidifier'
-# -> {"setHumidity":{"Params":[{"Name":"value","Type":"string"}]}, "setSwitch":..., ...}
+# -> {"setTargetHumidity":{"Params":[{"Name":"humidity","Type":"int"}]}, "turnOn":..., ...}
 
-curl 'localhost:8080/device/getActionParams?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll'
-curl -X POST 'localhost:8080/device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60'
-curl -X POST 'localhost:8080/device/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=sethkrtsoll&temperature=21.5'
+curl 'localhost:8080/device/getActionParams?deviceCategory=fritz_dev&deviceName=17&actionName=setTargetTemperature'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setTargetHumidity&humidity=60'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=setTargetTemperature&temperature=21.5'
 ```
 
 Everything besides `deviceCategory`, `deviceName` and `actionName` is a parameter of the action.
-Parameters can be readable even when the operator function takes raw values: the heating action
-`sethkrtsoll` takes `temperature` in °C (or the labels `off`/`comfort`/`eco`) instead of a
-half-degree code. Unknown parameters are rejected with a list of the valid ones.
+Parameters stay readable even when the operator function takes raw values: the heating action
+`setTargetTemperature` takes °C instead of a half-degree code, and `setBrightness` percent even
+where the device counts 0-255. Unknown parameters are rejected with a list of the valid ones.
 
 ## Arguments
 

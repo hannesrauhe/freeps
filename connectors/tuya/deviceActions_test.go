@@ -19,22 +19,31 @@ func findAction(actions []*device.Action, name string) *device.Action {
 func TestActionsForDevice(t *testing.T) {
 	actions := actionsForDevice("tuya", "dehumidifier", DeviceConfig{})
 
-	// DPS 1 is named switch and is writable, so it becomes setSwitch
-	on := findAction(actions, "setSwitch")
+	// DPS 1 is the main switch, so it becomes the canonical turnOn/turnOff
+	on := findAction(actions, "turnOn")
 	assert.Assert(t, on != nil)
 	assert.Equal(t, on.Operator, "tuya")
-	assert.Equal(t, on.Function, "setdps")
+	assert.Equal(t, on.Function, "setswitch")
 	assert.Equal(t, on.Fixed["device"], "dehumidifier")
-	assert.Equal(t, on.Fixed["dps"], "1")
+	assert.Equal(t, on.Fixed["on"], "true")
+	assert.Equal(t, len(on.Params), 0)
+	assert.Equal(t, findAction(actions, "turnOff").Fixed["on"], "false")
 
-	// DPS 2 is named setHumidity and is writable, name is kept as-is
-	humidity := findAction(actions, "setHumidity")
+	// DPS 101 is the second switch, which has no canonical name and keeps the generic one
+	second := findAction(actions, "setSwitch")
+	assert.Assert(t, second != nil)
+	assert.Equal(t, second.Fixed["dps"], "101")
+
+	// DPS 2 is the target humidity, so it becomes the canonical setTargetHumidity
+	humidity := findAction(actions, "setTargetHumidity")
 	assert.Assert(t, humidity != nil)
 	assert.Equal(t, humidity.Function, "setdps")
 	assert.Equal(t, humidity.Fixed["device"], "dehumidifier")
 	assert.Equal(t, humidity.Fixed["dps"], "2")
 	assert.Equal(t, len(humidity.Params), 1)
-	assert.Equal(t, humidity.Params[0].Name, "value")
+	assert.Equal(t, humidity.Params[0].Name, "humidity")
+	assert.Equal(t, humidity.Params[0].Raw, "value")
+	assert.Equal(t, humidity.Params[0].Type, "int")
 
 	// DPS 5 workMode is writable, gets the set prefix
 	mode := findAction(actions, "setWorkMode")
@@ -45,6 +54,14 @@ func TestActionsForDevice(t *testing.T) {
 	assert.Assert(t, findAction(actions, "setTemperature") == nil)
 	assert.Assert(t, findAction(actions, "setFault") == nil)
 	assert.Assert(t, findAction(actions, "setFilterLife") == nil)
+}
+
+// an explicit name override wins over the canonical mapping
+func TestCanonicalActionsOverrideByConfig(t *testing.T) {
+	cfg := DeviceConfig{ActionNames: map[string]string{"1": "setSwitch"}}
+	actions := actionsForDevice("tuya", "plug", cfg)
+	assert.Assert(t, findAction(actions, "setSwitch") != nil)
+	assert.Assert(t, findAction(actions, "turnOn") == nil)
 }
 
 func TestActionsForDeviceConfigOverride(t *testing.T) {

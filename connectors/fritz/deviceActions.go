@@ -2,41 +2,87 @@ package fritz
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
 	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/hannesrauhe/freepslib"
 )
 
-// actionsForDevice derives the actions of a device from the switch commands freepslib knows
+// canonicalForCapability maps an AVM capability to the canonical action names it provides,
+// so a client can control any device without knowing the AVM command names.
+var canonicalForCapability = map[string][]string{
+	"switch":      {device.ActionTurnOn, device.ActionTurnOff, device.ActionToggle},
+	"simpleonoff": {device.ActionTurnOn, device.ActionTurnOff},
+	"level":       {device.ActionSetBrightness},
+	"color":       {device.ActionSetColorTemperature},
+	"hkr":         {device.ActionSetTargetTemperature},
+}
+
+// actionsForDevice derives the canonical actions of a device from the capabilities freepslib knows
 // about, keeping only what the device supports. It is pure, so it can be tested without a FritzBox.
 func actionsForDevice(operatorName string, dev freepslib.AvmDevice) []*device.Action {
 	if dev.AIN == "" {
 		// buttons and other devices without an AIN cannot be switched
 		return nil
 	}
-	capabilities := freepslib.GetSwitchCmdCapabilities()
 	var actions []*device.Action
-	for cmd, args := range freepslib.GetSwitchCmds() {
-		capability, exposed := capabilities[cmd]
-		if !exposed || !dev.HasCapability(capability) {
+	for _, capability := range capabilityOrder {
+		if !dev.HasCapability(capability) {
 			continue
 		}
-		action := &device.Action{Name: cmd, Operator: operatorName, Function: cmd,
-			Fixed: map[string]string{"device": dev.AIN}}
-		for _, arg := range args {
-			if arg == "device" {
+		for _, name := range canonicalForCapability[capability] {
+			// a device with both a switch and an on/off part gets one turnOn from the first
+			if hasAction(actions, name) {
 				continue
 			}
-			// the raw commands treat every argument as optional
-			action.Params = append(action.Params, device.ActionParam{Name: arg, Optional: true})
+			actions = append(actions, canonicalAction(name, capability, operatorName, dev))
 		}
-		if cmd == "sethkrtsoll" && dev.HKR != nil {
-			action.Params = hkrTemperatureParams(dev)
-		}
-		actions = append(actions, action)
 	}
 	return actions
+}
+
+func hasAction(actions []*device.Action, name string) bool {
+	for _, a := range actions {
+		if a.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// capabilityOrder keeps the actions of a device in a stable, useful order.
+var capabilityOrder = []string{"simpleonoff", "switch", "level", "color", "hkr"}
+
+// canonicalAction builds one canonical action for a capability, translating to the raw AVM command.
+func canonicalAction(name string, capability string, operatorName string, dev freepslib.AvmDevice) *device.Action {
+	action := &device.Action{Name: name, Operator: operatorName, Fixed: map[string]string{"device": dev.AIN}}
+	switch name {
+	case device.ActionTurnOn, device.ActionTurnOff:
+		if capability == "simpleonoff" {
+			// the on/off part takes the state as an argument, the plain switch has one command each
+			action.Function = "setsimpleonoff"
+			onoff := "0"
+			if name == device.ActionTurnOn {
+				onoff = "1"
+			}
+			action.Fixed["onoff"] = onoff
+		} else {
+			action.Function = "setswitch" + strings.ToLower(strings.TrimPrefix(name, "turn"))
+		}
+	case device.ActionToggle:
+		action.Function = "setswitchtoggle"
+	case device.ActionSetBrightness:
+		action.Function = "setlevelpercentage"
+		action.Params = []device.ActionParam{{Name: "brightness", Raw: "level", Type: "int", Doc: "brightness in percent"}}
+	case device.ActionSetColorTemperature:
+		action.Function = "setcolortemperature"
+		action.Params = []device.ActionParam{{Name: "temperature", Type: "int", Doc: "color temperature in Kelvin"}}
+	case device.ActionSetTargetTemperature:
+		action.Function = "sethkrtsoll"
+		action.Params = hkrTemperatureParams(dev)
+	}
+	return action
 }
 
 // hkrTemperatureParams replaces the raw param argument with a readable °C temperature,
@@ -55,13 +101,20 @@ func hkrTemperatureParams(dev freepslib.AvmDevice) []device.ActionParam {
 	}}
 }
 
-// deviceToActions publishes the readable actions of one device.
+// deviceToActions publishes the readable actions of one device, devices without any are left out.
 func (o *OpFritz) deviceToActions(ctx *base.Context, dev freepslib.AvmDevice) {
 	opSensor := device.GetGlobalSensors()
 	if opSensor == nil {
 		return
 	}
-	if err := opSensor.SetDeviceActionsInternal(o.getDeviceSensorCategory(), dev.DeviceID, actionsForDevice(o.name, dev)); err != nil {
+	actions := actionsForDevice(o.name, dev)
+	var err error
+	if len(actions) == 0 {
+		err = opSensor.DeleteActionsInternal(o.getDeviceSensorCategory(), dev.DeviceID)
+	} else {
+		err = opSensor.SetDeviceActionsInternal(o.getDeviceSensorCategory(), dev.DeviceID, actions)
+	}
+	if err != nil {
 		ctx.GetLogger().Errorf("Failed to register actions for device %v: %v", dev.Name, err)
 	}
 }
