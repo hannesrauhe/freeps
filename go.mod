@@ -10,7 +10,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/hannesrauhe/freepslib v1.5.1
+	github.com/hannesrauhe/freepslib v1.5.2
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/keep94/sunrise v1.0.1
@@ -33,6 +33,6 @@ require (
 	github.com/oapi-codegen/runtime v1.7.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 )
