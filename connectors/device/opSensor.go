@@ -37,7 +37,11 @@ func (op *OpDevice) InitCopyOfOperator(ctx *base.Context, config interface{}, na
 	opc := config.(*SensorConfig)
 
 	globalSensor = &OpDevice{CR: op.CR, GE: op.GE, config: opc}
+<<<<<<< HEAD
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_devices")
+=======
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("_sensors")
+>>>>>>> main
 	if err != nil {
 		return nil, err
 	}
