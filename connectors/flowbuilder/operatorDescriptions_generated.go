@@ -14,6 +14,7 @@ var operatorDescriptions = map[string]string{
 	"influx": "enabled InfluxDB Flux queries to be executed",
 	"math": "freeps operator that provides math operations",
 	"metrics": "provides system metrics such as CPU, memory, load, disk, network and uptime statistics, as well as information about the freeps build itself.",
+	"mistral": "talks to the Mistral API. The key lives in the freeps config, so LAN clients can read it via the config operator instead of typing it in.",
 	"mqtt": "connects to an MQTT broker to publish messages and to trigger flows from the topics it subscribes to.",
 	"muteme": "implements the FreepsOperator interface to control the MuteMe button",
 	"pixeldisplay": "implements base.FreepsOperatorWithShutdown, wraps all functions of the Pixeldisplay interface and calls them on the default display",
@@ -51,9 +52,11 @@ var functionDescriptions = map[string]map[string]string{
 		"RestartDiscovery": "triggers the Discovery process immediately",
 	},
 	"config": {
+		"GetKey": "returns a single key from a section as plain text",
 		"GetOperatorConfig": "returns the default config for a given section",
 		"GetSection": "returns the section with the given name",
 		"RemoveSection": "removes the given section from the config file",
+		"SetKey": "writes a single key into a section, creating the section if it does not exist",
 		"WriteSection": "writes the given section to the config file",
 	},
 	"curl": {
@@ -90,6 +93,9 @@ var functionDescriptions = map[string]map[string]string{
 	},
 	"metrics": {
 		"Stats": "returns the system statistics on Linux",
+	},
+	"mistral": {
+		"Transcribe": "turns spoken audio given as main input into text.",
 	},
 	"mqtt": {
 		"GetSubscriptions": "returns a list of all subscriped topics",

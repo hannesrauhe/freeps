@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/hannesrauhe/freepslib"
 )
@@ -32,7 +32,7 @@ func (o *OpFritz) DeviceSuggestions() map[string]string {
 
 // getDeviceIDs returns a list of all device IDs
 func (o *OpFritz) getDeviceIDs(ctx *base.Context, forceRefresh bool) ([]string, error) {
-	opSensor := sensor.GetGlobalSensors()
+	opSensor := device.GetGlobalSensors()
 	if opSensor == nil {
 		return nil, fmt.Errorf("Sensor integration not available")
 	}
@@ -55,7 +55,7 @@ func (o *OpFritz) getDeviceByAIN(ctx *base.Context, AIN string) (*freepslib.AvmD
 	if err != nil {
 		return nil, err
 	}
-	opSensor := sensor.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
+	opSensor := device.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
 	for _, sensorName := range devs {
 		cachedDev := opSensor.GetSensorPropertyInternal(ctx, o.getDeviceSensorCategory(), sensorName, "_internal")
 		if cachedDev.IsError() {
@@ -79,7 +79,7 @@ func (o *OpFritz) getCachedDevices(ctx *base.Context, forceRefresh bool) (map[st
 	if err != nil {
 		return nil, err
 	}
-	opSensor := sensor.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
+	opSensor := device.GetGlobalSensors() // cannot be nil, as getDeviceIDs would have returned an error
 	r := map[string]string{}
 
 	for _, sensorName := range devs {
@@ -99,74 +99,74 @@ func (o *OpFritz) getCachedDevices(ctx *base.Context, forceRefresh bool) (map[st
 	return r, nil
 }
 
-func (o *OpFritz) deviceToSensor(ctx *base.Context, device freepslib.AvmDevice) {
+func (o *OpFritz) deviceToSensor(ctx *base.Context, avmdevice freepslib.AvmDevice) {
 	//TODO(HR): collect all sensor properties in a map and set them all at once, or at least trigger flows only once
-	opSensor := sensor.GetGlobalSensors()
+	opSensor := device.GetGlobalSensors()
 	if opSensor == nil {
 		ctx.GetLogger().Errorf("Sensor integration not available")
 		return
 	}
 	properties := map[string]interface{}{
-		"_internal": device,
+		"_internal": avmdevice,
 	}
-	sensorName := device.DeviceID
-	if device.AIN != "" {
-		properties["ain"] = device.AIN
-		properties["name"] = device.Name
-		properties["present"] = device.Present
-		if device.Battery != nil {
-			properties["battery"] = *device.Battery
+	sensorName := avmdevice.DeviceID
+	if avmdevice.AIN != "" {
+		properties["ain"] = avmdevice.AIN
+		properties["name"] = avmdevice.Name
+		properties["present"] = avmdevice.Present
+		if avmdevice.Battery != nil {
+			properties["battery"] = *avmdevice.Battery
 		}
-		if device.BatteryLow != nil {
-			properties["batteryLow"] = *device.BatteryLow
+		if avmdevice.BatteryLow != nil {
+			properties["batteryLow"] = *avmdevice.BatteryLow
 		}
 
-		if device.EtsiUnitInfo != nil {
-			properties["parent"] = device.EtsiUnitInfo.DeviceID
+		if avmdevice.EtsiUnitInfo != nil {
+			properties["parent"] = avmdevice.EtsiUnitInfo.DeviceID
 		}
-		if device.HKR != nil {
-			targetTemp, err := utils.ConvertToFloat(device.HKR.Tsoll)
+		if avmdevice.HKR != nil {
+			targetTemp, err := utils.ConvertToFloat(avmdevice.HKR.Tsoll)
 			if err == nil {
 				properties["targetTemperature"] = targetTemp / 2
 			}
 		}
-		if device.Temperature != nil {
-			temperature, err := utils.ConvertToFloat(device.Temperature.Celsius)
+		if avmdevice.Temperature != nil {
+			temperature, err := utils.ConvertToFloat(avmdevice.Temperature.Celsius)
 			if err == nil {
 				properties["temperature"] = temperature / 10
 			}
 		}
-		if device.Powermeter != nil {
-			power, err := utils.ConvertToFloat(device.Powermeter.Power)
+		if avmdevice.Powermeter != nil {
+			power, err := utils.ConvertToFloat(avmdevice.Powermeter.Power)
 			if err == nil {
 				properties["power"] = power / 1000
 			}
-			voltage, err := utils.ConvertToFloat(device.Powermeter.Voltage)
+			voltage, err := utils.ConvertToFloat(avmdevice.Powermeter.Voltage)
 			if err == nil {
 				properties["voltage"] = voltage / 1000
 			}
-			energy, err := utils.ConvertToFloat(device.Powermeter.Energy)
+			energy, err := utils.ConvertToFloat(avmdevice.Powermeter.Energy)
 			if err == nil {
 				properties["energy"] = energy / 1000
 			}
 		}
-		if device.Switch != nil {
-			properties["state"] = device.Switch.State
+		if avmdevice.Switch != nil {
+			properties["state"] = avmdevice.Switch.State
 		}
-		if device.Button != nil {
-			t := time.Unix(int64(device.Button.LastPressedTimestamp), 0)
+		if avmdevice.Button != nil {
+			t := time.Unix(int64(avmdevice.Button.LastPressedTimestamp), 0)
 			properties["lastPressed"] = t
 		}
-		if device.SimpleOnOff != nil {
-			properties["state"] = device.SimpleOnOff.State
+		if avmdevice.SimpleOnOff != nil {
+			properties["state"] = avmdevice.SimpleOnOff.State
 		}
-		if device.LevelControl != nil {
-			properties["level"] = device.LevelControl.LevelPercentage
+		if avmdevice.LevelControl != nil {
+			properties["level"] = avmdevice.LevelControl.LevelPercentage
 		}
-		if device.ColorControl != nil {
-			properties["hue"] = device.ColorControl.Hue
-			properties["saturation"] = device.ColorControl.Saturation
-			properties["colorTemp"] = device.ColorControl.Temperature
+		if avmdevice.ColorControl != nil {
+			properties["hue"] = avmdevice.ColorControl.Hue
+			properties["saturation"] = avmdevice.ColorControl.Saturation
+			properties["colorTemp"] = avmdevice.ColorControl.Temperature
 		}
 	}
 	opSensor.SetSensorPropertiesInternal(ctx, o.getDeviceSensorCategory(), sensorName, properties)

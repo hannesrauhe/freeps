@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	freepsstore "github.com/hannesrauhe/freeps/connectors/store"
 	"github.com/hannesrauhe/freeps/utils"
 )
@@ -52,7 +52,7 @@ func (o *OpFritz) addHost(ctx *base.Context, byMac string, byIP string, res map[
 		host.IPAddress = byIP
 	}
 
-	opSensor := sensor.GetGlobalSensors()
+	opSensor := device.GetGlobalSensors()
 	if opSensor == nil {
 		return host, fmt.Errorf("Sensor integration not available")
 	}

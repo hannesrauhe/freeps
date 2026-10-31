@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/mackerelio/go-osstat/cpu"
 	"github.com/mackerelio/go-osstat/disk"
 	"github.com/mackerelio/go-osstat/loadavg"
@@ -73,7 +73,7 @@ func (o *OpMetrics) Stats(ctx *base.Context, input *base.OperatorIO, args StatsP
 	}
 
 	ret := base.MakeObjectOutput(s)
-	opSensor := sensor.GetGlobalSensors()
+	opSensor := device.GetGlobalSensors()
 	if opSensor != nil {
 		err = opSensor.SetSensorPropertyFromFlattenedObject(ctx, "system_stats", statType, s)
 		if err != nil {

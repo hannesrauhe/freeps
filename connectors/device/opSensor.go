@@ -1,4 +1,4 @@
-package sensor
+package device
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-// OpSensor is an operator to manage sensors of different types in your Smart Home, these sensors can be created by the user or by other operators. The operator provices a set of methods to interact with the sensors.
-type OpSensor struct {
+// OpDevice is an operator to manage sensors of different types in your Smart Home, these sensors can be created by the user or by other operators. The operator provices a set of methods to interact with the sensors.
+type OpDevice struct {
 	CR     *utils.ConfigReader
 	GE     *freepsflow.FlowEngine
 	config *SensorConfig
@@ -22,20 +22,20 @@ type Sensor struct {
 	Properties []string
 }
 
-var _ base.FreepsOperator = &OpSensor{}
-var _ base.FreepsOperatorWithConfig = &OpSensor{}
+var _ base.FreepsOperator = &OpDevice{}
+var _ base.FreepsOperatorWithConfig = &OpDevice{}
 
-func (op *OpSensor) GetDefaultConfig() interface{} {
+func (op *OpDevice) GetDefaultConfig() interface{} {
 	return &SensorConfig{Enabled: true, AliasKeys: []string{"name", "alias"}}
 }
 
-func (op *OpSensor) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
-	if strings.ToLower(name) != "sensor" {
-		return nil, fmt.Errorf("config section name must be 'sensor', multiple instances are not supported")
+func (op *OpDevice) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
+	if strings.ToLower(name) != "device" {
+		return nil, fmt.Errorf("config section name must be 'device', multiple instances are not supported")
 	}
 	opc := config.(*SensorConfig)
 
-	globalSensor = &OpSensor{CR: op.CR, GE: op.GE, config: opc}
+	globalSensor = &OpDevice{CR: op.CR, GE: op.GE, config: opc}
 	ns, err := freepsstore.GetGlobalStore().GetNamespace("_sensors")
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (op *OpSensor) InitCopyOfOperator(ctx *base.Context, config interface{}, na
 	return globalSensor, nil
 }
 
-func (op *OpSensor) SensorNameSuggestions(otherArgs base.FunctionArguments) map[string]string {
+func (op *OpDevice) SensorNameSuggestions(otherArgs base.FunctionArguments) map[string]string {
 	cm, err := op.getCategoryIndex()
 	if err != nil {
 		return map[string]string{}
@@ -72,17 +72,17 @@ func (op *OpSensor) SensorNameSuggestions(otherArgs base.FunctionArguments) map[
 	return ret
 }
 
-func (op *OpSensor) SensorCategorySuggestions() []string {
+func (op *OpDevice) SensorCategorySuggestions() []string {
 	cat, _ := op.getSensorCategories()
 	return cat
 }
 
-func (op *OpSensor) PropertyTypeSuggestions(otherArgs base.FunctionArguments) []string {
+func (op *OpDevice) PropertyTypeSuggestions(otherArgs base.FunctionArguments) []string {
 	return base.GetPossibleOutputTypes()
 }
 
 // GetSensorCategories returns all sensor categories
-func (op *OpSensor) GetSensorCategories(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
+func (op *OpDevice) GetSensorCategories(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	categories, err := op.getSensorCategories()
 	if err != nil {
 		return base.MakeInternalServerErrorOutput(err)
@@ -95,7 +95,7 @@ type GetSensorsPerCategoryArgs struct {
 }
 
 // GetSensorsPerCategory returns all sensor names for a category
-func (op *OpSensor) GetSensorsPerCategory(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerCategoryArgs) *base.OperatorIO {
+func (op *OpDevice) GetSensorsPerCategory(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerCategoryArgs) *base.OperatorIO {
 	cat, err := op.getCategoryIndex()
 	if err != nil {
 		return base.MakeInternalServerErrorOutput(err)
@@ -118,7 +118,7 @@ type SensorArgs struct {
 }
 
 // SetSensorProperties writes one or more properties of a sensor
-func (o *OpSensor) SetSensorProperties(ctx *base.Context, input *base.OperatorIO, args SensorArgs, fa base.FunctionArguments) *base.OperatorIO {
+func (o *OpDevice) SetSensorProperties(ctx *base.Context, input *base.OperatorIO, args SensorArgs, fa base.FunctionArguments) *base.OperatorIO {
 	if fa.IsEmpty() && input.IsEmpty() {
 		return base.MakeOutputError(http.StatusBadRequest, "no properties to set")
 	}
@@ -151,7 +151,7 @@ type SetSensorPropertyArgs struct {
 }
 
 // SetSingleSensorProperty writes one or more properties of a sensor
-func (o *OpSensor) SetSingleSensorProperty(ctx *base.Context, input *base.OperatorIO, args SetSensorPropertyArgs) *base.OperatorIO {
+func (o *OpDevice) SetSingleSensorProperty(ctx *base.Context, input *base.OperatorIO, args SetSensorPropertyArgs) *base.OperatorIO {
 	if args.PropertyValue != nil {
 		if args.PropertyType == nil {
 			input = base.MakeOutputGuessType(*args.PropertyValue)
@@ -186,7 +186,7 @@ type GetSensorArgs struct {
 }
 
 // GetSensorProperty returns all properties of a sensor or the one specified by PropertyName
-func (o *OpSensor) GetSensorProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorArgs) *base.OperatorIO {
+func (o *OpDevice) GetSensorProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorArgs) *base.OperatorIO {
 	sensorID, err := o.getSensorID(args.SensorCategory, args.SensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
@@ -204,12 +204,12 @@ func (o *OpSensor) GetSensorProperty(ctx *base.Context, input *base.OperatorIO, 
 }
 
 // GetSensorAlias returns the property "name" for the sensor or the id if this property does not exist
-func (o *OpSensor) GetSensorAlias(ctx *base.Context, input *base.OperatorIO, args SensorArgs) *base.OperatorIO {
+func (o *OpDevice) GetSensorAlias(ctx *base.Context, input *base.OperatorIO, args SensorArgs) *base.OperatorIO {
 	return o.getSensorAlias(args.SensorCategory, args.SensorName)
 }
 
 // GetSensorPropertyKeys returns all properties of a sensor
-func (o *OpSensor) GetSensorPropertyKeys(ctx *base.Context, input *base.OperatorIO, args SensorArgs) *base.OperatorIO {
+func (o *OpDevice) GetSensorPropertyKeys(ctx *base.Context, input *base.OperatorIO, args SensorArgs) *base.OperatorIO {
 	sensorID, err := o.getSensorID(args.SensorCategory, args.SensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
@@ -226,7 +226,7 @@ type GetSensorsPerPropertyArgs struct {
 }
 
 // GetSensorsPerProperty returns a map where the keys are the properties and the values are the sensors that have this property
-func (o *OpSensor) GetSensorsPerProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerPropertyArgs) *base.OperatorIO {
+func (o *OpDevice) GetSensorsPerProperty(ctx *base.Context, input *base.OperatorIO, args GetSensorsPerPropertyArgs) *base.OperatorIO {
 	categories, err := o.getCategoryIndex()
 	if err != nil {
 		return base.MakeInternalServerErrorOutput(err)
@@ -264,7 +264,7 @@ type GetSensorPropertiesByAliasArgs struct {
 }
 
 // GetSensorPropertiesByAlias returns all sensors that have the given property by the sensor alias
-func (o *OpSensor) GetSensorPropertiesByAlias(ctx *base.Context, input *base.OperatorIO, args GetSensorPropertiesByAliasArgs) *base.OperatorIO {
+func (o *OpDevice) GetSensorPropertiesByAlias(ctx *base.Context, input *base.OperatorIO, args GetSensorPropertiesByAliasArgs) *base.OperatorIO {
 	if len(args.SensorPropertyName) == 0 {
 		return base.MakeOutputError(http.StatusBadRequest, "No SensorPropertyName provided")
 	}

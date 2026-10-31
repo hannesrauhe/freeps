@@ -1,4 +1,4 @@
-package sensor
+package device
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 )
 
 // FlowID suggestions returns suggestions for flow names
-func (o *OpSensor) FlowIDSuggestions() map[string]string {
+func (o *OpDevice) FlowIDSuggestions() map[string]string {
 	flowNames := map[string]string{}
 	res := o.GE.GetAllFlowDesc()
 	for id, gd := range res {
@@ -23,7 +23,7 @@ func (o *OpSensor) FlowIDSuggestions() map[string]string {
 	return flowNames
 }
 
-func (o *OpSensor) executeTriggers(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) *base.OperatorIO {
+func (o *OpDevice) executeTriggers(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) *base.OperatorIO {
 	// TODO(HR): async?
 	categorySelectTags := []string{fmt.Sprintf("sensorCategory:%v", sensorCategory), "sensorCategory:*"}
 	nameSelectTags := []string{fmt.Sprintf("sensorName:%v", sensorName), "sensorName:*"}
@@ -38,7 +38,7 @@ func (o *OpSensor) executeTriggers(ctx *base.Context, sensorCategory string, sen
 	return o.GE.ExecuteFlowByTagsExtended(ctx, tagGroups, args, base.MakeEmptyOutput())
 }
 
-func (o *OpSensor) setTrigger(ctx *base.Context, flowId string, tags ...string) *base.OperatorIO {
+func (o *OpDevice) setTrigger(ctx *base.Context, flowId string, tags ...string) *base.OperatorIO {
 	gd, found := o.GE.GetFlowDesc(flowId)
 	if !found {
 		return base.MakeOutputError(http.StatusInternalServerError, "Couldn't find flow: %v", flowId)
@@ -61,7 +61,7 @@ type SetTriggerArgs struct {
 	ChangedProperty *string
 }
 
-func (o *OpSensor) SetSensorTrigger(ctx *base.Context, input *base.OperatorIO, args SetTriggerArgs) *base.OperatorIO {
+func (o *OpDevice) SetSensorTrigger(ctx *base.Context, input *base.OperatorIO, args SetTriggerArgs) *base.OperatorIO {
 	tags := []string{}
 	if args.SensorCategory != nil {
 		tags = append(tags, fmt.Sprintf("sensorCategory:%v", *args.SensorCategory))
