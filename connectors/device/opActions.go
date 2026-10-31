@@ -73,8 +73,8 @@ func (args *ActionArgs) ValueSuggestions(otherArgs base.FunctionArguments) map[s
 	return action.Param.valueSuggestions()
 }
 
-// GetActionParams returns the parameters of an action as a list of argument
-// descriptions, using the readable names a caller has to use.
+// GetActionParams returns the value parameter of an action as a list of argument
+// descriptions, with the readable name and labels the caller can send as value.
 func (op *OpDevice) GetActionParams(ctx *base.Context, input *base.OperatorIO, args ActionArgs) *base.OperatorIO {
 	sensorID, err := op.getSensorID(args.DeviceCategory, args.DeviceName)
 	if err != nil {

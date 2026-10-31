@@ -65,8 +65,8 @@ var functionDescriptions = map[string]map[string]string{
 		"PostForm": "executes a POST request to the given URL with the given form fields and returns either the response body or information about the downloaded file if an output file is specified",
 	},
 	"device": {
-		"ExecuteAction": "executes an action of a device and returns an error if it fails. All arguments besides the action itself are the readable parameters of the action, e.g. /device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60",
-		"GetActionParams": "returns the parameters of an action as a list of argument descriptions, using the readable names a caller has to use.",
+		"ExecuteAction": "executes an action of a device and returns an error if it fails. Actions with a parameter take it as the value argument, e.g. /device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setTargetHumidity&value=60",
+		"GetActionParams": "returns the value parameter of an action as a list of argument descriptions, with the readable name and labels the caller can send as value.",
 		"GetActions": "returns the actions that can be executed on a device, with their readable parameters. Operators like fritz or tuya register them automatically, so a user can control a device without knowing the operator functions behind it.",
 		"GetActionsPerCategory": "returns all devices that have actions, by category. The alias of each device is included so that the device id can be mapped back to a friendly name without a second request.",
 		"GetDeviceCategories": "returns all categories that have devices",
