@@ -13,12 +13,12 @@ import (
 )
 
 // getSensorNanmespace returns the namespaces of the sensors
-func (op *OpSensor) getSensorNamespace() freepsstore.StoreNamespace {
+func (op *OpDevice) getSensorNamespace() freepsstore.StoreNamespace {
 	return freepsstore.GetGlobalStore().GetNamespaceNoError("_sensors")
 }
 
 // getSensorID calculates the sensor ID from the category and name
-func (op *OpSensor) getSensorID(category string, name string) (string, error) {
+func (op *OpDevice) getSensorID(category string, name string) (string, error) {
 	if strings.Contains(category, ".") || strings.Contains(name, ".") {
 		return "", fmt.Errorf("SensorName and SensorCategory cannot contain a dot")
 	}
@@ -31,7 +31,7 @@ func (op *OpSensor) getSensorID(category string, name string) (string, error) {
 	return fmt.Sprintf("%s.%s", category, name), nil
 }
 
-func (o *OpSensor) getCategoryIndex() (base.FunctionArguments, error) {
+func (o *OpDevice) getCategoryIndex() (base.FunctionArguments, error) {
 	ns := o.getSensorNamespace()
 	v := ns.GetValue("_categories")
 	if v.IsError() {
@@ -44,7 +44,7 @@ func (o *OpSensor) getCategoryIndex() (base.FunctionArguments, error) {
 	return categories, nil
 }
 
-func (o *OpSensor) getSensorCategories() ([]string, error) {
+func (o *OpDevice) getSensorCategories() ([]string, error) {
 	categories, err := o.getCategoryIndex()
 	if err != nil {
 		return []string{}, err
@@ -55,7 +55,7 @@ func (o *OpSensor) getSensorCategories() ([]string, error) {
 	return keys, nil
 }
 
-func (o *OpSensor) getPropertyIndex(sensorID string) (Sensor, error) {
+func (o *OpDevice) getPropertyIndex(sensorID string) (Sensor, error) {
 	ns := o.getSensorNamespace()
 	v := ns.GetValue(sensorID)
 	if v.IsError() {
@@ -68,7 +68,7 @@ func (o *OpSensor) getPropertyIndex(sensorID string) (Sensor, error) {
 	return sensorInformation, nil
 }
 
-func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.OperatorIO, sensorCategory string, sensorName string, sensorProperty string) (*base.OperatorIO, bool, bool, bool) {
+func (o *OpDevice) setSensorPropertyNoTrigger(ctx *base.Context, input *base.OperatorIO, sensorCategory string, sensorName string, sensorProperty string) (*base.OperatorIO, bool, bool, bool) {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error()), false, false, false
@@ -152,7 +152,7 @@ func (o *OpSensor) setSensorPropertyNoTrigger(ctx *base.Context, input *base.Ope
 	return base.MakeEmptyOutput(), newSensor, newProperty, updatedProperty
 }
 
-func (o *OpSensor) setSensorProperties(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) *base.OperatorIO {
+func (o *OpDevice) setSensorProperties(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) *base.OperatorIO {
 	updatedProperties := map[string]interface{}{}
 	for k, v := range properties {
 		out, _, _, updated := o.setSensorPropertyNoTrigger(ctx, base.MakeOutputGuessType(v), sensorCategory, sensorName, k)
@@ -170,11 +170,11 @@ func (o *OpSensor) setSensorProperties(ctx *base.Context, sensorCategory string,
 	return base.MakeEmptyOutput()
 }
 
-func (o *OpSensor) getSensorPropertyByID(sensorID string, sensorProperty string) *base.OperatorIO {
+func (o *OpDevice) getSensorPropertyByID(sensorID string, sensorProperty string) *base.OperatorIO {
 	ns := o.getSensorNamespace()
 	return ns.GetValue(sensorID + "." + sensorProperty).GetData()
 }
-func (o *OpSensor) getSensorProperty(sensorCategory string, sensorName string, sensorProperty string) *base.OperatorIO {
+func (o *OpDevice) getSensorProperty(sensorCategory string, sensorName string, sensorProperty string) *base.OperatorIO {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
@@ -182,7 +182,7 @@ func (o *OpSensor) getSensorProperty(sensorCategory string, sensorName string, s
 	return o.getSensorPropertyByID(sensorID, sensorProperty)
 }
 
-func (o *OpSensor) getSensorAliasByID(sensorID string) *base.OperatorIO {
+func (o *OpDevice) getSensorAliasByID(sensorID string) *base.OperatorIO {
 	ns := o.getSensorNamespace()
 	for _, key := range o.config.AliasKeys {
 		v := ns.GetValue(sensorID + "." + key)
@@ -198,7 +198,7 @@ func (o *OpSensor) getSensorAliasByID(sensorID string) *base.OperatorIO {
 	return base.MakePlainOutput(sensorID)
 }
 
-func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *base.OperatorIO {
+func (o *OpDevice) getSensorAlias(sensorCategory string, sensorName string) *base.OperatorIO {
 	sensorID, err := o.getSensorID(sensorCategory, sensorName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err.Error())
@@ -206,7 +206,7 @@ func (o *OpSensor) getSensorAlias(sensorCategory string, sensorName string) *bas
 	return o.getSensorAliasByID(sensorID)
 }
 
-func (o *OpSensor) recordUpdatesAndTrigger(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) {
+func (o *OpDevice) recordUpdatesAndTrigger(ctx *base.Context, sensorCategory string, sensorName string, changedProperties map[string]interface{}) {
 	o.executeTriggers(ctx, sensorCategory, sensorName, changedProperties)
 
 	if o.config.InfluxInstancePerCategory == nil || o.config.InfluxPropertiesPerCategory == nil {

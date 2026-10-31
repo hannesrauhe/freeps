@@ -13,7 +13,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func initSensorOp(t *testing.T) (*device.OpSensor, *base.Context) {
+func initSensorOp(t *testing.T) (*device.OpDevice, *base.Context) {
 	ctx, _, _ := helper.SetupEngineWithCommonOperators(t, nil)
 
 	return device.GetGlobalSensors(), ctx
@@ -195,7 +195,7 @@ func TestTriggers(t *testing.T) {
 	assert.Equal(t, i, 3)
 }
 
-func setSensorPropertyHelper(t *testing.T, op *device.OpSensor, ctx *base.Context, sensorCat string, sensorName string, sensorProperty string, value interface{}) {
+func setSensorPropertyHelper(t *testing.T, op *device.OpDevice, ctx *base.Context, sensorCat string, sensorName string, sensorProperty string, value interface{}) {
 	res := op.SetSingleSensorProperty(ctx, base.MakeOutputInferType(value), device.SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: sensorProperty})
 	assert.Assert(t, !res.IsError())
 }
