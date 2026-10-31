@@ -63,11 +63,3 @@ type FreepsOperatorWithHook interface {
 type FreepsFunctionParametersWithInit interface {
 	Init(ctx *Context, operator FreepsOperator, fn string)
 }
-
-// FreepsFunctionParametersWithFreeArgs lets the parameter struct of a FullSignature function
-// suggest values for the free arguments, i.e. the ones that are not struct fields and therefore
-// have no <ArgName>Suggestions method of their own, such as the readable parameters of a device action.
-type FreepsFunctionParametersWithFreeArgs interface {
-	// FreeArgSuggestions returns the value suggestions for one free argument, given the other arguments.
-	FreeArgSuggestions(argName string, otherArgs FunctionArguments) map[string]string
-}

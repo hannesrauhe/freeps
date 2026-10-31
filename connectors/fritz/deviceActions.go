@@ -74,20 +74,19 @@ func canonicalAction(name string, capability string, operatorName string, dev fr
 		action.Function = "setswitchtoggle"
 	case device.ActionSetBrightness:
 		action.Function = "setlevelpercentage"
-		action.Params = []device.ActionParam{{Name: "brightness", Raw: "level", Type: "int", Doc: "brightness in percent"}}
+		action.Param = &device.ActionParam{Name: "brightness", Raw: "level", Type: "int", Doc: "brightness in percent"}
 	case device.ActionSetColorTemperature:
 		action.Function = "setcolortemperature"
-		action.Params = []device.ActionParam{{Name: "temperature", Type: "int", Doc: "color temperature in Kelvin"}}
+		action.Param = &device.ActionParam{Name: "temperature", Type: "int", Doc: "color temperature in Kelvin"}
 	case device.ActionSetTargetTemperature:
 		action.Function = "sethkrtsoll"
-		action.Params = hkrTemperatureParams(dev)
+		action.Param = hkrTemperatureParam(dev)
 	}
 	return action
 }
 
-// hkrTemperatureParams replaces the raw param argument with a readable °C temperature,
-// using the device's own comfort and eco values for the preset labels.
-func hkrTemperatureParams(dev freepslib.AvmDevice) []device.ActionParam {
+// hkrTemperatureParam builds the readable °C parameter, using the device's own comfort and eco values for the preset labels.
+func hkrTemperatureParam(dev freepslib.AvmDevice) *device.ActionParam {
 	values := map[string]string{"off": "253"}
 	if dev.HKR.Komfort > 0 && dev.HKR.Komfort < 253 {
 		values["comfort"] = strconv.Itoa(dev.HKR.Komfort)
@@ -95,10 +94,10 @@ func hkrTemperatureParams(dev freepslib.AvmDevice) []device.ActionParam {
 	if dev.HKR.Absenk > 0 && dev.HKR.Absenk < 253 {
 		values["eco"] = strconv.Itoa(dev.HKR.Absenk)
 	}
-	return []device.ActionParam{{
+	return &device.ActionParam{
 		Name: "temperature", Raw: "param", Type: "float", Scale: 2, Values: values,
 		Doc: "target temperature in °C, or one of the preset labels",
-	}}
+	}
 }
 
 // deviceToActions publishes the readable actions of one device, devices without any are left out.

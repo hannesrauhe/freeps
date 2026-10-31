@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/utils"
 )
 
 // GetActions returns the actions that can be executed on a device, with their
@@ -58,28 +57,21 @@ type ActionArgs struct {
 	DeviceName     string
 	DeviceCategory string
 	ActionName     string
+	Value          string `doc:"the value for actions that take one, e.g. the brightness percent"`
 }
 
-// FreeArgSuggestions suggests the values of the readable parameters of the selected action,
-// so the flow editor can offer them for arguments like "value" or "temperature".
-func (args *ActionArgs) FreeArgSuggestions(argName string, otherArgs base.FunctionArguments) map[string]string {
+// ValueSuggestions suggests the readable labels of the selected action's parameter.
+func (args *ActionArgs) ValueSuggestions(otherArgs base.FunctionArguments) map[string]string {
 	sensorID, err := sensorIDFromCategoryName(args.DeviceCategory, args.DeviceName)
 	if err != nil {
 		return map[string]string{}
 	}
 	action := getDeviceAction(sensorID, args.ActionName)
-	if action == nil {
+	if action == nil || action.Param == nil {
 		return map[string]string{}
 	}
-	for _, param := range action.Params {
-		if utils.StringEqualsIgnoreCase(param.Name, argName) {
-			return param.valueSuggestions()
-		}
-	}
-	return map[string]string{}
+	return action.Param.valueSuggestions()
 }
-
-var _ base.FreepsFunctionParametersWithFreeArgs = &ActionArgs{}
 
 // GetActionParams returns the parameters of an action as a list of argument
 // descriptions, using the readable names a caller has to use.
@@ -95,10 +87,10 @@ func (op *OpDevice) GetActionParams(ctx *base.Context, input *base.OperatorIO, a
 	return base.MakeObjectOutput(action.argumentDescriptions())
 }
 
-// ExecuteAction executes an action of a device and returns an error if it fails. All arguments
-// besides the action itself are the readable parameters of the action, e.g.
-// /device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setHumidity&value=60
-func (op *OpDevice) ExecuteAction(ctx *base.Context, input *base.OperatorIO, args ActionArgs, callerArgs base.FunctionArguments) *base.OperatorIO {
+// ExecuteAction executes an action of a device and returns an error if it fails. Actions with a
+// parameter take it as the value argument, e.g.
+// /device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setTargetHumidity&value=60
+func (op *OpDevice) ExecuteAction(ctx *base.Context, input *base.OperatorIO, args ActionArgs) *base.OperatorIO {
 	sensorID, err := op.getSensorID(args.DeviceCategory, args.DeviceName)
 	if err != nil {
 		return base.MakeOutputError(http.StatusBadRequest, "%v", err)
@@ -107,7 +99,7 @@ func (op *OpDevice) ExecuteAction(ctx *base.Context, input *base.OperatorIO, arg
 	if action == nil {
 		return base.MakeOutputError(http.StatusNotFound, "No action \"%s\" for %s, available actions: %v", args.ActionName, sensorID, actionNames(sensorID))
 	}
-	if res := op.executeAction(ctx, input, sensorID, action, callerArgs); res.IsError() {
+	if res := op.executeAction(ctx, input, action, args.Value); res.IsError() {
 		return res
 	}
 	return base.MakeEmptyOutput()

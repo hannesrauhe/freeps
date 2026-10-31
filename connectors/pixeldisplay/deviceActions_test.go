@@ -23,13 +23,13 @@ func TestActionsForDisplay(t *testing.T) {
 	assert.Assert(t, brightness != nil)
 	assert.Equal(t, brightness.Operator, "pixeldisplay")
 	assert.Equal(t, brightness.Function, "SetBrightness")
-	assert.Equal(t, len(brightness.Params), 1)
-	assert.Equal(t, brightness.Params[0].Name, "brightness")
+	assert.Assert(t, brightness.Param != nil)
+	assert.Equal(t, brightness.Param.Name, "brightness")
 	// the canonical contract is percent, WLED takes 0-255
-	assert.Equal(t, brightness.Params[0].Scale, 2.55)
+	assert.Equal(t, brightness.Param.Scale, 2.55)
 
 	assert.Equal(t, byName["turnOn"].Function, "TurnOn")
-	assert.Equal(t, len(byName["turnOn"].Params), 0)
+	assert.Assert(t, byName["turnOn"].Param == nil)
 }
 
 func TestDeviceName(t *testing.T) {

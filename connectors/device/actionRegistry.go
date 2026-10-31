@@ -92,9 +92,9 @@ func categoryOfSensorID(sensorID string) string {
 	return category
 }
 
-// executeAction runs an action after translating its readable parameters to the raw operator arguments.
-func (op *OpDevice) executeAction(ctx *base.Context, input *base.OperatorIO, sensorID string, action *Action, callerArgs base.FunctionArguments) *base.OperatorIO {
-	args, err := action.buildArgs(callerArgs)
+// executeAction runs an action after translating its readable value to the raw operator arguments.
+func (op *OpDevice) executeAction(ctx *base.Context, input *base.OperatorIO, action *Action, value string) *base.OperatorIO {
+	args, err := action.buildArgs(value)
 	if err != nil {
 		return base.MakeOutputError(400, "%v", err)
 	}

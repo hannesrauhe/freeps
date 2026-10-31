@@ -31,7 +31,7 @@ func TestActionsForDevice(t *testing.T) {
 	assert.Equal(t, on.Function, "setswitch")
 	assert.Equal(t, on.Fixed["device"], "dehumidifier")
 	assert.Equal(t, on.Fixed["on"], "true")
-	assert.Equal(t, len(on.Params), 0)
+	assert.Assert(t, on.Param == nil)
 	assert.Equal(t, findAction(actions, "turnOff").Fixed["on"], "false")
 
 	// DPS 101 is the second switch, which has no canonical name and keeps the generic one
@@ -44,10 +44,10 @@ func TestActionsForDevice(t *testing.T) {
 	assert.Assert(t, humidity != nil)
 	assert.Equal(t, humidity.Function, "setdps")
 	assert.Equal(t, humidity.Fixed["dps"], "2")
-	assert.Equal(t, len(humidity.Params), 1)
-	assert.Equal(t, humidity.Params[0].Name, "humidity")
-	assert.Equal(t, humidity.Params[0].Raw, "value")
-	assert.Equal(t, humidity.Params[0].Type, "int")
+	assert.Assert(t, humidity.Param != nil)
+	assert.Equal(t, humidity.Param.Name, "humidity")
+	assert.Equal(t, humidity.Param.Raw, "value")
+	assert.Equal(t, humidity.Param.Type, "int")
 
 	// DPS 5 workMode is writable, gets the set prefix
 	mode := findAction(actions, "setWorkMode")

@@ -29,9 +29,9 @@ func TestGetDevicesByAlias(t *testing.T) {
 	assert.NilError(t, op.SetSensorPropertiesInternal(ctx, "gb", "thermometer", map[string]interface{}{"brightness": 30}))
 
 	assert.NilError(t, op.SetDeviceActionsInternal("ga", "lamp", []*device.Action{
-		echoAction("turnOn", nil), echoAction("setLevel", nil, device.ActionParam{Name: "level", Type: "int"}),
+		echoAction("turnOn", nil, nil), echoAction("setLevel", nil, &device.ActionParam{Name: "level", Type: "int"}),
 	}))
-	assert.NilError(t, op.SetDeviceActionsInternal("ga", "plug", []*device.Action{echoAction("turnOn", nil)}))
+	assert.NilError(t, op.SetDeviceActionsInternal("ga", "plug", []*device.Action{echoAction("turnOn", nil, nil)}))
 
 	byAlias := func(category string, args device.GetDevicesByAliasArgs) map[string]device.DeviceInfo {
 		args.DeviceCategory = &category
@@ -98,8 +98,8 @@ func TestGetDevicesPerPropertyAndAction(t *testing.T) {
 	assert.NilError(t, op.SetSensorPropertiesInternal(ctx, "uc", "lamp", map[string]interface{}{"name": "Lamp", "brightness": 10}))
 	assert.NilError(t, op.SetSensorPropertiesInternal(ctx, "uc", "plug", map[string]interface{}{"name": "Plug"}))
 
-	assert.NilError(t, op.SetDeviceActionsInternal("uc", "lamp", []*device.Action{echoAction("turnOn", nil)}))
-	assert.NilError(t, op.SetDeviceActionsInternal("uc", "plug", []*device.Action{echoAction("turnOn", nil), echoAction("toggle", nil)}))
+	assert.NilError(t, op.SetDeviceActionsInternal("uc", "lamp", []*device.Action{echoAction("turnOn", nil, nil)}))
+	assert.NilError(t, op.SetDeviceActionsInternal("uc", "plug", []*device.Action{echoAction("turnOn", nil, nil), echoAction("toggle", nil, nil)}))
 
 	perProperty := func(category string) map[string][]string {
 		args := device.GetDevicesPerPropertyArgs{DeviceCategory: &category}

@@ -471,15 +471,6 @@ func (o *FreepsOperatorWrapper) GetArgSuggestions(function string, argName strin
 			// no method for this argument, fall back to the declarative "options" struct tag
 			res = ParamListToParamMap(getFieldOptions(paramStruct, lkArgName))
 		}
-		if len(res) == 0 && ffm.FuncType == FreepsFunctionTypeFullSignature {
-			// a FullSignature function also takes free arguments that are not struct fields,
-			// so they have no suggestion method of their own. Let the parameter struct describe them.
-			if _, isField := getSupportedStructField(paramStruct, lkArgName); !isField {
-				if freeArgs, ok := paramStruct.Interface().(FreepsFunctionParametersWithFreeArgs); ok {
-					res = freeArgs.FreeArgSuggestions(argName, otherArgs)
-				}
-			}
-		}
 	}
 
 	if len(res) > 0 {

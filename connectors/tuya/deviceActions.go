@@ -64,10 +64,10 @@ func actionsForDevice(operatorName string, name string, cfg DeviceConfig, observ
 			Name:     actionName,
 			Operator: operatorName, Function: "setdps",
 			Fixed: map[string]string{"device": name, "dps": dps},
-			Params: []device.ActionParam{{
+			Param: &device.ActionParam{
 				Name: "value", Type: "string",
 				Doc: "value to set on " + dpsNames[dps],
-			}},
+			},
 		})
 	}
 	return actions
@@ -89,10 +89,10 @@ func canonicalActions(operatorName string, name string, dps string, actionName s
 		return []*device.Action{{
 			Name: device.ActionSetTargetHumidity, Operator: operatorName, Function: "setdps",
 			Fixed: map[string]string{"device": name, "dps": dps},
-			Params: []device.ActionParam{{
+			Param: &device.ActionParam{
 				Name: "humidity", Raw: "value", Type: "int",
 				Doc: "target humidity in percent",
-			}},
+			},
 		}}
 	}
 	return nil

@@ -11,15 +11,15 @@ import (
 	"github.com/hannesrauhe/freeps/utils"
 )
 
-// ActionParam is one parameter of an action, with optional readable-to-raw translation.
+// ActionParam is the single value a caller passes to an action, with optional
+// readable-to-raw translation. Actions either have no parameter or exactly one.
 type ActionParam struct {
-	Name     string            `doc:"argument name the caller uses, e.g. temperature"`
-	Raw      string            `json:",omitempty" doc:"argument name the operator expects, defaults to Name"`
-	Type     string            `doc:"human readable type: string, int, float or bool"`
-	Doc      string            `json:",omitempty"`
-	Optional bool              `json:",omitempty" doc:"the caller may leave it out"`
-	Scale    float64           `json:",omitempty" doc:"raw = value * Scale, 0 and 1 mean no conversion"`
-	Values   map[string]string `json:",omitempty" doc:"readable label to raw value, unlisted values pass through"`
+	Name   string            `doc:"argument name shown to the user, e.g. temperature"`
+	Raw    string            `json:",omitempty" doc:"argument name the operator expects, defaults to Name"`
+	Type   string            `doc:"human readable type: string, int, float or bool"`
+	Doc    string            `json:",omitempty"`
+	Scale  float64           `json:",omitempty" doc:"raw = value * Scale, 0 and 1 mean no conversion"`
+	Values map[string]string `json:",omitempty" doc:"readable label to raw value, unlisted values pass through"`
 }
 
 // rawName returns the argument name the target operator expects.
@@ -35,16 +35,16 @@ type Action struct {
 	Name     string
 	Operator string            `doc:"target operator of the action"`
 	Function string            `doc:"target function in that operator"`
-	Fixed    map[string]string `json:",omitempty" doc:"always-sent args, they win over caller args"`
-	Params   []ActionParam     `json:",omitempty" doc:"readable parameters the caller may pass"`
+	Fixed    map[string]string `json:",omitempty" doc:"always-sent args, they win over the caller value"`
+	Param    *ActionParam      `json:",omitempty" doc:"the value the caller passes as the value argument, nil for actions without one"`
 }
 
 // ActionInfo is the user facing projection of an action, without the raw call details.
 type ActionInfo struct {
-	Params []ActionParamInfo `json:",omitempty"`
+	Param *ActionParamInfo `json:",omitempty"`
 }
 
-// ActionParamInfo is the user facing description of one action parameter.
+// ActionParamInfo is the user facing description of the action parameter.
 type ActionParamInfo struct {
 	Name   string
 	Type   string
@@ -61,54 +61,42 @@ type DeviceActions struct {
 
 // info returns the user facing projection of an action.
 func (a *Action) info() ActionInfo {
-	var info ActionInfo
-	for _, p := range a.Params {
-		info.Params = append(info.Params, ActionParamInfo{Name: p.Name, Type: p.Type, Doc: p.Doc, Values: p.Values})
+	if a.Param == nil {
+		return ActionInfo{}
 	}
-	return info
+	p := a.Param
+	return ActionInfo{Param: &ActionParamInfo{Name: p.Name, Type: p.Type, Doc: p.Doc, Values: p.Values}}
 }
 
-// argumentDescriptions returns the parameters in the shape the flowbuilder metadata API uses.
+// argumentDescriptions returns the parameter in the shape the flowbuilder metadata API uses.
 func (a *Action) argumentDescriptions() []base.ArgumentDescription {
-	list := make([]base.ArgumentDescription, 0, len(a.Params))
-	for _, p := range a.Params {
-		list = append(list, base.ArgumentDescription{Name: p.Name, Type: p.Type, Required: !p.Optional, Description: p.Doc})
+	if a.Param == nil {
+		return []base.ArgumentDescription{}
 	}
-	return list
+	return []base.ArgumentDescription{{Name: a.Param.Name, Type: a.Param.Type, Required: true, Description: a.Param.Doc}}
 }
 
-// buildArgs translates caller arguments into the raw operator arguments; Fixed args are never overwritten.
-func (a *Action) buildArgs(callerArgs base.FunctionArguments) (base.FunctionArguments, error) {
+// buildArgs translates the caller value into the raw operator arguments; Fixed args are never overwritten.
+func (a *Action) buildArgs(value string) (base.FunctionArguments, error) {
 	args := base.MakeEmptyFunctionArguments()
 	for k, v := range a.Fixed {
 		args.Set(k, []string{v})
 	}
-
-	for _, p := range a.Params {
-		if !callerArgs.Has(p.Name) {
-			if p.Optional {
-				continue
-			}
-			return nil, fmt.Errorf("parameter \"%s\" is missing, %s expects %s", p.Name, a.Name, strings.Join(a.paramNames(), ", "))
-		}
-		raw, err := p.toRaw(callerArgs.Get(p.Name))
-		if err != nil {
-			return nil, fmt.Errorf("parameter \"%s\" of action \"%s\" is invalid: %v", p.Name, a.Name, err)
-		}
-		args.Set(p.rawName(), []string{raw})
+	if a.Param == nil {
+		return args, nil
 	}
-
-	for _, key := range callerArgs.GetOriginalKeys() {
-		if a.hasParam(key) || a.isFixed(key) {
-			continue
-		}
-		return nil, fmt.Errorf("unknown parameter \"%s\" for action \"%s\", expected one of: %s", key, a.Name, strings.Join(a.paramNames(), ", "))
+	if value == "" {
+		return nil, fmt.Errorf("action \"%s\" needs a %s", a.Name, a.Param.Name)
 	}
-
+	raw, err := a.Param.toRaw(value)
+	if err != nil {
+		return nil, fmt.Errorf("value for action \"%s\" is invalid: %v", a.Name, err)
+	}
+	args.Set(a.Param.rawName(), []string{raw})
 	return args, nil
 }
 
-// toRaw converts one readable parameter value into the raw value the operator expects.
+// toRaw converts one readable value into the raw value the operator expects.
 func (p ActionParam) toRaw(value string) (string, error) {
 	for label, raw := range p.Values {
 		if utils.StringEqualsIgnoreCase(label, value) {
@@ -128,36 +116,6 @@ func (p ActionParam) toRaw(value string) (string, error) {
 		return strconv.Itoa(int(math.Round(scaled))), nil
 	}
 	return strconv.FormatFloat(scaled, 'f', -1, 64), nil
-}
-
-func (a *Action) hasParam(name string) bool {
-	for _, p := range a.Params {
-		if utils.StringEqualsIgnoreCase(p.Name, name) {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *Action) isFixed(name string) bool {
-	for k := range a.Fixed {
-		if utils.StringEqualsIgnoreCase(k, name) {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *Action) paramNames() []string {
-	names := make([]string, 0, len(a.Params))
-	for _, p := range a.Params {
-		names = append(names, p.Name)
-	}
-	if len(names) == 0 {
-		return []string{"no parameters"}
-	}
-	sort.Strings(names)
-	return names
 }
 
 func (p ActionParam) valueNames() []string {

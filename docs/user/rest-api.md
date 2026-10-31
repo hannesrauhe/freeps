@@ -68,22 +68,24 @@ capabilities use the same canonical name on every operator:
 | `setTargetHumidity` | `humidity`: int, percent |
 
 Capabilities a device kind has on its own keep a descriptive name (`setWorkMode`, `setFanSpeed`,
-`drawText`, ...), always with typed, readable parameters.
+`drawText`, ...), always with a typed, readable parameter.
+
+Every action takes either no value at all, or exactly one, passed as the `value` argument. The
+`Param` of an action describes it: the readable name, the type, and the labels a caller may send.
 
 ```bash
 curl 'localhost:8080/device/getActionsPerCategory'   # which devices have actions (id + alias)
 curl 'localhost:8080/device/getActions?deviceCategory=tuya&deviceName=dehumidifier'
-# -> {"setTargetHumidity":{"Params":[{"Name":"humidity","Type":"int"}]}, "turnOn":..., ...}
+# -> {"setTargetHumidity":{"Param":{"Name":"humidity","Type":"int"}}, "turnOn":..., ...}
 
 curl 'localhost:8080/device/getActionParams?deviceCategory=fritz_dev&deviceName=17&actionName=setTargetTemperature'
-curl -X POST 'localhost:8080/device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setTargetHumidity&humidity=60'
-curl -X POST 'localhost:8080/device/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=setTargetTemperature&temperature=21.5'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setTargetHumidity&value=60'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=setTargetTemperature&value=21.5'
 ```
 
-Everything besides `deviceCategory`, `deviceName` and `actionName` is a parameter of the action.
-Parameters stay readable even when the operator function takes raw values: the heating action
+Values stay readable even when the operator function takes raw ones: the heating action
 `setTargetTemperature` takes °C instead of a half-degree code, and `setBrightness` percent even
-where the device counts 0-255. Unknown parameters are rejected with a list of the valid ones.
+where the device counts 0-255.
 
 ## Arguments
 

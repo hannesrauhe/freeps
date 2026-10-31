@@ -27,7 +27,7 @@ func TestActionsForSwitch(t *testing.T) {
 	assert.Equal(t, on.Operator, "fritz")
 	assert.Equal(t, on.Function, "setswitchon")
 	assert.Equal(t, on.Fixed["device"], "ain1")
-	assert.Equal(t, len(on.Params), 0)
+	assert.Assert(t, on.Param == nil)
 
 	assert.Equal(t, findAction(actions, "turnOff").Function, "setswitchoff")
 	assert.Equal(t, findAction(actions, "toggle").Function, "setswitchtoggle")
@@ -68,8 +68,8 @@ func TestActionsForHKR(t *testing.T) {
 	assert.Assert(t, hkr != nil)
 	assert.Equal(t, hkr.Function, "sethkrtsoll")
 	// the raw param argument is replaced by a readable temperature
-	assert.Equal(t, len(hkr.Params), 1)
-	param := hkr.Params[0]
+	assert.Assert(t, hkr.Param != nil)
+	param := *hkr.Param
 	assert.Equal(t, param.Name, "temperature")
 	assert.Equal(t, param.Raw, "param")
 	assert.Equal(t, param.Scale, 2.0)
@@ -91,14 +91,14 @@ func TestActionsForLight(t *testing.T) {
 	brightness := findAction(actions, "setBrightness")
 	assert.Assert(t, brightness != nil)
 	assert.Equal(t, brightness.Function, "setlevelpercentage")
-	assert.Equal(t, brightness.Params[0].Name, "brightness")
-	assert.Equal(t, brightness.Params[0].Raw, "level")
-	assert.Equal(t, brightness.Params[0].Type, "int")
+	assert.Equal(t, brightness.Param.Name, "brightness")
+	assert.Equal(t, brightness.Param.Raw, "level")
+	assert.Equal(t, brightness.Param.Type, "int")
 
 	colorTemp := findAction(actions, "setColorTemperature")
 	assert.Assert(t, colorTemp != nil)
 	assert.Equal(t, colorTemp.Function, "setcolortemperature")
-	assert.Equal(t, colorTemp.Params[0].Type, "int")
+	assert.Equal(t, colorTemp.Param.Type, "int")
 }
 
 func TestActionsForButton(t *testing.T) {

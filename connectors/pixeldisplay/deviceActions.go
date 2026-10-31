@@ -29,11 +29,11 @@ func actionsForDisplay(operatorName string) []*device.Action {
 		{Name: "turnOn", Operator: operatorName, Function: "TurnOn"},
 		{Name: "turnOff", Operator: operatorName, Function: "TurnOff"},
 		{Name: "setBrightness", Operator: operatorName, Function: "SetBrightness",
-			Params: []device.ActionParam{{Name: "brightness", Type: "int", Scale: 2.55, Doc: "brightness in percent"}}},
+			Param: &device.ActionParam{Name: "brightness", Type: "int", Scale: 2.55, Doc: "brightness in percent"}},
 		{Name: "setColor", Operator: operatorName, Function: "SetColor",
-			Params: []device.ActionParam{{Name: "color", Type: "string", Doc: "hex color, e.g. #ff0000"}}},
+			Param: &device.ActionParam{Name: "color", Type: "string", Doc: "hex color, e.g. #ff0000"}},
 		{Name: "drawText", Operator: operatorName, Function: "DrawText",
-			Params: []device.ActionParam{{Name: "text", Type: "string"}}},
+			Param: &device.ActionParam{Name: "text", Type: "string"}},
 	}
 }
 
