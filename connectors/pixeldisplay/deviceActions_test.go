@@ -107,7 +107,8 @@ func TestSensorUpdatedByCommands(t *testing.T) {
 	assert.Equal(t, prop("isOn"), "false")
 
 	op.SetBrightness(ctx, base.MakeEmptyOutput(), BrightnessArgs{Brightness: 42})
-	assert.Equal(t, prop("brightness"), "42")
+	// the device counts 0-255, the property is a percentage like the setBrightness action
+	assert.Equal(t, prop("brightness"), "16")
 
 	op.SetColor(ctx, base.MakeEmptyOutput(), ColorArgs{Color: "#00ff00"})
 	assert.Equal(t, prop("color"), "#00ff00")
@@ -129,7 +130,7 @@ func TestSensorUpdatedByCommands(t *testing.T) {
 	assert.Equal(t, prop("color"), "#ff0000")
 
 	op.GetBrightness(ctx, base.MakeEmptyOutput())
-	assert.Equal(t, prop("brightness"), "42")
+	assert.Equal(t, prop("brightness"), "16")
 
 	op.GetBackgroundColor(ctx, base.MakeEmptyOutput())
 	assert.Equal(t, prop("backgroundColor"), "#000000")
@@ -153,5 +154,5 @@ func TestSensorNotUpdatedOnError(t *testing.T) {
 	op.SetBrightness(ctx, base.MakeEmptyOutput(), BrightnessArgs{Brightness: 42})
 	op.SetColor(ctx, base.MakeEmptyOutput(), ColorArgs{Color: "not a color"})
 	assert.Equal(t, opSensor.GetSensorPropertyInternal(ctx, "pixeldisplay", "Default", "color").IsError(), true)
-	assert.Equal(t, opSensor.GetSensorPropertyInternal(ctx, "pixeldisplay", "Default", "brightness").GetString(), "42")
+	assert.Equal(t, opSensor.GetSensorPropertyInternal(ctx, "pixeldisplay", "Default", "brightness").GetString(), "16")
 }

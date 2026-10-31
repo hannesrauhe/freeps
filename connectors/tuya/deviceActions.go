@@ -11,9 +11,10 @@ import (
 )
 
 // writableDPS are the data point ids known to be settable, everything else stays read-only.
+// Devices with unusual ids can list their settable points in the WritableDPS config.
 var writableDPS = map[string]bool{
 	"1":   true, // switch
-	"2":   true, // setHumidity
+	"2":   true, // targetHumidity
 	"4":   true, // fanSpeed
 	"5":   true, // workMode
 	"10":  true, // anion
@@ -23,9 +24,15 @@ var writableDPS = map[string]bool{
 	"101": true, // switch
 }
 
-// actionsForDevice turns every writable data point into a set<Name> action, e.g. setHumidity.
-// It is pure so that it can be tested without a device.
-func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*device.Action {
+// actionsForDevice turns every writable data point into a set<Name> action, e.g. setWorkMode.
+// When observed is non-nil, data points the device never reported are skipped, so a device is
+// not advertised with actions it does not have. Pure, so it can be tested without a device.
+func actionsForDevice(operatorName string, name string, cfg DeviceConfig, observed []string) []*device.Action {
+	seen := make(map[string]bool, len(observed))
+	for _, id := range observed {
+		seen[id] = true
+	}
+
 	var actions []*device.Action
 	// sorted iteration keeps the first of two equally named points (DPS 1 and 101 are both "switch")
 	dpsNames := namesFor(cfg)
@@ -36,6 +43,9 @@ func actionsForDevice(operatorName string, name string, cfg DeviceConfig) []*dev
 	sort.Strings(dpsIDs)
 
 	for _, dps := range dpsIDs {
+		if observed != nil && !seen[dps] {
+			continue
+		}
 		actionName := actionNameFor(cfg, dps, dpsNames[dps])
 		if actionName == "" {
 			continue
@@ -75,7 +85,7 @@ func canonicalActions(operatorName string, name string, dps string, actionName s
 			{Name: device.ActionTurnOff, Operator: operatorName, Function: "setswitch",
 				Fixed: map[string]string{"device": name, "on": "false"}},
 		}
-	case actionName == "setHumidity":
+	case actionName == device.ActionSetTargetHumidity:
 		return []*device.Action{{
 			Name: device.ActionSetTargetHumidity, Operator: operatorName, Function: "setdps",
 			Fixed: map[string]string{"device": name, "dps": dps},
@@ -98,31 +108,62 @@ func hasAction(actions []*device.Action, name string) bool {
 }
 
 // actionNameFor returns the action name of a data point, or "" if it should not be exposed.
-// The ActionNames config wins (empty = hide); otherwise writable points named "set..." keep
-// their name and the rest get a "set" prefix.
+// The ActionNames config wins (empty = hide); writable points get a "set" prefix, so the
+// property targetHumidity becomes the action setTargetHumidity.
 func actionNameFor(cfg DeviceConfig, dps string, dpsName string) string {
 	if configured, ok := cfg.ActionNames[dps]; ok {
 		return configured
 	}
-	if !writableDPS[dps] && !strings.HasPrefix(dpsName, "set") {
+	if !isWritable(cfg, dps) {
 		return ""
-	}
-	if strings.HasPrefix(dpsName, "set") {
-		return dpsName
 	}
 	return "set" + strings.ToUpper(dpsName[0:1]) + dpsName[1:]
 }
 
+// isWritable reports whether a data point can be set, from the built-in table or the device config.
+func isWritable(cfg DeviceConfig, dps string) bool {
+	if writableDPS[dps] {
+		return true
+	}
+	for _, id := range cfg.WritableDPS {
+		if id == dps {
+			return true
+		}
+	}
+	return false
+}
+
 // registerActions publishes the actions of all configured devices.
 func (o *OpTuya) registerActions(ctx *base.Context) {
+	for _, name := range o.deviceNames() {
+		o.registerDeviceActions(ctx, name)
+	}
+}
+
+// registerDeviceActions publishes one device's friendly name and its actions, limited to the
+// data points its watcher has seen so far (all of them before the first report).
+func (o *OpTuya) registerDeviceActions(ctx *base.Context, name string) {
 	opSensor := device.GetGlobalSensors()
 	if opSensor == nil {
 		ctx.GetLogger().Debugf("sensor integration not available, cannot register tuya actions")
 		return
 	}
-	for _, name := range o.deviceNames() {
-		if err := opSensor.SetDeviceActionsInternal(o.config.SensorCategory, name, actionsForDevice(o.name, name, o.config.Devices[name])); err != nil {
-			ctx.GetLogger().Errorf("Failed to register actions for tuya device %v: %v", name, err)
+	cfg := o.config.Devices[name]
+	if cfg.Name != "" {
+		props := map[string]interface{}{"name": cfg.Name}
+		if err := opSensor.SetSensorPropertiesInternal(ctx, o.config.SensorCategory, name, props); err != nil {
+			ctx.GetLogger().Errorf("Failed to set name for tuya device %v: %v", name, err)
 		}
+	}
+	var observed []string
+	o.mu.Lock()
+	w := o.watchers[name]
+	o.mu.Unlock()
+	if w != nil {
+		observed = w.observedDPS()
+	}
+	actions := actionsForDevice(o.name, name, cfg, observed)
+	if err := opSensor.SetDeviceActionsInternal(o.config.SensorCategory, name, actions); err != nil {
+		ctx.GetLogger().Errorf("Failed to register actions for tuya device %v: %v", name, err)
 	}
 }

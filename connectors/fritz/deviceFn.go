@@ -161,7 +161,8 @@ func (o *OpFritz) deviceToSensor(ctx *base.Context, avmdevice freepslib.AvmDevic
 			properties["state"] = avmdevice.SimpleOnOff.State
 		}
 		if avmdevice.LevelControl != nil {
-			properties["level"] = avmdevice.LevelControl.LevelPercentage
+			// named like the setBrightness action, which takes the same percentage
+			properties["brightness"] = avmdevice.LevelControl.LevelPercentage
 		}
 		if avmdevice.ColorControl != nil {
 			properties["hue"] = avmdevice.ColorControl.Hue

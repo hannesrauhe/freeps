@@ -113,7 +113,7 @@ func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorI
 	brightness := d.GetBrightness()
 	if brightness >= 0 {
 		// -1 means the device was unreachable, which is not a brightness to record
-		op.setSensorProperty(ctx, "brightness", brightness)
+		op.setSensorProperty(ctx, "brightness", brightness*100/255)
 	}
 	return base.MakeObjectOutput(brightness)
 }
@@ -162,7 +162,8 @@ func (op *OpPixelDisplay) SetBrightness(ctx *base.Context, input *base.OperatorI
 	d := op.display
 	res := d.SetBrightness(args.Brightness)
 	if !res.IsError() {
-		op.setSensorProperty(ctx, "brightness", args.Brightness)
+		// the property is a percentage like the setBrightness action, the device counts 0-255
+		op.setSensorProperty(ctx, "brightness", args.Brightness*100/255)
 	}
 	return res
 }
