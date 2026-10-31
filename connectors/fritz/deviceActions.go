@@ -13,7 +13,7 @@ import (
 // so a client can control any device without knowing the AVM command names.
 var canonicalForCapability = map[string][]string{
 	"switch":      {device.ActionTurnOn, device.ActionTurnOff, device.ActionToggle},
-	"simpleonoff": {device.ActionTurnOn, device.ActionTurnOff},
+	"simpleonoff": {device.ActionTurnOn, device.ActionTurnOff, device.ActionToggle},
 	"level":       {device.ActionSetBrightness},
 	"color":       {device.ActionSetColorTemperature},
 	"hkr":         {device.ActionSetTargetTemperature},
@@ -62,7 +62,13 @@ func canonicalAction(name string, capability string, operatorName string, dev fr
 			action.Function = "setswitch" + strings.ToLower(strings.TrimPrefix(name, "turn"))
 		}
 	case device.ActionToggle:
-		action.Function = "setswitchtoggle"
+		if capability == "simpleonoff" {
+			// the on/off part toggles with the same command, onoff 2 means "flip the state"
+			action.Function = "setsimpleonoff"
+			action.Fixed["onoff"] = "2"
+		} else {
+			action.Function = "setswitchtoggle"
+		}
 	case device.ActionSetBrightness:
 		action.Function = "setlevelpercentage"
 		action.Param = &device.ActionParam{Name: "brightness", Raw: "level", Type: "int", Doc: "brightness in percent"}

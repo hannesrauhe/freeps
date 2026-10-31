@@ -36,7 +36,7 @@ func TestActionsForSwitch(t *testing.T) {
 func TestActionsForSimpleOnOff(t *testing.T) {
 	dev := freepslib.AvmDevice{AIN: "ain2", DeviceID: "43", SimpleOnOff: &freepslib.AvmDeviceSimpleonoff{}}
 	actions := actionsForDevice("fritz", dev)
-	assert.Equal(t, len(actions), 2)
+	assert.Equal(t, len(actions), 3)
 
 	// the on/off part is stateless, so the state goes in as a fixed raw argument
 	on := findAction(actions, "turnOn")
@@ -44,8 +44,11 @@ func TestActionsForSimpleOnOff(t *testing.T) {
 	assert.Equal(t, on.Function, "setsimpleonoff")
 	assert.Equal(t, on.Fixed["onoff"], "1")
 	assert.Equal(t, findAction(actions, "turnOff").Fixed["onoff"], "0")
-	// the on/off part cannot toggle
-	assert.Assert(t, findAction(actions, "toggle") == nil)
+	// onoff 2 flips the state on the on/off part too
+	toggle := findAction(actions, "toggle")
+	assert.Assert(t, toggle != nil)
+	assert.Equal(t, toggle.Function, "setsimpleonoff")
+	assert.Equal(t, toggle.Fixed["onoff"], "2")
 }
 
 // a device with both parts must not list turnOn twice, the first capability wins
@@ -54,8 +57,9 @@ func TestActionsForSwitchAndSimpleOnOff(t *testing.T) {
 		SimpleOnOff: &freepslib.AvmDeviceSimpleonoff{}, Switch: &freepslib.AvmDeviceSwitch{}}
 	actions := actionsForDevice("fritz", dev)
 	assert.Equal(t, len(actions), 3)
+	// all three actions target the same part, so they cannot control different relays
 	assert.Equal(t, findAction(actions, "turnOn").Function, "setsimpleonoff")
-	assert.Equal(t, findAction(actions, "toggle").Function, "setswitchtoggle")
+	assert.Equal(t, findAction(actions, "toggle").Function, "setsimpleonoff")
 }
 
 func TestActionsForHKR(t *testing.T) {
