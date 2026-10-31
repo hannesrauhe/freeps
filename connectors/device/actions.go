@@ -59,6 +59,16 @@ type DeviceActions struct {
 	Actions []string
 }
 
+// HasActionName reports whether the list already contains an action with this name.
+func HasActionName(actions []*Action, name string) bool {
+	for _, action := range actions {
+		if action.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // info returns the user facing projection of an action.
 func (a *Action) info() ActionInfo {
 	if a.Param == nil {

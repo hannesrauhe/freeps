@@ -107,6 +107,13 @@ func TestActionNameForCustomDPS(t *testing.T) {
 	assert.Equal(t, actionNameFor(cfg, "105", "power"), "setPower")
 }
 
+// a data point whose name was blanked out in the config gets no action, and must not panic
+func TestActionNameForEmptyDPSName(t *testing.T) {
+	cfg := DeviceConfig{DPSNames: map[string]string{"5": ""}}
+	assert.Equal(t, actionNameFor(cfg, "5", ""), "")
+	assert.Equal(t, len(actionsForDevice("tuya", "dev", cfg, []string{"5"})), 0)
+}
+
 // the friendly name and the observed-only actions reach the device registry
 func TestRegisterDeviceActions(t *testing.T) {
 	ctx, _, _ := helper.SetupEngineWithCommonOperators(t, nil)

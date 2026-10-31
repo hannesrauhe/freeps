@@ -33,22 +33,13 @@ func actionsForDevice(operatorName string, dev freepslib.AvmDevice) []*device.Ac
 		}
 		for _, name := range canonicalForCapability[capability] {
 			// a device with both a switch and an on/off part gets one turnOn from the first
-			if hasAction(actions, name) {
+			if device.HasActionName(actions, name) {
 				continue
 			}
 			actions = append(actions, canonicalAction(name, capability, operatorName, dev))
 		}
 	}
 	return actions
-}
-
-func hasAction(actions []*device.Action, name string) bool {
-	for _, a := range actions {
-		if a.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 // capabilityOrder keeps the actions of a device in a stable, useful order.

@@ -2,7 +2,6 @@ package device
 
 import (
 	"net/http"
-	"sort"
 
 	"github.com/hannesrauhe/freeps/base"
 )
@@ -32,15 +31,10 @@ func (op *OpDevice) GetActions(ctx *base.Context, input *base.OperatorIO, args D
 func (op *OpDevice) GetActionsPerCategory(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	ret := map[string][]DeviceActions{}
 	for _, sensorID := range getActionDeviceIDs() {
-		actions := getDeviceActions(sensorID)
-		names := make([]string, 0, len(actions))
-		for _, action := range actions {
-			names = append(names, action.Name)
-		}
 		ret[categoryOfSensorID(sensorID)] = append(ret[categoryOfSensorID(sensorID)], DeviceActions{
 			ID:      sensorID,
 			Alias:   op.getSensorAliasByID(sensorID).GetString(),
-			Actions: names,
+			Actions: actionNames(sensorID),
 		})
 	}
 	return base.MakeObjectOutput(ret)
@@ -137,13 +131,12 @@ func (op *OpDevice) DeviceCategorySuggestions() []string {
 	return op.SensorCategorySuggestions()
 }
 
-// actionNames returns the sorted names of all actions of a device.
+// actionNames returns the names of all actions of a device, getDeviceActions returns them sorted.
 func actionNames(sensorID string) []string {
 	actions := getDeviceActions(sensorID)
 	names := make([]string, 0, len(actions))
 	for _, action := range actions {
 		names = append(names, action.Name)
 	}
-	sort.Strings(names)
 	return names
 }

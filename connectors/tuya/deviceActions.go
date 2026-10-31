@@ -57,7 +57,7 @@ func actionsForDevice(operatorName string, name string, cfg DeviceConfig, observ
 				continue
 			}
 		}
-		if hasAction(actions, actionName) {
+		if device.HasActionName(actions, actionName) {
 			continue
 		}
 		actions = append(actions, &device.Action{
@@ -98,15 +98,6 @@ func canonicalActions(operatorName string, name string, dps string, actionName s
 	return nil
 }
 
-func hasAction(actions []*device.Action, name string) bool {
-	for _, action := range actions {
-		if action.Name == name {
-			return true
-		}
-	}
-	return false
-}
-
 // actionNameFor returns the action name of a data point, or "" if it should not be exposed.
 // The ActionNames config wins (empty = hide); writable points get a "set" prefix, so the
 // property targetHumidity becomes the action setTargetHumidity.
@@ -114,7 +105,8 @@ func actionNameFor(cfg DeviceConfig, dps string, dpsName string) string {
 	if configured, ok := cfg.ActionNames[dps]; ok {
 		return configured
 	}
-	if !isWritable(cfg, dps) {
+	if !isWritable(cfg, dps) || dpsName == "" {
+		// an empty configured name means the user does not want a property, and no action either
 		return ""
 	}
 	return "set" + strings.ToUpper(dpsName[0:1]) + dpsName[1:]
