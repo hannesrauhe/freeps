@@ -49,9 +49,6 @@ func NewFlowEngine(ctx *base.Context, cr *utils.ConfigReader, cancel context.Can
 	ge.operators["flow"] = &OpFlow{ge: ge}
 	ge.operators["flowbytag"] = &OpFlowByTag{ge: ge}
 	ge.operators["system"] = NewSytemOp(ge, cancel)
-	/* backward compatibility to <1.4 */
-	ge.operators["graph"] = &OpFlow{ge: ge}
-	ge.operators["graphbytag"] = &OpFlowByTag{ge: ge}
 	ge.operators["eval"] = &OpEval{}
 
 	ge.hooks = make(map[string]FlowEngineHook)
@@ -302,11 +299,27 @@ func (ge *FlowEngine) AddOperators(ops []base.FreepsBaseOperator) {
 	}
 }
 
+// operatorAliases maps retired operator names to their current name, so old flows, URLs and clients keep working.
+var operatorAliases = map[string]string{
+	"sensor":     "device",
+	"graph":      "flow",      // backward compatibility to <1.4
+	"graphbytag": "flowbytag", // backward compatibility to <1.4
+}
+
+// resolveOperatorName lowercases an operator name and maps retired names to their current one.
+func resolveOperatorName(opName string) string {
+	lk := utils.StringToLower(opName)
+	if current, ok := operatorAliases[lk]; ok {
+		return current
+	}
+	return lk
+}
+
 // HasOperator returns true if this operator is available in the engine
 func (ge *FlowEngine) HasOperator(opName string) bool {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
-	_, exists := ge.operators[utils.StringToLower(opName)]
+	_, exists := ge.operators[resolveOperatorName(opName)]
 	return exists
 }
 
@@ -315,17 +328,10 @@ func (ge *FlowEngine) GetOperators() []string {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
 	r := make([]string, 0, len(ge.operators))
-	seen := make(map[string]bool, len(ge.operators))
 	for _, op := range ge.operators {
-		name := op.GetName()
-		// The backward compatibility aliases "graph" and "graphbytag" report the same
-		// GetName as "flow" and "flowbytag".
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		r = append(r, name)
+		r = append(r, op.GetName())
 	}
+
 	// Names mix original case ("Alert") with lowercase ("eval"), which a plain byte sort
 	// would group instead of interleaving.
 	sort.Slice(r, func(i, j int) bool {
@@ -338,7 +344,7 @@ func (ge *FlowEngine) GetOperators() []string {
 func (ge *FlowEngine) GetOperator(opName string) base.FreepsBaseOperator {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()
-	op, exists := ge.operators[utils.StringToLower(opName)]
+	op, exists := ge.operators[resolveOperatorName(opName)]
 	if !exists {
 		return nil
 	}

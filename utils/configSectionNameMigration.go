@@ -12,6 +12,8 @@ func getNewSectionName(name string) string {
 		return "mqtt"
 	case "openweathermap":
 		return "weather"
+	case "sensor":
+		return "device"
 	}
 	return name
 }

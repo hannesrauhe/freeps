@@ -1,4 +1,4 @@
-package sensor
+package device
 
 type SensorConfig struct {
 	Enabled                     bool

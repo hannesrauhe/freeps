@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -189,7 +189,7 @@ func (o *OpTuya) updateSensors(ctx *base.Context, name string, cfg DeviceConfig,
 	if len(props) == 0 {
 		return nil
 	}
-	gs := sensor.GetGlobalSensors()
+	gs := device.GetGlobalSensors()
 	if gs == nil {
 		return fmt.Errorf("sensor operator not available, cannot store tuya values")
 	}

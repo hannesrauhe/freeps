@@ -1,4 +1,4 @@
-package sensor
+package device
 
 import (
 	"github.com/hannesrauhe/freeps/base"

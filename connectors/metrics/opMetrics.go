@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hannesrauhe/freeps/base"
-	"github.com/hannesrauhe/freeps/connectors/sensor"
+	"github.com/hannesrauhe/freeps/connectors/device"
 	"github.com/hannesrauhe/freeps/freepsflow"
 	"github.com/hannesrauhe/freeps/utils"
 	"github.com/sirupsen/logrus"
@@ -38,7 +38,7 @@ func (o *OpMetrics) FreepsMetrics(ctx *base.Context) *base.OperatorIO {
 			metrics[k] = v
 		}
 	}
-	opSensor := sensor.GetGlobalSensors()
+	opSensor := device.GetGlobalSensors()
 	if opSensor != nil {
 		err = opSensor.SetSensorPropertiesInternal(ctx, "freeps", "metrics", metrics)
 		if err != nil {
