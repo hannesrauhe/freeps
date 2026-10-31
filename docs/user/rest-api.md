@@ -52,6 +52,41 @@ In addition:
 Which operators are reachable depends on which are enabled in the config — a section with
 `"enabled": false` removes the operator and all of its endpoints.
 
+## Device actions
+
+Operators that control devices (fritz, tuya, pixeldisplay) register *actions* per device, so you can
+control a device without knowing the operator functions or raw encodings behind it. Universal
+capabilities use the same canonical name on every operator:
+
+| Action | Parameters |
+|---|---|
+| `turnOn`, `turnOff`, `toggle` | none |
+| `setBrightness` | `brightness`: int, percent 0-100 |
+| `setColor` | `color`: hex string, e.g. `#ff0000` |
+| `setColorTemperature` | `temperature`: int, Kelvin |
+| `setTargetTemperature` | `temperature`: float, °C, plus `off`/`comfort`/`eco` labels where the device has them |
+| `setTargetHumidity` | `humidity`: int, percent |
+
+Capabilities a device kind has on its own keep a descriptive name (`setWorkMode`, `setFanSpeed`,
+`drawText`, ...), always with a typed, readable parameter.
+
+Every action takes either no value at all, or exactly one, passed as the `value` argument. The
+`Param` of an action describes it: the readable name, the type, and the labels a caller may send.
+
+```bash
+curl 'localhost:8080/device/getActionsPerCategory'   # which devices have actions (id + alias)
+curl 'localhost:8080/device/getActions?deviceCategory=tuya&deviceName=dehumidifier'
+# -> {"setTargetHumidity":{"Param":{"Name":"humidity","Type":"int"}}, "turnOn":..., ...}
+
+curl 'localhost:8080/device/getActionParams?deviceCategory=fritz_dev&deviceName=17&actionName=setTargetTemperature'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=tuya&deviceName=dehumidifier&actionName=setTargetHumidity&value=60'
+curl -X POST 'localhost:8080/device/executeAction?deviceCategory=fritz_dev&deviceName=17&actionName=setTargetTemperature&value=21.5'
+```
+
+Values stay readable even when the operator function takes raw ones: the heating action
+`setTargetTemperature` takes °C instead of a half-degree code, and `setBrightness` percent even
+where the device counts 0-255.
+
 ## Arguments
 
 Arguments come from the URL query string. For `POST` requests there are three conventions:

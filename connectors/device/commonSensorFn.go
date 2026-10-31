@@ -14,11 +14,15 @@ import (
 
 // getSensorNanmespace returns the namespaces of the sensors
 func (op *OpDevice) getSensorNamespace() freepsstore.StoreNamespace {
-	return freepsstore.GetGlobalStore().GetNamespaceNoError("_sensors")
+	return freepsstore.GetGlobalStore().GetNamespaceNoError("_devices")
 }
 
 // getSensorID calculates the sensor ID from the category and name
 func (op *OpDevice) getSensorID(category string, name string) (string, error) {
+	return sensorIDFromCategoryName(category, name)
+}
+
+func sensorIDFromCategoryName(category string, name string) (string, error) {
 	if strings.Contains(category, ".") || strings.Contains(name, ".") {
 		return "", fmt.Errorf("SensorName and SensorCategory cannot contain a dot")
 	}
