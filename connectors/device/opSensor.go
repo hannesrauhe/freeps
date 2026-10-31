@@ -30,8 +30,8 @@ func (op *OpDevice) GetDefaultConfig() interface{} {
 }
 
 func (op *OpDevice) InitCopyOfOperator(ctx *base.Context, config interface{}, name string) (base.FreepsOperatorWithConfig, error) {
-	if strings.ToLower(name) != "sensor" {
-		return nil, fmt.Errorf("config section name must be 'sensor', multiple instances are not supported")
+	if strings.ToLower(name) != "device" {
+		return nil, fmt.Errorf("config section name must be 'device', multiple instances are not supported")
 	}
 	opc := config.(*SensorConfig)
 
