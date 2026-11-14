@@ -23,10 +23,13 @@ type DeviceConfig struct {
 	Key     string  // local key (16 chars) from the Tuya cloud
 	IP      string  // IP address of the device (required)
 	Version float64 // protocol version, e.g. 3.4
+	Name    string  // friendly name shown as the device alias, e.g. "WZ Stecker"
 	// DPSNames maps the numeric data point ids reported by the device to
 	// sensor property names, e.g. {"6":"humidity", "7":"temperature"}.
 	// Unmapped data points are ignored.
-	DPSNames map[string]string
+	DPSNames    map[string]string
+	ActionNames map[string]string // overrides the action name of a data point, an empty value hides it
+	WritableDPS []string          // data point ids that can be set, in addition to the built-in table
 }
 
 // TuyaConfig is the config for the tuya operator (section "tuya").
@@ -87,7 +90,7 @@ const maxBackoffShift = 6
 // configuration. Device-specific codes should be added in the config.
 var defaultDPSNames = map[string]string{
 	"1":   "switch",
-	"2":   "setHumidity",
+	"2":   "targetHumidity",
 	"4":   "fanSpeed",
 	"5":   "workMode",
 	"6":   "humidity",
@@ -393,6 +396,7 @@ func (o *OpTuya) DevicesSuggestions(ctx *base.Context) *base.OperatorIO {
 
 // StartListening starts one watcher goroutine per configured device.
 func (o *OpTuya) StartListening(ctx *base.Context) {
+	o.registerActions(ctx)
 	o.mu.Lock()
 	if len(o.watchers) > 0 {
 		o.mu.Unlock()
@@ -729,4 +733,20 @@ func (w *deviceWatcher) applyDPS(dps map[string]interface{}, full bool) {
 	if err := w.op.updateSensors(w.ctx, w.name, w.cfg, dps); err != nil {
 		w.ctx.GetLogger().Warnf("tuya %q: %v", w.name, err)
 	}
+	if full {
+		// the device may have data points the built-in name table does not know,
+		// so the advertised actions follow every complete state
+		w.op.registerDeviceActions(w.ctx, w.name)
+	}
+}
+
+// observedDPS returns the data point ids the device has reported so far.
+func (w *deviceWatcher) observedDPS() []string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	ids := make([]string, 0, len(w.lastDPS))
+	for k := range w.lastDPS {
+		ids = append(ids, k)
+	}
+	return ids
 }

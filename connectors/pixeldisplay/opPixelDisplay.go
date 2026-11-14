@@ -19,6 +19,7 @@ type OpPixelDisplay struct {
 	config  OpConfig
 	display Pixeldisplay
 	t2p     *text2pixeldisplay
+	name    string
 }
 
 var _ base.FreepsOperatorWithShutdown = &OpPixelDisplay{}
@@ -46,12 +47,13 @@ func (op *OpPixelDisplay) InitCopyOfOperator(ctx *base.Context, config interface
 	if err != nil {
 		return nil, err
 	}
-	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(disp)}
+	newOp := &OpPixelDisplay{config: *config.(*OpConfig), display: disp, t2p: NewText2Pixeldisplay(disp), name: name}
 	return newOp, nil
 }
 
-// StartListening is a noop
+// StartListening registers the display as a device with its actions.
 func (op *OpPixelDisplay) StartListening(ctx *base.Context) {
+	op.registerDevice(ctx)
 }
 
 // Shutdown shuts down the display
@@ -61,42 +63,66 @@ func (op *OpPixelDisplay) Shutdown(ctx *base.Context) {
 
 func (op *OpPixelDisplay) TurnOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return d.TurnOn()
+	res := d.TurnOn()
+	if !res.IsError() {
+		op.setSensorProperty(ctx, "isOn", true)
+	}
+	return res
 }
 
 func (op *OpPixelDisplay) TurnOff(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return d.TurnOff()
+	res := d.TurnOff()
+	if !res.IsError() {
+		op.setSensorProperty(ctx, "isOn", false)
+	}
+	return res
 }
 
 func (op *OpPixelDisplay) GetDimensions(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.GetDimensions())
+	dim := d.GetDimensions()
+	op.setSensorProperty(ctx, "width", dim.X)
+	op.setSensorProperty(ctx, "height", dim.Y)
+	return base.MakeObjectOutput(dim)
 }
 
 func (op *OpPixelDisplay) GetMaxPictureSize(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.GetMaxPictureSize())
+	maxSize := d.GetMaxPictureSize()
+	op.setSensorProperty(ctx, "maxWidth", maxSize.X)
+	op.setSensorProperty(ctx, "maxHeight", maxSize.Y)
+	return base.MakeObjectOutput(maxSize)
 }
 
 func (op *OpPixelDisplay) GetColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	colorStr := utils.GetHexColor(op.display.GetColor())
+	op.setSensorProperty(ctx, "color", colorStr)
 	return base.MakePlainOutput(colorStr)
 }
 
 func (op *OpPixelDisplay) GetBackgroundColor(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(utils.GetHexColor(d.GetBackgroundColor()))
+	colorStr := utils.GetHexColor(d.GetBackgroundColor())
+	op.setSensorProperty(ctx, "backgroundColor", colorStr)
+	return base.MakeObjectOutput(colorStr)
 }
 
 func (op *OpPixelDisplay) GetBrightness(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	return base.MakeObjectOutput(d.GetBrightness())
+	brightness := d.GetBrightness()
+	if brightness >= 0 {
+		// -1 means the device was unreachable, which is not a brightness to record
+		op.setSensorProperty(ctx, "brightness", brightness*100/255)
+	}
+	return base.MakeObjectOutput(brightness)
 }
 
 func (op *OpPixelDisplay) IsOn(ctx *base.Context, input *base.OperatorIO) *base.OperatorIO {
 	d := op.display
-	if d.IsOn() {
+	isOn := d.IsOn()
+	op.setSensorProperty(ctx, "isOn", isOn)
+	if isOn {
 		return base.MakeEmptyOutput()
 	}
 	return base.MakeOutputError(http.StatusExpectationFailed, "Display is off")
@@ -113,6 +139,7 @@ func (op *OpPixelDisplay) SetColor(ctx *base.Context, input *base.OperatorIO, ar
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
 	d.SetColor(c)
+	op.setSensorProperty(ctx, "color", utils.GetHexColor(c))
 	return base.MakeEmptyOutput()
 }
 
@@ -123,6 +150,7 @@ func (op *OpPixelDisplay) SetBackgroundColor(ctx *base.Context, input *base.Oper
 		return base.MakeOutputError(http.StatusBadRequest, "color %v not a valid hex color", args.Color)
 	}
 	d.SetBackgroundColor(c)
+	op.setSensorProperty(ctx, "backgroundColor", utils.GetHexColor(c))
 	return base.MakeEmptyOutput()
 }
 
@@ -132,7 +160,12 @@ type BrightnessArgs struct {
 
 func (op *OpPixelDisplay) SetBrightness(ctx *base.Context, input *base.OperatorIO, args BrightnessArgs) *base.OperatorIO {
 	d := op.display
-	return d.SetBrightness(args.Brightness)
+	res := d.SetBrightness(args.Brightness)
+	if !res.IsError() {
+		// the property is a percentage like the setBrightness action, the device counts 0-255
+		op.setSensorProperty(ctx, "brightness", args.Brightness*100/255)
+	}
+	return res
 }
 
 type TextArgs struct {
@@ -152,7 +185,11 @@ func (op *OpPixelDisplay) DrawText(ctx *base.Context, input *base.OperatorIO, ar
 	if args.Align != nil {
 		align = *args.Align
 	}
-	return op.t2p.DrawText(ctx, text, align)
+	res := op.t2p.DrawText(ctx, text, align)
+	if !res.IsError() {
+		op.setSensorProperty(ctx, "text", text)
+	}
+	return res
 }
 
 // EffectArgs is a struct to hold the effect to set
@@ -163,5 +200,9 @@ type EffectArgs struct {
 // SetEffect sets the effect
 func (op *OpPixelDisplay) SetEffect(ctx *base.Context, input *base.OperatorIO, args EffectArgs) *base.OperatorIO {
 	d := op.display
-	return d.SetEffect(args.Fx)
+	res := d.SetEffect(args.Fx)
+	if !res.IsError() {
+		op.setSensorProperty(ctx, "effect", args.Fx)
+	}
+	return res
 }

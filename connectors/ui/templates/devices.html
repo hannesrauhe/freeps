@@ -1,0 +1,110 @@
+<link rel="stylesheet" href="/chota.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+{{ $cat := "" }}
+{{ $prop := "" }}
+{{ $args := "" }}
+{{ $sensorArgs := "" }}
+{{ if .arguments.category }}
+    {{ $cat = .arguments.category }}
+    {{ $args = printf "DeviceCategory=%s" $cat }}
+    {{ $sensorArgs = printf "SensorCategory=%s" $cat }}
+{{ end }}
+{{ if .arguments.property }}
+    {{ $prop = .arguments.property }}
+{{ end }}
+
+<div class="container">
+<form method="GET" action="/ui/devices.html"  class="row">
+    <div class="col">
+        <label for="category">Category</label>
+        <select name="category" id="cat">
+            <option value="">All</option>
+{{ $categories := flow_ExecuteOperator "device" "GetDeviceCategories" ""}}
+{{ range $key, $entry := $categories.Output }}
+            <option value="{{$entry}}" {{ if eq $cat $entry }} selected {{end}}>{{$entry}}</option>
+{{ end }}
+        </select>
+    </div>
+    <div class="col">
+        <label for="property">Property</label>
+        <select name="property" id="prop">
+            <option value="">All</option>
+{{ $properties := flow_ExecuteOperator "device" "GetDevicesPerProperty" $args}}
+{{ range $property, $devices := $properties.Output }}
+            <option value="{{$property}}" {{ if eq $prop $property }} selected {{end}}>{{$property}}</option>
+{{ end }}
+        </select>
+    </div>
+    <div class="col">
+        <br />
+        <input type="submit" />
+    </div>
+</form>
+</div>
+
+<table class="striped">
+{{ if eq $prop "" }}
+<tr><th>Alias</th><th>Properties</th><th>Actions</th></tr>
+    {{ $devices := flow_ExecuteOperator "device" "GetSensorsPerCategory" $sensorArgs}}
+    {{ range $category, $catMap := $devices.Output }}
+    <tr><td colspan="3">{{ $category }}</td></tr>
+        {{ range $key, $name := $catMap }}
+    <tr>
+        <!--<td><a href="/ui/devices.html?category={{$cat}}">{{$cat}}</a>.test</td>-->
+            {{ $id := printf "%s.%s" $category $name }}
+            {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $category }}
+            {{ $deviceAlias := flow_ExecuteOperator "device" "GetSensorAlias" $nameArgs }}
+        <td><a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}" title="{{ $id }}"> {{ $deviceAlias.Output }} </a></td>
+        <td>
+            {{ $deviceProps := flow_ExecuteOperator "device" "GetSensorPropertyKeys" $nameArgs }}
+            {{ range $key, $property := $deviceProps.Output }}
+            <a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}.{{ $property }}">  {{ $property }} </a>
+            {{ end }} <!-- This is the end of the range loop that iterates over the device properties -->
+        </td>
+        <td>
+            {{ $actionArgs := printf "DeviceName=%s&DeviceCategory=%s" $name $category }}
+            {{ $actions := flow_ExecuteOperator "device" "GetActions" $actionArgs }}
+            {{ if eq $actions.HTTPCode 200 }}
+            {{ range $actionName, $info := $actions.Output }}
+            <a href="/device/executeAction?deviceCategory={{$category}}&deviceName={{$name}}&actionName={{$actionName}}">{{ $actionName }}</a>
+            {{ end }}
+            {{ end }}
+        </td>
+    </tr>
+        {{ end }} <!-- This is the end of the range loop that iterates over the devices -->
+    {{ end }} <!-- This is the end of the range loop that iterates over the categories -->
+{{ else }}
+<tr><th>Alias</th><th>{{ $prop }}</th><th>Actions</th></tr>
+    {{ $devices := flow_ExecuteOperator "device" "GetSensorsPerCategory" $sensorArgs}}
+    {{ range $category, $catMap := $devices.Output }}
+    <tr><td colspan="3">{{ $category }}</td></tr>
+        {{ range $key, $name := $catMap }}
+            {{ $propArgs := printf "SensorName=%s&SensorCategory=%s&PropertyName=%s" $name $category $prop}}
+            {{ $deviceProp := flow_ExecuteOperator "device" "GetSensorProperty" $propArgs }}
+            {{ if ne $deviceProp.HTTPCode 404 }}
+    <tr>
+        <!--<td><a href="/ui/devices.html?category={{$cat}}">{{$cat}}</a>.test</td>-->
+                {{ $id := printf "%s.%s" $category $name }}
+                {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $category }}
+                {{ $deviceAlias := flow_ExecuteOperator "device" "GetSensorAlias" $nameArgs }}
+        <td><a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}" title="{{ $id }}"> {{ $deviceAlias.Output }} </a></td>
+        <td>
+            <a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}.{{ $prop }}">  {{ $deviceProp.Output }} </a>
+        </td>
+        <td>
+            {{ $actionArgs := printf "DeviceName=%s&DeviceCategory=%s" $name $category }}
+            {{ $actions := flow_ExecuteOperator "device" "GetActions" $actionArgs }}
+            {{ if eq $actions.HTTPCode 200 }}
+            {{ range $actionName, $info := $actions.Output }}
+            <a href="/device/executeAction?deviceCategory={{$category}}&deviceName={{$name}}&actionName={{$actionName}}">{{ $actionName }}</a>
+            {{ end }}
+            {{ end }}
+        </td>
+    </tr>
+            {{ end }} <!-- This is the end of the if statement that checks if the device property exists -->
+        {{ end }} <!-- This is the end of the range loop that iterates over the devices -->
+    {{ end }} <!-- This is the end of the range loop that iterates over the categories -->
+{{ end }} <!-- This is the end of the if statement that checks if the requested property is empty -->
+</table>
