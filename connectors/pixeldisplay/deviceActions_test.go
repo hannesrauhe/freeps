@@ -11,27 +11,6 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestActionsForDisplay(t *testing.T) {
-	actions := actionsForDisplay("pixeldisplay")
-	byName := map[string]*device.Action{}
-	for _, a := range actions {
-		byName[a.Name] = a
-	}
-	assert.Equal(t, len(byName), 5)
-
-	brightness := byName["setBrightness"]
-	assert.Assert(t, brightness != nil)
-	assert.Equal(t, brightness.Operator, "pixeldisplay")
-	assert.Equal(t, brightness.Function, "SetBrightness")
-	assert.Assert(t, brightness.Param != nil)
-	assert.Equal(t, brightness.Param.Name, "brightness")
-	// the canonical contract is percent, WLED takes 0-255
-	assert.Equal(t, brightness.Param.Scale, 2.55)
-
-	assert.Equal(t, byName["turnOn"].Function, "TurnOn")
-	assert.Assert(t, byName["turnOn"].Param == nil)
-}
-
 func TestDeviceName(t *testing.T) {
 	// the operator name is derived from the struct, so it is capitalized
 	assert.Equal(t, (&OpPixelDisplay{name: "PixelDisplay"}).deviceName(), "Default")

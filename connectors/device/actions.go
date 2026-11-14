@@ -32,7 +32,7 @@ func (p ActionParam) rawName() string {
 
 // Action is a command that can be executed on a device, as plain data so any source can produce it.
 type Action struct {
-	Name     string
+	Name     string            `doc:"canonical name of the action"`
 	Operator string            `doc:"target operator of the action"`
 	Function string            `doc:"target function in that operator"`
 	Fixed    map[string]string `json:",omitempty" doc:"always-sent args, they win over the caller value"`

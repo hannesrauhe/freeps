@@ -26,12 +26,12 @@ func (op *OpPixelDisplay) deviceName() string {
 // actionsForDisplay exposes the display's own operator functions as readable actions. Pure, so it needs no device.
 func actionsForDisplay(operatorName string) []*device.Action {
 	return []*device.Action{
-		{Name: "turnOn", Operator: operatorName, Function: "TurnOn"},
-		{Name: "turnOff", Operator: operatorName, Function: "TurnOff"},
+		{Name: device.ActionTurnOn, Operator: operatorName, Function: "TurnOn"},
+		{Name: device.ActionTurnOff, Operator: operatorName, Function: "TurnOff"},
+		{Name: device.ActionSetColor, Operator: operatorName, Function: "SetColor",
+			Param: &device.ActionParam{Name: "color", Type: "string", Doc: "hex color, e.g. #ff0000"}},
 		{Name: "setBrightness", Operator: operatorName, Function: "SetBrightness",
 			Param: &device.ActionParam{Name: "brightness", Type: "int", Scale: 2.55, Doc: "brightness in percent"}},
-		{Name: "setColor", Operator: operatorName, Function: "SetColor",
-			Param: &device.ActionParam{Name: "color", Type: "string", Doc: "hex color, e.g. #ff0000"}},
 		{Name: "drawText", Operator: operatorName, Function: "DrawText",
 			Param: &device.ActionParam{Name: "text", Type: "string"}},
 	}
