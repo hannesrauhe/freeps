@@ -195,6 +195,36 @@ func TestTriggers(t *testing.T) {
 	assert.Equal(t, i, 3)
 }
 
+func TestSetSensorPropertiesInternalNoTrigger(t *testing.T) {
+	op, ctx := initSensorOp(t)
+	ge := op.GE
+
+	flow := "testflowNoTrigger"
+	assert.NilError(t, ge.AddFlow(ctx, flow, createTestFlow(flow), false))
+
+	testCat := "testcatnotrigger"
+	testProp := "name"
+	testSensor := "test_device"
+
+	out := op.SetSensorTrigger(ctx, base.MakeEmptyOutput(), device.SetTriggerArgs{FlowID: flow, ChangedProperty: &testProp})
+	assert.Assert(t, !out.IsError())
+
+	ns, err := freepsstore.GetGlobalStore().GetNamespace("test")
+	assert.NilError(t, err)
+	ns.DeleteOlder(time.Duration(0))
+
+	assert.NilError(t, op.SetSensorPropertiesInternalNoTrigger(ctx, testCat, testSensor, map[string]interface{}{testProp: "Device Name"}))
+
+	assert.Assert(t, ns.GetValue(flow) == freepsstore.NotFoundEntry)
+
+	v := op.GetSensorProperty(ctx, base.MakeEmptyOutput(), device.GetSensorArgs{SensorName: testSensor, SensorCategory: testCat, PropertyName: &testProp})
+	assert.Equal(t, v.GetString(), "Device Name")
+
+	/* the triggering setter still triggers on the same property */
+	assert.NilError(t, op.SetSensorPropertiesInternal(ctx, testCat, testSensor, map[string]interface{}{testProp: "New Name"}))
+	assert.Assert(t, ns.GetValue(flow) != freepsstore.NotFoundEntry)
+}
+
 func setSensorPropertyHelper(t *testing.T, op *device.OpDevice, ctx *base.Context, sensorCat string, sensorName string, sensorProperty string, value interface{}) {
 	res := op.SetSingleSensorProperty(ctx, base.MakeOutputInferType(value), device.SetSensorPropertyArgs{SensorName: sensorName, SensorCategory: sensorCat, PropertyName: sensorProperty})
 	assert.Assert(t, !res.IsError())

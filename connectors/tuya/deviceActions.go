@@ -143,7 +143,7 @@ func (o *OpTuya) registerDeviceActions(ctx *base.Context, name string) {
 	cfg := o.config.Devices[name]
 	if cfg.Name != "" {
 		props := map[string]interface{}{"name": cfg.Name}
-		if err := opSensor.SetSensorPropertiesInternal(ctx, o.config.SensorCategory, name, props); err != nil {
+		if err := opSensor.SetSensorPropertiesInternalNoTrigger(ctx, o.config.SensorCategory, name, props); err != nil {
 			ctx.GetLogger().Errorf("Failed to set name for tuya device %v: %v", name, err)
 		}
 	}

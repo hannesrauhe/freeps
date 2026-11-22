@@ -157,21 +157,29 @@ func (o *OpDevice) setSensorPropertyNoTrigger(ctx *base.Context, input *base.Ope
 }
 
 func (o *OpDevice) setSensorProperties(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) *base.OperatorIO {
+	updatedProperties, out := o.setSensorPropertiesNoTrigger(ctx, sensorCategory, sensorName, properties)
+	if out.IsError() {
+		return out
+	}
+	if len(updatedProperties) > 0 {
+		o.recordUpdatesAndTrigger(ctx, sensorCategory, sensorName, updatedProperties)
+	}
+	return base.MakeEmptyOutput()
+}
+
+// setSensorPropertiesNoTrigger writes the properties and returns the ones that actually changed, without triggering flows.
+func (o *OpDevice) setSensorPropertiesNoTrigger(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) (map[string]interface{}, *base.OperatorIO) {
 	updatedProperties := map[string]interface{}{}
 	for k, v := range properties {
 		out, _, _, updated := o.setSensorPropertyNoTrigger(ctx, base.MakeOutputGuessType(v), sensorCategory, sensorName, k)
 		if out.IsError() {
-			return out
+			return nil, out
 		}
 		if updated {
 			updatedProperties[k] = v
 		}
 	}
-	if len(updatedProperties) > 0 {
-
-		o.recordUpdatesAndTrigger(ctx, sensorCategory, sensorName, updatedProperties)
-	}
-	return base.MakeEmptyOutput()
+	return updatedProperties, base.MakeEmptyOutput()
 }
 
 func (o *OpDevice) getSensorPropertyByID(sensorID string, sensorProperty string) *base.OperatorIO {

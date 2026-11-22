@@ -55,7 +55,7 @@ func (op *OpPixelDisplay) registerDevice(ctx *base.Context) {
 		ctx.GetLogger().Debugf("sensor integration not available, cannot register pixeldisplay device")
 		return
 	}
-	if err := opSensor.SetSensorPropertiesInternal(ctx, deviceCategory, op.deviceName(),
+	if err := opSensor.SetSensorPropertiesInternalNoTrigger(ctx, deviceCategory, op.deviceName(),
 		map[string]interface{}{"name": op.deviceName()}); err != nil {
 		ctx.GetLogger().Errorf("Failed to register pixeldisplay device: %v", err)
 	}

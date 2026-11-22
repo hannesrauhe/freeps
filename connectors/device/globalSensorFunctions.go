@@ -61,3 +61,13 @@ func (op *OpDevice) SetSensorPropertiesInternal(ctx *base.Context, sensorCategor
 	}
 	return nil
 }
+
+// SetSensorPropertiesInternalNoTrigger sets sensor properties without triggering flows or influx writes.
+// Intended for identity metadata (e.g. "name") that no flow should react to, especially at startup.
+func (op *OpDevice) SetSensorPropertiesInternalNoTrigger(ctx *base.Context, sensorCategory string, sensorName string, properties map[string]interface{}) error {
+	_, result := op.setSensorPropertiesNoTrigger(ctx, sensorCategory, sensorName, properties)
+	if result.IsError() {
+		return result.GetError()
+	}
+	return nil
+}
