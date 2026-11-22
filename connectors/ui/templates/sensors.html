@@ -55,11 +55,11 @@
             {{ $id := printf "%s.%s" $category $name }}
             {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $category }}
             {{ $sensorAlias := flow_ExecuteOperator "sensor" "GetSensorAlias" $nameArgs }}
-        <td><a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
+        <td><a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
         <td>
             {{ $sensorProps := flow_ExecuteOperator "sensor" "GetSensorPropertyKeys" $nameArgs }}
             {{ range $key, $property := $sensorProps.Output }}
-            <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $property }}">  {{ $property }} </a>
+            <a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}.{{ $property }}">  {{ $property }} </a>
             {{ end }} <!-- This is the end of the range loop that iterates over the sensor properties -->
         </td>
     </tr>
@@ -79,9 +79,9 @@
                 {{ $id := printf "%s.%s" $category $name }}
                 {{ $nameArgs := printf "SensorName=%s&SensorCategory=%s" $name $category }}
                 {{ $sensorAlias := flow_ExecuteOperator "sensor" "GetSensorAlias" $nameArgs }}
-        <td><a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
+        <td><a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}" title="{{ $id }}"> {{ $sensorAlias.Output }} </a></td>
         <td>
-            <a href="/ui/storeSingle.html?namespace=_sensors&key={{ $id }}.{{ $prop }}">  {{ $sensorProp.Output }} </a>
+            <a href="/ui/storeSingle.html?namespace=_devices&key={{ $id }}.{{ $prop }}">  {{ $sensorProp.Output }} </a>
         </td>
     </tr>
             {{ end }} <!-- This is the end of the if statement that checks if the sensor property exists -->

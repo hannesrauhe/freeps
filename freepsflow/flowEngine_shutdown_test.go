@@ -10,12 +10,13 @@ import (
 )
 
 /*
-Regression tests for the shutdown deadlock: FlowEngine.Shutdown must not hold the
-internal operator lock while calling Shutdown on the operators. Operators may block
-in Shutdown until one of their background goroutines finishes, and those goroutines
-may call back into the engine (e.g. GetOperator). Since the lock is not reentrant,
-holding it during Shutdown leads to a permanent deadlock (observed with the telegram
-operator, which waits for its update loop to finish).
+Regression tests for the shutdown and startup deadlocks: FlowEngine.Shutdown and
+FlowEngine.StartListening must not hold the internal operator lock while calling into
+the operators. Operators may block there until one of their background goroutines
+finishes, or may call back into the engine themselves (e.g. GetOperator while running
+a flow triggered by a sensor they register). Since the lock is not reentrant, holding
+it during those calls leads to a permanent deadlock (observed with the telegram
+operator on shutdown, and with device registration on startup).
 */
 
 // reentrantOp calls back into the flow engine from its Shutdown function.
@@ -120,5 +121,47 @@ func TestShutdownWithBlockedListenerGoroutine(t *testing.T) {
 	case <-op.done:
 	case <-time.After(time.Second):
 		t.Fatal("listener goroutine did not complete shutdown")
+	}
+}
+
+// reentrantListenerOp calls back into the flow engine from StartListening, like an
+// operator that registers devices there and thereby triggers a flow.
+type reentrantListenerOp struct {
+	ge *freepsflow.FlowEngine
+}
+
+func (*reentrantListenerOp) Execute(ctx *base.Context, fn string, fa base.FunctionArguments, input *base.OperatorIO) *base.OperatorIO {
+	return input
+}
+func (*reentrantListenerOp) GetFunctions() []string             { return []string{} }
+func (*reentrantListenerOp) GetPossibleArgs(fn string) []string { return []string{} }
+func (*reentrantListenerOp) GetArgSuggestions(fn string, arg string, otherArgs base.FunctionArguments) map[string]string {
+	return map[string]string{}
+}
+func (*reentrantListenerOp) GetName() string      { return "reentrantlistener" }
+func (*reentrantListenerOp) GetHook() interface{} { return nil }
+func (*reentrantListenerOp) Shutdown(ctx *base.Context) {
+}
+func (o *reentrantListenerOp) GetArgumentDescriptions(fn string) []base.ArgumentDescription {
+	return nil
+}
+func (o *reentrantListenerOp) StartListening(ctx *base.Context) {
+	o.ge.GetOperator("reentrantlistener")
+}
+
+func TestStartListeningWithEngineReentrantOperator(t *testing.T) {
+	ctx := base.NewBaseContextWithReason(log.StandardLogger(), "")
+	ge := freepsflow.NewFlowEngine(ctx, nil, func() {})
+	ge.AddOperator(&reentrantListenerOp{ge: ge})
+
+	done := make(chan struct{})
+	go func() {
+		ge.StartListening(ctx)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("FlowEngine.StartListening did not return within 5 seconds - deadlock?")
 	}
 }

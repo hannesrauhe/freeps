@@ -535,23 +535,24 @@ func (ge *FlowEngine) GetMetrics() FlowEngineMetrics {
 	return ge.metrics
 }
 
-// StartListening starts all listening operators
+// StartListening starts all listening operators.
+//
+// The operatorLock is deliberately released before calling StartListening on the
+// individual operators: an operator that registers devices or sensors there may
+// trigger flows, and flow execution calls back into the engine (GetOperator).
+// Since operatorLock is not reentrant, holding it here would deadlock.
 func (ge *FlowEngine) StartListening(pctx *base.Context) {
 	defer ge.TriggerFlowChangedHooks(pctx, []string{}, []string{})
-	ge.operatorLock.Lock()
-	defer ge.operatorLock.Unlock()
 
-	for _, op := range ge.operators {
-		if op != nil {
-			ctx := pctx.ChildContextWithField("operatorListener", op.GetName())
-			op.StartListening(ctx)
-		}
+	for _, op := range ge.getOperatorSnapshot() {
+		ctx := pctx.ChildContextWithField("operatorListener", op.GetName())
+		op.StartListening(ctx)
 	}
 }
 
 // getOperatorSnapshot returns a copy of the operator list to reduce the time
-// the operatorLock is held. Operators must not be locked while their Shutdown
-// is executed, see Shutdown.
+// the operatorLock is held. Operators must not be locked while their StartListening
+// or Shutdown is executed, see those functions.
 func (ge *FlowEngine) getOperatorSnapshot() []base.FreepsBaseOperator {
 	ge.operatorLock.Lock()
 	defer ge.operatorLock.Unlock()

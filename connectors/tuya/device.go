@@ -156,8 +156,8 @@ func (d *Device) controlPayloadBytes(dps map[string]interface{}) ([]byte, error)
 // the device expects as CONTROL_NEW (cmd 13) inside a version-5 envelope with
 // a numeric "t" (payload layout verified against tinytuya 1.20).
 type controlNewPayload struct {
-	Protocol int    `json:"protocol"`
-	T        int64  `json:"t"`
+	Protocol int   `json:"protocol"`
+	T        int64 `json:"t"`
 	Data     struct {
 		DPS map[string]interface{} `json:"dps"`
 	} `json:"data"`
